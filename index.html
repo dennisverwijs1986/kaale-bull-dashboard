@@ -113,9 +113,12 @@
 </div>
 
 <script>
-    const SUPABASE_URL = "https://JOUW_PROJECT_ID.supabase.co"; 
-    const SUPABASE_KEY = "JOUW_ANON_PUBLIC_KEY";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SUPABASE_URL = "https://ctxurzqtglckairgbjno.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ";
+  
+  // Let op: hier staat nu 'supabaseClient' in plaats van twee keer 'supabase'
+  const supabase = supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
 
     let activeMatches = { 1: { id: null, isBeker: false }, 2: { id: null, isBeker: false }, 3: { id: null, isBeker: false }, 4: { id: null, isBeker: false } };
     
