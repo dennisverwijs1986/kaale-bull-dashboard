@@ -113,9 +113,11 @@
 </div>
 
 <script>
-    const SUPABASE_URL = "https://JOUW_PROJECT_ID.supabase.co"; 
-    const SUPABASE_KEY = "JOUW_ANON_PUBLIC_KEY";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_URL = "https://wbtfbybnnvbyvymvlbzz.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidGZieWJubnZieXZ5bXZsYnp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxMjQ1NDIsImV4cCI6MjA1ODcwMDU0Mn0.U_AmsS-bI3Zg3iZ4p_p7n3wV5U3gG3k7ZWh6XwR8680";
+    
+    // Initialisatie via de CDN bibliotheek
+    const supabase = supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let activeMatches = { 1: { id: null, isBeker: false }, 2: { id: null, isBeker: false }, 3: { id: null, isBeker: false }, 4: { id: null, isBeker: false } };
     
