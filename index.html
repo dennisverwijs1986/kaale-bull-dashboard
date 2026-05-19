@@ -1,274 +1,715 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kaale Bull Dart Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --bg-color: #1a1a2e;
-            --card-bg: #162447;
-            --accent: #e43f5a;
-            --text-color: #ffffff;
-            --text-muted: #95a5a6;
-            --success: #2ecc71;
-        }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
+<title>De Kaale Bull • Live Dart Dashboard</title>
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-        }
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-        header {
-            display: block;
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid var(--card-bg);
-            position: relative;
-        }
+<style>
+:root{
+    --bg:#07111f;
+    --bg2:#0d1b2d;
+    --panel:rgba(17,27,43,.88);
+    --panel-border:rgba(255,255,255,.08);
 
-        header h1 {
-            margin: 0 0 10px 0;
-            font-size: 28px;
-            letter-spacing: 1px;
-        }
+    --accent:#ff2b2b;
+    --blue:#1ea7ff;
+    --green:#21d07a;
+    --orange:#ff9f1a;
 
-        .status-badge {
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            background-color: var(--success);
-            color: black;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-        }
+    --text:#ffffff;
+    --muted:#9fb3c8;
 
-        .dashboard-container {
-            display: block;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+}
 
-        /* Borden / Banen Grid */
-        .boards-grid {
-            display: block;
-            margin-bottom: 40px;
-        }
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
 
-        .board-card {
-            display: inline-block;
-            width: 31%;
-            margin: 1%;
-            background-color: var(--card-bg);
-            border-radius: 8px;
-            padding: 20px;
-            vertical-align: top;
-            border-left: 5px solid var(--accent);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
+body{
+    font-family:Arial, Helvetica, sans-serif;
+    background:
+        radial-gradient(circle at top left, rgba(30,167,255,.12), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(255,43,43,.10), transparent 35%),
+        linear-gradient(135deg,var(--bg),var(--bg2));
+    color:var(--text);
+    min-height:100vh;
+    overflow-x:hidden;
+}
 
-        @media (max-width: 900px) {
-            .board-card { width: 48%; }
-        }
-        @media (max-width: 600px) {
-            .board-card { width: 98%; }
-        }
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background-image:
+        linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px);
+    background-size:40px 40px;
+    pointer-events:none;
+}
 
-        .board-card h3 {
-            margin: 0 0 15px 0;
-            color: var(--accent);
-            font-size: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 5px;
-        }
+.container{
+    width:min(1800px,95%);
+    margin:auto;
+    padding:24px;
+}
 
-        .match-details {
-            font-size: 16px;
-            line-height: 1.5;
-        }
+/* HEADER */
 
-        .match-details div {
-            margin-bottom: 8px;
-        }
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    padding:22px 28px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:24px;
+    backdrop-filter:blur(12px);
+    box-shadow:var(--shadow);
+    margin-bottom:24px;
+}
 
-        .player-vs {
-            font-weight: bold;
-            font-size: 18px;
-        }
+.brand{
+    display:flex;
+    flex-direction:column;
+}
 
-        /* Wachtrij / Wedstrijden Sectie */
-        .queue-section {
-            background-color: var(--card-bg);
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-        }
+.brand h1{
+    font-size:2rem;
+    letter-spacing:1px;
+    font-weight:900;
+}
 
-        .queue-section h2 {
-            margin: 0 0 20px 0;
-            font-size: 22px;
-            border-left: 4px solid var(--accent);
-            padding-left: 10px;
-        }
+.brand span{
+    color:var(--muted);
+    margin-top:4px;
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
+.header-right{
+    display:flex;
+    align-items:center;
+    gap:16px;
+}
 
-        th, td {
-            padding: 12px 15px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
+.live-clock{
+    font-size:2rem;
+    font-weight:800;
+}
 
-        th {
-            background-color: rgba(0,0,0,0.2);
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 13px;
-        }
+.status-badge{
+    padding:10px 18px;
+    border-radius:999px;
+    font-size:.9rem;
+    font-weight:700;
+    letter-spacing:.5px;
+}
 
-        tr:hover {
-            background-color: rgba(255,255,255,0.05);
-        }
+.status-online{
+    background:rgba(33,208,122,.15);
+    border:1px solid rgba(33,208,122,.35);
+    color:var(--green);
+}
 
-        .loading, .empty-msg {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-muted);
-            font-size: 16px;
-            font-style: italic;
-        }
-    </style>
+.status-offline{
+    background:rgba(255,43,43,.15);
+    border:1px solid rgba(255,43,43,.35);
+    color:var(--accent);
+}
+
+/* LIVE BOARDS */
+
+.section-title{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin:30px 0 18px;
+}
+
+.section-title h2{
+    font-size:1.4rem;
+}
+
+.live-dot{
+    width:12px;
+    height:12px;
+    background:var(--accent);
+    border-radius:50%;
+    animation:pulse 1.2s infinite;
+}
+
+@keyframes pulse{
+    0%{transform:scale(1);opacity:1;}
+    50%{transform:scale(1.35);opacity:.5;}
+    100%{transform:scale(1);opacity:1;}
+}
+
+.boards-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:20px;
+}
+
+.board{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:24px;
+    padding:24px;
+    position:relative;
+    overflow:hidden;
+    backdrop-filter:blur(12px);
+    box-shadow:var(--shadow);
+    min-height:260px;
+}
+
+.board::after{
+    content:"";
+    position:absolute;
+    top:-80px;
+    right:-80px;
+    width:180px;
+    height:180px;
+    background:radial-gradient(circle, rgba(255,43,43,.12), transparent 70%);
+}
+
+.board-number{
+    font-size:3rem;
+    font-weight:900;
+    color:rgba(255,255,255,.08);
+    position:absolute;
+    top:10px;
+    right:20px;
+}
+
+.board-status{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 14px;
+    border-radius:999px;
+    font-size:.8rem;
+    font-weight:700;
+    margin-bottom:22px;
+}
+
+.board-live{
+    background:rgba(255,43,43,.15);
+    color:var(--accent);
+    border:1px solid rgba(255,43,43,.3);
+}
+
+.board-free{
+    background:rgba(255,255,255,.05);
+    color:var(--muted);
+    border:1px solid rgba(255,255,255,.08);
+}
+
+.division{
+    color:var(--blue);
+    font-weight:700;
+    margin-bottom:16px;
+}
+
+.teams{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    margin:20px 0;
+}
+
+.team{
+    font-size:1.5rem;
+    font-weight:800;
+}
+
+.vs{
+    color:var(--muted);
+    font-size:.9rem;
+    letter-spacing:2px;
+}
+
+.board-footer{
+    margin-top:24px;
+    display:flex;
+    justify-content:space-between;
+    color:var(--muted);
+    font-size:.9rem;
+}
+
+/* PROGRAMMA */
+
+.programma{
+    margin-top:40px;
+}
+
+.programma-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    gap:16px;
+}
+
+.match-card{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:18px;
+    padding:18px;
+    backdrop-filter:blur(12px);
+}
+
+.match-top{
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:14px;
+}
+
+.match-time{
+    color:var(--blue);
+    font-weight:800;
+}
+
+.match-division{
+    color:var(--muted);
+    font-size:.9rem;
+}
+
+.match-teams{
+    line-height:1.7;
+}
+
+.match-footer{
+    margin-top:14px;
+    font-size:.85rem;
+    color:var(--muted);
+}
+
+.inhaal{
+    color:var(--orange);
+    font-weight:700;
+}
+
+/* TICKER */
+
+.ticker-wrap{
+    margin-top:30px;
+    overflow:hidden;
+    border-radius:18px;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.05);
+}
+
+.ticker{
+    white-space:nowrap;
+    padding:14px 0;
+    display:inline-block;
+    animation:ticker 40s linear infinite;
+    font-weight:700;
+}
+
+@keyframes ticker{
+    from{transform:translateX(100%);}
+    to{transform:translateX(-100%);}
+}
+
+/* EMPTY */
+
+.empty{
+    background:rgba(255,255,255,.04);
+    border:1px dashed rgba(255,255,255,.12);
+    border-radius:18px;
+    padding:24px;
+    color:var(--muted);
+    text-align:center;
+}
+
+/* RESPONSIVE */
+
+@media(max-width:900px){
+
+    .header{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .live-clock{
+        font-size:1.5rem;
+    }
+
+    .team{
+        font-size:1.2rem;
+    }
+
+}
+</style>
 </head>
+
 <body>
 
-    <header>
-        <h1>🎯 Cafetaria De Kaale Bull - Dart Dashboard</h1>
-        <div id="status-badge" class="status-badge">SUPABASE LIVE</div>
-    </header>
+<div class="container">
 
-    <div class="dashboard-container">
-        
-        <div id="boards-container" class="boards-grid">
-            <div class="loading">Borden worden opgebouwd...</div>
+    <!-- HEADER -->
+
+    <div class="header">
+
+        <div class="brand">
+            <h1>🎯 DE KAALE BULL</h1>
+            <span>Live Dart Dashboard</span>
         </div>
 
-        <div class="queue-section">
-            <h2>Wachtrij / Programma</h2>
-            <div id="queue-container">
-                <table id="matches-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Ronde</th>
-                            <th>Divisie</th>
-                            <th>Thuis</th>
-                            <th>Uit</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="matches-tbody">
-                        </tbody>
-                </table>
-                <div id="queue-loading" class="loading">Wedstrijden laden uit Supabase...</div>
-                <div id="queue-empty" class="empty-msg" style="display: none;">Geen geplande wedstrijden gevonden voor vandaag.</div>
+        <div class="header-right">
+            <div class="live-clock" id="clock">00:00</div>
+
+            <div class="status-badge status-online" id="statusBadge">
+                SUPABASE LIVE
             </div>
         </div>
 
     </div>
 
-    <script>
-        // Supabase initialisatie
-        const SUPABASE_URL = "https://wbtfbybnnvbyvymvlbzz.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidGZieWJubnZieXZ5bXZsYnp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxMjQ1NDIsImV4cCI6MjA1ODcwMDU0Mn0.U_AmsS-bI3Zg3iZ4p_p7n3wV5U3gG3k7ZWh6XwR8680";
-        
-        const supabase = supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY);
-        let wedstrijdenData = [];
+    <!-- LIVE BORDEN -->
 
-        // Update borden op basis van live wedstrijden
-        function updateBorden() {
-            const boardsContainer = document.getElementById('boards-container');
-            boardsContainer.innerHTML = ''; 
+    <div class="section-title">
+        <div class="live-dot"></div>
+        <h2>Live Wedstrijden</h2>
+    </div>
 
-            // Filter op wedstrijden met status 'bezig' of 'Live'
-            const actieveWedstrijden = wedstrijdenData.filter(w => w.status === 'bezig' || w.status === 'Live');
+    <div class="boards-grid" id="boardsContainer"></div>
 
-            for (let i = 1; i <= 3; i++) {
-                const wedstrijdVoorBord = actieveWedstrijden[i - 1];
-                const boardCard = document.createElement('div');
-                boardCard.className = 'board-card';
+    <!-- TICKER -->
 
-                if (wedstrijdVoorBord) {
-                    boardCard.innerHTML = `
-                        <h3>Bord ${i}</h3>
-                        <div class="match-details">
-                            <div class="player-vs">${wedstrijdVoorBord.thuis} VS ${wedstrijdVoorBord.uit}</div>
-                            <div><strong>Divisie:</strong> ${wedstrijdVoorBord.divisie || 'Geen'}</div>
-                            <div><strong>Ronde:</strong> ${wedstrijdVoorBord.ronde || '-'}</div>
+    <div class="ticker-wrap">
+        <div class="ticker" id="ticker">
+            Laden van wedstrijden...
+        </div>
+    </div>
+
+    <!-- PROGRAMMA -->
+
+    <div class="programma">
+
+        <div class="section-title">
+            <h2>Programma</h2>
+        </div>
+
+        <div class="programma-grid" id="programmaContainer"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+/* =========================================
+   SUPABASE CONFIG
+========================================= */
+
+const SUPABASE_URL = "JOUW_SUPABASE_URL";
+const SUPABASE_KEY = "JOUW_SUPABASE_ANON_KEY";
+
+const supabase =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+/* =========================================
+   CLOCK
+========================================= */
+
+function updateClock(){
+
+    const now = new Date();
+
+    document.getElementById("clock").innerHTML =
+        now.toLocaleTimeString("nl-NL", {
+            hour:'2-digit',
+            minute:'2-digit'
+        });
+
+}
+
+setInterval(updateClock,1000);
+updateClock();
+
+/* =========================================
+   DATA
+========================================= */
+
+async function haalDataOp(){
+
+    try{
+
+        const { data, error } = await supabase
+            .from('wedstrijden')
+            .select('*')
+            .order('tijd', { ascending:true });
+
+        if(error) throw error;
+
+        document.getElementById("statusBadge")
+            .className =
+            "status-badge status-online";
+
+        document.getElementById("statusBadge")
+            .innerHTML =
+            "SUPABASE LIVE";
+
+        renderBoards(data);
+        renderProgramma(data);
+        renderTicker(data);
+
+    }
+    catch(err){
+
+        console.error(err);
+
+        document.getElementById("statusBadge")
+            .className =
+            "status-badge status-offline";
+
+        document.getElementById("statusBadge")
+            .innerHTML =
+            "OFFLINE ERROR";
+    }
+
+}
+
+/* =========================================
+   LIVE BOARDS
+========================================= */
+
+function renderBoards(data){
+
+    const container =
+        document.getElementById("boardsContainer");
+
+    container.innerHTML = "";
+
+    const liveMatches =
+        data.filter(w =>
+            w.status === 'bezig' ||
+            w.status === 'Live'
+        );
+
+    for(let i=0;i<4;i++){
+
+        const match = liveMatches[i];
+
+        if(match){
+
+            container.innerHTML += `
+                <div class="board">
+
+                    <div class="board-number">
+                        ${i+1}
+                    </div>
+
+                    <div class="board-status board-live">
+                        ● LIVE
+                    </div>
+
+                    <div class="division">
+                        ${match.divisie || '-'}
+                    </div>
+
+                    <div class="teams">
+                        <div class="team">
+                            ${match.thuis}
                         </div>
-                    `;
-                } else {
-                    boardCard.innerHTML = `
-                        <h3>Bord ${i}</h3>
-                        <div class="match-details" style="color: var(--text-muted); font-style: italic;">
-                            Bord is momenteel vrij
+
+                        <div class="vs">
+                            VS
                         </div>
-                    `;
-                }
-                boardsContainer.appendChild(boardCard);
-            }
+
+                        <div class="team">
+                            ${match.uit}
+                        </div>
+                    </div>
+
+                    <div class="board-footer">
+                        <span>
+                            Ronde ${match.ronde || '-'}
+                        </span>
+
+                        <span>
+                            ${match.tijd || ''}
+                        </span>
+                    </div>
+
+                </div>
+            `;
+
+        } else {
+
+            container.innerHTML += `
+                <div class="board">
+
+                    <div class="board-number">
+                        ${i+1}
+                    </div>
+
+                    <div class="board-status board-free">
+                        Bord Vrij
+                    </div>
+
+                    <div class="teams">
+                        <div class="team">
+                            Geen actieve wedstrijd
+                        </div>
+                    </div>
+
+                </div>
+            `;
+
         }
 
-        // Update de tabel met de wachtrij
-        function updateWachtrij() {
-            const tbody = document.getElementById('matches-tbody');
-            const table = document.getElementById('matches-table');
-            const loadingDiv = document.getElementById('queue-loading');
-            const emptyDiv = document.getElementById('queue-empty');
+    }
 
-            tbody.innerHTML = ''; 
-            loadingDiv.style.display = 'none';
+}
 
-            // Filter wedstrijden die NIET gespeeld en NIET live zijn
-            const wachtrijWedstrijden = wedstrijdenData.filter(w => w.status !== 'gespeeld' && w.status !== 'bezig' && w.status !== 'Live');
+/* =========================================
+   PROGRAMMA
+========================================= */
 
-            if (wachtrijWedstrijden.length === 0) {
-                table.style.display = 'none';
-                emptyDiv.style.display = 'block';
-                return;
-            }
+function renderProgramma(data){
 
-            table.style.display = 'table';
-            emptyDiv.style.display = 'none';
+    const container =
+        document.getElementById("programmaContainer");
 
-            wachtrijWedstrijden.forEach(w => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${w.ronde || '-'}</td>
-                    <td>${w.divisie || '-'}</td>
-                    <td style="font-weight: bold;">${w.thuis}</td>
-                    <td style="font-weight: bold;">${w.uit}</td>
-                    <td><span style="color: var(--accent); font-weight: bold;">${w.status || 'Wacht'}</span></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
+    container.innerHTML = "";
 
-        // Data live ophalen uit de database
-        async function haalDataOp() {
-            try {
-                const { data, error } = await supabase
-                    .
+    const upcoming =
+        data.filter(w =>
+            w.status !== 'gespeeld' &&
+            w.status !== 'bezig' &&
+            w.status !== 'Live'
+        );
+
+    if(upcoming.length === 0){
+
+        container.innerHTML = `
+            <div class="empty">
+                Geen geplande wedstrijden voor vandaag.
+            </div>
+        `;
+
+        return;
+    }
+
+    upcoming.forEach(match => {
+
+        container.innerHTML += `
+            <div class="match-card">
+
+                <div class="match-top">
+
+                    <div class="match-time">
+                        ${match.tijd || '--:--'}
+                    </div>
+
+                    <div class="match-division">
+                        ${match.divisie || ''}
+                    </div>
+
+                </div>
+
+                <div class="match-teams">
+                    <strong>${match.thuis}</strong>
+                    <br>
+                    vs
+                    <br>
+                    <strong>${match.uit}</strong>
+                </div>
+
+                <div class="match-footer">
+
+                    Ronde ${match.ronde || '-'}
+
+                    ${
+                        match.is_inhaal
+                        ? '<span class="inhaal"> • INHAALWEDSTRIJD</span>'
+                        : ''
+                    }
+
+                </div>
+
+            </div>
+        `;
+
+    });
+
+}
+
+/* =========================================
+   TICKER
+========================================= */
+
+function renderTicker(data){
+
+    const ticker =
+        document.getElementById("ticker");
+
+    const upcoming =
+        data.filter(w =>
+            w.status !== 'gespeeld'
+        );
+
+    if(upcoming.length === 0){
+
+        ticker.innerHTML =
+            "Geen wedstrijden gepland";
+
+        return;
+    }
+
+    ticker.innerHTML =
+        upcoming.map(match => `
+            🎯
+            ${match.thuis}
+            vs
+            ${match.uit}
+            •
+            ${match.tijd}
+            •
+            ${match.divisie}
+            &nbsp;&nbsp;&nbsp;&nbsp;
+        `).join("");
+
+}
+
+/* =========================================
+   REALTIME UPDATES
+========================================= */
+
+supabase
+.channel('live-wedstrijden')
+.on(
+    'postgres_changes',
+    {
+        event:'*',
+        schema:'public',
+        table:'wedstrijden'
+    },
+    () => {
+        haalDataOp();
+    }
+)
+.subscribe();
+
+/* FALLBACK REFRESH */
+
+setInterval(haalDataOp,10000);
+
+/* INIT */
+
+haalDataOp();
+
+</script>
+
+</body>
+</html>
