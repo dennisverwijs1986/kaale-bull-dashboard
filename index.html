@@ -369,9 +369,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div class="modal-title">📅 Wedstrijd verzetten</div>
     <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text);" id="verzetLabel"></div>
     <div id="verzetOrigDatum"></div>
-    <div class="row" style="margin-bottom:12px;">
+    <div style="margin-bottom:12px;">
       <div class="ig"><div class="lbl">NIEUWE DATUM</div><input type="date" class="inp" id="verzetDatum"></div>
-      <div class="ig"><div class="lbl">NIEUW TIJDSTIP</div><input type="text" class="inp" id="verzetTijd" placeholder="optioneel"></div>
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--muted);cursor:pointer;margin-bottom:8px;">
       <input type="checkbox" id="verzetIsInhaal" checked> Markeren als inhaalwedstrijd
@@ -747,12 +746,16 @@ function renderQueue() {
     renderHistory(); return;
   }
 
-  // Sorteer: inhaal boven in eigen divisie, dan op tijdstip
+  // Sorteer: inhaal ALTIJD bovenaan, dan op tijdstip
   const sorteer = (a,b) => {
+    // inhaal altijd boven normaal
     if (a.is_inhaal && !b.is_inhaal) return -1;
     if (!a.is_inhaal && b.is_inhaal) return 1;
-    const tA=a.tijdstip||'', tB=b.tijdstip||'';
-    if (!tA&&tB) return 1; if (tA&&!tB) return -1;
+    // beide inhaal of beide normaal: sorteer op tijdstip
+    const tA = a.tijdstip||'', tB = b.tijdstip||'';
+    if (!tA && !tB) return 0;
+    if (!tA) return 1;   // geen tijd → achteraan
+    if (!tB) return -1;
     return tA.localeCompare(tB);
   };
 
@@ -946,12 +949,12 @@ async function slaUitslagOp() {
     await sbPatch('wedstrijden',id,{status:'gespeeld',uitslag:uitslagTekst,notitie:notitie||null,schrijver:schrijvers[uitslagBord]||null});
     if (m) { m.status='gespeeld'; m.uitslag=uitslagTekst; m.notitie=notitie||null; m.schrijver=schrijvers[uitslagBord]||null; }
     stopTimer(uitslagBord);
-    activeMatches[uitslagBord]=null;
-    schrijvers[uitslagBord]='';
+    activeMatches[uitslagBord] = null;
+    // schrijver blijft zichtbaar op het bord totdat nieuwe wedstrijd start
     sluitModal('uitslagModal');
     uitslagBord=null; gekozenSpeler=null;
     renderBoards(); renderAll();
-    toast(`✅ Klaar — schrijver: ${m?.schrijver||''}`, 'green');
+    toast(`✅ Klaar — ✍️ schrijver naar bord: ${m?.schrijver||'onbekend'}`, 'green');
   } catch(e) { toast(`Fout: ${e.message}`,'red'); }
 }
 
@@ -963,7 +966,6 @@ function openVerzetModal(id) {
   const m = wedstrijden.find(w=>w.id===id); if (!m) return;
   document.getElementById('verzetLabel').textContent = `${m.thuis} vs ${m.uit}`;
   document.getElementById('verzetDatum').value = m.datum||'';
-  document.getElementById('verzetTijd').value  = m.tijdstip||'';
   document.getElementById('verzetIsInhaal').checked = true;
 
   // Toon originele datum als die er al is
@@ -979,7 +981,6 @@ function openVerzetModal(id) {
 async function slaVerzetOp() {
   if (!verzetId) return;
   const nieuweDatum = document.getElementById('verzetDatum').value;
-  const nieuwTijd   = document.getElementById('verzetTijd').value.trim();
   const isInhaal    = document.getElementById('verzetIsInhaal').checked;
   if (!nieuweDatum) { toast('Kies een datum','red'); return; }
 
@@ -989,12 +990,11 @@ async function slaVerzetOp() {
   try {
     await sbPatch('wedstrijden',verzetId,{
       datum: nieuweDatum,
-      tijdstip: nieuwTijd||null,
       is_inhaal: isInhaal,
       originele_datum: origDatum,
       status: 'gepland'
     });
-    if (m) { m.datum=nieuweDatum; m.tijdstip=nieuwTijd||m.tijdstip; m.is_inhaal=isInhaal; m.originele_datum=origDatum; }
+    if (m) { m.datum=nieuweDatum; m.is_inhaal=isInhaal; m.originele_datum=origDatum; }
     sluitModal('verzetModal'); verzetId=null;
     bouwDatumFilter(); renderAll();
     toast(`📅 Verzet naar ${fmtDatum(nieuweDatum)}`,'orange');
