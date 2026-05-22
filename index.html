@@ -51,7 +51,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .board-tag.free{background:rgba(16,185,129,0.15);color:var(--green);}
 .board-tag.busy{background:rgba(239,68,68,0.15);color:var(--red);}
 .board-match{font-size:0.9rem;font-weight:700;margin-bottom:4px;line-height:1.3;}
-.board-timer{font-family:monospace;font-size:0.82rem;color:var(--orange);font-weight:600;margin-bottom:6px;}
+/* timer hidden */
 .board-schrijver{margin-bottom:8px;}
 .board-acts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto;}
 .board-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:0.75rem;gap:4px;border:2px dashed var(--border);border-radius:7px;padding:8px;text-align:center;}
@@ -199,6 +199,36 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   .main-area{grid-template-columns:1fr;height:auto;overflow:visible;}
   body{overflow:auto;}
 }
+
+/* ── QUEUE COLUMNS ── */
+.queue-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.queue-col { min-width: 0; }
+.queue-col-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 7px 10px; border-radius: 5px 5px 0 0; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+.queue-col-title.ere { background: rgba(168,85,247,0.12); color: var(--ere); border-bottom: 2px solid var(--ere); }
+.queue-col-title.eerste { background: rgba(59,130,246,0.12); color: var(--eerste); border-bottom: 2px solid var(--eerste); }
+.beker-balk { background: linear-gradient(90deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05)); border: 1px solid rgba(245,158,11,0.25); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.beker-balk-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--beker); margin-bottom: 6px; }
+.beker-balk-cards { display: flex; flex-wrap: wrap; gap: 6px; }
+.beker-balk-cards .match-card { flex: 1; min-width: 240px; }
+
+/* ── HALVE SEIZOEN TOGGLE ── */
+.halve-toggle { display: flex; align-items: center; gap: 0; background: var(--s2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.halve-btn { flex: 1; padding: 6px 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: none; background: none; color: var(--muted); font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+.halve-btn.active { background: var(--orange); color: #000; }
+
+/* ── WINNAAR/VERLIEZER KNOPPEN ── */
+.winner-modal-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.winner-mode-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+.winner-mode-label.verliezer { background: rgba(239,68,68,0.15); color: var(--red); }
+.winner-mode-label.winnaar { background: rgba(16,185,129,0.15); color: var(--green); }
+.winner-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.winner-btn { padding: 16px 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--s2); color: var(--text); font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; text-align: center; line-height: 1.3; }
+.winner-btn:hover { border-color: var(--orange); background: rgba(245,158,11,0.08); color: var(--orange); transform: translateY(-1px); }
+.winner-btn.selected-verliezer { border-color: var(--red); background: rgba(239,68,68,0.12); color: var(--red); }
+.winner-btn.selected-winnaar { border-color: var(--green); background: rgba(16,185,129,0.12); color: var(--green); }
+
+/* ── SCHRIJVER OP BORD ── */
+.board-schrijver-alert { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; color: var(--orange); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
 </style>
 </head>
 <body>
@@ -284,9 +314,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <!-- DATE BAR -->
     <div class="date-bar">
       <span class="date-bar-label">📅 Avond:</span>
-      <select class="sel" id="datumFilter" style="max-width:200px;" onchange="wisselAvond()">
+      <select class="sel" id="datumFilter" style="max-width:180px;" onchange="wisselAvond()">
         <option value="ALL">Alle datums</option>
       </select>
+      <div class="halve-toggle" style="margin-left:12px;">
+        <button class="halve-btn active" id="btnEersteHelft" onclick="setHalve('eerste')">1e helft — verliezer schrijft</button>
+        <button class="halve-btn" id="btnTweedeHelft" onclick="setHalve('tweede')">2e helft — winnaar schrijft</button>
+      </div>
       <button class="btn btn-ghost btn-sm" onclick="laadData()" style="margin-left:auto;">🔄 Vernieuwen</button>
     </div>
 
@@ -309,16 +343,22 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
 </div>
 
-<!-- MODAL: uitslag -->
+<!-- MODAL: winnaar/verliezer -->
 <div class="overlay" id="uitslagModal">
   <div class="modal">
-    <div class="modal-title" id="uitslagTitle">Uitslag invoeren</div>
-    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:12px;" id="uitslagSub"></div>
-    <input type="text" class="score-inp" id="uitslagInp" placeholder="bijv. 3-1" maxlength="10" autocomplete="off">
-    <div style="margin-top:10px;"><div class="lbl" style="margin-bottom:4px;">NOTITIE (optioneel)</div><textarea class="notitie-inp" id="uitslagNotitie" placeholder="Bijzonderheden…"></textarea></div>
+    <div class="modal-title" id="uitslagTitle">Wedstrijd afsluiten</div>
+    <div class="winner-modal-sub" id="uitslagSub"></div>
+    <div style="margin-bottom:12px;">
+      <span class="winner-mode-label" id="winnerModeLabel">VERLIEZER SCHRIJFT</span>
+    </div>
+    <div class="winner-btns" id="winnerBtns">
+      <!-- ingevuld door JS -->
+    </div>
+    <div id="schrijverAankondiging" style="display:none;padding:10px 12px;border-radius:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);font-size:0.85rem;color:var(--green);margin-bottom:12px;font-weight:600;"></div>
+    <div><div class="lbl" style="margin-bottom:4px;">NOTITIE (optioneel)</div><textarea class="notitie-inp" id="uitslagNotitie" placeholder="Bijzonderheden…"></textarea></div>
     <div class="modal-acts">
       <button class="btn btn-ghost" onclick="sluitModal('uitslagModal')">Annuleren</button>
-      <button class="btn btn-green" onclick="slaUitslagOp()">✓ Opslaan</button>
+      <button class="btn btn-green" id="uitslagOpslaanBtn" disabled onclick="slaUitslagOp()">✓ Bevestigen</button>
     </div>
   </div>
 </div>
@@ -375,11 +415,13 @@ const sbDelete = async (t,id)      => { const r=await fetch(`${SB_URL}/rest/v1/$
 // ══════════════════════════════════════════
 let wedstrijden = [];
 let spelers     = [];
-let gekozenBO   = 'Best of 5';
-let bekerOpen   = false;
-let verzetId    = null;
-let uitslagBord = null;
-let notitieId   = null;
+let gekozenBO    = 'Best of 5';
+let bekerOpen    = false;
+let verzetId     = null;
+let uitslagBord  = null;
+let notitieId    = null;
+let halveSeizoen = 'eerste'; // 'eerste' = verliezer schrijft, 'tweede' = winnaar schrijft
+let gekozenSpeler = null;    // geselecteerde winnaar/verliezer in modal
 
 // Bord state
 let activeMatches = {1:null,2:null,3:null,4:null};
@@ -399,6 +441,15 @@ setInterval(() => {
   document.getElementById('clock').textContent =
     String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
 }, 1000);
+
+// ══════════════════════════════════════════
+//  HALVE SEIZOEN
+// ══════════════════════════════════════════
+function setHalve(halve) {
+  halveSeizoen = halve;
+  document.getElementById('btnEersteHelft').classList.toggle('active', halve==='eerste');
+  document.getElementById('btnTweedeHelft').classList.toggle('active', halve==='tweede');
+}
 
 // ══════════════════════════════════════════
 //  SYNC BADGE
@@ -621,7 +672,8 @@ function renderBoards() {
       const m = wedstrijden.find(w=>w.id===id);
       if (!m) { activeMatches[b]=null; renderBoards(); return; }
       const badge = getDivChip(m);
-      const elapsed = startTijden[b] ? formMs(Date.now()-startTijden[b]) : '00:00';
+      const schrijverAlert = schrijvers[b]
+        ? `<div class="board-schrijver-alert">✍️ Schrijver: ${schrijvers[b]}</div>` : '';
       let schrijverOpts = '<option value="">-- schrijver --</option>' +
         spelers.map(s=>`<option value="${s.naam}" ${schrijvers[b]===s.naam?'selected':''}>${s.naam}</option>`).join('');
       card.innerHTML = `
@@ -630,7 +682,7 @@ function renderBoards() {
           <span class="board-tag busy">Bezig</span>
         </div>
         <div class="board-match">${m.thuis}<br><small style="color:var(--muted);font-weight:400;">vs</small><br>${m.uit}</div>
-        <div class="board-timer">⏱ <span id="tmr${b}">${elapsed}</span></div>
+        ${schrijverAlert}
         <div class="board-schrijver">
           <select class="sel" style="font-size:0.75rem;" onchange="wisselSchrijver(${b},this.value)">${schrijverOpts}</select>
         </div>
@@ -686,35 +738,70 @@ function renderQueue() {
   const container = document.getElementById('queueContainer');
   container.innerHTML = '';
   const open = getOpen();
-  const bezetteIds = new Set(Object.values(activeMatches).filter(Boolean));
+  const bezetteIds     = new Set(Object.values(activeMatches).filter(Boolean));
   const bezetteSpelers = getBezetteSpelers();
+  const besteBord      = getBesteBord() || 1;
 
   if (!open.length) {
     container.innerHTML = '<div class="empty">Geen openstaande wedstrijden voor deze avond 🎯</div>';
     renderHistory(); return;
   }
 
-  // Sorteer op tijdstip, dan beker/inhaal voorrang bij gelijke tijd
-  const gesorteerd = [...open].sort((a,b)=>{
+  // Sorteer: inhaal boven in eigen divisie, dan op tijdstip
+  const sorteer = (a,b) => {
+    if (a.is_inhaal && !b.is_inhaal) return -1;
+    if (!a.is_inhaal && b.is_inhaal) return 1;
     const tA=a.tijdstip||'', tB=b.tijdstip||'';
-    if (!tA&&tB) return -1; if (tA&&!tB) return 1;
-    const cmp = tA.localeCompare(tB);
-    if (cmp!==0) return cmp;
-    const pA = a.divisie?.toLowerCase().includes('beker')?0:a.is_inhaal?1:2;
-    const pB = b.divisie?.toLowerCase().includes('beker')?0:b.is_inhaal?1:2;
-    return pA-pB;
-  });
+    if (!tA&&tB) return 1; if (tA&&!tB) return -1;
+    return tA.localeCompare(tB);
+  };
 
-  // Beste bord suggestie
-  const besteBord = getBesteBord() || 1;
+  const bekerLijst  = open.filter(m => !bezetteIds.has(m.id) && m.divisie?.toLowerCase().includes('beker'));
+  const ereLijst    = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && getDivKey(m)==='ere').sort(sorteer);
+  const eersteLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && getDivKey(m)==='eerste').sort(sorteer);
+  const overigLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && !['ere','eerste'].includes(getDivKey(m))).sort(sorteer);
 
   let nr = 1;
-  gesorteerd.forEach(m => {
-    if (bezetteIds.has(m.id)) return; // actief op bord, niet tonen
-    const card = maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord);
-    container.appendChild(card);
-  });
 
+  // ── BEKER BALK bovenaan ──
+  if (bekerLijst.length) {
+    const balk = document.createElement('div');
+    balk.className = 'beker-balk';
+    balk.innerHTML = `<div class="beker-balk-title">🏆 Bekerwedstrijden (${bekerLijst.length})</div>`;
+    const cards = document.createElement('div');
+    cards.className = 'beker-balk-cards';
+    bekerLijst.forEach(m => cards.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+    balk.appendChild(cards);
+    container.appendChild(balk);
+  }
+
+  // ── 2 KOLOMMEN ──
+  const cols = document.createElement('div');
+  cols.className = 'queue-cols';
+
+  // Ere kolom
+  const ereCol = document.createElement('div');
+  ereCol.className = 'queue-col';
+  ereCol.innerHTML = `<div class="queue-col-title ere">🔵 Ere Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${ereLijst.length} open</span></div>`;
+  if (!ereLijst.length && !overigLijst.length) {
+    ereCol.innerHTML += '<div class="empty">Niets open</div>';
+  } else {
+    [...ereLijst,...overigLijst].forEach(m => ereCol.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+  }
+  cols.appendChild(ereCol);
+
+  // 1e Divisie kolom
+  const eersteCol = document.createElement('div');
+  eersteCol.className = 'queue-col';
+  eersteCol.innerHTML = `<div class="queue-col-title eerste">🟠 1e Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${eersteLijst.length} open</span></div>`;
+  if (!eersteLijst.length) {
+    eersteCol.innerHTML += '<div class="empty">Niets open</div>';
+  } else {
+    eersteLijst.forEach(m => eersteCol.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+  }
+  cols.appendChild(eersteCol);
+
+  container.appendChild(cols);
   renderHistory();
 }
 
@@ -756,7 +843,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
 
   card.innerHTML = `
     <span class="match-nr">${nr}</span>
-    <span class="match-time ${tijdCls}">🕒 ${m.tijdstip||'--:--'}</span>
+    ${toonTijd ? `<span class="match-time ${tijdCls}">🕒 ${m.tijdstip||'--:--'}</span>` : ''}
     <div class="match-info">
       <div class="match-players">${m.thuis} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${m.uit}</div>
       <div class="match-sub">
@@ -779,34 +866,91 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
 }
 
 // ══════════════════════════════════════════
-//  UITSLAG MODAL
+//  UITSLAG MODAL (winnaar/verliezer)
 // ══════════════════════════════════════════
 function openUitslagModal(bord) {
   const id = activeMatches[bord]; if (!id) return;
-  const m = wedstrijden.find(w=>w.id===id); if (!m) return;
-  uitslagBord = bord;
-  document.getElementById('uitslagTitle').textContent = `Uitslag — Bord ${bord}`;
+  const m  = wedstrijden.find(w=>w.id===id); if (!m) return;
+  uitslagBord   = bord;
+  gekozenSpeler = null;
+
+  document.getElementById('uitslagTitle').textContent = `Wedstrijd afsluiten — Bord ${bord}`;
   document.getElementById('uitslagSub').textContent   = `${m.thuis} vs ${m.uit}`;
-  document.getElementById('uitslagInp').value    = '';
-  document.getElementById('uitslagNotitie').value = m.notitie||'';
+  document.getElementById('uitslagNotitie').value     = m.notitie||'';
+  document.getElementById('uitslagOpslaanBtn').disabled = true;
+  document.getElementById('schrijverAankondiging').style.display = 'none';
+
+  // Halve seizoen label
+  const isVerliezer = halveSeizoen === 'eerste';
+  const modeEl = document.getElementById('winnerModeLabel');
+  modeEl.textContent = isVerliezer ? '✍️ VERLIEZER SCHRIJFT' : '✍️ WINNAAR SCHRIJFT';
+  modeEl.className   = `winner-mode-label ${isVerliezer?'verliezer':'winnaar'}`;
+
+  // Knoppen: klik = die speler is winnaar of verliezer
+  const actie = isVerliezer ? 'verliezer' : 'winnaar';
+  document.getElementById('winnerBtns').innerHTML = `
+    <button class="winner-btn" id="wbtn-${m.thuis}" onclick="kiesSpeler('${m.thuis}','${m.uit}')">
+      ${m.thuis}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7;">Klik als ${actie}</span>
+    </button>
+    <button class="winner-btn" id="wbtn-${m.uit}" onclick="kiesSpeler('${m.uit}','${m.thuis}')">
+      ${m.uit}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7;">Klik als ${actie}</span>
+    </button>`;
+
   document.getElementById('uitslagModal').classList.add('open');
-  setTimeout(()=>document.getElementById('uitslagInp').focus(),100);
+}
+
+function kiesSpeler(gekozen, ander) {
+  const isVerliezer = halveSeizoen === 'eerste';
+  gekozenSpeler = gekozen;
+
+  // Highlight geselecteerde knop
+  const m = wedstrijden.find(w=>w.id===activeMatches[uitslagBord]);
+  if (!m) return;
+  [m.thuis, m.uit].forEach(naam => {
+    const btn = document.getElementById(`wbtn-${naam}`);
+    if (!btn) return;
+    btn.className = 'winner-btn' + (naam===gekozen ? (isVerliezer?' selected-verliezer':' selected-winnaar') : '');
+  });
+
+  // Schrijver bepalen
+  const schrijver = isVerliezer ? gekozen : ander; // verliezer schrijft / winnaar schrijft → ander is dan verliezer
+  // Wacht: als verliezer-modus → de gekozen speler IS de verliezer → die schrijft
+  // Als winnaar-modus → de gekozen speler IS de winnaar → de andere schrijft
+  const schrijverNaam = isVerliezer ? gekozen : ander;
+
+  const aanEl = document.getElementById('schrijverAankondiging');
+  aanEl.style.display = 'block';
+  aanEl.textContent = `✍️ Schrijver: ${schrijverNaam} → stuurt naar bord ${uitslagBord}`;
+
+  // Zet schrijver direct op het bord
+  schrijvers[uitslagBord] = schrijverNaam;
+  renderBoards();
+
+  document.getElementById('uitslagOpslaanBtn').disabled = false;
 }
 
 async function slaUitslagOp() {
-  if (uitslagBord===null) return;
-  const score   = document.getElementById('uitslagInp').value.trim();
-  const notitie = document.getElementById('uitslagNotitie').value.trim();
-  const id      = activeMatches[uitslagBord];
+  if (uitslagBord===null || !gekozenSpeler) return;
+  const isVerliezer = halveSeizoen === 'eerste';
+  const notitie     = document.getElementById('uitslagNotitie').value.trim();
+  const id          = activeMatches[uitslagBord];
+  const m           = wedstrijden.find(w=>w.id===id);
+
+  // Uitslag opslaan als "Winnaar: X" of "Verliezer: X"
+  const uitslagTekst = isVerliezer
+    ? `Verliezer: ${gekozenSpeler}`
+    : `Winnaar: ${gekozenSpeler}`;
+
   try {
-    await sbPatch('wedstrijden',id,{status:'gespeeld',uitslag:score||null,notitie:notitie||null});
-    const m = wedstrijden.find(w=>w.id===id);
-    if (m) { m.status='gespeeld'; m.uitslag=score||null; m.notitie=notitie||null; }
+    await sbPatch('wedstrijden',id,{status:'gespeeld',uitslag:uitslagTekst,notitie:notitie||null,schrijver:schrijvers[uitslagBord]||null});
+    if (m) { m.status='gespeeld'; m.uitslag=uitslagTekst; m.notitie=notitie||null; m.schrijver=schrijvers[uitslagBord]||null; }
     stopTimer(uitslagBord);
-    activeMatches[uitslagBord]=null; schrijvers[uitslagBord]='';
-    sluitModal('uitslagModal'); uitslagBord=null;
+    activeMatches[uitslagBord]=null;
+    schrijvers[uitslagBord]='';
+    sluitModal('uitslagModal');
+    uitslagBord=null; gekozenSpeler=null;
     renderBoards(); renderAll();
-    toast(`✅ Wedstrijd klaar${score?` (${score})`:''}`, 'green');
+    toast(`✅ Klaar — schrijver: ${m?.schrijver||''}`, 'green');
   } catch(e) { toast(`Fout: ${e.message}`,'red'); }
 }
 
@@ -1071,7 +1215,7 @@ function getDivChip(m) {
 function sluitModal(id) { document.getElementById(id).classList.remove('open'); }
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='Enter'&&document.getElementById('uitslagModal').classList.contains('open')) slaUitslagOp();
+  // Enter disabled for winner modal (use button)
   if(e.key==='Escape'){sluitModal('uitslagModal');sluitModal('verzetModal');sluitModal('notitieModal');}
 });
 
