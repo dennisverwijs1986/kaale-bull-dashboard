@@ -826,6 +826,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); });
 
   const tijdCls = isBeker?'beker':isInhaal?'inhaal':'normal';
+  const toonTijd = !isBeker && !isInhaal;
 
   // Badges
   const chip = getDivChip(m);
