@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaale Bull — Wedstrijdleiding</title>
+<title>Kaale Bull — Wedstrijddashboard</title>
 <style>
 :root {
   --bg:      #0f1520;
@@ -302,7 +302,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
     <!-- WERKLAST -->
     <div class="sec" id="werklastSec" style="display:none;">
-      <div class="sec-title">⚖️ Werklast per speler</div>
+      <div class="sec-title">📊 Wedstrijden per speler</div>
       <div id="werklastList"></div>
     </div>
 
@@ -419,7 +419,7 @@ let bekerOpen    = false;
 let verzetId     = null;
 let uitslagBord  = null;
 let notitieId    = null;
-let halveSeizoen = 'eerste'; // 'eerste' = verliezer schrijft, 'tweede' = winnaar schrijft
+let halveSeizoen = localStorage.getItem('dart_halve')||'eerste';
 let gekozenSpeler = null;    // geselecteerde winnaar/verliezer in modal
 
 // Bord state
@@ -446,6 +446,7 @@ setInterval(() => {
 // ══════════════════════════════════════════
 function setHalve(halve) {
   halveSeizoen = halve;
+  localStorage.setItem('dart_halve', halve);
   document.getElementById('btnEersteHelft').classList.toggle('active', halve==='eerste');
   document.getElementById('btnTweedeHelft').classList.toggle('active', halve==='tweede');
 }
@@ -552,7 +553,7 @@ function renderAvondBanner() {
   const totaal  = open.length + gespeeld.length;
   const bezet   = Object.values(activeMatches).filter(Boolean).length;
 
-  // Verwachte eindtijd: (openstaand / 4 borden) * 20 min
+  // Verwachte eindtijd: alle open wedstrijden (incl beker) / 4 borden * 20 min
   const minOver = Math.ceil(open.length / 4) * 20;
   const eindTijd = new Date(Date.now() + minOver * 60000);
   const eindStr  = `${String(eindTijd.getHours()).padStart(2,'0')}:${String(eindTijd.getMinutes()).padStart(2,'0')}`;
@@ -721,7 +722,7 @@ function herstelBaan(b) {
 async function startOpBord(matchId, bord) {
   if (activeMatches[bord]!==null) { toast(`Bord ${bord} is bezet!`,'red'); return; }
   activeMatches[bord] = matchId;
-  schrijvers[bord] = '';
+  // schrijver NIET wissen — blijft zichtbaar van vorige partij
   // Bijhouden rusttijd
   const m = wedstrijden.find(w=>w.id===matchId);
   if (m) { spelersLaatsteStart[m.thuis]=Date.now(); spelersLaatsteStart[m.uit]=Date.now(); }
@@ -748,21 +749,23 @@ function renderQueue() {
 
   // Sorteer: inhaal ALTIJD bovenaan, dan op tijdstip
   const sorteer = (a,b) => {
-    // inhaal altijd boven normaal
     if (a.is_inhaal && !b.is_inhaal) return -1;
     if (!a.is_inhaal && b.is_inhaal) return 1;
-    // beide inhaal of beide normaal: sorteer op tijdstip
     const tA = a.tijdstip||'', tB = b.tijdstip||'';
     if (!tA && !tB) return 0;
-    if (!tA) return 1;   // geen tijd → achteraan
+    if (!tA) return 1;
     if (!tB) return -1;
     return tA.localeCompare(tB);
   };
 
+  // Gebruik divisie kolom direct, niet getDivKey (die geeft 'inhaal' terug voor is_inhaal)
+  const isDivEre    = m => { const d=(m.divisie||'').toLowerCase(); return d.includes('ere') && !d.includes('beker'); };
+  const isDivEerste = m => { const d=(m.divisie||'').toLowerCase(); return (d.includes('eerste')||d.includes('1e')) && !d.includes('beker'); };
+
   const bekerLijst  = open.filter(m => !bezetteIds.has(m.id) && m.divisie?.toLowerCase().includes('beker'));
-  const ereLijst    = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && getDivKey(m)==='ere').sort(sorteer);
-  const eersteLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && getDivKey(m)==='eerste').sort(sorteer);
-  const overigLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && !['ere','eerste'].includes(getDivKey(m))).sort(sorteer);
+  const ereLijst    = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && isDivEre(m)).sort(sorteer);
+  const eersteLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && isDivEerste(m)).sort(sorteer);
+  const overigLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && !isDivEre(m) && !isDivEerste(m)).sort(sorteer);
 
   let nr = 1;
 
@@ -1233,6 +1236,9 @@ function toast(msg,type=''){
 // ══════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════
+// Herstel halve seizoen toggle
+setHalve(halveSeizoen);
+
 laadData();
 setInterval(laadData, 120000); // auto-refresh 2 min
 </script>
