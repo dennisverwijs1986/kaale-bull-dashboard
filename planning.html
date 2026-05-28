@@ -300,7 +300,7 @@ function updateStap3Stats(actief, perAvond) {
   document.getElementById('verdeelStats').innerHTML = html;
 }
 
-// ── VERDEEL LOGICA ──
+// ── VERDEEL LOGICA (Inclusief max 2 wedstrijden per speler) ──
 function verdeel() {
   const slotCounts = SLOTS.map((s,i) => parseInt(document.getElementById(`slot${i}`)?.value)||s.count);
   const actief = avonden.filter(a => !a.uitgesloten);
@@ -308,74 +308,63 @@ function verdeel() {
   const perAvond = slotCounts.reduce((a,b)=>a+b,0);
 
   if (rijen.length > actief.length * perAvond) {
-    toonMsg('verdeelError', `Te veel wedstrijden: ${rijen.length} wedstrijden maar slechts ${actief.length * perAvond} plekken beschikbaar.`, 'err');
+    toonMsg('verdeelError', `Te veel wedstrijden: ${rijen.length} wedstrijden maar slechts ${actief.length * perAvond} plekken.`, 'err');
     return null;
   }
 
-  // Detecteer kolommen
+  // Tracking: bijhouden hoeveel wedstrijden een speler per datum heeft
+  let spelerDagLimiet = {};
+  
   const fi = (...namen) => headers.find(h => namen.some(n => h.toLowerCase().includes(n)));
-  const datumKol = fi('datum','date');
-  const tijdKol  = fi('tijdstip','tijd','time');
-  const divKol   = fi('divisie','div');
+  const datumKol = fi('datum','date') || 'Datum';
+  const tijdKol  = fi('tijdstip','tijd','time') || 'Tijdstip';
+  const thuisKol = fi('thuis','home');
+  const uitKol   = fi('uit','away');
 
-  // Splits wedstrijden per divisie
-  // Ere = alles met 'ere' in divisie, Eerste = '1e' of 'eerste', Overig = rest
-  const isEre    = r => (r[divKol]||'').toLowerCase().includes('ere') && !(r[divKol]||'').toLowerCase().includes('eerste');
-  const isEerste = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('eerste')||d.includes('1e'); };
-
-  const ereRijen    = divKol ? rijen.filter(r => isEre(r))    : [];
-  const eersteRijen = divKol ? rijen.filter(r => isEerste(r)) : [];
-  const overigRijen = divKol ? rijen.filter(r => !isEre(r) && !isEerste(r)) : [...rijen];
-
-  // Per slot: verdeel zo gelijkmatig mogelijk over de twee divisies
-  // Bijv. slot cap=4 → 2 ere + 2 eerste; cap=3 → afwisselend 2+1 of 1+2
   verdeeld = [];
-  let ereIdx=0, eersteIdx=0, overigIdx=0;
+  let overigeRijen = [...rijen];
 
   for (const avond of actief) {
-    if (ereIdx >= ereRijen.length && eersteIdx >= eersteRijen.length && overigIdx >= overigRijen.length) break;
-
-    // Bereken verdeling per slot voor deze avond
-    // Verdeel cap zo: helft ere, helft eerste (afwisselend wie extra krijgt bij oneven)
-    let slotParity = 0; // wissel wie de extra wedstrijd krijgt bij oneven slots
-
+    spelerDagLimiet[avond.datum] = {};
+    
     for (const slot of slotsPerAvond) {
-      const cap = slot.cap;
-      const erePerSlot    = Math.floor(cap / 2);
-      const eerstePerSlot = cap - erePerSlot; // bij oneven krijgt eerste extra, wisselend
+      for (let i = 0; i < slot.cap; i++) {
+        let gevondenIdx = -1;
 
-      // Wisselend: bij even slot krijgt ere de extra, bij oneven slot eerste
-      const ereCount    = slotParity===0 ? Math.ceil(cap/2) : Math.floor(cap/2);
-      const eersteCount = cap - ereCount;
-      slotParity = slotParity===0 ? 1 : 0;
+        for (let j = 0; j < overigeRijen.length; j++) {
+          let r = overigeRijen[j];
+          let p1 = r[thuisKol];
+          let p2 = r[uitKol];
 
-      // Vul ere wedstrijden
-      for (let i=0; i<ereCount; i++) {
-        let rij;
-        if (ereIdx < ereRijen.length) { rij = {...ereRijen[ereIdx++]}; }
-        else if (overigIdx < overigRijen.length) { rij = {...overigRijen[overigIdx++]}; }
-        else if (eersteIdx < eersteRijen.length) { rij = {...eersteRijen[eersteIdx++]}; }
-        else break;
-        if (datumKol) rij[datumKol]=fmtDatumNL(avond.datum); else rij['Datum']=fmtDatumNL(avond.datum);
-        if (tijdKol)  rij[tijdKol]=slot.tijd;                 else rij['Tijdstip']=slot.tijd;
-        verdeeld.push(rij);
-      }
+          let h1 = (spelerDagLimiet[avond.datum][p1] || 0);
+          let h2 = (spelerDagLimiet[avond.datum][p2] || 0);
 
-      // Vul eerste divisie wedstrijden
-      for (let i=0; i<eersteCount; i++) {
-        let rij;
-        if (eersteIdx < eersteRijen.length) { rij = {...eersteRijen[eersteIdx++]}; }
-        else if (overigIdx < overigRijen.length) { rij = {...overigRijen[overigIdx++]}; }
-        else if (ereIdx < ereRijen.length) { rij = {...ereRijen[ereIdx++]}; }
-        else break;
-        if (datumKol) rij[datumKol]=fmtDatumNL(avond.datum); else rij['Datum']=fmtDatumNL(avond.datum);
-        if (tijdKol)  rij[tijdKol]=slot.tijd;                 else rij['Tijdstip']=slot.tijd;
-        verdeeld.push(rij);
+          if (h1 < 2 && h2 < 2) {
+            gevondenIdx = j;
+            break; 
+          }
+        }
+
+        if (gevondenIdx !== -1) {
+          let rij = overigeRijen.splice(gevondenIdx, 1)[0];
+          
+          spelerDagLimiet[avond.datum][rij[thuisKol]] = (spelerDagLimiet[avond.datum][rij[thuisKol]] || 0) + 1;
+          spelerDagLimiet[avond.datum][rij[uitKol]] = (spelerDagLimiet[avond.datum][rij[uitKol]] || 0) + 1;
+
+          rij[datumKol] = fmtDatumNL(avond.datum);
+          rij[tijdKol] = slot.tijd;
+          verdeeld.push(rij);
+        }
       }
     }
   }
 
-  document.getElementById('verdeelError').innerHTML = '';
+  if (overigeRijen.length > 0) {
+    toonMsg('verdeelError', `⚠ Waarschuwing: ${overigeRijen.length} wedstrijden konden niet worden ingepland vanwege de 'max 2 wedstrijden per speler' regel. Controleer de verdeling.`, 'err');
+  } else {
+    document.getElementById('verdeelError').innerHTML = '';
+  }
+
   return verdeeld;
 }
 
