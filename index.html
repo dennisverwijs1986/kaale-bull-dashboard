@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaale Bull — Wedstrijddashboard</title>
+<title>Kaale Bull — Wedstrijdleiding</title>
 <style>
 :root {
   --bg:      #0f1520;
@@ -297,7 +297,17 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div class="sec">
       <div class="sec-title">📥 CSV importeren</div>
       <p style="font-size:0.72rem;color:var(--muted);margin-bottom:8px;">Kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde</p>
-      <label class="csv-drop" for="csvFile">📂 Klik om CSV te uploaden<input type="file" id="csvFile" accept=".csv" style="display:none;" onchange="importeerCSV(this)"></label>
+      <div style="display:flex;gap:6px;">
+        <label class="csv-drop" for="csvToevoegen" style="flex:1;padding:9px 6px;">
+          ➕ Toevoegen
+          <input type="file" id="csvToevoegen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'toevoegen')">
+        </label>
+        <label class="csv-drop" for="csvVervangen" style="flex:1;padding:9px 6px;border-color:rgba(239,68,68,0.3);color:var(--red);">
+          🔄 Vervangen
+          <input type="file" id="csvVervangen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'vervangen')">
+        </label>
+      </div>
+      <p style="font-size:0.68rem;color:var(--muted);margin-top:5px;">Vervangen wist alleen <em>geplande</em> wedstrijden van de datums in de CSV.</p>
     </div>
 
     <!-- WERKLAST -->
@@ -336,8 +346,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
       <!-- GESCHIEDENIS -->
       <div style="margin-top:20px;">
-        <div class="sec-subtitle">✅ Gespeeld deze avond</div>
-        <div style="padding:10px 0;" id="historyContainer"><div class="empty">Nog niets gespeeld.</div></div>
+        <div class="sec-subtitle" id="historyHeader" onclick="toggleHistory()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;">
+          <span>✅ Gespeeld deze avond <span id="historyCountBadge" style="font-size:0.65rem;color:var(--green);"></span></span>
+          <span id="historyArrow" style="font-size:0.8rem;color:var(--muted);">▼</span>
+        </div>
+        <div id="historyBody" style="padding:6px 0;">
+          <div id="historyContainer"><div class="empty">Nog niets gespeeld.</div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1147,7 +1162,7 @@ async function voegSpelerToe() {
 // ══════════════════════════════════════════
 //  CSV IMPORT
 // ══════════════════════════════════════════
-function importeerCSV(input) {
+function importeerCSV(input, modus='toevoegen') {
   const file=input.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=async ev=>{
@@ -1162,26 +1177,48 @@ function importeerCSV(input) {
 
     const rijen=[];
     const nieuweNamen=new Set();
+    const csvDatums=new Set();
     for(let i=1;i<regels.length;i++){
-      const c=regels[i].split(sep).map(x=>x.replace(/^"|"$/g,'').trim());
-      const thuis=c[iH]||'',uit=c[iU]||'';
+      const cols=regels[i].split(sep).map(x=>x.replace(/^"|"$/g,'').trim());
+      const thuis=cols[iH]||'',uit=cols[iU]||'';
       if(!thuis||!uit) continue;
       if(/[-–]\s*bye\s*[-–]/i.test(thuis)||/[-–]\s*bye\s*[-–]/i.test(uit)) continue;
-      const datum=iD!==-1?(c[iD]||''):''; if(!datum) continue;
-      rijen.push({datum:normDatum(datum),tijdstip:iT!==-1?(c[iT]||null):null,divisie:iDiv!==-1?(c[iDiv]||'Algemeen'):'Algemeen',thuis,uit,speelronde:iS!==-1?(c[iS]||null):null,status:'gepland',is_inhaal:false});
+      const datum=iD!==-1?(cols[iD]||''):''; if(!datum) continue;
+      const normD=normDatum(datum);
+      csvDatums.add(normD);
+      rijen.push({datum:normD,tijdstip:iT!==-1?(cols[iT]||null):null,divisie:iDiv!==-1?(cols[iDiv]||'Algemeen'):'Algemeen',thuis,uit,speelronde:iS!==-1?(cols[iS]||null):null,status:'gepland',is_inhaal:false});
       if(!spelers.find(s=>s.naam===thuis)) nieuweNamen.add(thuis);
       if(!spelers.find(s=>s.naam===uit))   nieuweNamen.add(uit);
     }
     if(!rijen.length){toast('Geen geldige wedstrijden','red');return;}
     try {
+      if(modus==='vervangen') {
+        // Verwijder alleen GEPLANDE wedstrijden op de datums in de CSV (geen beker, geen gespeeld)
+        const datumLijst = [...csvDatums].join(',');
+        for(const datum of csvDatums) {
+          await fetch(`${SB_URL}/rest/v1/wedstrijden?datum=eq.${datum}&status=eq.gepland&divisie=not.ilike.*beker*`,{
+            method:'DELETE', headers:HDR
+          });
+        }
+        // Verwijder ook uit lokale state
+        wedstrijden = wedstrijden.filter(w =>
+          !csvDatums.has(w.datum) || w.status==='gespeeld' || w.divisie?.toLowerCase().includes('beker')
+        );
+        toast(`🔄 Vervangen: ${[...csvDatums].length} avond(en) gewist, opnieuw importeren…`,'orange');
+      }
       const nieuws=await sbPost('wedstrijden',rijen);
       wedstrijden.push(...nieuws);
       if(nieuweNamen.size){
-        const ns=await sbPost('spelers',[...nieuweNamen].map(naam=>({naam})));
-        spelers.push(...ns); spelers.sort((a,b)=>a.naam.localeCompare(b.naam));
+        // Gebruik upsert om dubbele spelers te vermijden
+        const ns=await fetch(`${SB_URL}/rest/v1/spelers`,{
+          method:'POST',
+          headers:{...HDR,'Prefer':'resolution=ignore-duplicates,return=representation'},
+          body:JSON.stringify([...nieuweNamen].map(naam=>({naam})))
+        }).then(r=>r.json());
+        if(Array.isArray(ns)) { spelers.push(...ns); spelers.sort((a,b)=>a.naam.localeCompare(b.naam)); }
       }
       bouwDatumFilter(); vulBekerDropdowns(); renderBoards(); renderAll();
-      toast(`✓ ${rijen.length} wedstrijden geïmporteerd`,'green');
+      toast(`✓ ${rijen.length} wedstrijden ${modus==='vervangen'?'vervangen':'toegevoegd'}`,'green');
     } catch(e){toast(`Import fout: ${e.message}`,'red');}
     input.value='';
   };
@@ -1238,6 +1275,14 @@ function toast(msg,type=''){
 // ══════════════════════════════════════════
 // Herstel halve seizoen toggle
 setHalve(halveSeizoen);
+
+// Geschiedenis inklapbaar
+let historyOpen = true;
+function toggleHistory() {
+  historyOpen = !historyOpen;
+  document.getElementById('historyBody').style.display = historyOpen ? 'block' : 'none';
+  document.getElementById('historyArrow').textContent  = historyOpen ? '▼' : '►';
+}
 
 laadData();
 setInterval(laadData, 120000); // auto-refresh 2 min
