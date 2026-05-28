@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaale Bull — Planning Tool</title>
+<style>
+:root {
+  --bg: #0f1520; --s1: #161f30; --s2: #1e2a40; --s3: #243350;
+  --border: #2a3a56; --text: #f1f5f9; --muted: #94a3b8;
+  --green: #10b981; --red: #ef4444; --orange: #f59e0b; --blue: #3b82f6;
+  --purple: #a855f7;
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+
+.wrap { max-width: 900px; margin: 0 auto; }
+h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+.sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 24px; }
+
+.card { background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+.card-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.ig { display: flex; flex-direction: column; gap: 5px; }
+.lbl { font-size: 0.72rem; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; }
+.inp, .sel { background: var(--s2); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 8px 10px; font-size: 0.85rem; font-family: inherit; width: 100%; }
+.inp:focus, .sel:focus { outline: none; border-color: var(--blue); }
+
+.slots-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+.slot-row { display: flex; align-items: center; gap: 8px; background: var(--s2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+.slot-time { font-family: monospace; font-size: 0.85rem; color: var(--orange); font-weight: 600; min-width: 48px; }
+.slot-count { background: var(--s3); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px 6px; font-size: 0.82rem; width: 50px; text-align: center; font-family: inherit; }
+.slot-label { font-size: 0.72rem; color: var(--muted); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: 6px; padding: 10px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.btn-green { background: var(--green); color: #000; }
+.btn-green:hover { background: #059669; }
+.btn-green:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-ghost { background: var(--s2); color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); }
+.btn-orange { background: var(--orange); color: #000; }
+.btn-orange:hover { background: #d97706; }
+
+.csv-drop { border: 2px dashed var(--border); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; color: var(--muted); font-size: 0.85rem; }
+.csv-drop:hover { border-color: var(--blue); color: var(--text); }
+.csv-drop.loaded { border-color: var(--green); color: var(--green); }
+
+.preview-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.preview-table th { background: var(--s2); padding: 7px 10px; text-align: left; font-size: 0.68rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+.preview-table td { padding: 6px 10px; border-bottom: 1px solid rgba(42,58,86,0.5); }
+.preview-table tr:hover td { background: var(--s2); }
+.preview-wrap { max-height: 320px; overflow-y: auto; border-radius: 6px; border: 1px solid var(--border); }
+
+.stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.stat { background: var(--s2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; text-align: center; flex: 1; min-width: 100px; }
+.stat-val { font-size: 1.3rem; font-weight: 800; }
+.stat-lbl { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+
+.badge { font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+.badge-ere { background: rgba(168,85,247,0.2); color: var(--purple); }
+.badge-eerste { background: rgba(59,130,246,0.2); color: var(--blue); }
+.badge-beker { background: rgba(245,158,11,0.2); color: var(--orange); }
+
+.err { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; color: var(--red); margin-bottom: 10px; }
+.ok-msg { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; color: var(--green); margin-bottom: 10px; }
+
+.avonden-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.avond-chip { background: var(--s2); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; font-size: 0.75rem; font-family: monospace; color: var(--muted); }
+.avond-chip.uitgesloten { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); text-decoration: line-through; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@media(max-width:600px) { .grid2,.grid3,.slots-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>🎯 Kaale Bull — Planning Tool</h1>
+  <p class="sub">Upload je CSV, stel de avonden en tijdslots in, en download de planning met datums en tijden.</p>
+
+  <!-- STAP 1: CSV UPLOAD -->
+  <div class="card">
+    <div class="card-title">Stap 1 — CSV uploaden</div>
+    <label class="csv-drop" for="csvIn" id="csvDropLabel">
+      📂 Klik om CSV te uploaden (zonder datum/tijdstip kolommen, of met lege waarden)
+      <input type="file" id="csvIn" accept=".csv" style="display:none;" onchange="laadCSV(this)">
+    </label>
+    <div id="csvInfo" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- STAP 2: PLANNING INSTELLINGEN -->
+  <div class="card">
+    <div class="card-title">Stap 2 — Planning instellen</div>
+    <div class="grid2" style="margin-bottom:14px;">
+      <div class="ig">
+        <div class="lbl">STARTDATUM</div>
+        <input type="date" class="inp" id="startDatum" value="2026-09-10">
+      </div>
+      <div class="ig">
+        <div class="lbl">EINDDATUM</div>
+        <input type="date" class="inp" id="eindDatum" value="2027-04-08">
+      </div>
+    </div>
+    <div class="ig" style="margin-bottom:14px;">
+      <div class="lbl">UITGESLOTEN DATUMS (komma gescheiden, dd-mm-yyyy)</div>
+      <input type="text" class="inp" id="uitgesloten" value="24-12-2026, 31-12-2026, 07-01-2027, 25-02-2027" placeholder="24-12-2026, 31-12-2026">
+    </div>
+
+    <!-- Tijdslots -->
+    <div class="lbl" style="margin-bottom:8px;">TIJDSLOTS — vul het aantal wedstrijden per slot in</div>
+    <div class="slots-grid" id="slotsGrid"></div>
+
+    <div style="margin-top:14px;">
+      <button class="btn btn-ghost" onclick="berekenAvonden()">📅 Bereken avonden</button>
+    </div>
+    <div id="avondenPreview"></div>
+  </div>
+
+  <!-- STAP 3: VERDELEN EN DOWNLOADEN -->
+  <div class="card" id="stap3" style="display:none;">
+    <div class="card-title">Stap 3 — Verdelen &amp; downloaden</div>
+    <div id="verdeelStats" class="stats-row"></div>
+    <div id="verdeelError"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <button class="btn btn-green" onclick="verdeelEnDownload()">⬇ Download verdeelde CSV</button>
+      <button class="btn btn-ghost" onclick="toonPreview()">👁 Voorvertoning</button>
+    </div>
+    <div id="previewWrap" style="display:none;"></div>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ──
+let rijen = [];        // parsed CSV rows
+let headers = [];      // original headers
+let avonden = [];      // computed play dates
+let verdeeld = [];     // final output rows
+
+const SLOTS = [
+  { tijd:'19:30', count:4 },
+  { tijd:'19:50', count:4 },
+  { tijd:'20:10', count:4 },
+  { tijd:'20:30', count:4 },
+  { tijd:'20:50', count:4 },
+  { tijd:'21:10', count:4 },
+  { tijd:'21:30', count:4 },
+  { tijd:'21:50', count:3 },
+  { tijd:'22:10', count:3 },
+];
+
+// ── INIT SLOTS ──
+function initSlots() {
+  const grid = document.getElementById('slotsGrid');
+  grid.innerHTML = '';
+  SLOTS.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'slot-row';
+    div.innerHTML = `
+      <span class="slot-time">${s.tijd}</span>
+      <input type="number" class="slot-count" id="slot${i}" value="${s.count}" min="0" max="8">
+      <span class="slot-label">wed.</span>`;
+    grid.appendChild(div);
+  });
+}
+initSlots();
+
+// ── CSV LADEN ──
+function laadCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const tekst = ev.target.result.trim();
+    const regels = tekst.split(/\r?\n/).filter(r => r.trim());
+    if (regels.length < 2) { toonMsg('csvInfo', 'CSV lijkt leeg', 'err'); return; }
+
+    const sep = regels[0].includes(';') ? ';' : ',';
+    headers = regels[0].split(sep).map(h => h.replace(/"/g,'').trim());
+
+    rijen = [];
+    for (let i = 1; i < regels.length; i++) {
+      const cols = regels[i].split(sep).map(c => c.replace(/^"|"$/g,'').trim());
+      if (cols.every(c => !c)) continue;
+      const obj = {};
+      headers.forEach((h, j) => obj[h] = cols[j]||'');
+      rijen.push(obj);
+    }
+
+    // Detecteer divisie kolom
+    const divKol = headers.find(h => h.toLowerCase().includes('divisie') || h.toLowerCase().includes('div'));
+    const thuisKol = headers.find(h => h.toLowerCase().includes('thuis') || h.toLowerCase().includes('home'));
+    const uitKol   = headers.find(h => h.toLowerCase().includes('uit')   || h.toLowerCase().includes('away'));
+
+    if (!thuisKol || !uitKol) {
+      toonMsg('csvInfo', `Kolommen Thuis/Uit niet gevonden. Gevonden: ${headers.join(', ')}`, 'err');
+      return;
+    }
+
+    // Tel per divisie
+    const divTelling = {};
+    rijen.forEach(r => {
+      const div = divKol ? (r[divKol]||'Onbekend') : 'Onbekend';
+      divTelling[div] = (divTelling[div]||0) + 1;
+    });
+
+    const divHtml = Object.entries(divTelling).map(([d,n]) => {
+      const cls = d.toLowerCase().includes('ere') ? 'ere' : d.toLowerCase().includes('1e')||d.toLowerCase().includes('eerste') ? 'eerste' : 'beker';
+      return `<span class="badge badge-${cls}">${d}: ${n}</span>`;
+    }).join(' ');
+
+    document.getElementById('csvDropLabel').className = 'csv-drop loaded';
+    document.getElementById('csvDropLabel').innerHTML = `✓ ${file.name} geladen — ${rijen.length} wedstrijden ${divHtml}<input type="file" id="csvIn" accept=".csv" style="display:none;" onchange="laadCSV(this)">`;
+    toonMsg('csvInfo', `✓ ${rijen.length} rijen geladen, ${headers.length} kolommen: ${headers.join(' · ')}`, 'ok');
+
+    berekenAvonden();
+  };
+  reader.readAsText(file);
+}
+
+// ── BEREKEN AVONDEN ──
+function berekenAvonden() {
+  const start = new Date(document.getElementById('startDatum').value);
+  const eind  = new Date(document.getElementById('eindDatum').value);
+  const uitgTekst = document.getElementById('uitgesloten').value;
+
+  // Parse uitgesloten datums
+  const uitgesloten = new Set();
+  uitgTekst.split(',').forEach(d => {
+    d = d.trim();
+    if (!d) return;
+    // dd-mm-yyyy → yyyy-mm-dd
+    const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (m) uitgesloten.add(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+    else uitgesloten.add(d);
+  });
+
+  // Loop alle donderdagen
+  avonden = [];
+  const cur = new Date(start);
+  while (cur <= eind) {
+    if (cur.getDay() === 4) { // donderdag
+      const key = cur.toISOString().slice(0,10);
+      avonden.push({ datum: key, uitgesloten: uitgesloten.has(key) });
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const actief = avonden.filter(a => !a.uitgesloten);
+
+  // Bereken wedstrijden per avond
+  const slotCounts = SLOTS.map((s,i) => parseInt(document.getElementById(`slot${i}`)?.value)||s.count);
+  const perAvond = slotCounts.reduce((a,b) => a+b, 0);
+
+  // Preview
+  const html = `
+    <div style="margin-top:12px;">
+      <div class="stats-row">
+        <div class="stat"><div class="stat-val">${avonden.length}</div><div class="stat-lbl">Totaal donderdagen</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--red);">${avonden.filter(a=>a.uitgesloten).length}</div><div class="stat-lbl">Uitgesloten</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--green);">${actief.length}</div><div class="stat-lbl">Speelavonden</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--orange);">${perAvond}</div><div class="stat-lbl">Wed. per avond</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--blue);">${actief.length * perAvond}</div><div class="stat-lbl">Totaal capaciteit</div></div>
+      </div>
+      ${rijen.length > 0 ? `
+        <div style="font-size:0.78rem;color:${rijen.length <= actief.length * perAvond ? 'var(--green)' : 'var(--red)'};">
+          ${rijen.length <= actief.length * perAvond
+            ? `✓ ${rijen.length} wedstrijden passen in ${actief.length} avonden (${actief.length * perAvond - rijen.length} plekken over)`
+            : `⚠ ${rijen.length} wedstrijden maar slechts ${actief.length * perAvond} plekken — ${rijen.length - actief.length * perAvond} te veel!`}
+        </div>` : ''}
+      <div class="avonden-preview">
+        ${avonden.map(a => `<div class="avond-chip ${a.uitgesloten?'uitgesloten':''}">${fmtDatum(a.datum)}</div>`).join('')}
+      </div>
+    </div>`;
+
+  document.getElementById('avondenPreview').innerHTML = html;
+  if (rijen.length > 0) document.getElementById('stap3').style.display = 'block';
+  updateStap3Stats(actief, perAvond);
+}
+
+function updateStap3Stats(actief, perAvond) {
+  if (!rijen.length) return;
+  const divKol = headers.find(h => h.toLowerCase().includes('divisie')||h.toLowerCase().includes('div'));
+  const divTelling = {};
+  rijen.forEach(r => {
+    const div = divKol?(r[divKol]||'?'):'?';
+    divTelling[div]=(divTelling[div]||0)+1;
+  });
+  const html = Object.entries(divTelling).map(([d,n])=>`
+    <div class="stat">
+      <div class="stat-val">${n}</div>
+      <div class="stat-lbl">${d}</div>
+    </div>`).join('') +
+    `<div class="stat"><div class="stat-val" style="color:var(--green);">${actief.length}</div><div class="stat-lbl">Avonden</div></div>
+     <div class="stat"><div class="stat-val" style="color:var(--orange);">${perAvond}</div><div class="stat-lbl">Per avond</div></div>`;
+  document.getElementById('verdeelStats').innerHTML = html;
+}
+
+// ── VERDEEL LOGICA ──
+function verdeel() {
+  const slotCounts = SLOTS.map((s,i) => parseInt(document.getElementById(`slot${i}`)?.value)||s.count);
+  const actief = avonden.filter(a => !a.uitgesloten);
+  const slotsPerAvond = slotCounts.map((cnt, i) => ({ tijd: SLOTS[i].tijd, cap: cnt }));
+  const perAvond = slotCounts.reduce((a,b)=>a+b,0);
+
+  if (rijen.length > actief.length * perAvond) {
+    toonMsg('verdeelError', `Te veel wedstrijden: ${rijen.length} wedstrijden maar slechts ${actief.length * perAvond} plekken beschikbaar.`, 'err');
+    return null;
+  }
+
+  // Detecteer kolommen
+  const fi = (...namen) => headers.find(h => namen.some(n => h.toLowerCase().includes(n)));
+  const datumKol = fi('datum','date');
+  const tijdKol  = fi('tijdstip','tijd','time');
+  const divKol   = fi('divisie','div');
+
+  // Splits wedstrijden per divisie
+  // Ere = alles met 'ere' in divisie, Eerste = '1e' of 'eerste', Overig = rest
+  const isEre    = r => (r[divKol]||'').toLowerCase().includes('ere') && !(r[divKol]||'').toLowerCase().includes('eerste');
+  const isEerste = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('eerste')||d.includes('1e'); };
+
+  const ereRijen    = divKol ? rijen.filter(r => isEre(r))    : [];
+  const eersteRijen = divKol ? rijen.filter(r => isEerste(r)) : [];
+  const overigRijen = divKol ? rijen.filter(r => !isEre(r) && !isEerste(r)) : [...rijen];
+
+  // Per slot: verdeel zo gelijkmatig mogelijk over de twee divisies
+  // Bijv. slot cap=4 → 2 ere + 2 eerste; cap=3 → afwisselend 2+1 of 1+2
+  verdeeld = [];
+  let ereIdx=0, eersteIdx=0, overigIdx=0;
+
+  for (const avond of actief) {
+    if (ereIdx >= ereRijen.length && eersteIdx >= eersteRijen.length && overigIdx >= overigRijen.length) break;
+
+    // Bereken verdeling per slot voor deze avond
+    // Verdeel cap zo: helft ere, helft eerste (afwisselend wie extra krijgt bij oneven)
+    let slotParity = 0; // wissel wie de extra wedstrijd krijgt bij oneven slots
+
+    for (const slot of slotsPerAvond) {
+      const cap = slot.cap;
+      const erePerSlot    = Math.floor(cap / 2);
+      const eerstePerSlot = cap - erePerSlot; // bij oneven krijgt eerste extra, wisselend
+
+      // Wisselend: bij even slot krijgt ere de extra, bij oneven slot eerste
+      const ereCount    = slotParity===0 ? Math.ceil(cap/2) : Math.floor(cap/2);
+      const eersteCount = cap - ereCount;
+      slotParity = slotParity===0 ? 1 : 0;
+
+      // Vul ere wedstrijden
+      for (let i=0; i<ereCount; i++) {
+        let rij;
+        if (ereIdx < ereRijen.length) { rij = {...ereRijen[ereIdx++]}; }
+        else if (overigIdx < overigRijen.length) { rij = {...overigRijen[overigIdx++]}; }
+        else if (eersteIdx < eersteRijen.length) { rij = {...eersteRijen[eersteIdx++]}; }
+        else break;
+        if (datumKol) rij[datumKol]=fmtDatumNL(avond.datum); else rij['Datum']=fmtDatumNL(avond.datum);
+        if (tijdKol)  rij[tijdKol]=slot.tijd;                 else rij['Tijdstip']=slot.tijd;
+        verdeeld.push(rij);
+      }
+
+      // Vul eerste divisie wedstrijden
+      for (let i=0; i<eersteCount; i++) {
+        let rij;
+        if (eersteIdx < eersteRijen.length) { rij = {...eersteRijen[eersteIdx++]}; }
+        else if (overigIdx < overigRijen.length) { rij = {...overigRijen[overigIdx++]}; }
+        else if (ereIdx < ereRijen.length) { rij = {...ereRijen[ereIdx++]}; }
+        else break;
+        if (datumKol) rij[datumKol]=fmtDatumNL(avond.datum); else rij['Datum']=fmtDatumNL(avond.datum);
+        if (tijdKol)  rij[tijdKol]=slot.tijd;                 else rij['Tijdstip']=slot.tijd;
+        verdeeld.push(rij);
+      }
+    }
+  }
+
+  document.getElementById('verdeelError').innerHTML = '';
+  return verdeeld;
+}
+
+function verdeelEnDownload() {
+  const result = verdeel();
+  if (!result) return;
+
+  // Bouw CSV
+  const alleHeaders = [...new Set([...headers, 'Datum', 'Tijdstip'])];
+  // Zorg dat Datum en Tijdstip vooraan staan
+  const datumKol = headers.find(h=>h.toLowerCase().includes('datum')||h.toLowerCase().includes('date'))||'Datum';
+  const tijdKol  = headers.find(h=>h.toLowerCase().includes('tijdstip')||h.toLowerCase().includes('tijd')||h.toLowerCase().includes('time'))||'Tijdstip';
+  const overig   = alleHeaders.filter(h=>h!==datumKol&&h!==tijdKol);
+  const finalHeaders = [datumKol, tijdKol, ...overig];
+
+  const csvRegels = [finalHeaders.join(';')];
+  result.forEach(r => {
+    csvRegels.push(finalHeaders.map(h => `"${(r[h]||'').replace(/"/g,'""')}"`).join(';'));
+  });
+
+  const blob = new Blob([csvRegels.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `kaale_bull_planning_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toonPreview() {
+  const result = verdeel();
+  if (!result) return;
+  const wrap = document.getElementById('previewWrap');
+  if (wrap.style.display === 'block') { wrap.style.display='none'; return; }
+
+  const datumKol = headers.find(h=>h.toLowerCase().includes('datum')||h.toLowerCase().includes('date'))||'Datum';
+  const tijdKol  = headers.find(h=>h.toLowerCase().includes('tijdstip')||h.toLowerCase().includes('tijd'))||'Tijdstip';
+  const divKol   = headers.find(h=>h.toLowerCase().includes('divisie')||h.toLowerCase().includes('div'));
+  const thuisKol = headers.find(h=>h.toLowerCase().includes('thuis')||h.toLowerCase().includes('home'));
+  const uitKol   = headers.find(h=>h.toLowerCase().includes('uit')||h.toLowerCase().includes('away'));
+
+  const cols = [datumKol, tijdKol, divKol, thuisKol, uitKol].filter(Boolean);
+  const uniq = [...new Set(cols)];
+
+  let html = `<div class="preview-wrap"><table class="preview-table"><thead><tr>${uniq.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  result.slice(0, 100).forEach(r => {
+    html += `<tr>${uniq.map(h=>`<td>${r[h]||''}</td>`).join('')}</tr>`;
+  });
+  if (result.length > 100) html += `<tr><td colspan="${uniq.length}" style="color:var(--muted);text-align:center;padding:10px;">… en nog ${result.length-100} rijen</td></tr>`;
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+  wrap.style.display = 'block';
+}
+
+// ── HELPERS ──
+function fmtDatum(d) {
+  const [y,m,dag] = d.split('-');
+  const mnd=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  return `${parseInt(dag)} ${mnd[parseInt(m)-1]}`;
+}
+
+function fmtDatumNL(d) {
+  // yyyy-mm-dd → dd-mm-yyyy
+  const [y,m,dag] = d.split('-');
+  return `${dag}-${m}-${y}`;
+}
+
+function toonMsg(elId, msg, type) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = `<div class="${type === 'err' ? 'err' : 'ok-msg'}">${msg}</div>`;
+}
+
+// ── AUTO BEREKEN bij slot wijziging ──
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('slot-count')) berekenAvonden();
+});
+</script>
+</body>
+</html>
