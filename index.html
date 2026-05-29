@@ -242,6 +242,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
 </div>
 
+<!-- ── NAV TABS ── -->
+<div class="nav-tabs">
+  <div class="nav-tab active" id="navDashboard" onclick="switchNav('dashboard')">📋 Wedstrijdleiding</div>
+  <div class="nav-tab planning" id="navPlanning" onclick="switchNav('planning')">🗓 Planning Tool</div>
+</div>
+
+<!-- ── DASHBOARD VIEW ── -->
+<div class="dashboard-view" id="dashboardView">
+
 <!-- ── BOARDS BAR ── -->
 <div class="boards-bar">
   <div class="boards-bar-title">🟢 Live Banen</div>
@@ -355,6 +364,52 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
         </div>
       </div>
     </div>
+  </div>
+</div><!-- end main-area -->
+</div><!-- end dashboard-view -->
+
+<!-- ── PLANNING VIEW ── -->
+<div class="planning-view" id="planningView">
+  <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:4px;">🗓 Planning Tool</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:20px;">Upload je CSV, stel de avonden in en download de planning met datums en tijdslots.</p>
+
+  <div class="pt-card">
+    <div class="pt-title">Stap 1 — CSV uploaden</div>
+    <label class="pt-csv-drop" for="ptCsvIn" id="ptCsvDropLabel">
+      📂 Klik om CSV te uploaden (Ere + 1e Divisie samen, zonder datum/tijdstip)
+      <input type="file" id="ptCsvIn" accept=".csv" style="display:none;" onchange="ptLaadCSV(this)">
+    </label>
+    <div id="ptCsvInfo" style="margin-top:8px;"></div>
+  </div>
+
+  <div class="pt-card">
+    <div class="pt-title">Stap 2 — Planning instellen</div>
+    <div class="pt-grid2" style="margin-bottom:12px;">
+      <div class="pt-ig"><div class="pt-lbl">STARTDATUM</div><input type="date" class="inp" id="ptStart" value="2026-09-10"></div>
+      <div class="pt-ig"><div class="pt-lbl">EINDDATUM</div><input type="date" class="inp" id="ptEind" value="2027-04-08"></div>
+    </div>
+    <div class="pt-ig" style="margin-bottom:12px;">
+      <div class="pt-lbl">UITGESLOTEN DATUMS (dd-mm-yyyy, komma gescheiden)</div>
+      <input type="text" class="inp" id="ptUitgesloten" value="24-12-2026, 31-12-2026, 07-01-2027, 25-02-2027">
+    </div>
+    <div class="pt-lbl" style="margin-bottom:6px;">TIJDSLOTS — wedstrijden per slot</div>
+    <div class="pt-slots-grid" id="ptSlotsGrid"></div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="ptBerekenAvonden()">📅 Bereken avonden</button>
+    </div>
+    <div id="ptAvondenPreview"></div>
+  </div>
+
+  <div class="pt-card" id="ptStap3" style="display:none;">
+    <div class="pt-title">Stap 3 — Verdelen &amp; downloaden</div>
+    <div id="ptStats" class="pt-stats-row"></div>
+    <div id="ptError"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="btn btn-orange" onclick="ptVerdeelEnDownload()">⬇ Download CSV</button>
+      <button class="btn btn-ghost btn-sm" style="background:rgba(168,85,247,0.15);color:var(--purple);border-color:rgba(168,85,247,0.3);" onclick="ptExportPDF()">🖨 PDF alle avonden</button>
+      <button class="btn btn-ghost" onclick="ptToonPreview()">👁 Voorvertoning</button>
+    </div>
+    <div id="ptPreviewWrap" style="display:none;"></div>
   </div>
 </div>
 
@@ -1283,6 +1338,464 @@ function toggleHistory() {
   document.getElementById('historyBody').style.display = historyOpen ? 'block' : 'none';
   document.getElementById('historyArrow').textContent  = historyOpen ? '▼' : '►';
 }
+
+
+// ══════════════════════════════════════════
+//  NAVIGATIE
+// ══════════════════════════════════════════
+function switchNav(view) {
+  document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
+  document.getElementById('planningView').classList.toggle('active', view === 'planning');
+  document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
+  document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
+  document.getElementById('navPlanning').classList.toggle('planning', view === 'planning');
+}
+
+// ══════════════════════════════════════════
+//  PLANNING TOOL
+// ══════════════════════════════════════════
+const PT_SLOTS = [
+  {tijd:'19:30',cap:4},{tijd:'19:50',cap:4},{tijd:'20:10',cap:4},
+  {tijd:'20:30',cap:4},{tijd:'20:50',cap:4},{tijd:'21:10',cap:4},
+  {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3}
+];
+
+let ptRijen   = [];
+let ptHeaders = [];
+let ptAvonden = [];
+let ptVerdeeld = [];
+
+function ptInitSlots() {
+  const grid = document.getElementById('ptSlotsGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  PT_SLOTS.forEach((s,i) => {
+    const div = document.createElement('div');
+    div.className = 'pt-slot-row';
+    div.innerHTML = `<span class="pt-slot-time">${s.tijd}</span>
+      <input type="number" class="pt-slot-count" id="ptSlot${i}" value="${s.cap}" min="0" max="8">
+      <span style="font-size:0.72rem;color:var(--muted);">wed.</span>`;
+    grid.appendChild(div);
+  });
+}
+ptInitSlots();
+
+// ── CSV LADEN ──
+function ptLaadCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const tekst = ev.target.result.trim();
+    const regels = tekst.split(/\r?\n/).filter(r => r.trim());
+    if (regels.length < 2) { ptMsg('ptCsvInfo','CSV lijkt leeg','err'); return; }
+
+    const sep = regels[0].includes(';') ? ';' : ',';
+    ptHeaders = regels[0].split(sep).map(h => h.replace(/"/g,'').trim());
+
+    ptRijen = [];
+    for (let i = 1; i < regels.length; i++) {
+      const cols = regels[i].split(sep).map(x => x.replace(/^"|"$/g,'').trim());
+      if (cols.every(x => !x)) continue;
+      const obj = {};
+      ptHeaders.forEach((h,j) => obj[h] = cols[j]||'');
+      ptRijen.push(obj);
+    }
+
+    const divKol   = ptHeaders.find(h => h.toLowerCase().includes('divisie')||h.toLowerCase().includes('div'));
+    const thuisKol = ptHeaders.find(h => h.toLowerCase().includes('thuis')||h.toLowerCase().includes('home'));
+    const uitKol   = ptHeaders.find(h => h.toLowerCase().includes('uit')||h.toLowerCase().includes('away'));
+
+    if (!thuisKol || !uitKol) {
+      ptMsg('ptCsvInfo',`Kolommen Thuis/Uit niet gevonden. Headers: ${ptHeaders.join(', ')}`,'err'); return;
+    }
+
+    // Splits: bye vs normaal
+    const isBye = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'') || /[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+    const byeCount = ptRijen.filter(isBye).length;
+    const speelCount = ptRijen.filter(r => !isBye(r)).length;
+
+    // Divisie telling
+    const divTelling = {};
+    ptRijen.filter(r => !isBye(r)).forEach(r => {
+      const d = divKol?(r[divKol]||'?'):'?';
+      divTelling[d] = (divTelling[d]||0)+1;
+    });
+    const divHtml = Object.entries(divTelling).map(([d,n]) => {
+      const cls = d.toLowerCase().includes('ere')&&!d.toLowerCase().includes('eerst') ? 'ere' : 'eerste';
+      return `<span style="font-size:0.7rem;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(${cls==='ere'?'168,85,247':'59,130,246'},0.2);color:var(--${cls==='ere'?'purple':'blue'});">${d}: ${n}</span>`;
+    }).join(' ');
+
+    document.getElementById('ptCsvDropLabel').className = 'pt-csv-drop loaded';
+    document.getElementById('ptCsvDropLabel').innerHTML =
+      `✓ ${file.name} — ${speelCount} wedstrijden ${divHtml}${byeCount>0?` · ${byeCount} BYE's (worden bewaard)`:''}<input type="file" id="ptCsvIn" accept=".csv" style="display:none;" onchange="ptLaadCSV(this)">`;
+
+    ptMsg('ptCsvInfo',`✓ ${ptRijen.length} rijen geladen (${speelCount} wedstrijden + ${byeCount} BYE's)`,'ok');
+    ptBerekenAvonden();
+  };
+  reader.readAsText(file);
+}
+
+// ── BEREKEN AVONDEN ──
+function ptBerekenAvonden() {
+  const start = new Date(document.getElementById('ptStart').value);
+  const eind  = new Date(document.getElementById('ptEind').value);
+  const uitgTekst = document.getElementById('ptUitgesloten').value;
+
+  const uitgesloten = new Set();
+  uitgTekst.split(',').forEach(d => {
+    d = d.trim(); if (!d) return;
+    const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (m) uitgesloten.add(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+    else uitgesloten.add(d);
+  });
+
+  ptAvonden = [];
+  const cur = new Date(start);
+  while (cur <= eind) {
+    if (cur.getDay() === 4) {
+      const key = cur.toISOString().slice(0,10);
+      ptAvonden.push({ datum: key, uitgesloten: uitgesloten.has(key) });
+    }
+    cur.setDate(cur.getDate()+1);
+  }
+
+  const actief = ptAvonden.filter(a => !a.uitgesloten);
+  const slotCaps = PT_SLOTS.map((s,i) => parseInt(document.getElementById(`ptSlot${i}`)?.value)||s.cap);
+  const perAvond = slotCaps.reduce((a,b)=>a+b,0);
+
+  const thuisKol = ptHeaders.find(h=>h.toLowerCase().includes('thuis')||h.toLowerCase().includes('home'));
+  const uitKol   = ptHeaders.find(h=>h.toLowerCase().includes('uit')||h.toLowerCase().includes('away'));
+  const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+  const speelbaar = ptRijen.filter(r => !isBye(r));
+
+  const past = speelbaar.length <= actief.length * perAvond;
+  const html = `
+    <div style="margin-top:12px;">
+      <div class="pt-stats-row">
+        <div class="pt-stat"><div class="pt-stat-val">${actief.length}</div><div class="pt-stat-lbl">Speelavonden</div></div>
+        <div class="pt-stat"><div class="pt-stat-val" style="color:var(--red);">${ptAvonden.filter(a=>a.uitgesloten).length}</div><div class="pt-stat-lbl">Uitgesloten</div></div>
+        <div class="pt-stat"><div class="pt-stat-val" style="color:var(--orange);">${perAvond}</div><div class="pt-stat-lbl">Per avond</div></div>
+        <div class="pt-stat"><div class="pt-stat-val" style="color:var(--blue);">${actief.length*perAvond}</div><div class="pt-stat-lbl">Totale capaciteit</div></div>
+        <div class="pt-stat"><div class="pt-stat-val" style="color:${past?'var(--green)':'var(--red)'};">${speelbaar.length}</div><div class="pt-stat-lbl">Wedstrijden</div></div>
+      </div>
+      <div style="font-size:0.78rem;color:${past?'var(--green)':'var(--red)'};margin-bottom:8px;">
+        ${past ? `✓ Alle ${speelbaar.length} wedstrijden passen (${actief.length*perAvond-speelbaar.length} plekken over)` : `⚠ ${speelbaar.length-actief.length*perAvond} wedstrijden te veel!`}
+      </div>
+      <div class="pt-avonden-preview">
+        ${ptAvonden.map(a=>`<div class="pt-avond-chip ${a.uitgesloten?'uit':''}">${ptFmtKort(a.datum)}</div>`).join('')}
+      </div>
+    </div>`;
+
+  document.getElementById('ptAvondenPreview').innerHTML = html;
+  if (ptRijen.length > 0) {
+    document.getElementById('ptStap3').style.display = 'block';
+    document.getElementById('ptStats').innerHTML = `
+      <div class="pt-stat"><div class="pt-stat-val">${speelbaar.length}</div><div class="pt-stat-lbl">Te verdelen</div></div>
+      <div class="pt-stat"><div class="pt-stat-val" style="color:var(--orange);">${ptRijen.filter(r=>isBye(r)).length}</div><div class="pt-stat-lbl">BYE's (bewaard)</div></div>
+      <div class="pt-stat"><div class="pt-stat-val" style="color:var(--green);">${actief.length}</div><div class="pt-stat-lbl">Avonden</div></div>`;
+  }
+}
+
+// ── VERDEEL LOGICA ──
+function ptVerdeel() {
+  const slotCaps = PT_SLOTS.map((s,i) => parseInt(document.getElementById(`ptSlot${i}`)?.value)||s.cap);
+  const actief   = ptAvonden.filter(a => !a.uitgesloten);
+  const perAvond = slotCaps.reduce((a,b)=>a+b,0);
+
+  const fi = (...n) => ptHeaders.find(h => n.some(x => h.toLowerCase().includes(x)));
+  const datumKol = fi('datum','date');
+  const tijdKol  = fi('tijdstip','tijd','time');
+  const divKol   = fi('divisie','div');
+  const thuisKol = fi('thuis','home');
+  const uitKol   = fi('uit','away','gast');
+
+  const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+  const isEre    = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('ere')&&!d.includes('eerst'); };
+  const isEerste = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('eerste')||d.includes('1e'); };
+
+  const byeRijen    = ptRijen.filter(r => isBye(r));
+  const ereRijen    = ptRijen.filter(r => !isBye(r) && (divKol ? isEre(r) : true));
+  const eersteRijen = ptRijen.filter(r => !isBye(r) && divKol && isEerste(r));
+  const overigRijen = ptRijen.filter(r => !isBye(r) && divKol && !isEre(r) && !isEerste(r));
+  const speelbaar   = [...ereRijen, ...eersteRijen, ...overigRijen];
+
+  if (speelbaar.length > actief.length * perAvond) {
+    ptMsg('ptError',`Te veel wedstrijden: ${speelbaar.length} maar slechts ${actief.length*perAvond} plekken.`,'err');
+    return null;
+  }
+
+  ptVerdeeld = [];
+  // BYE's hebben nog geen datum — die voegen we toe zonder datum/tijdstip
+  byeRijen.forEach(r => ptVerdeeld.push({...r}));
+
+  // Werklast tracker per speler per datum
+  const spelersPerDag = {}; // "naam|datum" → count
+  const MAX_PER_SPELER = 2;
+
+  // Wachtrij per divisie — afwisselend toewijzen
+  let ereQ    = [...ereRijen];
+  let eersteQ = [...eersteRijen];
+  let overigQ = [...overigRijen];
+
+  // Haal volgende wedstrijd op die past voor speler (max 2 per dag)
+  function pakVolgend(queue, datum) {
+    for (let i = 0; i < queue.length; i++) {
+      const r = queue[i];
+      const thuis = r[thuisKol]||'', uit = r[uitKol]||'';
+      const keyT = `${thuis}|${datum}`, keyU = `${uit}|${datum}`;
+      if ((spelersPerDag[keyT]||0) < MAX_PER_SPELER && (spelersPerDag[keyU]||0) < MAX_PER_SPELER) {
+        queue.splice(i,1);
+        spelersPerDag[keyT] = (spelersPerDag[keyT]||0)+1;
+        spelersPerDag[keyU] = (spelersPerDag[keyU]||0)+1;
+        return r;
+      }
+    }
+    return null; // geen geschikte wedstrijd gevonden
+  }
+
+  let parity = 0; // afwisselen wie extra slot krijgt
+
+  for (const avond of actief) {
+    if (ereQ.length===0 && eersteQ.length===0 && overigQ.length===0) break;
+    const datum = avond.datum;
+
+    for (let si = 0; si < PT_SLOTS.length; si++) {
+      const cap = slotCaps[si];
+      const tijd = PT_SLOTS[si].tijd;
+      if (cap === 0) continue;
+
+      // Verdeel cap over ere/eerste, afwisselend wie de extra krijgt
+      const ereCount    = parity===0 ? Math.ceil(cap/2) : Math.floor(cap/2);
+      const eersteCount = cap - ereCount;
+      parity = parity===0 ? 1 : 0;
+
+      const planner = [
+        ...Array(ereCount).fill('ere'),
+        ...Array(eersteCount).fill('eerste')
+      ];
+
+      for (const div of planner) {
+        let rij = null;
+        if (div==='ere')    rij = pakVolgend(ereQ,datum);
+        if (div==='eerste') rij = pakVolgend(eersteQ,datum);
+        // Fallback: probeer overig, dan andere divisie
+        if (!rij) rij = pakVolgend(overigQ,datum);
+        if (!rij && div==='ere')    rij = pakVolgend(eersteQ,datum);
+        if (!rij && div==='eerste') rij = pakVolgend(ereQ,datum);
+        if (!rij) continue;
+
+        const nieuw = {...rij};
+        if (datumKol) nieuw[datumKol] = ptFmtNL(datum); else nieuw['Datum'] = ptFmtNL(datum);
+        if (tijdKol)  nieuw[tijdKol]  = tijd;            else nieuw['Tijdstip'] = tijd;
+        ptVerdeeld.push(nieuw);
+      }
+    }
+  }
+
+  // Niet-geplaatste wedstrijden toevoegen zonder datum (spelersbelasting conflict)
+  const resterend = [...ereQ,...eersteQ,...overigQ];
+  if (resterend.length > 0) {
+    ptMsg('ptError',`⚠ ${resterend.length} wedstrijden konden niet ingepland worden door de 2-wedstrijden-per-speler-per-avond limiet. Ze staan zonder datum in de CSV.`,'err');
+    resterend.forEach(r => ptVerdeeld.push({...r}));
+  } else {
+    document.getElementById('ptError').innerHTML = '';
+  }
+
+  return ptVerdeeld;
+}
+
+function ptVerdeelEnDownload() {
+  const result = ptVerdeel(); if (!result) return;
+
+  const datumKol = ptHeaders.find(h=>h.toLowerCase().includes('datum')||h.toLowerCase().includes('date'))||'Datum';
+  const tijdKol  = ptHeaders.find(h=>h.toLowerCase().includes('tijdstip')||h.toLowerCase().includes('tijd'))||'Tijdstip';
+  const overig   = ptHeaders.filter(h=>h!==datumKol&&h!==tijdKol);
+  const allH     = [datumKol,tijdKol,...overig];
+
+  const regels = [allH.join(';')];
+  result.forEach(r => regels.push(allH.map(h=>`"${(r[h]||'').replace(/"/g,'""')}"`).join(';')));
+
+  const blob = new Blob([regels.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=`kaale_bull_planning_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  ptMsg('ptError',`✓ ${result.length} rijen geëxporteerd`,'ok');
+}
+
+function ptToonPreview() {
+  const result = ptVerdeel(); if (!result) return;
+  const wrap = document.getElementById('ptPreviewWrap');
+  if (wrap.style.display==='block'){wrap.style.display='none';return;}
+
+  const fi = (...n) => ptHeaders.find(h=>n.some(x=>h.toLowerCase().includes(x)));
+  const cols = [fi('datum','date'),fi('tijdstip','tijd'),fi('divisie','div'),fi('thuis','home'),fi('uit','away'),fi('speelronde','ronde')].filter(Boolean);
+  const uniq = [...new Set(cols)];
+
+  let html = `<div class="pt-preview-wrap"><table class="pt-table"><thead><tr>${uniq.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  result.slice(0,100).forEach(r => html+=`<tr>${uniq.map(h=>`<td>${r[h]||''}</td>`).join('')}</tr>`);
+  if (result.length>100) html+=`<tr><td colspan="${uniq.length}" style="color:var(--muted);text-align:center;padding:8px;">…en nog ${result.length-100} rijen</td></tr>`;
+  html+='</tbody></table></div>';
+  wrap.innerHTML=html; wrap.style.display='block';
+}
+
+// ── PDF EXPORT ──
+function ptExportPDF() {
+  const result = ptVerdeel(); if (!result) return;
+
+  const fi  = (...n) => ptHeaders.find(h=>n.some(x=>h.toLowerCase().includes(x)));
+  const datumKol = fi('datum','date')||'Datum';
+  const tijdKol  = fi('tijdstip','tijd')||'Tijdstip';
+  const divKol   = fi('divisie','div');
+  const thuisKol = fi('thuis','home');
+  const uitKol   = fi('uit','away','gast');
+  const srKol    = fi('speelronde','ronde');
+
+  const thuisK = ptHeaders.find(h=>h.toLowerCase().includes('thuis')||h.toLowerCase().includes('home'));
+  const uitK   = ptHeaders.find(h=>h.toLowerCase().includes('uit')||h.toLowerCase().includes('away'));
+  const isBye  = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisK]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitK]||'');
+
+  // Groepeer per datum
+  const perDatum = {};
+  result.forEach(r => {
+    if (isBye(r)) return; // BYE's niet in PDF
+    const d = r[datumKol]||'Onbekend';
+    if (!perDatum[d]) perDatum[d] = [];
+    perDatum[d].push(r);
+  });
+
+  const NL_M = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  function fmtLang(d) {
+    // dd-mm-yyyy
+    const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (!m) return d;
+    return `${parseInt(m[1])} ${NL_M[parseInt(m[2])-1]} ${m[3]}`;
+  }
+
+  const datums = Object.keys(perDatum).sort((a,b)=>{
+    const pa=a.match(/^(\d+)-(\d+)-(\d+)$/), pb=b.match(/^(\d+)-(\d+)-(\d+)$/);
+    if(pa&&pb) return new Date(`${pa[3]}-${pa[2]}-${pa[1]}`)-new Date(`${pb[3]}-${pb[2]}-${pb[1]}`);
+    return a.localeCompare(b);
+  });
+
+  let paginaHtml = '';
+  datums.forEach((datum, di) => {
+    const wedstrijden = perDatum[datum];
+    // Groepeer per tijdstip
+    const perTijd = {};
+    wedstrijden.forEach(r => {
+      const t = r[tijdKol]||'--:--';
+      if (!perTijd[t]) perTijd[t] = {ere:[], eerste:[]};
+      const d = (r[divKol]||'').toLowerCase();
+      if (d.includes('ere')&&!d.includes('eerst')) perTijd[t].ere.push(r);
+      else perTijd[t].eerste.push(r);
+    });
+
+    let tabelHtml = '';
+    Object.keys(perTijd).sort().forEach(tijd => {
+      const {ere, eerste} = perTijd[tijd];
+      const maxRijen = Math.max(ere.length, eerste.length);
+      for (let i=0; i<maxRijen; i++) {
+        const e  = ere[i];
+        const ee = eerste[i];
+        tabelHtml += `<tr>
+          <td class="tijd-cel">${i===0?tijd:''}</td>
+          <td class="div-ere">${e?'Ere':''}</td>
+          <td>${e?`<strong>${e[thuisKol]||''}</strong> vs ${e[uitKol]||''}`:''}</td>
+          <td class="sr-cel">${e&&srKol?`SR ${e[srKol]||''}`:''}</td>
+          <td class="div-eerste">${ee?'1e Div':''}</td>
+          <td>${ee?`<strong>${ee[thuisKol]||''}</strong> vs ${ee[uitKol]||''}`:''}</td>
+          <td class="sr-cel">${ee&&srKol?`SR ${ee[srKol]||''}`:''}</td>
+        </tr>`;
+      }
+      tabelHtml += `<tr class="slot-sep"><td colspan="7"></td></tr>`;
+    });
+
+    paginaHtml += `
+      <div class="pagina ${di>0?'break':''}">
+        <div class="pagina-header">
+          <div class="pagina-logo">🎯 Kaale Bull</div>
+          <div class="pagina-datum">${fmtLang(datum)}</div>
+          <div class="pagina-count">${wedstrijden.length} wedstrijden</div>
+        </div>
+        <table class="wed-table">
+          <thead>
+            <tr>
+              <th>Tijd</th>
+              <th colspan="3" style="border-right:2px solid #ddd;">🔵 Ere Divisie</th>
+              <th colspan="3">🟠 1e Divisie</th>
+            </tr>
+            <tr class="sub-header">
+              <th></th><th>Div</th><th>Wedstrijd</th><th>SR</th>
+              <th>Div</th><th>Wedstrijd</th><th>SR</th>
+            </tr>
+          </thead>
+          <tbody>${tabelHtml}</tbody>
+        </table>
+      </div>`;
+  });
+
+  const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+<title>Kaale Bull — Seizoensplanning</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',Arial,sans-serif;color:#1a1a2e;background:#fff;font-size:12px;}
+  .pagina{padding:20px 24px;}
+  .break{page-break-before:always;padding-top:20px;}
+  .pagina-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid #1a1a2e;}
+  .pagina-logo{font-size:18px;font-weight:800;letter-spacing:1px;}
+  .pagina-datum{font-size:16px;font-weight:700;color:#3b82f6;}
+  .pagina-count{font-size:11px;color:#666;background:#f0f4ff;padding:3px 8px;border-radius:4px;}
+  .wed-table{width:100%;border-collapse:collapse;}
+  .wed-table th{background:#1a1a2e;color:#fff;padding:7px 8px;text-align:left;font-size:10px;letter-spacing:0.5px;text-transform:uppercase;}
+  .wed-table td{padding:6px 8px;border-bottom:1px solid #eee;vertical-align:middle;}
+  .wed-table tr:hover td{background:#f8f9ff;}
+  .wed-table tbody tr:nth-child(even) td{background:#fafbff;}
+  .wed-table tbody tr:nth-child(even):hover td{background:#f0f4ff;}
+  .tijd-cel{font-weight:700;color:#f59e0b;font-family:monospace;font-size:13px;white-space:nowrap;width:52px;}
+  .div-ere{font-size:9px;font-weight:700;color:#a855f7;background:rgba(168,85,247,0.1);padding:2px 5px;border-radius:3px;white-space:nowrap;}
+  .div-eerste{font-size:9px;font-weight:700;color:#3b82f6;background:rgba(59,130,246,0.1);padding:2px 5px;border-radius:3px;white-space:nowrap;}
+  .sr-cel{color:#999;font-size:10px;width:40px;}
+  .slot-sep td{padding:2px 0;border-bottom:2px solid #e5e7eb;}
+  .sub-header th{background:#374151;font-size:9px;padding:4px 8px;}
+  td:nth-child(4){border-right:2px solid #ddd;}
+  th:nth-child(4){border-right:2px solid rgba(255,255,255,0.3);}
+  @media print{@page{margin:1cm;size:A4 landscape;}.break{page-break-before:always;}}
+</style>
+</head><body>${paginaHtml}</body></html>`;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:9999;';
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    setTimeout(()=>{
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(()=>iframe.remove(),1000);
+    },400);
+  };
+  iframe.srcdoc = html;
+}
+
+// ── HELPERS ──
+function ptFmtNL(d) {
+  const [y,m,dag]=d.split('-'); return `${dag}-${m}-${y}`;
+}
+function ptFmtKort(d) {
+  const [y,m,dag]=d.split('-');
+  const mnd=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  return `${parseInt(dag)} ${mnd[parseInt(m)-1]}`;
+}
+function ptMsg(elId, msg, type) {
+  const el=document.getElementById(elId); if(!el) return;
+  el.innerHTML=`<div style="padding:8px 12px;border-radius:6px;font-size:0.78rem;margin-top:6px;background:${type==='err'?'rgba(239,68,68,0.1)':'rgba(16,185,129,0.1)'};border:1px solid ${type==='err'?'rgba(239,68,68,0.3)':'rgba(16,185,129,0.3)'};color:${type==='err'?'var(--red)':'var(--green)'};">${msg}</div>`;
+}
+
+// Slot count wijziging → herbereken
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('pt-slot-count')) ptBerekenAvonden();
+});
 
 laadData();
 setInterval(laadData, 120000); // auto-refresh 2 min
