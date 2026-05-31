@@ -444,6 +444,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
       <button class="btn btn-orange" onclick="ptVerdeelEnDownload()">⬇ Download CSV</button>
       <button class="btn btn-ghost btn-sm" style="background:rgba(168,85,247,0.15);color:var(--purple);border-color:rgba(168,85,247,0.3);" onclick="ptExportPDF()">🖨 PDF alle avonden</button>
+      <button class="btn btn-green btn-sm" id="dbImportBtn" onclick="ptOpslaanInDatabase()">💾 Opslaan in database</button>
       <button class="btn btn-ghost" onclick="ptToonPreview()">👁 Voorvertoning</button>
     </div>
     <div id="ptPreviewWrap" style="display:none;"></div>
@@ -1680,34 +1681,41 @@ function ptToonPreview() {
 function ptExportPDF() {
   const result = ptVerdeel(); if (!result) return;
 
-  const fi  = (...n) => ptHeaders.find(h=>n.some(x=>h.toLowerCase().includes(x)));
+  const fi       = (...n) => ptHeaders.find(h=>n.some(x=>h.toLowerCase().includes(x)));
   const datumKol = fi('datum','date')||'Datum';
   const tijdKol  = fi('tijdstip','tijd')||'Tijdstip';
   const divKol   = fi('divisie','div');
   const thuisKol = fi('thuis','home');
   const uitKol   = fi('uit','away','gast');
   const srKol    = fi('speelronde','ronde');
-
-  const thuisK = ptHeaders.find(h=>h.toLowerCase().includes('thuis')||h.toLowerCase().includes('home'));
-  const uitK   = ptHeaders.find(h=>h.toLowerCase().includes('uit')||h.toLowerCase().includes('away'));
-  const isBye  = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisK]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitK]||'');
-
-  // Groepeer per datum
-  const perDatum = {};
-  result.forEach(r => {
-    if (isBye(r)) return; // BYE's niet in PDF
-    const d = r[datumKol]||'Onbekend';
-    if (!perDatum[d]) perDatum[d] = [];
-    perDatum[d].push(r);
-  });
+  const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
 
   const NL_M = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
   function fmtLang(d) {
-    // dd-mm-yyyy
     const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
     if (!m) return d;
-    return `${parseInt(m[1])} ${NL_M[parseInt(m[2])-1]} ${m[3]}`;
+    const dagen=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+    const dt = new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+    return `${dagen[dt.getDay()]} ${parseInt(m[1])} ${NL_M[parseInt(m[2])-1]} ${m[3]}`;
   }
+
+  // Groepeer per datum — wedstrijden en byes apart
+  const perDatum = {};
+  const byesPerDatum = {};
+  result.forEach(r => {
+    const d = r[datumKol]||'';
+    if (!d) return;
+    if (isBye(r)) {
+      if (!byesPerDatum[d]) byesPerDatum[d] = [];
+      // Haal de echte spelersnaam op (niet de BYE kant)
+      const speler = /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'') ? r[uitKol] : r[thuisKol];
+      const div    = r[divKol]||'';
+      byesPerDatum[d].push({speler, div});
+    } else {
+      if (!perDatum[d]) perDatum[d] = [];
+      perDatum[d].push(r);
+    }
+  });
 
   const datums = Object.keys(perDatum).sort((a,b)=>{
     const pa=a.match(/^(\d+)-(\d+)-(\d+)$/), pb=b.match(/^(\d+)-(\d+)-(\d+)$/);
@@ -1717,10 +1725,12 @@ function ptExportPDF() {
 
   let paginaHtml = '';
   datums.forEach((datum, di) => {
-    const wedstrijden = perDatum[datum];
-    // Groepeer per tijdstip
+    const wed = perDatum[datum]||[];
+    const byes = byesPerDatum[datum]||[];
+
+    // Groepeer op tijdstip
     const perTijd = {};
-    wedstrijden.forEach(r => {
+    wed.forEach(r => {
       const t = r[tijdKol]||'--:--';
       if (!perTijd[t]) perTijd[t] = {ere:[], eerste:[]};
       const d = (r[divKol]||'').toLowerCase();
@@ -1731,44 +1741,56 @@ function ptExportPDF() {
     let tabelHtml = '';
     Object.keys(perTijd).sort().forEach(tijd => {
       const {ere, eerste} = perTijd[tijd];
-      const maxRijen = Math.max(ere.length, eerste.length);
-      for (let i=0; i<maxRijen; i++) {
-        const e  = ere[i];
-        const ee = eerste[i];
+      const maxR = Math.max(ere.length, eerste.length);
+      for (let i=0; i<maxR; i++) {
+        const e=ere[i], ee=eerste[i];
         tabelHtml += `<tr>
           <td class="tijd-cel">${i===0?tijd:''}</td>
           <td class="div-ere">${e?'Ere':''}</td>
-          <td>${e?`<strong>${e[thuisKol]||''}</strong> vs ${e[uitKol]||''}`:''}</td>
+          <td class="match-cel">${e?`<b>${e[thuisKol]||''}</b> <span class="vs">vs</span> ${e[uitKol]||''}`:''}</td>
           <td class="sr-cel">${e&&srKol?`SR ${e[srKol]||''}`:''}</td>
-          <td class="div-eerste">${ee?'1e Div':''}</td>
-          <td>${ee?`<strong>${ee[thuisKol]||''}</strong> vs ${ee[uitKol]||''}`:''}</td>
+          <td class="mid-border"></td>
+          <td class="div-eerste">${ee?'1e':''}</td>
+          <td class="match-cel">${ee?`<b>${ee[thuisKol]||''}</b> <span class="vs">vs</span> ${ee[uitKol]||''}`:''}</td>
           <td class="sr-cel">${ee&&srKol?`SR ${ee[srKol]||''}`:''}</td>
         </tr>`;
       }
-      tabelHtml += `<tr class="slot-sep"><td colspan="7"></td></tr>`;
+      tabelHtml += `<tr class="slot-sep"><td colspan="8"></td></tr>`;
     });
+
+    // BYE footer
+    let byeHtml = '';
+    if (byes.length) {
+      const byeItems = byes.map(b => {
+        const cls = (b.div||'').toLowerCase().includes('ere')&&!(b.div||'').toLowerCase().includes('eerst') ? 'bye-ere' : 'bye-eerste';
+        return `<span class="${cls}">${b.speler}</span>`;
+      }).join('');
+      byeHtml = `<div class="bye-footer"><span class="bye-label">🟡 BYE deze avond:</span> ${byeItems}</div>`;
+    }
 
     paginaHtml += `
       <div class="pagina ${di>0?'break':''}">
         <div class="pagina-header">
           <div class="pagina-logo">🎯 Kaale Bull</div>
           <div class="pagina-datum">${fmtLang(datum)}</div>
-          <div class="pagina-count">${wedstrijden.length} wedstrijden</div>
+          <div class="pagina-count">${wed.length} wedstrijden</div>
         </div>
         <table class="wed-table">
           <thead>
             <tr>
-              <th>Tijd</th>
-              <th colspan="3" style="border-right:2px solid #ddd;">🔵 Ere Divisie</th>
-              <th colspan="3">🟠 1e Divisie</th>
-            </tr>
-            <tr class="sub-header">
-              <th></th><th>Div</th><th>Wedstrijd</th><th>SR</th>
-              <th>Div</th><th>Wedstrijd</th><th>SR</th>
+              <th class="th-tijd">Tijd</th>
+              <th class="th-div">Div</th>
+              <th>🔵 Ere Divisie</th>
+              <th class="th-sr">SR</th>
+              <th class="th-mid"></th>
+              <th class="th-div">Div</th>
+              <th>🟠 1e Divisie</th>
+              <th class="th-sr">SR</th>
             </tr>
           </thead>
           <tbody>${tabelHtml}</tbody>
         </table>
+        ${byeHtml}
       </div>`;
   });
 
@@ -1777,28 +1799,35 @@ function ptExportPDF() {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Inter',Arial,sans-serif;color:#1a1a2e;background:#fff;font-size:12px;}
-  .pagina{padding:20px 24px;}
-  .break{page-break-before:always;padding-top:20px;}
-  .pagina-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid #1a1a2e;}
-  .pagina-logo{font-size:18px;font-weight:800;letter-spacing:1px;}
-  .pagina-datum{font-size:16px;font-weight:700;color:#3b82f6;}
-  .pagina-count{font-size:11px;color:#666;background:#f0f4ff;padding:3px 8px;border-radius:4px;}
-  .wed-table{width:100%;border-collapse:collapse;}
-  .wed-table th{background:#1a1a2e;color:#fff;padding:7px 8px;text-align:left;font-size:10px;letter-spacing:0.5px;text-transform:uppercase;}
-  .wed-table td{padding:6px 8px;border-bottom:1px solid #eee;vertical-align:middle;}
-  .wed-table tr:hover td{background:#f8f9ff;}
+  body{font-family:'Inter',Arial,sans-serif;color:#1a1a2e;background:#fff;}
+  .pagina{padding:14px 18px;page-break-inside:avoid;}
+  .break{page-break-before:always;padding-top:14px;}
+  .pagina-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:3px solid #1a1a2e;}
+  .pagina-logo{font-size:15px;font-weight:800;letter-spacing:1px;}
+  .pagina-datum{font-size:14px;font-weight:700;color:#3b82f6;}
+  .pagina-count{font-size:10px;color:#666;background:#f0f4ff;padding:2px 7px;border-radius:4px;}
+  .wed-table{width:100%;border-collapse:collapse;font-size:10px;}
+  .wed-table th{background:#1a1a2e;color:#fff;padding:5px 7px;text-align:left;font-size:9px;letter-spacing:0.5px;text-transform:uppercase;}
+  .wed-table td{padding:4px 7px;border-bottom:1px solid #eee;vertical-align:middle;}
   .wed-table tbody tr:nth-child(even) td{background:#fafbff;}
-  .wed-table tbody tr:nth-child(even):hover td{background:#f0f4ff;}
-  .tijd-cel{font-weight:700;color:#f59e0b;font-family:monospace;font-size:13px;white-space:nowrap;width:52px;}
-  .div-ere{font-size:9px;font-weight:700;color:#a855f7;background:rgba(168,85,247,0.1);padding:2px 5px;border-radius:3px;white-space:nowrap;}
-  .div-eerste{font-size:9px;font-weight:700;color:#3b82f6;background:rgba(59,130,246,0.1);padding:2px 5px;border-radius:3px;white-space:nowrap;}
-  .sr-cel{color:#999;font-size:10px;width:40px;}
-  .slot-sep td{padding:2px 0;border-bottom:2px solid #e5e7eb;}
-  .sub-header th{background:#374151;font-size:9px;padding:4px 8px;}
-  td:nth-child(4){border-right:2px solid #ddd;}
-  th:nth-child(4){border-right:2px solid rgba(255,255,255,0.3);}
-  @media print{@page{margin:1cm;size:A4 landscape;}.break{page-break-before:always;}}
+  .tijd-cel{font-weight:700;color:#f59e0b;font-family:monospace;font-size:11px;white-space:nowrap;width:44px;}
+  .match-cel{font-size:10px;}
+  .vs{color:#999;font-weight:400;font-size:9px;margin:0 2px;}
+  .div-ere{font-size:8px;font-weight:700;color:#a855f7;background:rgba(168,85,247,0.12);padding:1px 4px;border-radius:3px;white-space:nowrap;width:28px;text-align:center;}
+  .div-eerste{font-size:8px;font-weight:700;color:#3b82f6;background:rgba(59,130,246,0.12);padding:1px 4px;border-radius:3px;white-space:nowrap;width:28px;text-align:center;}
+  .sr-cel{color:#aaa;font-size:9px;width:32px;}
+  .th-tijd{width:44px;}.th-div{width:32px;}.th-sr{width:32px;}.th-mid{width:8px;background:#374151;}
+  .mid-border{background:#f0f0f0;width:8px;}
+  .slot-sep td{padding:1px 0;border-bottom:2px solid #e5e7eb;}
+  .bye-footer{margin-top:8px;padding:6px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:5px;font-size:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .bye-label{font-weight:700;color:#92400e;}
+  .bye-ere{background:rgba(168,85,247,0.12);color:#7c3aed;font-weight:600;padding:2px 7px;border-radius:3px;font-size:9px;}
+  .bye-eerste{background:rgba(59,130,246,0.12);color:#1d4ed8;font-weight:600;padding:2px 7px;border-radius:3px;font-size:9px;}
+  @media print{
+    @page{margin:0.8cm;size:A4 landscape;}
+    .break{page-break-before:always;}
+    .pagina{page-break-inside:avoid;}
+  }
 </style>
 </head><body>${paginaHtml}</body></html>`;
 
@@ -1806,13 +1835,112 @@ function ptExportPDF() {
   iframe.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:9999;';
   document.body.appendChild(iframe);
   iframe.onload = () => {
-    setTimeout(()=>{
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(()=>iframe.remove(),1000);
-    },400);
+    setTimeout(()=>{ iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(()=>iframe.remove(),1200); },400);
   };
   iframe.srcdoc = html;
+}
+
+// ── DATABASE IMPORT ──
+let ptImportData = null;
+
+function ptOpslaanInDatabase() {
+  const result = ptVerdeel(); if (!result) return;
+
+  const fi       = (...n) => ptHeaders.find(h=>n.some(x=>h.toLowerCase().includes(x)));
+  const datumKol = fi('datum','date');
+  const tijdKol  = fi('tijdstip','tijd','time');
+  const divKol   = fi('divisie','div');
+  const thuisKol = fi('thuis','home');
+  const uitKol   = fi('uit','away','gast');
+  const srKol    = fi('speelronde','ronde');
+  const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+
+  // Bouw database rijen (geen byes)
+  const dbRijen = result.filter(r => !isBye(r) && r[datumKol]).map(r => ({
+    datum:       ptNormDatum(r[datumKol]||''),
+    tijdstip:    tijdKol ? (r[tijdKol]||null) : null,
+    divisie:     divKol  ? (r[divKol]||'Algemeen') : 'Algemeen',
+    thuis:       r[thuisKol]||'',
+    uit:         r[uitKol]||'',
+    speelronde:  srKol   ? (r[srKol]||null) : null,
+    status:      'gepland',
+    is_inhaal:   false
+  }));
+
+  if (!dbRijen.length) { ptMsg('ptError','Geen geldige wedstrijden om op te slaan.','err'); return; }
+
+  // Groepeer per datum voor preview
+  const perDatum = {};
+  dbRijen.forEach(r => { if (!perDatum[r.datum]) perDatum[r.datum]=[]; perDatum[r.datum].push(r); });
+  const datums = Object.keys(perDatum).sort();
+
+  ptImportData = dbRijen;
+
+  // Bouw preview modal
+  let previewRows = datums.slice(0,5).map(d =>
+    `<tr style="border-bottom:1px solid #2a3a56;">
+      <td style="padding:6px 10px;color:#f59e0b;font-weight:700;">${d}</td>
+      <td style="padding:6px 10px;">${perDatum[d].length} wedstrijden</td>
+      <td style="padding:6px 10px;color:#94a3b8;font-size:0.78rem;">${perDatum[d].slice(0,2).map(r=>`${r.thuis} vs ${r.uit}`).join(', ')}${perDatum[d].length>2?` ...`:''}</td>
+    </tr>`
+  ).join('');
+  if (datums.length > 5) previewRows += `<tr><td colspan="3" style="padding:6px 10px;color:#94a3b8;font-style:italic;">... en nog ${datums.length-5} avonden</td></tr>`;
+
+  document.getElementById('dbPreviewModal').classList.add('open');
+  document.getElementById('dbPreviewContent').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+      <thead><tr style="background:#243350;">
+        <th style="padding:6px 10px;text-align:left;font-size:0.7rem;color:#94a3b8;">DATUM</th>
+        <th style="padding:6px 10px;text-align:left;font-size:0.7rem;color:#94a3b8;">AANTAL</th>
+        <th style="padding:6px 10px;text-align:left;font-size:0.7rem;color:#94a3b8;">VOORBEELD</th>
+      </tr></thead>
+      <tbody>${previewRows}</tbody>
+    </table>
+    <div style="margin-top:10px;font-size:0.78rem;color:#94a3b8;">Totaal: <strong style="color:#f1f5f9;">${dbRijen.length} wedstrijden</strong> op <strong style="color:#f1f5f9;">${datums.length} avonden</strong></div>`;
+}
+
+async function ptBevestigImport() {
+  if (!ptImportData) return;
+  document.getElementById('dbPreviewModal').classList.remove('open');
+
+  const btn = document.getElementById('dbImportBtn');
+  btn.disabled = true; btn.textContent = '⏳ Bezig...';
+
+  try {
+    // Verzamel unieke spelersnamen
+    const namen = new Set();
+    ptImportData.forEach(r => { namen.add(r.thuis); namen.add(r.uit); });
+
+    // Spelers opslaan (ignore duplicates)
+    await fetch(`${SB_URL}/rest/v1/spelers`, {
+      method: 'POST',
+      headers: {...HDR, 'Prefer':'resolution=ignore-duplicates,return=representation'},
+      body: JSON.stringify([...namen].map(naam=>({naam})))
+    });
+
+    // Wedstrijden in batches van 100 opslaan
+    const batch = 100;
+    for (let i=0; i<ptImportData.length; i+=batch) {
+      await sbPost('wedstrijden', ptImportData.slice(i, i+batch));
+    }
+
+    // Herlaad data in dashboard
+    await laadData();
+    ptImportData = null;
+    btn.disabled = false; btn.textContent = '✅ Opgeslagen in database';
+    ptMsg('ptError', `✓ ${ptImportData?.length||'Alle'} wedstrijden opgeslagen in de database!`, 'ok');
+    setTimeout(()=>{ btn.textContent='💾 Opslaan in database'; }, 3000);
+  } catch(e) {
+    btn.disabled=false; btn.textContent='💾 Opslaan in database';
+    ptMsg('ptError',`Fout bij opslaan: ${e.message}`,'err');
+  }
+}
+
+function ptNormDatum(d) {
+  // dd-mm-yyyy → yyyy-mm-dd
+  const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  return d;
 }
 
 // ── HELPERS ──
@@ -1837,5 +1965,21 @@ document.addEventListener('change', e => {
 laadData();
 setInterval(laadData, 120000); // auto-refresh 2 min
 </script>
+<!-- MODAL: database import bevestiging -->
+<div class="overlay" id="dbPreviewModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">💾 Opslaan in database</div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">Controleer de wedstrijden die worden opgeslagen. BYE's worden overgeslagen.</div>
+    <div id="dbPreviewContent" style="margin-bottom:16px;background:var(--s2);border-radius:7px;overflow:hidden;max-height:300px;overflow-y:auto;"></div>
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:9px 12px;font-size:0.78rem;color:#ff8080;margin-bottom:14px;">
+      ⚠ Let op: bestaande <em>geplande</em> wedstrijden worden niet automatisch verwijderd. Gebruik eerst "🔄 Vervangen" in het wedstrijdleiding-tabblad als je een bestaande planning wil overschrijven.
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="sluitModal('dbPreviewModal')">Annuleren</button>
+      <button class="btn btn-green" onclick="ptBevestigImport()">✓ Bevestig — opslaan</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
