@@ -1,86 +1,1708 @@
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaale Bull — Wedstrijdleiding</title>
-<style>
-:root {
-  --bg: #0f1520; --s1: #161f30; --s2: #1e2a40; --s3: #243350; --border: #2a3a56;
-  --text: #f1f5f9; --muted: #94a3b8; --green: #10b981; --red: #ef4444; --orange: #f59e0b;
-}
-/* ... (Houd hier je bestaande CSS aan) ... */
-</style>
-</head>
-<body>
-<script>
 /**
- * GEÏNTEGREERDE PLANNING LOGICA
- * Criteria verwerkt:
- * 1. 1e Div: 4 periodes evenredig over 27 avonden.
- * 2. Ere Div: 1e helft op de helft van de tijd.
- * 3. Max 32 wedstrijden per avond.
- * 4. Max 2 wedstrijden per speler per avond.
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-async function ptVerdeelEnDownload() {
-    // Data ophalen uit het systeem (aanname: window.ptWedstrijden is gevuld via je CSV import)
-    const csvData = window.ptWedstrijden || [];
-    const totaalAvonden = parseInt(document.getElementById('pt-avonden').value) || 27;
-    const maxPerAvond = parseInt(document.getElementById('pt-slot-count').value) || 32;
+import React, { useState, useEffect } from 'react';
+import { SbMatch, SbSpeler, sbGet, sbPost, sbPatch, sbDelete, HDR } from '../supabaseService.ts';
+import {
+  Trophy, Calendar, Users, Award, Play, RotateCcw, Plus, Trash2, Clock, CheckCircle2, AlertTriangle, FileText, Upload, RefreshCw, Layers, Edit, Save, Compass
+} from 'lucide-react';
 
-    if (csvData.length === 0) {
-        alert("Geen wedstrijden geladen. Importeer eerst een CSV!");
-        return;
-    }
-
-    // 1. Sorteren in pools (Categorisering)
-    let pools = { Ere_H1:[], Ere_H2:[], Eerste_P1:[], Eerste_P2:[], Eerste_P3:[], Eerste_P4:[] };
-    csvData.forEach(w => {
-        if(w.divisie === 'Ere') {
-            w.ronde <= 20 ? pools.Ere_H1.push(w) : pools.Ere_H2.push(w);
-        } else {
-            if(w.ronde <= 10) pools.Eerste_P1.push(w);
-            else if(w.ronde <= 20) pools.Eerste_P2.push(w);
-            else if(w.ronde <= 30) pools.Eerste_P3.push(w);
-            else pools.Eerste_P4.push(w);
-        }
-    });
-
-    // 2. Planning initialiseren
-    let planning = Array.from({length: totaalAvonden}, () => []);
-    let spelerLog = Array.from({length: totaalAvonden}, () => ({}));
-
-    // 3. Verdeel-algoritme
-    const categorieen = ['Ere_H1', 'Ere_H2', 'Eerste_P1', 'Eerste_P2', 'Eerste_P3', 'Eerste_P4'];
-    
-    categorieen.forEach(cat => {
-        pools[cat].forEach(w => {
-            let geplaatst = false;
-            // Zoek een avond waar nog plek is en de spelerslimiet niet wordt overschreden
-            for(let i = 0; i < totaalAvonden; i++) {
-                let countA = spelerLog[i][w.teamA] || 0;
-                let countB = spelerLog[i][w.teamB] || 0;
-                
-                if (planning[i].length < maxPerAvond && countA < 2 && countB < 2) {
-                    planning[i].push(w);
-                    spelerLog[i][w.teamA] = countA + 1;
-                    spelerLog[i][w.teamB] = countB + 1;
-                    geplaatst = true;
-                    break;
-                }
-            }
-        });
-    });
-
-    console.log("Nieuwe planning gegenereerd:", planning);
-    alert("Planning is succesvol herberekend volgens de nieuwe criteria.");
-    
-    // Hier kun je je CSV download-logica aanroepen
-    // downloadCSV(planning);
+interface WedstrijdleidingProps {
+  onNavigateToScorer: (playerAName: string, playerBName: string, matchId?: string) => void;
 }
 
-// ... (Rest van je bestaande JavaScript, zoals laadData, etc.) ...
-</script>
-</body>
-</html>
+export default function Wedstrijdleiding({ onNavigateToScorer }: WedstrijdleidingProps) {
+  // Sync state
+  const [syncState, setSyncState] = useState<'idle' | 'loading' | 'ok' | 'error'>('loading');
+  const [syncText, setSyncText] = useState('VERBINDEN…');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Core Data State
+  const [wedstrijden, setWedstrijden] = useState<SbMatch[]>([]);
+  const [spelers, setSpelers] = useState<SbSpeler[]>([]);
+
+  // Toggles & Selection state
+  const [huidigeAvond, setHuidigeAvond] = useState<string>('ALL');
+  const [halveSeizoen, setHalveSeizoen] = useState<'eerste' | 'tweede'>('eerste');
+  const [bekerOpen, setBekerOpen] = useState(false);
+
+  // New Beker state
+  const [bekerThuis, setBekerThuis] = useState('');
+  const [bekerUit, setBekerUit] = useState('');
+  const [bekerDatum, setBekerDatum] = useState('');
+  const [bekerTijdstip, setBekerTijdstip] = useState('19:30');
+  const [bekerFormat, setBekerFormat] = useState('Best of 5');
+  const [bekerRonde, setBekerRonde] = useState('');
+
+  // New Speler state
+  const [nieuweSpelerNaam, setNieuweSpelerNaam] = useState('');
+
+  // Active Boards State (1 to 4)
+  const [activeMatches, setActiveMatches] = useState<Record<number, string | null>>({
+    1: null, 2: null, 3: null, 4: null
+  });
+  const [startTijden, setStartTijden] = useState<Record<number, number | null>>({
+    1: null, 2: null, 3: null, 4: null
+  });
+  const [boardTimers, setBoardTimers] = useState<Record<number, string>>({
+    1: '00:00', 2: '00:00', 3: '00:00', 4: '00:00'
+  });
+  const [schrijvers, setSchrijvers] = useState<Record<number, string>>({
+    1: '', 2: '', 3: '', 4: ''
+  });
+
+  // Track Player's Last Match End Time (Name -> ms timestamp)
+  const [spelersLaatsteStart, setSpelersLaatsteStart] = useState<Record<string, number>>({});
+
+  // History collapse
+  const [historyOpen, setHistoryOpen] = useState(true);
+
+  // Modals state
+  const [uitslagModalActive, setUitslagModalActive] = useState(false);
+  const [uitslagBordNummer, setUitslagBordNummer] = useState<number | null>(null);
+  const [gekozenUitslagSpeler, setGekozenUitslagSpeler] = useState<string | null>(null);
+  const [uitslagNotitie, setUitslagNotitie] = useState('');
+
+  const [verzetModalActive, setVerzetModalActive] = useState(false);
+  const [verzetMatchId, setVerzetMatchId] = useState<string | null>(null);
+  const [verzetDatumValue, setVerzetDatumValue] = useState('');
+  const [verzetIsInhaal, setVerzetIsInhaal] = useState(true);
+
+  const [notitieModalActive, setNotitieModalActive] = useState(false);
+  const [notitieMatchId, setNotitieMatchId] = useState<string | null>(null);
+  const [notitieValue, setNotitieValue] = useState('');
+
+  // Toast systems
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'green' | 'red' | 'orange' | ''>('');
+
+  const showToast = (msg: string, type: 'green' | 'red' | 'orange' | '' = '') => {
+    setToastMessage(msg);
+    setToastType(type);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  };
+
+  // Clock state
+  const [clockTime, setClockTime] = useState('19:30');
+
+  useEffect(() => {
+    const clockInterval = setInterval(() => {
+      const now = new Date();
+      setClockTime(
+        String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+      );
+    }, 1000);
+    return () => clearInterval(clockInterval);
+  }, []);
+
+  // Board running timer effect
+  useEffect(() => {
+    const timerInterval = setInterval(() => {
+      const updatedTimers: Record<number, string> = { ...boardTimers };
+      let updated = false;
+
+      [1, 2, 3, 4].forEach(b => {
+        if (activeMatches[b] && startTijden[b]) {
+          const ms = Date.now() - (startTijden[b] || 0);
+          const totalSec = Math.floor(ms / 1000);
+          const min = String(Math.floor(totalSec / 60)).padStart(2, '0');
+          const sec = String(totalSec % 60).padStart(2, '0');
+          updatedTimers[b] = `${min}:${sec}`;
+          updated = true;
+        } else {
+          updatedTimers[b] = '00:00';
+        }
+      });
+
+      if (updated || Object.values(activeMatches).some(Boolean)) {
+        setBoardTimers(updatedTimers);
+      }
+    }, 1000);
+
+    return () => clearInterval(timerInterval);
+  }, [activeMatches, startTijden, boardTimers]);
+
+  // Load core data on mount
+  useEffect(() => {
+    laadAlleData();
+    const loadedHalve = localStorage.getItem('dart_halve');
+    if (loadedHalve === 'tweede') setHalveSeizoen('tweede');
+  }, []);
+
+  const laadAlleData = async () => {
+    setSyncState('loading');
+    setSyncText('LADEN…');
+    try {
+      const liveMatches = await sbGet<SbMatch>('wedstrijden', 'order=datum.asc,tijdstip.asc');
+      const liveSpelers = await sbGet<SbSpeler>('spelers', 'order=naam.asc');
+
+      // Sync active board state from database if loaded (matches with playing status if needed)
+      // Since she manages board state locally, let's keep boards managed client-side in React state or localStorage!
+      const cachedBoards = localStorage.getItem('kb_boards_v1');
+      const cachedWriters = localStorage.getItem('kb_writers_v1');
+      const cachedStartTimes = localStorage.getItem('kb_start_times_v1');
+
+      if (cachedBoards) setActiveMatches(JSON.parse(cachedBoards));
+      if (cachedWriters) setSchrijvers(JSON.parse(cachedWriters));
+      if (cachedStartTimes) {
+        const parsed = JSON.parse(cachedStartTimes);
+        // Normalize loaded relative system times
+        const reindexed: Record<number, number | null> = { 1: null, 2: null, 3: null, 4: null };
+        [1, 2, 3, 4].forEach(b => {
+          if (parsed[b]) reindexed[b] = parsed[b];
+        });
+        setStartTijden(reindexed);
+      }
+
+      setWedstrijden(liveMatches);
+      setSpelers(liveSpelers);
+
+      // Auto pick dynamic next date
+      const dates = [...new Set(liveMatches.map(w => w.datum))].sort();
+      const today = new Date().toISOString().slice(0, 10);
+      const comingDate = dates.find(d => d >= today);
+
+      if (huidigeAvond === 'ALL') {
+        if (comingDate) {
+          setHuidigeAvond(comingDate);
+        } else if (dates.length > 0) {
+          setHuidigeAvond(dates[0]);
+        }
+      }
+
+      setSyncState('ok');
+      setSyncText('● VERBONDEN');
+      setErrorMessage(null);
+    } catch (e: any) {
+      setSyncState('error');
+      setSyncText('❌ FOUT');
+      setErrorMessage(e.message || 'Laden mislukt.');
+    }
+  };
+
+  const handleSetHalve = (helft: 'eerste' | 'tweede') => {
+    setHalveSeizoen(helft);
+    localStorage.setItem('dart_halve', helft);
+  };
+
+  // Drag & drop support
+  const handleDragStart = (e: React.DragEvent, matchId: string) => {
+    e.dataTransfer.setData('matchId', matchId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, bordNum: number) => {
+    e.preventDefault();
+    const matchId = e.dataTransfer.getData('matchId');
+    if (matchId) {
+      startMatchOpBaan(matchId, bordNum);
+    }
+  };
+
+  const startMatchOpBaan = (matchId: string, bordNum: number) => {
+    if (activeMatches[bordNum]) {
+      showToast(`Bord ${bordNum} is al bezet!`, 'red');
+      return;
+    }
+
+    const m = wedstrijden.find(w => String(w.id) === String(matchId));
+    if (!m) return;
+
+    const nieuweBoards = { ...activeMatches, [bordNum]: matchId };
+    setActiveMatches(nieuweBoards);
+    localStorage.setItem('kb_boards_v1', JSON.stringify(nieuweBoards));
+
+    const nieuweStart = { ...startTijden, [bordNum]: Date.now() };
+    setStartTijden(nieuweStart);
+    localStorage.setItem('kb_start_times_v1', JSON.stringify(nieuweStart));
+
+    // Keep track of players' oche timestamps
+    const updatedTimestamps = { ...spelersLaatsteStart };
+    updatedTimestamps[m.thuis] = Date.now();
+    updatedTimestamps[m.uit] = Date.now();
+    setSpelersLaatsteStart(updatedTimestamps);
+
+    showToast(`▶ Wedstrijd gestart op Bord ${bordNum}`, 'green');
+  };
+
+  const wisselBordSchrijver = (bordNum: number, writerName: string) => {
+    const updated = { ...schrijvers, [bordNum]: writerName };
+    setSchrijvers(updated);
+    localStorage.setItem('kb_writers_v1', JSON.stringify(updated));
+  };
+
+  const herstelBaan = (bordNum: number) => {
+    const nieuweBoards = { ...activeMatches, [bordNum]: null };
+    setActiveMatches(nieuweBoards);
+    localStorage.setItem('kb_boards_v1', JSON.stringify(nieuweBoards));
+
+    const nieuweStart = { ...startTijden, [bordNum]: null };
+    setStartTijden(nieuweStart);
+    localStorage.setItem('kb_start_times_v1', JSON.stringify(nieuweStart));
+
+    const updatedWriters = { ...schrijvers, [bordNum]: '' };
+    setSchrijvers(updatedWriters);
+    localStorage.setItem('kb_writers_v1', JSON.stringify(updatedWriters));
+
+    showToast(`↩ Bord ${bordNum} teruggezet`, 'orange');
+  };
+
+  // Filtration selectors
+  const matchesFilterOpen = () => {
+    return wedstrijden.filter(w => {
+      if (w.status === 'gespeeld') return false;
+      if (huidigeAvond !== 'ALL' && w.datum !== huidigeAvond) return false;
+      return true;
+    });
+  };
+
+  const matchesFilterCompleted = () => {
+    return wedstrijden.filter(w => {
+      if (w.status !== 'gespeeld') return false;
+      if (huidigeAvond !== 'ALL' && w.datum !== huidigeAvond) return false;
+      return true;
+    });
+  };
+
+  // Format Helper Dutch month names
+  const renderFmtDatum = (d: string) => {
+    if (!d) return '';
+    const parts = d.split('-');
+    if (parts.length !== 3) return d;
+    const [y, m, dag] = parts;
+    const mnd = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    const idx = parseInt(m) - 1;
+    return `${parseInt(dag)} ${mnd[idx] || m} ${y}`;
+  };
+
+  // Division Keys helper
+  const getMatchDivType = (m: SbMatch): 'ere' | 'eerste' | 'beker' | 'inhaal' | 'general' => {
+    if (m.is_inhaal) return 'inhaal';
+    const d = (m.divisie || '').toLowerCase();
+    if (d.includes('ere')) return 'ere';
+    if (d.includes('eerste') || d.includes('1e')) return 'eerste';
+    if (d.includes('beker')) return 'beker';
+    return 'general';
+  };
+
+  // Calculated workloads per player
+  const spelerScoresCount = React.useMemo(() => {
+    if (huidigeAvond === 'ALL') return [];
+    const open = matchesFilterOpen();
+    const completed = matchesFilterCompleted();
+    const mapping: Record<string, number> = {};
+
+    [...open, ...completed].forEach(w => {
+      mapping[w.thuis] = (mapping[w.thuis] || 0) + 1;
+      mapping[w.uit] = (mapping[w.uit] || 0) + 1;
+    });
+
+    return Object.entries(mapping).sort((a, b) => b[1] - a[1]);
+  }, [wedstrijden, huidigeAvond]);
+
+  // Busy states helper for playing block
+  const getBezetteSpelers = () => {
+    const s = new Set<string>();
+    [1, 2, 3, 4].forEach(b => {
+      const matchId = activeMatches[b];
+      if (!matchId) return;
+      const m = wedstrijden.find(w => String(w.id) === String(matchId));
+      if (m) {
+        s.add(m.thuis);
+        s.add(m.uit);
+      }
+      if (schrijvers[b]) {
+        s.add(schrijvers[b]);
+      }
+    });
+    return s;
+  };
+
+  const bezetteSpelers = getBezetteSpelers();
+
+  // Find best available board
+  const getVoorgesteldBord = () => {
+    for (let b = 1; b <= 4; b++) {
+      if (!activeMatches[b]) return b;
+    }
+    return 1;
+  };
+
+  // Add Beker match
+  const handleVoegBekerToe = async () => {
+    if (!bekerThuis || !bekerUit) {
+      showToast('Kies thuis- en uitspeler', 'red');
+      return;
+    }
+    if (bekerThuis === bekerUit) {
+      showToast('Spelers moeten verschillend zijn', 'red');
+      return;
+    }
+    if (!bekerDatum) {
+      showToast('Kies een geldige datum', 'red');
+      return;
+    }
+
+    try {
+      const [nieuw] = await sbPost<SbMatch>('wedstrijden', {
+        datum: bekerDatum,
+        tijdstip: bekerTijdstip || null,
+        divisie: `Beker (${bekerFormat})`,
+        thuis: bekerThuis,
+        uit: bekerUit,
+        speelronde: bekerRonde || null,
+        status: 'gepland',
+        is_inhaal: false
+      });
+
+      if (nieuw) {
+        setWedstrijden(prev => [nieuw, ...prev]);
+        setBekerThuis('');
+        setBekerUit('');
+        setBekerRonde('');
+        setHuidigeAvond(bekerDatum);
+        showToast('🏆 Bekerwedstrijd toegevoegd!', 'green');
+      }
+    } catch (e: any) {
+      showToast(`Fout: ${e.message}`, 'red');
+    }
+  };
+
+  const handleVerwijderBeker = async (id: string | number) => {
+    if (!confirm('Bekerwedstrijd verwijderen?')) return;
+    try {
+      await sbDelete('wedstrijden', id);
+      setWedstrijden(prev => prev.filter(w => String(w.id) !== String(id)));
+      showToast('Bekerwedstrijd verwijderd', 'green');
+    } catch (e: any) {
+      showToast(`Fout: ${e.message}`, 'red');
+    }
+  };
+
+  // Add new player to database
+  const handleVoegSpelerToe = async () => {
+    const naam = nieuweSpelerNaam.trim();
+    if (!naam) {
+      showToast('Vul een naam in', 'red');
+      return;
+    }
+    if (spelers.some(s => s.naam.toLowerCase() === naam.toLowerCase())) {
+      showToast('Speler bestaat al!', 'red');
+      return;
+    }
+
+    try {
+      const [nieuw] = await sbPost<SbSpeler>('spelers', { naam });
+      if (nieuw) {
+        setSpelers(prev => [...prev, nieuw].sort((a, b) => a.naam.localeCompare(b.naam)));
+        setNieuweSpelerNaam('');
+        showToast(`👤 Speler ${naam} toegevoegd!`, 'green');
+      }
+    } catch (e: any) {
+      showToast(`Fout: ${e.message}`, 'red');
+    }
+  };
+
+  // CSV Import parser
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>, modus: 'toevoegen' | 'vervangen') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) {
+        showToast('CSV-bestand lijkt leeg', 'red');
+        return;
+      }
+
+      const sep = lines[0].includes(';') ? ';' : ',';
+      const hdrs = lines[0].split(sep).map(h => h.replace(/"/g, '').trim().toLowerCase());
+
+      const getColIdx = (...terms: string[]) => {
+        for (const term of terms) {
+          const idx = hdrs.findIndex(h => h.includes(term));
+          if (idx !== -1) return idx;
+        }
+        return -1;
+      };
+
+      const dateIdx = getColIdx('datum', 'date');
+      const timeIdx = getColIdx('tijdstip', 'tijd', 'time');
+      const divIdx = getColIdx('divisie', 'div');
+      const homeIdx = getColIdx('thuis', 'home');
+      const awayIdx = getColIdx('uit', 'away', 'gast');
+      const roundIdx = getColIdx('speelronde', 'ronde');
+
+      if (homeIdx === -1 || awayIdx === -1) {
+        showToast('Kolommen Thuis/Uit ontbreken in de CSV', 'red');
+        return;
+      }
+
+      const parseDateStr = (raw: string) => {
+        let m;
+        if ((m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/))) {
+          return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+        }
+        if ((m = raw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/))) {
+          return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+        }
+        return raw;
+      };
+
+      const rows: any[] = [];
+      const newSpelers = new Set<string>();
+      const csvDatums = new Set<string>();
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(sep).map(col => col.replace(/^"|"$/g, '').trim());
+        const thuis = cols[homeIdx] || '';
+        const uit = cols[awayIdx] || '';
+
+        if (!thuis || !uit) continue;
+        if (/[-–]\s*bye\s*[-–]/i.test(thuis) || /[-–]\s*bye\s*[-–]/i.test(uit)) continue;
+
+        const rawDate = dateIdx !== -1 ? cols[dateIdx] : '';
+        if (!rawDate) continue;
+        const normD = parseDateStr(rawDate);
+        csvDatums.add(normD);
+
+        rows.push({
+          datum: normD,
+          tijdstip: timeIdx !== -1 ? (cols[timeIdx] || null) : null,
+          divisie: divIdx !== -1 ? (cols[divIdx] || 'Algemeen') : 'Algemeen',
+          thuis,
+          uit,
+          speelronde: roundIdx !== -1 ? (cols[roundIdx] || null) : null,
+          status: 'gepland',
+          is_inhaal: false
+        });
+
+        if (!spelers.some(s => s.naam === thuis)) newSpelers.add(thuis);
+        if (!spelers.some(s => s.naam === uit)) newSpelers.add(uit);
+      }
+
+      if (rows.length === 0) {
+        showToast('Geen geldige wedstrijden gevonden', 'red');
+        return;
+      }
+
+      try {
+        setSyncState('loading');
+        setSyncText('IMPORTEERT…');
+
+        if (modus === 'vervangen') {
+          // Clear planned matches for dates found in the CSV
+          for (const d of csvDatums) {
+            await fetch(`https://ctxurzqtglckairgbjno.supabase.co/rest/v1/wedstrijden?datum=eq.${d}&status=eq.gepland&divisie=not.ilike.*beker*`, {
+              method: 'DELETE',
+              headers: HDR
+            });
+          }
+          // Remove from local list
+          setWedstrijden(prev => prev.filter(w => !csvDatums.has(w.datum) || w.status === 'gespeeld' || w.divisie.toLowerCase().includes('beker')));
+        }
+
+        const imported = await sbPost<SbMatch>('wedstrijden', rows);
+        if (newSpelers.size > 0) {
+          // Upsert missing players
+          await fetch(`https://ctxurzqtglckairgbjno.supabase.co/rest/v1/spelers`, {
+            method: 'POST',
+            headers: {
+              ...HDR,
+              'Prefer': 'resolution=ignore-duplicates,return=representation'
+            },
+            body: JSON.stringify([...newSpelers].map(naam => ({ naam })))
+          });
+        }
+
+        await laadAlleData();
+        showToast(`✓ ${rows.length} wedstrijden succesvol ingeladen!`, 'green');
+      } catch (e: any) {
+        showToast(`Fout bij import: ${e.message}`, 'red');
+        setSyncState('error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Reschedule match handlers
+  const handleOpenVerzet = (matchId: string) => {
+    const m = wedstrijden.find(w => String(w.id) === String(matchId));
+    if (!m) return;
+    setVerzetMatchId(matchId);
+    setVerzetDatumValue(m.datum);
+    setVerzetIsInhaal(true);
+    setVerzetModalActive(true);
+  };
+
+  const handleSlaVerzetOp = async () => {
+    if (!verzetMatchId || !verzetDatumValue) return;
+    const m = wedstrijden.find(w => String(w.id) === String(verzetMatchId));
+    if (!m) return;
+
+    const origDatum = m.originele_datum || m.datum;
+
+    try {
+      const [updated] = await sbPatch<SbMatch>('wedstrijden', verzetMatchId, {
+        datum: verzetDatumValue,
+        is_inhaal: verzetIsInhaal,
+        originele_datum: origDatum,
+        status: 'gepland'
+      });
+
+      if (updated) {
+        setWedstrijden(prev => prev.map(w => String(w.id) === String(verzetMatchId) ? updated : w));
+        setVerzetModalActive(false);
+        setVerzetMatchId(null);
+        showToast(`📅 Wedstrijd verplaatst naar ${renderFmtDatum(verzetDatumValue)}`, 'orange');
+      }
+    } catch (e: any) {
+      showToast(`Fout: ${e.message}`, 'red');
+    }
+  };
+
+  const handleHerstelOrigineleDatum = async (matchId: string) => {
+    const m = wedstrijden.find(w => String(w.id) === String(matchId));
+    if (!m || !m.originele_datum) return;
+    try {
+      const [updated] = await sbPatch<SbMatch>('wedstrijden', matchId, {
+        datum: m.originele_datum,
+        is_inhaal: false,
+        originele_datum: null
+      });
+
+      if (updated) {
+        setWedstrijden(prev => prev.map(w => String(w.id) === String(matchId) ? updated : w));
+        setVerzetModalActive(false);
+        showToast(`↩ Teruggezet naar ${renderFmtDatum(m.originele_datum || '')}`, 'green');
+      }
+    } catch (e: any) {
+      showToast(`Fout: ${e.message}`, 'red');
+    }
+  };
+
+  // Notes handle
+  const handleOpenNotitie = (matchId: string) => {
+    const m = wedstrijden.find(w => String(w.id) === String(matchId));
+    if (!m) return;
+    setNotitieMatchId(matchId);
+    setNotitieValue(m.notitie || '');
+    setNotitieModalActive(true);
+  };
+
+  const handleSlaNotitieOp = async () => {
+    if (!notitieMatchId) return;
+    const cleanNote = notitieValue.trim();
+
+    try {
+      const [updated] = await sbPatch<SbMatch>('wedstrijden', notitieMatchId, {
+        notitie: cleanNote || null
+      });
+
+      if (updated) {
+        setWedstrijden(prev => prev.map(w => String(w.id) === String(notitieMatchId) ? updated : w));
+        setNotitieModalActive(false);
+        setNotitieMatchId(null);
+        showToast('📝 Notitie opgeslagen', 'green');
+      }
+    } catch (e: any) {
+      showToast(`Fout: ${e.message}`, 'red');
+    }
+  };
+
+  // Finish Active Board Match Results
+  const handleOpenUitslag = (bordNum: number) => {
+    const matchId = activeMatches[bordNum];
+    if (!matchId) return;
+    const m = wedstrijden.find(w => String(w.id) === String(matchId));
+    if (!m) return;
+
+    setUitslagBordNummer(bordNum);
+    setGekozenUitslagSpeler(null);
+    setUitslagNotitie(m.notitie || '');
+    setUitslagModalActive(true);
+  };
+
+  const handleKiesUitslagSpeler = (winnerOrLoserName: string) => {
+    setGekozenUitslagSpeler(winnerOrLoserName);
+  };
+
+  const handleSlaUitslagOp = async () => {
+    if (uitslagBordNummer === null || !gekozenUitslagSpeler) return;
+    const matchId = activeMatches[uitslagBordNummer];
+    if (!matchId) return;
+
+    const m = wedstrijden.find(w => String(w.id) === String(matchId));
+    if (!m) return;
+
+    const leadsWinner = halveSeizoen === 'tweede';
+    // Helft regeling:
+    // 1e helft: Verliezer schrijft -> de gekozen speler IS de geselecteerde VERLIEZER.
+    // 2e helft: Winnaar schrijft -> de gekozen speler IS de geselecteerde WINNAAR.
+    const uitslagTekst = !leadsWinner
+      ? `Verliezer: ${gekozenUitslagSpeler}`
+      : `Winnaar: ${gekozenUitslagSpeler}`;
+
+    // Determine writing duties
+    let writerName = '';
+    if (!leadsWinner) {
+      // 1e helft: geselecteerde is verliezer -> die schrijft
+      writerName = gekozenUitslagSpeler;
+    } else {
+      // 2e helft: geselecteerde is winnaar -> de ander (verliezer) schrijft
+      writerName = gekozenUitslagSpeler === m.thuis ? m.uit : m.thuis;
+    }
+
+    try {
+      const [updated] = await sbPatch<SbMatch>('wedstrijden', matchId, {
+        status: 'gespeeld',
+        uitslag: uitslagTekst,
+        notitie: uitslagNotitie.trim() || null,
+        schrijver: writerName || null
+      });
+
+      if (updated) {
+        setWedstrijden(prev => prev.map(w => String(w.id) === String(matchId) ? updated : w));
+
+        // Clear board match slot but retain writer name to assist transition
+        const updatedMatchSlots = { ...activeMatches, [uitslagBordNummer]: null };
+        setActiveMatches(updatedMatchSlots);
+        localStorage.setItem('kb_boards_v1', JSON.stringify(updatedMatchSlots));
+
+        const updatedTimes = { ...startTijden, [uitslagBordNummer]: null };
+        setStartTijden(updatedTimes);
+        localStorage.setItem('kb_start_times_v1', JSON.stringify(updatedTimes));
+
+        // Assign marker to the board space for review
+        if (writerName) {
+          wisselBordSchrijver(uitslagBordNummer, writerName);
+        }
+
+        setUitslagModalActive(false);
+        setUitslagBordNummer(null);
+        setGekozenUitslagSpeler(null);
+
+        showToast(`✅ Baan opgeslagen. Schrijver gestuurd: ${writerName}`, 'green');
+      }
+    } catch (e: any) {
+      showToast(`Fout bij uitslag opslaan: ${e.message}`, 'red');
+    }
+  };
+
+  const handleHerstelCompletedWedstrijd = async (matchId: string) => {
+    try {
+      const [updated] = await sbPatch<SbMatch>('wedstrijden', matchId, {
+        status: 'gepland',
+        uitslag: null
+      });
+
+      if (updated) {
+        setWedstrijden(prev => prev.map(w => String(w.id) === String(matchId) ? updated : w));
+        showToast('↩ Wedstrijd hersteld naar de planning', 'orange');
+      }
+    } catch (e: any) {
+      showToast(`Fout: ${e.message}`, 'red');
+    }
+  };
+
+  // Group division subsets for the open queue column view
+  const openMatches = matchesFilterOpen();
+  const bezetteMatchIds = new Set(Object.values(activeMatches).filter(Boolean));
+
+  const sortedOpenMatches = openMatches.filter(m => !bezetteMatchIds.has(String(m.id))).sort((a, b) => {
+    if (a.is_inhaal && !b.is_inhaal) return -1;
+    if (!a.is_inhaal && b.is_inhaal) return 1;
+    const tA = a.tijdstip || '';
+    const tB = b.tijdstip || '';
+    if (!tA && !tB) return 0;
+    if (!tA) return 1;
+    if (!tB) return -1;
+    return tA.localeCompare(tB);
+  });
+
+  const bekerQueue = sortedOpenMatches.filter(m => getMatchDivType(m) === 'beker');
+  const ereQueue = sortedOpenMatches.filter(m => getMatchDivType(m) === 'ere' || getMatchDivType(m) === 'inhaal' || getMatchDivType(m) === 'general');
+  const eersteQueue = sortedOpenMatches.filter(m => getMatchDivType(m) === 'eerste');
+
+  return (
+    <div className="space-y-6">
+      {/* Dynamic Toast alerts */}
+      {toastMessage && (
+        <div id="toastNotification" className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-xl border font-bold text-sm tracking-tight shadow-2xl transition animate-bounce ${
+          toastType === 'green' ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/30' :
+          toastType === 'red' ? 'bg-rose-950/90 text-rose-300 border-rose-500/30' :
+          toastType === 'orange' ? 'bg-amber-955/90 text-amber-300 border-amber-500/30' :
+          'bg-slate-900/90 text-slate-150 border-slate-700/50'
+        }`}>
+          <span>🎯</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* TOPBAR SYNC & STATUS */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center px-6 py-4 bg-slate-900 border border-slate-800 rounded-2xl gap-4 shadow-lg shadow-slate-950/20">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-500 font-mono text-xs font-semibold uppercase tracking-wider bg-emerald-500/10 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
+              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+              Live Dashboard
+            </span>
+            <span className="text-amber-500 font-mono text-xs font-semibold uppercase tracking-wider bg-amber-500/10 px-2.5 py-1 rounded-full font-bold">
+              {clockTime}
+            </span>
+          </div>
+          <h2 className="text-2xl font-extrabold text-slate-100 mt-2 tracking-tight">
+            Kaale Bull — Wedstrijdleiding Cockpit
+          </h2>
+          <p className="text-slate-400 text-xs mt-0.5">
+            Volledige controle over bekerindelingen, actieve dartbanen, schrijversregelingen en spelerswerklasten.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button
+            onClick={laadAlleData}
+            title="Herladen database"
+            className="p-2 bg-slate-800/80 border border-slate-700 hover:text-emerald-400 rounded-lg transition"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <span className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest uppercase border ${
+            syncState === 'ok' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+            syncState === 'loading' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+            'bg-rose-500/10 text-rose-400 border-rose-500/20'
+          }`}>
+            {syncText}
+          </span>
+        </div>
+      </div>
+
+      {errorMessage && (
+        <div className="p-4 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-400 text-sm flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <span><strong>Fout bij verbinden met Supabase:</strong> {errorMessage}. Lokale buffers actief.</span>
+        </div>
+      )}
+
+      {/* LIVE BANEN / BOARDS BLOCK */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+        <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <Compass className="w-4 h-4 text-emerald-500" />
+          🟢 Live Dartbanen (Bord 1 t/m 4)
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(b => {
+            const matchId = activeMatches[b];
+            const activeMatchObj = matchId ? wedstrijden.find(w => String(w.id) === String(matchId)) : null;
+
+            return (
+              <div
+                key={b}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, b)}
+                className={`relative rounded-xl border p-4 transition-all duration-200 flex flex-col justify-between min-h-[160px] shadow-sm ${
+                  activeMatchObj
+                    ? 'bg-slate-950/80 border-rose-500/40 ring-1 ring-rose-500/5'
+                    : 'bg-slate-950/30 border-slate-800 hover:border-slate-700 hover:bg-slate-950/50 border-dashed border-2'
+                }`}
+              >
+                {/* Header info */}
+                <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                  <span className="font-mono text-xs font-black tracking-widest text-slate-300">
+                    🎯 BORD {b}
+                  </span>
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                    activeMatchObj ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  }`}>
+                    {activeMatchObj ? 'Bezig' : 'Vrij'}
+                  </span>
+                </div>
+
+                {/* Match or Empty Box */}
+                {activeMatchObj ? (
+                  <div className="space-y-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="text-center font-bold text-slate-100 text-sm leading-tight flex items-center justify-center gap-2">
+                        <span className="truncate max-w-[90px]">{activeMatchObj.thuis}</span>
+                        <span className="text-[10px] text-slate-500 font-normal">vs</span>
+                        <span className="truncate max-w-[90px]">{activeMatchObj.uit}</span>
+                      </div>
+                      <div className="text-center mt-2.5">
+                        <span className="font-mono text-lg font-black text-amber-500 bg-slate-900 border border-slate-850 px-2.5 py-1 rounded-lg">
+                          ⏳ {boardTimers[b] || '00:00'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Writer selector */}
+                    <div className="space-y-1.5 mt-2">
+                      <div className="text-[9px] font-bold text-slate-500 uppercase flex items-center justify-between">
+                        <span>✍️ Marker (Schrijver):</span>
+                        {schrijvers[b] && <span className="text-emerald-400">{schrijvers[b]}</span>}
+                      </div>
+                      <select
+                        value={schrijvers[b] || ''}
+                        onChange={(e) => wisselBordSchrijver(b, e.target.value)}
+                        className="w-full bg-slate-900 text-slate-300 border border-slate-800 rounded px-2 py-1 text-xs"
+                      >
+                        <option value="">-- kies schrijver --</option>
+                        {spelers.map(s => (
+                          <option key={s.naam} value={s.naam}>{s.naam}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 border-t border-slate-800/80 pt-2 bg-transparent">
+                      <button
+                        onClick={() => handleOpenUitslag(b)}
+                        className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs py-1.5 rounded transition"
+                      >
+                        🏁 Klaar
+                      </button>
+                      <button
+                        onClick={() => herstelBaan(b)}
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold text-xs py-1.5 rounded transition"
+                      >
+                        ↩ Herstel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-center py-4">
+                    <span className="text-lg block mb-1">⬇</span>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold font-mono leading-relaxed">
+                      Sleep wedstrijd hier of druk op de ▶ knop
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* DASHBOARD COLUMN WRAPPER */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* LEFT COLUMN: UTILITIES (beker, spelers, importer, workload) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* BEKERWEDSTRIJD TOEVOEGEN */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-md">
+            <button
+              onClick={() => setBekerOpen(!bekerOpen)}
+              className="w-full flex justify-between items-center px-5 py-4 bg-slate-950/40 hover:bg-slate-950/75 border-b border-slate-850 text-left transition"
+            >
+              <span className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                <Trophy className="w-4 h-4" />
+                🏆 Bekerwedstrijd toevoegen
+              </span>
+              <span className="text-slate-500 font-mono text-sm">{bekerOpen ? '▼' : '►'}</span>
+            </button>
+
+            {bekerOpen && (
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Thuis</label>
+                    <select
+                      value={bekerThuis}
+                      onChange={(e) => setBekerThuis(e.target.value)}
+                      className="w-full bg-slate-950 text-slate-300 border border-slate-850 rounded p-2 text-xs"
+                    >
+                      <option value="">-- kies --</option>
+                      {spelers.map(s => (
+                        <option key={s.naam} value={s.naam}>{s.naam}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Uit</label>
+                    <select
+                      value={bekerUit}
+                      onChange={(e) => setBekerUit(e.target.value)}
+                      className="w-full bg-slate-950 text-slate-300 border border-slate-850 rounded p-2 text-xs"
+                    >
+                      <option value="">-- kies --</option>
+                      {spelers.map(s => (
+                        <option key={s.naam} value={s.naam} disabled={s.naam === bekerThuis}>{s.naam}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Datum</label>
+                    <input
+                      type="date"
+                      value={bekerDatum}
+                      onChange={(e) => setBekerDatum(e.target.value)}
+                      className="w-full bg-slate-950 text-slate-300 border border-slate-850 rounded p-2 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Tijdstip</label>
+                    <input
+                      type="text"
+                      placeholder="19:30"
+                      value={bekerTijdstip}
+                      onChange={(e) => setBekerTijdstip(e.target.value)}
+                      className="w-full bg-slate-950 text-slate-300 border border-slate-850 rounded p-2 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block">FORMAT</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Best of 5', 'Best of 7', 'Best of 9'].map(f => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setBekerFormat(f)}
+                        className={`py-1.5 rounded text-xs font-bold font-mono border ${
+                          bekerFormat === f
+                            ? 'bg-amber-600 text-white border-amber-500'
+                            : 'bg-slate-950 text-slate-400 border-slate-850 hover:bg-slate-900'
+                        }`}
+                      >
+                        {f === 'Best of 5' ? 'Bo5' : f === 'Best of 7' ? 'Bo7' : 'Bo9'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Ronde (bijv. 1/4 finale)</label>
+                  <input
+                    type="text"
+                    placeholder="bijv. 1/4 finale"
+                    value={bekerRonde}
+                    onChange={(e) => setBekerRonde(e.target.value)}
+                    className="w-full bg-slate-950 text-slate-300 border border-slate-850 rounded p-2 text-xs"
+                  />
+                </div>
+
+                <button
+                  onClick={handleVoegBekerToe}
+                  className="w-full bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs py-2.5 rounded-lg transition"
+                >
+                  🔥 Toevoegen aan wachtrij
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* SPELER TOEVOEGEN */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-3">
+            <h3 className="text-xs font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-slate-500" />
+              👤 Speler toevoegen
+            </h3>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Naam"
+                value={nieuweSpelerNaam}
+                onChange={(e) => setNieuweSpelerNaam(e.target.value)}
+                className="flex-1 bg-slate-950 text-slate-200 border border-slate-850 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <button
+                onClick={handleVoegSpelerToe}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-2 text-xs font-bold rounded-lg transition"
+              >
+                + Toevoegen
+              </button>
+            </div>
+          </div>
+
+          {/* CSV IMPORTEER */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-3.5">
+            <h3 className="text-xs font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
+              <Upload className="w-4 h-4 text-slate-500" />
+              📥 CSV importeren
+            </h3>
+            <p className="text-[10px] text-slate-500 italic block">
+              Verwacht kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col items-center justify-center p-3 border border-slate-850 border-dashed rounded-xl cursor-pointer hover:bg-slate-950/20 text-slate-400 hover:text-slate-200 transition">
+                <span className="text-emerald-500 text-xs font-bold">➕ Overlap</span>
+                <span className="text-[9px] text-slate-500 mt-0.5">Toevoegen</span>
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => handleCsvImport(e, 'toevoegen')}
+                />
+              </label>
+
+              <label className="flex flex-col items-center justify-center p-3 border border-rose-950/30 hover:border-rose-500/30 border-dashed rounded-xl cursor-pointer hover:bg-rose-955/5 text-rose-400 transition">
+                <span className="text-rose-500 text-xs font-bold">🔄 Overschrijven</span>
+                <span className="text-[9px] text-slate-500 mt-0.5">Vervangen</span>
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => handleCsvImport(e, 'vervangen')}
+                />
+              </label>
+            </div>
+            <p className="text-[9px] text-slate-500 leading-normal">
+              * Vervangen wist alleen geplande wedstrijden van de datums die voorkomen in het geladen bestand.
+            </p>
+          </div>
+
+          {/* WORKLOAD (Wachtlijst per speler) */}
+          {spelerScoresCount.length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-3">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                <Layers className="w-4 h-4 text-slate-500" />
+                📊 Wedstrijden per speler (Vandaag)
+              </h3>
+
+              <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                {spelerScoresCount.map(([naam, cnt]) => {
+                  const max = spelerScoresCount[0]?.[1] || 1;
+                  const pct = Math.round((cnt / max) * 100);
+                  const isBusy = cnt >= 3;
+
+                  return (
+                    <div key={naam} className="flex items-center gap-2 text-xs font-medium bg-slate-950/20 p-2 rounded-lg border border-slate-850/40">
+                      <span className="font-bold text-slate-300 flex-1 truncate">{naam}</span>
+                      <div className="w-16 h-1.5 bg-slate-850 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${isBusy ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className={`font-mono font-bold ${isBusy ? 'text-amber-400 text-sm' : 'text-slate-400'}`}>
+                        {cnt}×
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* RIGHT COLUMN: COCKPIT FILTERS AND COLS (Ere/1e divisie/Beker queues) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* CONTROL BAR (Date selectors and halves toggle) */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center gap-4 justify-between">
+            <div className="flex items-center gap-2.5 w-full md:w-auto">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">📅 Avond:</span>
+              <select
+                value={huidigeAvond}
+                onChange={(e) => setHuidigeAvond(e.target.value)}
+                className="bg-slate-950 text-slate-200 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer focus:outline-none"
+              >
+                <option value="ALL">Alle datums</option>
+                {Array.from(new Set(wedstrijden.map(w => w.datum))).sort().map((d: string) => (
+                  <option key={d} value={d}>{renderFmtDatum(d)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center bg-slate-950 border border-slate-850 rounded-xl p-1 gap-1.5 w-full md:w-auto">
+              <button
+                onClick={() => handleSetHalve('eerste')}
+                className={`flex-1 md:flex-none px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition ${
+                  halveSeizoen === 'eerste'
+                    ? 'bg-amber-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                1e helft — verliezer schrijft
+              </button>
+              <button
+                onClick={() => handleSetHalve('tweede')}
+                className={`flex-1 md:flex-none px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition ${
+                  halveSeizoen === 'tweede'
+                    ? 'bg-amber-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                2e helft — winnaar schrijft
+              </button>
+            </div>
+          </div>
+
+          {/* DYNAMIC INFORMATION BANNER ABOUT SELECTED NIGHT */}
+          {huidigeAvond !== 'ALL' && (
+            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl grid grid-cols-2 md:grid-cols-4 gap-4 shadow-sm text-center">
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Avond Datum</span>
+                <strong className="text-slate-200 text-sm mt-0.5 block">{renderFmtDatum(huidigeAvond)}</strong>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Openstaande Wedstrijden</span>
+                <strong className="text-amber-500 text-lg font-black block">{matchesFilterOpen().length}</strong>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Gespeeld</span>
+                <strong className="text-emerald-500 text-lg font-black block">{matchesFilterCompleted().length}</strong>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Bord Bezetting</span>
+                <strong className="text-indigo-400 text-lg font-black block">
+                  {Object.values(activeMatches).filter(Boolean).length} / 4
+                </strong>
+              </div>
+            </div>
+          )}
+
+          {/* BEKER QUEUE SECTION */}
+          {bekerQueue.length > 0 && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-5 space-y-3 shadow shadow-amber-500/5">
+              <h4 className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center gap-1.5 border-b border-amber-500/10 pb-2">
+                <Trophy className="w-4.5 h-4.5" />
+                🏆 Bekerwedstrijden ({bekerQueue.length})
+              </h4>
+              <div className="flex flex-wrap gap-4">
+                {bekerQueue.map((m, idx) => {
+                  const isBlocked = bezetteSpelers.has(m.thuis) || bezetteSpelers.has(m.uit);
+                  return (
+                    <div
+                      key={m.id}
+                      draggable={!isBlocked}
+                      onDragStart={(e) => handleDragStart(e, String(m.id))}
+                      className={`flex-1 min-w-[280px] bg-slate-950 border border-slate-850 hover:border-slate-700 rounded-xl p-3 flex items-center justify-between gap-3 text-xs shadow-sm cursor-grab transition ${
+                        isBlocked ? 'opacity-40 pointer-events-none' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold font-mono">
+                          {idx + 1}
+                        </span>
+                        <div>
+                          <strong className="text-slate-200 block text-sm leading-tight">
+                            {m.thuis} <span className="text-[11px] text-slate-500 font-normal">v</span> {m.uit}
+                          </strong>
+                          <span className="text-[9px] text-amber-500 block font-mono mt-0.5">
+                            {m.divisie} {m.speelronde ? `• ${m.speelronde}` : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenNotitie(String(m.id))}
+                          title="Notitie"
+                          className="p-1 px-1.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 rounded"
+                        >
+                          📝
+                        </button>
+                        <button
+                          onClick={() => handleVerwijderBeker(m.id)}
+                          title="Beker verwijderen"
+                          className="p-1 px-1.5 bg-slate-900 border border-slate-850 hover:text-rose-500 rounded text-slate-500"
+                        >
+                          🗑
+                        </button>
+                        <button
+                          onClick={() => startMatchOpBaan(String(m.id), getVoorgesteldBord())}
+                          className="p-1 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded flex items-center gap-0.5 transition"
+                        >
+                          <Play className="w-2.5 h-2.5 fill-white" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TWO DIVISION QUEUES IN COLUMNS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* COLUMN 1: ERE DIVISIE/OVERIG */}
+            <div className="space-y-4">
+              <div className="p-3 bg-indigo-500/10 border-b-2 border-indigo-500 rounded-t-xl text-indigo-400 font-bold text-xs uppercase tracking-widest flex items-center justify-between">
+                <span>🔵 Ere Divisie</span>
+                <span className="font-mono text-[10px] text-slate-500">{ereQueue.length} wachtend</span>
+              </div>
+
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                {ereQueue.map((m, idx) => {
+                  const isBlocked = bezetteSpelers.has(m.thuis) || bezetteSpelers.has(m.uit);
+                  return (
+                    <div
+                      key={m.id}
+                      draggable={!isBlocked}
+                      onDragStart={(e) => handleDragStart(e, String(m.id))}
+                      className={`bg-slate-900 border ${m.is_inhaal ? 'border-rose-500/20 bg-rose-500/5' : 'border-slate-800 hover:border-slate-700'} rounded-xl p-4 space-y-3.5 shadow-sm transition cursor-grab ${
+                        isBlocked ? 'opacity-40 pointer-events-none' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-black text-emerald-400">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <span className="text-slate-400 text-[10px] font-mono block leading-none">
+                              🕒 {m.tijdstip || '19:30'}
+                            </span>
+                            <strong className="text-slate-100 text-base font-bold leading-tight mt-1.5 block">
+                              {m.thuis} <span className="text-slate-500 font-normal text-xs">vs</span> {m.uit}
+                            </strong>
+                          </div>
+                        </div>
+
+                        {/* Badges row */}
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          {m.is_inhaal && (
+                            <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-1.5 py-0.5 rounded text-[8px] font-bold font-mono tracking-wider uppercase">
+                              Inhaal
+                            </span>
+                          )}
+                          <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded text-[8px] font-bold font-mono tracking-wider uppercase">
+                            {m.divisie.split(' ')[0]}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Warning or original date info */}
+                      {(m.originele_datum || m.notitie) && (
+                        <div className="bg-slate-950/40 p-2 rounded-lg border border-slate-850/50 text-[10px] text-slate-400 font-mono space-y-1">
+                          {m.originele_datum && (
+                            <span className="text-orange-400 block">↩ orig: {renderFmtDatum(m.originele_datum)}</span>
+                          )}
+                          {m.notitie && (
+                            <span className="text-slate-400 block text-[11px] font-sans">📝 {m.notitie}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between border-t border-slate-850 pt-2.5 mt-2 bg-transparent">
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => handleOpenNotitie(String(m.id))}
+                            className="px-2 py-1 bg-slate-950 border border-slate-850 text-slate-400 hover:text-slate-200 text-xs rounded font-mono"
+                          >
+                            📝 Note
+                          </button>
+                          <button
+                            onClick={() => handleOpenVerzet(String(m.id))}
+                            className="px-2 py-1 bg-slate-950 border border-slate-850 text-slate-400 hover:text-slate-200 text-xs rounded font-mono"
+                          >
+                            📅 Verzet
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => startMatchOpBaan(String(m.id), getVoorgesteldBord())}
+                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-1 transition"
+                        >
+                          <Play className="w-3 h-3 fill-white" /> Start
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {ereQueue.length === 0 && (
+                  <div className="text-center text-slate-650 italic py-12 text-xs">
+                    Geen Ere Divisie partijen planned.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* COLUMN 2: EERSTE DIVISIE */}
+            <div className="space-y-4">
+              <div className="p-3 bg-amber-500/10 border-b-2 border-amber-500 rounded-t-xl text-amber-500 font-bold text-xs uppercase tracking-widest flex items-center justify-between">
+                <span>🟠 1e Divisie</span>
+                <span className="font-mono text-[10px] text-slate-500">{eersteQueue.length} wachtend</span>
+              </div>
+
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                {eersteQueue.map((m, idx) => {
+                  const isBlocked = bezetteSpelers.has(m.thuis) || bezetteSpelers.has(m.uit);
+                  return (
+                    <div
+                      key={m.id}
+                      draggable={!isBlocked}
+                      onDragStart={(e) => handleDragStart(e, String(m.id))}
+                      className={`bg-slate-900 border ${m.is_inhaal ? 'border-rose-500/20 bg-rose-500/5' : 'border-slate-800 hover:border-slate-700'} rounded-xl p-4 space-y-3.5 shadow-sm transition cursor-grab ${
+                        isBlocked ? 'opacity-40 pointer-events-none' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-black text-emerald-400">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <span className="text-slate-400 text-[10px] font-mono block leading-none">
+                              🕒 {m.tijdstip || '19:30'}
+                            </span>
+                            <strong className="text-slate-100 text-base font-bold leading-tight mt-1.5 block">
+                              {m.thuis} <span className="text-slate-500 font-normal text-xs">vs</span> {m.uit}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          {m.is_inhaal && (
+                            <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-1.5 py-0.5 rounded text-[8px] font-bold font-mono tracking-wider uppercase">
+                              Inhaal
+                            </span>
+                          )}
+                          <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded text-[8px] font-bold font-mono tracking-wider uppercase">
+                            {m.divisie.split(' ')[0]}
+                          </span>
+                        </div>
+                      </div>
+
+                      {(m.originele_datum || m.notitie) && (
+                        <div className="bg-slate-950/40 p-2 rounded-lg border border-slate-850/50 text-[10px] text-slate-400 font-mono space-y-1">
+                          {m.originele_datum && (
+                            <span className="text-orange-400 block">↩ orig: {renderFmtDatum(m.originele_datum)}</span>
+                          )}
+                          {m.notitie && (
+                            <span className="text-slate-400 block text-[11px] font-sans">📝 {m.notitie}</span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between border-t border-slate-850 pt-2.5 mt-2 bg-transparent">
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => handleOpenNotitie(String(m.id))}
+                            className="px-2 py-1 bg-slate-950 border border-slate-850 text-slate-400 hover:text-slate-200 text-xs rounded font-mono"
+                          >
+                            📝 Note
+                          </button>
+                          <button
+                            onClick={() => handleOpenVerzet(String(m.id))}
+                            className="px-2 py-1 bg-slate-950 border border-slate-850 text-slate-400 hover:text-slate-200 text-xs rounded font-mono"
+                          >
+                            📅 Verzet
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => startMatchOpBaan(String(m.id), getVoorgesteldBord())}
+                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-1 transition"
+                        >
+                          <Play className="w-3 h-3 fill-white" /> Start
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {eersteQueue.length === 0 && (
+                  <div className="text-center text-slate-650 italic py-12 text-xs">
+                    Geen 1e Divisie partijen planned.
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* PLAYED MATCH COMPLETED LIST (Gespeeld deze avond) */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow">
+            <button
+              onClick={() => setHistoryOpen(!historyOpen)}
+              className="w-full flex justify-between items-center px-5 py-4 bg-slate-950/30 hover:bg-slate-950/60 border-b border-slate-850 text-left transition"
+            >
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" />
+                ✅ Gespeeld deze avond ({matchesFilterCompleted().length})
+              </span>
+              <span className="text-slate-500 font-mono text-sm">{historyOpen ? '▼' : '►'}</span>
+            </button>
+
+            {historyOpen && (
+              <div className="p-5 space-y-3.5 max-h-[350px] overflow-y-auto">
+                {matchesFilterCompleted().map(m => (
+                  <div key={m.id} className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 flex items-center justify-between gap-4">
+                    <div>
+                      <strong className="text-slate-200 text-sm block">
+                        {m.thuis} vs {m.uit}
+                      </strong>
+                      <div className="flex gap-2 text-[10px] text-slate-500 font-mono mt-1">
+                        <span>{m.divisie}</span>
+                        {m.speelronde && <span>• Round {m.speelronde}</span>}
+                        {m.schrijver && <span className="text-emerald-400 font-bold">• ✍️ Schrijver: {m.schrijver}</span>}
+                      </div>
+                      {m.notitie && (
+                        <p className="text-[11px] text-slate-400 mt-1 font-semibold">📝 {m.notitie}</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2.5 flex-shrink-0">
+                      {m.uitslag && (
+                        <span className="font-mono text-xs font-black bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-lg text-emerald-400 text-center shadow">
+                          {m.uitslag}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleHerstelCompletedWedstrijd(String(m.id))}
+                        title="Herstel naar gepland"
+                        className="p-1 px-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded transition text-slate-400"
+                      >
+                        ↩
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {matchesFilterCompleted().length === 0 && (
+                  <div className="text-center text-slate-600 text-xs italic py-6">
+                    Nog geen wedstrijden afgesloten vanavond.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* MODAL: MATCH FINISH RESULT CLOSING CARD */}
+      {uitslagModalActive && uitslagBordNummer !== null && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-black text-slate-100 flex items-center gap-2 border-b border-slate-800 pb-3">
+              🎯 Wedstrijd afsluiten — Bord {uitslagBordNummer}
+            </h3>
+
+            {(() => {
+              const matchId = activeMatches[uitslagBordNummer];
+              const m = wedstrijden.find(w => String(w.id) === String(matchId));
+              if (!m) return null;
+
+              const isTweede = halveSeizoen === 'tweede';
+              const textAction = !isTweede ? 'VERLIEZER SCHRIJFT' : 'WINNAAR SCHRIJFT';
+
+              return (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase">Matchup:</h4>
+                    <p className="text-slate-100 font-extrabold text-lg mt-0.5">{m.thuis} vs {m.uit}</p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-850">
+                    <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                      !isTweede ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    }`}>
+                      ✍️ {textAction}
+                    </span>
+                    <p className="text-xs text-slate-450 mt-2">
+                      {!isTweede
+                        ? `Klik op de speler die heeft **verloren** (Verliezer Schrijft regeling hoofdprijs)`
+                        : `Klik op de speler die heeft **gewonnen** (Winnaar Schrijft regeling hoofdprijs)`
+                      }
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {[m.thuis, m.uit].map(playerNaam => {
+                      const isSelected = gekozenUitslagSpeler === playerNaam;
+                      return (
+                        <button
+                          key={playerNaam}
+                          type="button"
+                          onClick={() => handleKiesUitslagSpeler(playerNaam)}
+                          className={`p-4 rounded-xl border font-bold text-center text-sm transition ${
+                            isSelected
+                              ? (!isTweede ? 'bg-rose-950/40 text-rose-300 border-rose-500' : 'bg-emerald-950/40 text-emerald-300 border-emerald-500')
+                              : 'bg-slate-950 border-slate-850 hover:border-slate-700 text-slate-300'
+                          }`}
+                        >
+                          {playerNaam}
+                          <span className="block text-[9.5px] text-slate-500 font-normal mt-1">
+                            {!isTweede ? 'Klik als verliezer' : 'Klik als winnaar'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {gekozenUitslagSpeler && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold rounded-lg flex items-center gap-1.5">
+                      <span className="font-mono text-sm">✍️</span>
+                      <span>
+                        Schrijver: {!isTweede ? gekozenUitslagSpeler : (gekozenUitslagSpeler === m.thuis ? m.uit : m.thuis)} → bord {uitslagBordNummer}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">NOTITIE (OPTIE)</label>
+                    <textarea
+                      placeholder="Bijzonderheden of opmerking…"
+                      value={uitslagNotitie}
+                      onChange={(e) => setUitslagNotitie(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-850 rounded-xl p-3 text-xs text-slate-200 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setUitslagModalActive(false)}
+                      className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold"
+                    >
+                      Annuleer
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!gekozenUitslagSpeler}
+                      onClick={handleSlaUitslagOp}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-extrabold"
+                    >
+                      ✓ Bevestig uitslag
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RESCHEDULE MATCH */}
+      {verzetModalActive && verzetMatchId && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-black text-slate-100 flex items-center gap-2 border-b border-slate-800 pb-3">
+              📅 Wedstrijd verzetten
+            </h3>
+
+            {(() => {
+              const m = wedstrijden.find(w => String(w.id) === String(verzetMatchId));
+              if (!m) return null;
+
+              return (
+                <div className="space-y-4">
+                  <p className="text-sm font-semibold text-slate-350">{m.thuis} vs {m.uit}</p>
+
+                  {m.originele_datum && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs rounded-lg flex justify-between items-center">
+                      <span>Origineel: <strong>{renderFmtDatum(m.originele_datum)}</strong></span>
+                      <button
+                        onClick={() => handleHerstelOrigineleDatum(String(m.id))}
+                        className="text-[10px] underline font-bold"
+                      >
+                        Herstellen
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Nieuwe datum</label>
+                    <input
+                      type="date"
+                      value={verzetDatumValue}
+                      onChange={(e) => setVerzetDatumValue(e.target.value)}
+                      className="w-full bg-slate-950 text-slate-300 border border-slate-850 rounded p-2 text-xs"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer pt-1 text-xs text-slate-400 font-semibold select-none">
+                    <input
+                      type="checkbox"
+                      checked={verzetIsInhaal}
+                      onChange={(e) => setVerzetIsInhaal(e.target.checked)}
+                      className="rounded text-emerald-500 bg-slate-950 border-slate-850"
+                    />
+                    Markeren als inhaalwedstrijd
+                  </label>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setVerzetModalActive(false)}
+                      className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold"
+                    >
+                      Annuleer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSlaVerzetOp}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-extrabold"
+                    >
+                      ✓ Opslaan
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: NOTITIE MODAL */}
+      {notitieModalActive && notitieMatchId && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-black text-slate-100 flex items-center gap-2 border-b border-slate-800 pb-2">
+              📝 Wedstrijdnotitie bewerken
+            </h3>
+
+            {(() => {
+              const m = wedstrijden.find(w => String(w.id) === String(notitieMatchId));
+              if (!m) return null;
+
+              return (
+                <div className="space-y-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase">{m.thuis} vs {m.uit}</p>
+
+                  <textarea
+                    rows={4}
+                    value={notitieValue}
+                    onChange={(e) => setNotitieValue(e.target.value)}
+                    placeholder="Voeg opmerkingen over rusttijden, scores of uitslagen toe…"
+                    className="w-full bg-slate-955 text-slate-200 border border-slate-800 rounded-xl p-3 text-xs focus:outline-none"
+                  />
+
+                  <div className="flex justify-end gap-3 bg-transparent pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setNotitieModalActive(false)}
+                      className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold"
+                    >
+                      Annuleer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSlaNotitieOp}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-extrabold"
+                    >
+                      ✓ Opslaan
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
