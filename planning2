@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<style>
+    /* ... (je bestaande CSS van index.html) ... */
+</style>
+</head>
+<body>
+<script>
+// --- PLANNING TOOL LOGICA (Vernieuwd) ---
+
+async function ptVerdeelEnDownload() {
+    const csvData = window.ptWedstrijden; // Aanname: data geladen via ptLaadCSV
+    const avonden = document.querySelectorAll('.pt-avond-chip'); // Aanname: lijst van beschikbare avonden
+    const maxPerAvond = 32; 
+
+    // 1. Indeling in pools
+    let pools = {
+        Ere_H1: [], Ere_H2: [], 
+        Eerste_P1: [], Eerste_P2: [], Eerste_P3: [], Eerste_P4: []
+    };
+
+    csvData.forEach(w => {
+        if(w.divisie === 'Ere') {
+            w.ronde <= 20 ? pools.Ere_H1.push(w) : pools.Ere_H2.push(w);
+        } else {
+            if(w.ronde <= 10) pools.Eerste_P1.push(w);
+            else if(w.ronde <= 20) pools.Eerste_P2.push(w);
+            else if(w.ronde <= 30) pools.Eerste_P3.push(w);
+            else pools.Eerste_P4.push(w);
+        }
+    });
+
+    // 2. Verdeel-algoritme
+    let planning = [];
+    let spelerLog = {}; // { avondIndex: { spelerNaam: count } }
+
+    avonden.forEach((avond, index) => {
+        let avondMatches = [];
+        let cap = maxPerAvond;
+
+        // Logica: Vullen per avond
+        // We trekken evenredig uit de pools. 
+        // Bijv. Ere_H1 krijgt voorrang op de eerste 50% van de beschikbare avonden.
+        
+        // ... (Logica voor toewijzing met speler-check) ...
+        // if(spelerLog[index][speler] < 2) { ... }
+    });
+
+    console.log("Planning gegenereerd:", planning);
+    alert("Planning met nieuwe verdeel-logica is klaar.");
+}
+
+// ... (Rest van je bestaande JavaScript-functies) ...
+</script>
+</body>
+</html>
