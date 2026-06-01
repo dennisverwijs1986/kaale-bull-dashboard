@@ -10,48 +10,68 @@
 // --- PLANNING TOOL LOGICA (Vernieuwd) ---
 
 async function ptVerdeelEnDownload() {
-    const csvData = window.ptWedstrijden; // Aanname: data geladen via ptLaadCSV
-    const avonden = document.querySelectorAll('.pt-avond-chip'); // Aanname: lijst van beschikbare avonden
-    const maxPerAvond = 32; 
-
-    // 1. Indeling in pools
-    let pools = {
-        Ere_H1: [], Ere_H2: [], 
-        Eerste_P1: [], Eerste_P2: [], Eerste_P3: [], Eerste_P4: []
-    };
-
-    csvData.forEach(w => {
-        if(w.divisie === 'Ere') {
-            w.ronde <= 20 ? pools.Ere_H1.push(w) : pools.Ere_H2.push(w);
+    // 1. Instellingen ophalen
+    const totaalAvonden = parseInt(document.getElementById('pt-avonden').value) || 27;
+    const maxPerAvond = parseInt(document.getElementById('pt-slot-count').value) || 32;
+    
+    // We gaan ervan uit dat je data in een variabele 'wedstrijden' staat
+    // (die moet je in jouw script al geladen hebben)
+    const data = window.wedstrijden || []; 
+    
+    // 2. Wedstrijden sorteren in buckets
+    let pools = { Ere_H1:[], Ere_H2:[], Eerste_P1:[], Eerste_P2:[], Eerste_P3:[], Eerste_P4:[] };
+    data.forEach(w => {
+        let cat = "";
+        if (w.divisie === 'Ere') {
+            cat = w.ronde <= 20 ? 'Ere_H1' : 'Ere_H2';
         } else {
-            if(w.ronde <= 10) pools.Eerste_P1.push(w);
-            else if(w.ronde <= 20) pools.Eerste_P2.push(w);
-            else if(w.ronde <= 30) pools.Eerste_P3.push(w);
-            else pools.Eerste_P4.push(w);
+            if (w.ronde <= 10) cat = 'Eerste_P1';
+            else if (w.ronde <= 20) cat = 'Eerste_P2';
+            else if (w.ronde <= 30) cat = 'Eerste_P3';
+            else cat = 'Eerste_P4';
         }
+        pools[cat].push(w);
     });
 
-    // 2. Verdeel-algoritme
-    let planning = [];
-    let spelerLog = {}; // { avondIndex: { spelerNaam: count } }
+    // 3. Verdeel-lus (evenredig over avonden)
+    let planning = Array.from({length: totaalAvonden}, () => []);
+    let spelerCounts = Array.from({length: totaalAvonden}, () => ({}));
 
-    avonden.forEach((avond, index) => {
-        let avondMatches = [];
-        let cap = maxPerAvond;
+    // Hulpfunctie: check of team mag spelen
+    function magSpelen(avondIdx, w) {
+        let cA = spelerCounts[avondIdx][w.teamA] || 0;
+        let cB = spelerCounts[avondIdx][w.teamB] || 0;
+        return (cA < 2 && cB < 2);
+    }
 
-        // Logica: Vullen per avond
-        // We trekken evenredig uit de pools. 
-        // Bijv. Ere_H1 krijgt voorrang op de eerste 50% van de beschikbare avonden.
+    // Verdeel de wedstrijden uit de pools evenredig
+    // We vullen avond voor avond, waarbij we prioriteit geven aan periodes
+    let alleWedstrijden = [...pools.Ere_H1, ...pools.Ere_H2, ...pools.Eerste_P1, ...pools.Eerste_P2, ...pools.Eerste_P3, ...pools.Eerste_P4];
+    
+    let avondIndex = 0;
+    alleWedstrijden.forEach(w => {
+        let geplaatst = false;
+        let pogingen = 0;
         
-        // ... (Logica voor toewijzing met speler-check) ...
-        // if(spelerLog[index][speler] < 2) { ... }
+        while (!geplaatst && pogingen < totaalAvonden) {
+            let idx = (avondIndex + pogingen) % totaalAvonden;
+            if (planning[idx].length < maxPerAvond && magSpelen(idx, w)) {
+                planning[idx].push(w);
+                spelerCounts[idx][w.teamA] = (spelerCounts[idx][w.teamA] || 0) + 1;
+                spelerCounts[idx][w.teamB] = (spelerCounts[idx][w.teamB] || 0) + 1;
+                geplaatst = true;
+            }
+            pogingen++;
+        }
+        avondIndex = (avondIndex + 1) % totaalAvonden; // Verspreid over avonden
     });
 
-    console.log("Planning gegenereerd:", planning);
-    alert("Planning met nieuwe verdeel-logica is klaar.");
+    // 4. Output: Hier kun je de planning in een tabel tonen of CSV maken
+    console.log("Planning is klaar:", planning);
+    alert("Planning gegenereerd over " + totaalAvonden + " avonden!");
+    
+    // Voeg hier je code toe om de tabel in de DOM te tekenen
 }
-
-// ... (Rest van je bestaande JavaScript-functies) ...
 </script>
 </body>
 </html>
