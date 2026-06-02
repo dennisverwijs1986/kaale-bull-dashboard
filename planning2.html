@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kaale Bull — Wedstrijdleiding</title>
-<script src="https://cdn.tailwindcss.com"></script>
 <style>
 :root {
   --bg:      #0f1520;
@@ -23,747 +22,2015 @@
   --eerste:  #3b82f6;
   --beker:   #f59e0b;
   --inhaal:  #ef4444;
+  --warn:    #f97316;
 }
-body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden;}
+
+/* ── TOPBAR ── */
+.topbar{background:#080d16;border-bottom:2px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:12px;}
+.topbar-logo{font-size:1.15rem;font-weight:800;letter-spacing:1px;display:flex;align-items:center;gap:8px;}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.clock{font-family:monospace;font-size:1.4rem;color:var(--orange);font-weight:bold;}
+.sync-badge{font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;}
+.sync-badge.idle{background:rgba(148,163,184,0.15);color:var(--muted);}
+.sync-badge.loading{background:rgba(245,158,11,0.15);color:var(--orange);}
+.sync-badge.ok{background:rgba(16,185,129,0.15);color:var(--green);}
+.sync-badge.error{background:rgba(239,68,68,0.15);color:var(--red);}
+
+/* ── BOARDS BAR ── */
+.boards-bar{background:var(--s1);border-bottom:2px solid var(--border);padding:12px 20px;}
+.boards-bar-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.boards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.board-card{background:var(--s2);border-radius:10px;padding:12px 14px;border:1px solid var(--border);border-top:3px solid var(--green);transition:all 0.2s;min-height:140px;display:flex;flex-direction:column;}
+.board-card.busy{border-top-color:var(--red);}
+.board-card.drag-over{border-color:var(--green);background:rgba(16,185,129,0.07);}
+.board-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.board-num{font-weight:800;font-size:1rem;font-family:monospace;letter-spacing:1px;display:flex;align-items:center;gap:6px;}
+.board-tag{font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;}
+.board-tag.free{background:rgba(16,185,129,0.15);color:var(--green);}
+.board-tag.busy{background:rgba(239,68,68,0.15);color:var(--red);}
+.board-match{font-size:0.9rem;font-weight:700;margin-bottom:4px;line-height:1.3;}
+/* timer hidden */
+.board-schrijver{margin-bottom:8px;}
+.board-acts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto;}
+.board-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:0.75rem;gap:4px;border:2px dashed var(--border);border-radius:7px;padding:8px;text-align:center;}
+
+/* ── MAIN AREA ── */
+.main-area{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 56px - 178px);overflow:hidden;}
+.panel-left{border-right:1px solid var(--border);overflow-y:auto;background:var(--s1);}
+.panel-right{overflow-y:auto;background:var(--bg);}
+
+/* ── SECTION ── */
+.sec{padding:14px;border-bottom:1px solid var(--border);}
+.sec-title{font-size:0.67rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:none;border-radius:5px;padding:7px 13px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:inherit;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-green{background:var(--green);color:#000;}
+.btn-green:hover:not(:disabled){background:#059669;}
+.btn-red{background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-red:hover:not(:disabled){background:rgba(239,68,68,0.3);}
+.btn-orange{background:var(--orange);color:#000;}
+.btn-orange:hover:not(:disabled){background:#d97706;}
+.btn-ghost{background:var(--s2);color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover:not(:disabled){color:var(--text);border-color:#4a5a76;}
+.btn-sm{padding:5px 10px;font-size:0.75rem;}
+.btn-xs{padding:3px 7px;font-size:0.7rem;}
+.btn-full{width:100%;}
+
+/* ── INPUTS ── */
+.inp,.sel{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 10px;font-size:0.83rem;font-family:inherit;width:100%;}
+.inp:focus,.sel:focus{outline:none;border-color:var(--blue);}
+.sel{cursor:pointer;}
+.row{display:flex;gap:8px;}
+.ig{flex:1;display:flex;flex-direction:column;gap:4px;}
+.lbl{font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:0.5px;}
+
+/* ── BEKER ── */
+.beker-wrap{border:1px solid rgba(245,158,11,0.25);border-radius:8px;overflow:hidden;background:linear-gradient(135deg,var(--s2),var(--s1));}
+.beker-hdr{padding:10px 13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;background:rgba(245,158,11,0.05);border-bottom:1px solid rgba(245,158,11,0.15);}
+.beker-hdr:hover{background:rgba(245,158,11,0.1);}
+.beker-hdr-title{font-size:0.75rem;font-weight:700;letter-spacing:1px;color:var(--beker);text-transform:uppercase;}
+.beker-body{padding:13px;display:none;}
+.beker-body.open{display:block;}
+.bo-row{display:flex;gap:5px;margin-bottom:10px;}
+.bo-btn{flex:1;padding:6px;border-radius:4px;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.06);color:var(--orange);font-size:0.75rem;font-weight:700;cursor:pointer;transition:all 0.15s;font-family:inherit;}
+.bo-btn.active{background:var(--beker);color:#000;border-color:var(--beker);}
+.bo-btn:hover:not(.active){background:rgba(245,158,11,0.15);}
+
+/* ── AVOND OVERZICHT ── */
+.avond-banner{background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(168,85,247,0.08));border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;}
+.avond-banner-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.avond-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.avond-stat{text-align:center;}
+.avond-stat-val{font-size:1.2rem;font-weight:800;color:var(--text);}
+.avond-stat-lbl{font-size:0.65rem;color:var(--muted);margin-top:1px;}
+.avond-warning{margin-top:10px;padding:7px 10px;background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.25);border-radius:5px;font-size:0.75rem;color:var(--warn);}
+
+/* ── SPELER BELASTING ── */
+.werklast-wrap{margin-bottom:14px;}
+.werklast-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+.werklast-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;background:var(--s1);margin-bottom:3px;font-size:0.78rem;}
+.werklast-naam{flex:1;font-weight:600;}
+.werklast-bar-wrap{width:60px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.werklast-bar{height:100%;border-radius:3px;background:var(--green);transition:width 0.3s;}
+.werklast-bar.high{background:var(--warn);}
+.werklast-count{font-weight:700;min-width:24px;text-align:right;color:var(--muted);}
+.werklast-count.high{color:var(--warn);}
+
+/* ── DATE FILTER ── */
+.date-bar{padding:10px 16px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.date-bar-label{font-size:0.78rem;font-weight:600;color:var(--muted);white-space:nowrap;}
+
+/* ── WACHTRIJ ── */
+.queue-wrap{padding:14px;}
+.match-card{background:var(--s1);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:7px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:8px;transition:all 0.15s;cursor:default;}
+.match-card:hover{background:var(--s2);}
+.match-card.div-ere{border-left-color:var(--ere);}
+.match-card.div-eerste{border-left-color:var(--eerste);}
+.match-card.div-beker{border-left-color:var(--beker);}
+.match-card.div-inhaal{border-left-color:var(--inhaal);}
+.match-card.blocked{opacity:0.45;}
+.match-card.warn-rust{background:rgba(249,115,22,0.06);border-left-color:var(--warn) !important;}
+.match-nr{font-weight:700;color:var(--green);min-width:20px;font-size:0.95rem;flex-shrink:0;}
+.match-time{font-family:monospace;font-size:0.72rem;padding:2px 6px;border-radius:4px;flex-shrink:0;white-space:nowrap;font-weight:600;}
+.match-time.normal{background:rgba(245,158,11,0.12);color:var(--orange);}
+.match-time.inhaal{background:rgba(239,68,68,0.15);color:var(--inhaal);}
+.match-time.beker{background:rgba(245,158,11,0.2);color:var(--beker);}
+.match-info{flex:1;min-width:0;}
+.match-players{font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.match-sub{font-size:0.68rem;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.match-acts{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.bord-sel{background:var(--s2);border:1px solid var(--border);color:var(--text);padding:5px 7px;border-radius:4px;font-size:0.75rem;cursor:pointer;font-family:inherit;}
+.div-chip{font-size:0.62rem;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.3px;}
+.div-chip.ere{background:rgba(168,85,247,0.2);color:var(--ere);}
+.div-chip.eerste{background:rgba(59,130,246,0.2);color:var(--eerste);}
+.div-chip.beker{background:rgba(245,158,11,0.2);color:var(--beker);}
+.div-chip.inhaal{background:rgba(239,68,68,0.2);color:var(--inhaal);}
+.div-chip.general{background:rgba(148,163,184,0.12);color:var(--muted);}
+.warn-chip{font-size:0.62rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(249,115,22,0.15);color:var(--warn);}
+.orig-datum{font-size:0.62rem;color:var(--muted);font-style:italic;}
+
+/* ── HISTORY ── */
+.history-card{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:7px;padding:9px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;opacity:0.7;gap:8px;}
+.history-info{flex:1;min-width:0;}
+.history-players{font-size:0.82rem;font-weight:600;}
+.history-sub{font-size:0.67rem;color:var(--muted);margin-top:1px;}
+.history-right{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.history-score{font-size:0.8rem;color:var(--green);font-weight:700;}
+
+/* ── CSV DROP ── */
+.csv-drop{border:2px dashed var(--border);border-radius:7px;padding:12px;text-align:center;cursor:pointer;transition:all 0.2s;font-size:0.78rem;color:var(--muted);}
+.csv-drop:hover{border-color:var(--blue);color:var(--text);}
+
+/* ── MODALS ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:200;display:none;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:22px;width:90%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+.modal-title{font-size:1rem;font-weight:700;margin-bottom:14px;}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.score-inp{font-size:1.4rem;font-weight:700;text-align:center;background:var(--s2);border:2px solid var(--border);color:var(--text);border-radius:8px;padding:10px;width:100%;}
+.score-inp:focus{outline:none;border-color:var(--green);}
+.notitie-inp{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:0.82rem;font-family:inherit;width:100%;resize:vertical;min-height:60px;}
+.notitie-inp:focus{outline:none;border-color:var(--blue);}
+.orig-datum-info{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:5px;padding:8px 10px;font-size:0.78rem;color:var(--orange);margin-bottom:12px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:18px;right:18px;z-index:999;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px 15px;font-size:0.82rem;font-weight:500;transform:translateY(80px);opacity:0;transition:all 0.3s;max-width:280px;box-shadow:0 8px 30px rgba(0,0,0,0.4);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.green{border-color:var(--green);}
+.toast.red{border-color:var(--red);}
+.toast.orange{border-color:var(--orange);}
+
+/* ── MISC ── */
+.empty{color:var(--muted);font-size:0.82rem;font-style:italic;padding:10px 2px;}
+.err-box{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:9px 12px;font-size:0.78rem;color:var(--red);margin-bottom:10px;}
+.divider{height:1px;background:var(--border);margin:12px 0;}
+.sec-subtitle{font-size:0.67rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:10px 14px 6px;border-bottom:1px solid var(--border);}
+
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+@media(max-width:900px){
+  .boards-grid{grid-template-columns:repeat(2,1fr);}
+  .main-area{grid-template-columns:1fr;height:auto;overflow:visible;}
+  body{overflow:auto;}
 }
-.board-card {
-  background: var(--s2);
-  border: 1px solid var(--border);
-}
-.board-card.busy {
-  border-top: 4px solid var(--red);
-}
-.board-card.free {
-  border-top: 4px solid var(--green);
-}
+
+/* ── QUEUE COLUMNS ── */
+.queue-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.queue-col { min-width: 0; }
+.queue-col-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 7px 10px; border-radius: 5px 5px 0 0; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+.queue-col-title.ere { background: rgba(168,85,247,0.12); color: var(--ere); border-bottom: 2px solid var(--ere); }
+.queue-col-title.eerste { background: rgba(59,130,246,0.12); color: var(--eerste); border-bottom: 2px solid var(--eerste); }
+.beker-balk { background: linear-gradient(90deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05)); border: 1px solid rgba(245,158,11,0.25); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.beker-balk-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--beker); margin-bottom: 6px; }
+.beker-balk-cards { display: flex; flex-wrap: wrap; gap: 6px; }
+.beker-balk-cards .match-card { flex: 1; min-width: 240px; }
+
+/* ── HALVE SEIZOEN TOGGLE ── */
+.halve-toggle { display: flex; align-items: center; gap: 0; background: var(--s2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.halve-btn { flex: 1; padding: 6px 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: none; background: none; color: var(--muted); font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+.halve-btn.active { background: var(--orange); color: #000; }
+
+/* ── WINNAAR/VERLIEZER KNOPPEN ── */
+.winner-modal-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.winner-mode-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+.winner-mode-label.verliezer { background: rgba(239,68,68,0.15); color: var(--red); }
+.winner-mode-label.winnaar { background: rgba(16,185,129,0.15); color: var(--green); }
+.winner-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.winner-btn { padding: 16px 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--s2); color: var(--text); font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; text-align: center; line-height: 1.3; }
+.winner-btn:hover { border-color: var(--orange); background: rgba(245,158,11,0.08); color: var(--orange); transform: translateY(-1px); }
+.winner-btn.selected-verliezer { border-color: var(--red); background: rgba(239,68,68,0.12); color: var(--red); }
+.winner-btn.selected-winnaar { border-color: var(--green); background: rgba(16,185,129,0.12); color: var(--green); }
+
+/* ── SCHRIJVER OP BORD ── */
+.board-schrijver-alert { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; color: var(--orange); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+.dashboard-view.hidden{display:none !important;}
+/* ── NAV TABS ── */
+.nav-tabs{background:#080d16;border-bottom:1px solid var(--border);display:flex;gap:0;padding:0 20px;}
+.nav-tab{padding:10px 18px;font-size:0.78rem;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;user-select:none;letter-spacing:0.5px;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{color:var(--green);border-bottom-color:var(--green);}
+.nav-tab.planning.active{color:var(--orange);border-bottom-color:var(--orange);}
+.dashboard-view{display:block;}
+.dashboard-view.hidden{display:none !important;}
+.planning-view{display:none;height:calc(100vh - 92px);overflow-y:auto;padding:24px;background:var(--bg);}
+.planning-view.active{display:block;}
+/* planning tool cards */
+.pt-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;max-width:860px;}
+.pt-title{font-size:0.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
+.pt-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.pt-ig{display:flex;flex-direction:column;gap:5px;}
+.pt-lbl{font-size:0.72rem;font-weight:600;color:var(--muted);letter-spacing:0.5px;}
+.pt-slots-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;}
+.pt-slot-row{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;}
+.pt-slot-time{font-family:monospace;font-size:0.85rem;color:var(--orange);font-weight:600;min-width:48px;}
+.pt-slot-count{background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 6px;font-size:0.82rem;width:50px;text-align:center;font-family:inherit;}
+.pt-csv-drop{border:2px dashed var(--border);border-radius:8px;padding:18px;text-align:center;cursor:pointer;transition:all 0.2s;color:var(--muted);font-size:0.85rem;display:block;}
+.pt-csv-drop:hover{border-color:var(--blue);color:var(--text);}
+.pt-csv-drop.loaded{border-color:var(--green);color:var(--green);}
+.pt-stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.pt-stat{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;text-align:center;flex:1;min-width:90px;}
+.pt-stat-val{font-size:1.2rem;font-weight:800;}
+.pt-stat-lbl{font-size:0.65rem;color:var(--muted);margin-top:2px;}
+.pt-avonden-preview{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;}
+.pt-avond-chip{background:var(--s2);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:0.72rem;font-family:monospace;color:var(--muted);}
+.pt-avond-chip.uit{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:var(--red);text-decoration:line-through;}
+.pt-preview-wrap{max-height:280px;overflow-y:auto;border-radius:6px;border:1px solid var(--border);}
+.pt-table{width:100%;border-collapse:collapse;font-size:0.78rem;}
+.pt-table th{background:var(--s2);padding:7px 10px;text-align:left;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+.pt-table td{padding:6px 10px;border-bottom:1px solid rgba(42,58,86,0.5);}
+@media(max-width:600px){.pt-grid2,.pt-slots-grid{grid-template-columns:1fr;}}
+
 </style>
 </head>
-<body class="min-h-screen flex flex-col overflow-hidden">
+<body>
 
 <!-- ── TOPBAR ── -->
-<header class="bg-[#080d16] border-b-2 border-[#2a3a56] px-6 h-14 flex items-center justify-between shrink-0">
-  <div class="flex items-center gap-3">
-    <span class="text-xl">🎯</span>
-    <div>
-      <h1 class="text-sm font-black tracking-wider text-white uppercase leading-none">Kaale Bull</h1>
-      <p class="text-[9px] text-[#94a3b8] tracking-widest uppercase mt-0.5">Wedstrijdleiding</p>
-    </div>
+<div class="topbar">
+  <div class="topbar-logo">🎯 <span>Kaale Bull</span><span style="color:var(--muted);font-size:0.72rem;font-weight:400;margin-left:4px;">Wedstrijdleiding</span></div>
+  <div class="topbar-right">
+    <div class="clock" id="clock">00:00</div>
+    <div class="sync-badge idle" id="syncBadge">NIET VERBONDEN</div>
   </div>
-  
-  <div class="flex gap-1 bg-[#161f30] p-1 rounded-lg border border-[#2a3a56]">
-    <button onclick="switchTab('dashboard')" id="tabBtnDashboard" class="px-4 py-1.5 rounded-md text-xs font-bold bg-[#10b981] text-black">
-      📋 Wedstrijdleiding
-    </button>
-    <button onclick="switchTab('planning')" id="tabBtnPlanning" class="px-4 py-1.5 rounded-md text-xs font-bold text-[#94a3b8] hover:text-white">
-      🗓 Planning Tool
-    </button>
-  </div>
+</div>
 
-  <div class="flex items-center gap-4">
-    <div id="clockDisplay" class="font-mono text-xl font-bold text-[#f59e0b]">19:30</div>
-    <div id="syncBadge" class="bg-[#10b981]/15 text-[#10b981] text-[10px] font-bold px-3 py-1 rounded-full border border-[#10b981]/20">
-      ● VERBONDEN
-    </div>
-  </div>
-</header>
+<!-- ── NAV TABS ── -->
+<div class="nav-tabs">
+  <div class="nav-tab active" id="navDashboard" onclick="switchNav('dashboard')">📋 Wedstrijdleiding</div>
+  <div class="nav-tab planning" id="navPlanning" onclick="switchNav('planning')">🗓 Planning Tool</div>
+</div>
 
-<!-- ── CONTROLLER AREA ── -->
-<main id="dashboardTab" class="flex-1 flex overflow-hidden">
-  
-  <!-- LINKS: BEKER, CSV & SPELERS -->
-  <aside class="w-80 bg-[#161f30] border-r border-[#2a3a56] overflow-y-auto shrink-0 p-4 space-y-4">
-    
-    <!-- BEKER TOEVOEGEN -->
-    <div class="bg-[#1e2a40]/30 border border-[#2a3a56] rounded-xl p-3.5">
-      <h3 class="text-xs font-black uppercase text-[#f59e0b] tracking-wider mb-2.5 flex items-center gap-1.5">
-        🏆 Beker toevoegen
-      </h3>
-      <div class="space-y-2">
-        <div class="grid grid-cols-2 gap-1.5">
-          <div>
-            <label class="text-[9px] font-bold uppercase text-[#94a3b8] tracking-widest block mb-0.5">Thuis</label>
-            <select id="bekerThuis" class="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1 w-full"></select>
-          </div>
-          <div>
-            <label class="text-[9px] font-bold uppercase text-[#94a3b8] tracking-widest block mb-0.5">Uit</label>
-            <select id="bekerUit" class="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1 w-full"></select>
-          </div>
+<!-- ── DASHBOARD VIEW ── -->
+<div class="dashboard-view" id="dashboardView">
+
+<!-- ── BOARDS BAR ── -->
+<div class="boards-bar">
+  <div class="boards-bar-title">🟢 Live Banen</div>
+  <div class="boards-grid" id="boardsGrid"></div>
+</div>
+
+<!-- ── MAIN AREA ── -->
+<div class="main-area">
+
+  <!-- LINKS -->
+  <div class="panel-left">
+
+    <!-- BEKER -->
+    <div class="sec">
+      <div class="beker-wrap">
+        <div class="beker-hdr" onclick="toggleBeker()">
+          <span class="beker-hdr-title">🏆 Bekerwedstrijd toevoegen</span>
+          <span id="bekerArrow" style="color:var(--beker);">►</span>
         </div>
-        <div class="grid grid-cols-2 gap-1.5">
-          <div>
-            <label class="text-[9px] font-bold uppercase text-[#94a3b8] tracking-widest block mb-0.5">Datum</label>
-            <input type="date" id="bekerDatum" class="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1 w-full">
+        <div class="beker-body" id="bekerBody">
+          <div class="row" style="margin-bottom:9px;">
+            <div class="ig"><div class="lbl">THUIS</div><select class="sel" id="bekerThuis"><option value="">-- kies --</option></select></div>
+            <div class="ig"><div class="lbl">UIT</div><select class="sel" id="bekerUit"><option value="">-- kies --</option></select></div>
           </div>
-          <div>
-            <label class="text-[9px] font-bold uppercase text-[#94a3b8] tracking-widest block mb-0.5">Tijdstip</label>
-            <input type="text" id="bekerTijd" value="19:30" class="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1 w-full text-center">
+          <div class="row" style="margin-bottom:9px;">
+            <div class="ig"><div class="lbl">DATUM</div><input type="date" class="inp" id="bekerDatum"></div>
+            <div class="ig"><div class="lbl">TIJDSTIP</div><input type="text" class="inp" id="bekerTijd" placeholder="19:30"></div>
           </div>
+          <div style="margin-bottom:9px;">
+            <div class="lbl" style="margin-bottom:5px;">FORMAT</div>
+            <div class="bo-row">
+              <button class="bo-btn active" id="bo5" onclick="selectBO('Best of 5')">Bo5</button>
+              <button class="bo-btn" id="bo7" onclick="selectBO('Best of 7')">Bo7</button>
+              <button class="bo-btn" id="bo9" onclick="selectBO('Best of 9')">Bo9</button>
+            </div>
+          </div>
+          <div style="margin-bottom:10px;"><div class="lbl" style="margin-bottom:4px;">RONDE</div><input type="text" class="inp" id="bekerRonde" placeholder="bijv. 1/4 finale"></div>
+          <button class="btn btn-orange btn-full" onclick="voegBekerToe()">🔥 Toevoegen aan wachtrij</button>
         </div>
-        <button onclick="voegBekerToe()" class="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black text-xs font-bold py-2 rounded-lg mt-1 transition-all">
-          Toevoegen aan wachtrij
-        </button>
       </div>
     </div>
 
     <!-- SPELER TOEVOEGEN -->
-    <div class="bg-[#161f30] border border-[#2a3a56] rounded-xl p-3">
-      <span class="text-[10px] font-bold tracking-widest text-[#94a3b8] uppercase mb-1.5 block">👤 Speler toevoegen</span>
-      <div class="flex gap-2">
-        <input type="text" id="nieuwSpelerNaam" placeholder="Naam..." class="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1.5 flex-1 focus:outline-none focus:border-[#10b981]">
-        <button onclick="voegSpelerToe()" class="bg-[#1e2a40] hover:text-[#10b981] border border-[#2a3a56] text-[#94a3b8] font-bold px-3 py-1 text-xs rounded">Voeg toe</button>
+    <div class="sec">
+      <div class="sec-title">👤 Speler toevoegen</div>
+      <div class="row">
+        <input type="text" class="inp" id="nieuweSpeler" placeholder="Naam" style="flex:1;">
+        <button class="btn btn-ghost btn-sm" onclick="voegSpelerToe()">+ Toevoegen</button>
       </div>
     </div>
 
-    <!-- CSV INLADEN -->
-    <div class="border border-[#2a3a56] rounded-xl p-3 bg-[#1e2a40]/10">
-      <span class="text-[10px] font-bold tracking-widest text-[#94a3b8] uppercase mb-1 block">📥 CSV importeren</span>
-      <p class="text-[8px] text-[#94a3b8] mb-3 leading-snug">Kolommen: Datum, Tijdstip, Divisie, Thuis, Uit, Speelronde.</p>
-      <div class="grid grid-cols-2 gap-2">
-        <label class="border border-dashed border-[#2a3a56] hover:border-[#10b981] rounded px-2 py-1.5 text-center text-[10px] font-bold text-[#94a3b8] hover:text-[#10b981] cursor-pointer">
-          Toevoegen
-          <input type="file" id="csvAdd" accept=".csv" class="hidden" onchange="importCSV(this, 'add')">
+    <!-- CSV IMPORT -->
+    <div class="sec">
+      <div class="sec-title">📥 CSV importeren</div>
+      <p style="font-size:0.72rem;color:var(--muted);margin-bottom:8px;">Kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde</p>
+      <div style="display:flex;gap:6px;">
+        <label class="csv-drop" for="csvToevoegen" style="flex:1;padding:9px 6px;">
+          ➕ Toevoegen
+          <input type="file" id="csvToevoegen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'toevoegen')">
         </label>
-        <label class="border border-dashed border-red-500/30 hover:border-red-500 rounded px-2 py-1.5 text-center text-[10px] font-bold text-red-400 hover:text-red-500 cursor-pointer">
-          Vervangen
-          <input type="file" id="csvReplace" accept=".csv" class="hidden" onchange="importCSV(this, 'replace')">
+        <label class="csv-drop" for="csvVervangen" style="flex:1;padding:9px 6px;border-color:rgba(239,68,68,0.3);color:var(--red);">
+          🔄 Vervangen
+          <input type="file" id="csvVervangen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'vervangen')">
         </label>
       </div>
+      <p style="font-size:0.68rem;color:var(--muted);margin-top:5px;">Vervangen wist alleen <em>geplande</em> wedstrijden van de datums in de CSV.</p>
     </div>
 
-    <!-- SPELER BELASTING -->
-    <div id="belastingPanel">
-      <span class="text-[10px] font-bold tracking-widest text-[#94a3b8] uppercase mb-2 block">📊 Speelgewicht per speler</span>
-      <div id="belastingList" class="space-y-1.5 max-h-56 overflow-y-auto pr-1"></div>
+    <!-- WERKLAST -->
+    <div class="sec" id="werklastSec" style="display:none;">
+      <div class="sec-title">📊 Wedstrijden per speler</div>
+      <div id="werklastList"></div>
     </div>
 
-  </aside>
+  </div>
 
-  <!-- RECHTS: LIVE BORDEN & EN WACHTRIJ -->
-  <section class="flex-1 flex flex-col overflow-hidden bg-[#0f1520]">
-    
-    <!-- BORDEN BALK (1 t/m 4) -->
-    <div id="boardsContainer" class="bg-[#161f30] border-b-2 border-[#2a3a56] p-3 grid grid-cols-4 gap-3 shrink-0"></div>
+  <!-- RECHTS -->
+  <div class="panel-right">
 
-    <!-- SPEELAVOND CONTROLS -->
-    <div class="bg-[#161f30] border-b border-[#2a3a56] px-5 py-3.5 flex items-center justify-between gap-3 shrink-0">
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-black text-[#94a3b8] tracking-wide">📅 SPEELAVOND:</span>
-        <select id="datumSelector" onchange="setFilterDatum(this.value)" class="bg-[#1e2a40] border border-[#2a3a56] text-white rounded-lg px-2.5 py-1 text-xs font-mono font-bold cursor-pointer outline-none"></select>
+    <!-- DATE BAR -->
+    <div class="date-bar">
+      <span class="date-bar-label">📅 Avond:</span>
+      <select class="sel" id="datumFilter" style="max-width:180px;" onchange="wisselAvond()">
+        <option value="ALL">Alle datums</option>
+      </select>
+      <div class="halve-toggle" style="margin-left:12px;">
+        <button class="halve-btn active" id="btnEersteHelft" onclick="setHalve('eerste')">1e helft — verliezer schrijft</button>
+        <button class="halve-btn" id="btnTweedeHelft" onclick="setHalve('tweede')">2e helft — winnaar schrijft</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="laadData()" style="margin-left:auto;">🔄 Vernieuwen</button>
+    </div>
 
-        <div class="flex rounded-lg border border-[#2a3a56] overflow-hidden bg-[#1e2a40] ml-3">
-          <button id="ruleEerste" onclick="setHalve('eerste')" class="text-[10px] font-black px-3 py-1 bg-[#f59e0b] text-black">1e helft: verliezer schrijft</button>
-          <button id="ruleTweede" onclick="setHalve('tweede')" class="text-[10px] font-black px-3 py-1 text-[#94a3b8]">2e helft: winnaar schrijft</button>
+    <div class="queue-wrap">
+      <!-- AVOND OVERZICHT -->
+      <div id="avondBanner"></div>
+
+      <!-- FOUTMELDING -->
+      <div id="queueError"></div>
+
+      <!-- WACHTRIJ -->
+      <div id="queueContainer"></div>
+
+      <!-- GESCHIEDENIS -->
+      <div style="margin-top:20px;">
+        <div class="sec-subtitle" id="historyHeader" onclick="toggleHistory()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;">
+          <span>✅ Gespeeld deze avond <span id="historyCountBadge" style="font-size:0.65rem;color:var(--green);"></span></span>
+          <span id="historyArrow" style="font-size:0.8rem;color:var(--muted);">▼</span>
+        </div>
+        <div id="historyBody" style="padding:6px 0;">
+          <div id="historyContainer"><div class="empty">Nog niets gespeeld.</div></div>
         </div>
       </div>
     </div>
+  </div>
+</div><!-- end main-area -->
+</div><!-- end dashboard-view -->
 
-    <!-- WACHTRIJ FEED -->
-    <div class="p-5 flex-1 overflow-y-auto space-y-4">
-      <div id="bekerMatchesBalk"></div>
-      
-      <div class="grid grid-cols-2 gap-4">
-        <div class="flex flex-col bg-[#161f30]/40 rounded-xl border border-[#2a3a56] overflow-hidden">
-          <div class="bg-[#a855f7]/10 px-4 py-2 flex justify-between items-center border-b border-[#2a3a56]">
-            <span class="text-xs font-black text-[#a855f7] tracking-widest uppercase">🔵 Ere Divisie</span>
-          </div>
-          <div id="ereQueueList" class="p-3 space-y-2"></div>
-        </div>
-        <div class="flex flex-col bg-[#161f30]/40 rounded-xl border border-[#2a3a56] overflow-hidden">
-          <div class="bg-[#3b82f6]/10 px-4 py-2 flex justify-between items-center border-b border-[#2a3a56]">
-            <span class="text-xs font-black text-[#3b82f6] tracking-widest uppercase">🟠 1e Divisie</span>
-          </div>
-          <div id="eersteQueueList" class="p-3 space-y-2"></div>
-        </div>
-      </div>
+<!-- ── PLANNING VIEW ── -->
+<div class="planning-view" id="planningView">
+  <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:4px;">🗓 Planning Tool</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:20px;">Upload je CSV, stel de avonden in en download de planning met datums en tijdslots.</p>
 
-      <!-- HISTORY -->
-      <div class="border-t border-[#2a3a56] pt-3">
-        <h4 class="text-xs font-black text-[#10b981] mb-2.5">✅ GESPEELD DEZE AVOND</h4>
-        <div id="historyList" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
-      </div>
-    </div>
-
-  </section>
-
-</main>
-
-<!-- ── PLANNING TAB ── -->
-<main id="planningTab" class="hidden flex-1 overflow-y-auto p-6 max-w-5xl mx-auto space-y-6">
-  <div class="bg-[#161f30] border border-[#2a3a56] rounded-2xl p-6 shadow-md">
-    <h2 class="text-base font-black font-display text-[#f59e0b] tracking-wider mb-2">1. Upload Speelschema CSV</h2>
-    <p class="text-xs text-[#94a3b8] mb-3">Laad je CSV-bestand met divisiewedstrijden (zonder datum/tijdstip) om deze eerlijk te verdelen.</p>
-    <label class="border-2 border-dashed border-[#2a3a56] hover:border-[#f59e0b] rounded-xl p-8 cursor-pointer text-center block bg-[#161f30]/40">
-      <span class="text-xs font-bold text-white block mb-1" id="ptCsvText">Klik om speelschema CSV in te laden</span>
-      <span class="text-[10px] text-[#94a3b8]">Uitsluitend .csv bestanden</span>
-      <input type="file" id="ptCsvIn" accept=".csv" class="hidden" onchange="ptHandleUpload(this)">
+  <div class="pt-card">
+    <div class="pt-title">Stap 1 — CSV uploaden</div>
+    <label class="pt-csv-drop" for="ptCsvIn" id="ptCsvDropLabel">
+      📂 Klik om CSV te uploaden (Ere + 1e Divisie samen, zonder datum/tijdstip)
+      <input type="file" id="ptCsvIn" accept=".csv" style="display:none;" onchange="ptLaadCSV(this)">
     </label>
+    <div id="ptCsvInfo" style="margin-top:8px;"></div>
   </div>
 
-  <div class="bg-[#161f30] border border-[#2a3a56] rounded-2xl p-6 shadow-md">
-    <h2 class="text-base font-black font-display text-[#f59e0b] tracking-wider mb-3">2. Inplanningscriteria &amp; Exclusies</h2>
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="text-[10px] uppercase font-bold tracking-widest text-[#94a3b8] mb-1 block">Startdatum</label>
-        <input type="date" id="ptStartDate" value="2026-09-10" class="bg-[#1e2a40] border border-[#2a3a56] text-white px-3 py-1.5 rounded-lg text-xs w-full">
-      </div>
-      <div>
-        <label class="text-[10px] uppercase font-bold tracking-widest text-[#94a3b8] mb-1 block">Einddatum</label>
-        <input type="date" id="ptEndDate" value="2027-04-08" class="bg-[#1e2a40] border border-[#2a3a56] text-white px-3 py-1.5 rounded-lg text-xs w-full">
-      </div>
+  <div class="pt-card">
+    <div class="pt-title">Stap 2 — Planning instellen</div>
+    <div class="pt-grid2" style="margin-bottom:12px;">
+      <div class="pt-ig"><div class="pt-lbl">STARTDATUM</div><input type="date" class="inp" id="ptStart" value="2026-09-10"></div>
+      <div class="pt-ig"><div class="pt-lbl">EINDDATUM</div><input type="date" class="inp" id="ptEind" value="2027-04-08"></div>
     </div>
-    <div class="mb-4">
-      <label class="text-[10px] uppercase font-bold tracking-widest text-[#94a3b8] mb-1 block">Uitgesloten datums (feestdagen, komma-gescheiden)</label>
-      <input type="text" id="ptExcludedStr" value="24-12-2026, 31-12-2026, 07-01-2027, 25-02-2027" class="bg-[#1e2a40] border border-[#2a3a56] text-white px-3 py-1.5 rounded-lg text-xs w-full">
+    <div class="pt-ig" style="margin-bottom:12px;">
+      <div class="pt-lbl">UITGESLOTEN DATUMS (dd-mm-yyyy, komma gescheiden)</div>
+      <input type="text" class="inp" id="ptUitgesloten" value="24-12-2026, 31-12-2026, 07-01-2027, 25-02-2027">
     </div>
-
-    <div>
-      <label class="text-[10px] uppercase font-bold tracking-widest text-[#94a3b8] mb-1.5 block">Tijdslots (Maximaal aantal banen per slot)</label>
-      <div class="grid grid-cols-4 gap-2" id="ptSlotsGrid"></div>
+    <div class="pt-lbl" style="margin-bottom:6px;">TIJDSLOTS — wedstrijden per slot</div>
+    <div class="pt-slots-grid" id="ptSlotsGrid"></div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="ptBerekenAvonden()">📅 Bereken avonden</button>
     </div>
-
-    <div class="mt-5 pt-4 border-t border-[#2a3a56]/40 flex justify-end">
-      <button onclick="ptRunDivide()" class="bg-[#f59e0b] hover:bg-[#d97706] text-black font-black text-xs px-5 py-2 rounded-xl transition-all shadow">
-        📅 Genereer Eerlijk Schema
-      </button>
-    </div>
+    <div id="ptAvondenPreview"></div>
   </div>
 
-  <!-- PLANNING RESULT CARD -->
-  <div id="planningResultBlock" class="hidden bg-[#161f30] border border-[#2a3a56] rounded-2xl p-6 shadow-md space-y-4">
-    <h3 class="text-sm font-black text-[#10b981]">✓ Schema Evenredig Berekend!</h3>
-    <div class="grid grid-cols-4 gap-3 text-center">
-      <div class="bg-[#1e2a40] p-3 rounded-lg border border-[#2a3a56]">
-        <div id="statIngepland" class="text-lg font-black text-white">0</div>
-        <div class="text-[9px] uppercase font-bold text-[#94a3b8] mt-0.5">Matches Gepland</div>
-      </div>
-      <div class="bg-[#1e2a40] p-3 rounded-lg border border-[#2a3a56]">
-        <div id="statMislukt" class="text-lg font-black text-white">0</div>
-        <div class="text-[9px] uppercase font-bold text-[#94a3b8] mt-0.5">Mislukt door rust</div>
-      </div>
-      <div class="bg-[#1e2a40] p-3 rounded-lg border border-[#2a3a56]">
-        <div id="statAvonden" class="text-lg font-black text-[#f59e0b]">0</div>
-        <div class="text-[9px] uppercase font-bold text-[#94a3b8] mt-0.5">Speelavonden</div>
-      </div>
-      <div class="bg-[#1e2a40] p-3 rounded-lg border border-[#2a3a56]">
-        <div id="statAvg" class="text-lg font-black text-[#3b82f6]">0</div>
-        <div class="text-[9px] uppercase font-bold text-[#94a3b8] mt-0.5">Per Avond</div>
-      </div>
+  <div class="pt-card" id="ptStap3" style="display:none;">
+    <div class="pt-title">Stap 3 — Verdelen &amp; downloaden</div>
+    <div id="ptStats" class="pt-stats-row"></div>
+    <div id="ptError"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="btn btn-orange" onclick="ptVerdeelEnDownload()">⬇ Download CSV</button>
+      <button class="btn btn-ghost btn-sm" style="background:rgba(168,85,247,0.15);color:var(--purple);border-color:rgba(168,85,247,0.3);" onclick="ptExportPDF()">🖨 PDF alle avonden</button>
+      <button class="btn btn-green btn-sm" id="dbImportBtn" onclick="ptOpslaanInDatabase()">💾 Opslaan in database</button>
+      <button class="btn btn-ghost" onclick="ptToonPreview()">👁 Voorvertoning</button>
     </div>
-    
-    <div id="ptErrorWarning" class="hidden text-xs bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg"></div>
+    <div id="ptPreviewWrap" style="display:none;"></div>
+  </div>
+</div>
 
-    <div class="flex gap-2">
-      <button onclick="ptSaveToDatabase()" class="bg-[#10b981] hover:bg-[#059669] text-black text-xs font-black px-4.5 py-2.5 rounded-lg transition-all">
-         Opslaan in Database
-      </button>
-      <button onclick="ptDownloadCSV()" class="bg-[#1e2a40] hover:bg-[#243350] text-[#94a3b8] hover:text-white border border-[#2a3a56] font-bold text-xs px-4.5 py-2.5 rounded-lg transition-all">
-         Download CSV-bestand
-      </button>
+<!-- MODAL: winnaar/verliezer -->
+<div class="overlay" id="uitslagModal">
+  <div class="modal">
+    <div class="modal-title" id="uitslagTitle">Wedstrijd afsluiten</div>
+    <div class="winner-modal-sub" id="uitslagSub"></div>
+    <div style="margin-bottom:12px;">
+      <span class="winner-mode-label" id="winnerModeLabel">VERLIEZER SCHRIJFT</span>
+    </div>
+    <div class="winner-btns" id="winnerBtns">
+      <!-- ingevuld door JS -->
+    </div>
+    <div id="schrijverAankondiging" style="display:none;padding:10px 12px;border-radius:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);font-size:0.85rem;color:var(--green);margin-bottom:12px;font-weight:600;"></div>
+    <div><div class="lbl" style="margin-bottom:4px;">NOTITIE (optioneel)</div><textarea class="notitie-inp" id="uitslagNotitie" placeholder="Bijzonderheden…"></textarea></div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="sluitModal('uitslagModal')">Annuleren</button>
+      <button class="btn btn-green" id="uitslagOpslaanBtn" disabled onclick="slaUitslagOp()">✓ Bevestigen</button>
     </div>
   </div>
+</div>
 
-</main>
+<!-- MODAL: verzetten -->
+<div class="overlay" id="verzetModal">
+  <div class="modal">
+    <div class="modal-title">📅 Wedstrijd verzetten</div>
+    <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text);" id="verzetLabel"></div>
+    <div id="verzetOrigDatum"></div>
+    <div style="margin-bottom:12px;">
+      <div class="ig"><div class="lbl">NIEUWE DATUM</div><input type="date" class="inp" id="verzetDatum"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--muted);cursor:pointer;margin-bottom:8px;">
+      <input type="checkbox" id="verzetIsInhaal" checked> Markeren als inhaalwedstrijd
+    </label>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="sluitModal('verzetModal')">Annuleren</button>
+      <button class="btn btn-green" onclick="slaVerzetOp()">✓ Verzetten</button>
+    </div>
+  </div>
+</div>
 
-<!-- MODALS & SCRIPT CONFIG -->
+<!-- MODAL: notitie bekijken/bewerken -->
+<div class="overlay" id="notitieModal">
+  <div class="modal">
+    <div class="modal-title" id="notitieTitle">Notitie</div>
+    <textarea class="notitie-inp" id="notitieInp" placeholder="Notitie…" style="min-height:80px;"></textarea>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="sluitModal('notitieModal')">Annuleren</button>
+      <button class="btn btn-green" onclick="slaNotitieOp()">✓ Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
+// ══════════════════════════════════════════
+//  SUPABASE
+// ══════════════════════════════════════════
 const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
-const HDR = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation' };
 
-let matches = [];
-let players = [];
-let currentDatum = 'ALL';
-let ruleHalve = localStorage.getItem('dart_halve') || 'eerste';
+const sbGet    = async (t,q='')    => { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+const sbPost   = async (t,b)       => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+const sbPatch  = async (t,id,b)    => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+const sbDelete = async (t,id)      => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:HDR}); if(!r.ok) throw new Error(await r.text()); };
 
-let activeMatches = { 1: null, 2: null, 3: null, 4: null };
-let boardSchrijvers = { 1: '', 2: '', 3: '', 4: '' };
-let ptRawRows = [];
-let ptResult = null;
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let wedstrijden = [];
+let spelers     = [];
+let gekozenBO    = 'Best of 5';
+let bekerOpen    = false;
+let verzetId     = null;
+let uitslagBord  = null;
+let notitieId    = null;
+let halveSeizoen = localStorage.getItem('dart_halve')||'eerste';
+let gekozenSpeler = null;    // geselecteerde winnaar/verliezer in modal
 
-// Slots setup
-const slotsConfig = [
-  { tijd: '19:30', cap: 4 }, { tijd: '19:50', cap: 4 }, { tijd: '20:10', cap: 4 },
-  { tijd: '20:30', cap: 4 }, { tijd: '20:50', cap: 4 }, { tijd: '21:10', cap: 4 },
-  { tijd: '21:30', cap: 4 }, { tijd: '21:50', cap: 3 }, { tijd: '22:10', cap: 3 }
-];
+// Bord state
+let activeMatches = {1:null,2:null,3:null,4:null};
+let timers        = {1:null,2:null,3:null,4:null};
+let startTijden   = {1:null,2:null,3:null,4:null};
+let schrijvers    = {1:'',2:'',3:'',4:''};
+// Bijhouden wanneer speler voor het laatst een wedstrijd STARTTE (timestamp)
+let spelersLaatsteStart = {}; // naam → timestamp ms
 
-// Initialize view
-function switchTab(tab) {
-  document.getElementById('dashboardTab').classList.toggle('hidden', tab !== 'dashboard');
-  document.getElementById('planningTab').classList.toggle('hidden', tab !== 'planning');
-  document.getElementById('tabBtnDashboard').className = tab === 'dashboard' ? 'px-4 py-1.5 rounded-md text-xs font-bold bg-[#10b981] text-black' : 'px-4 py-1.5 rounded-md text-xs font-bold text-[#94a3b8] hover:text-white';
-  document.getElementById('tabBtnPlanning').className = tab === 'planning' ? 'px-4 py-1.5 rounded-md text-xs font-bold bg-[#f59e0b] text-black' : 'px-4 py-1.5 rounded-md text-xs font-bold text-[#94a3b8] hover:text-white';
+const MIN_RUST_MS = 20 * 60 * 1000; // 20 minuten
+
+// ══════════════════════════════════════════
+//  KLOK
+// ══════════════════════════════════════════
+setInterval(() => {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}, 1000);
+
+// ══════════════════════════════════════════
+//  HALVE SEIZOEN
+// ══════════════════════════════════════════
+function setHalve(halve) {
+  halveSeizoen = halve;
+  localStorage.setItem('dart_halve', halve);
+  document.getElementById('btnEersteHelft').classList.toggle('active', halve==='eerste');
+  document.getElementById('btnTweedeHelft').classList.toggle('active', halve==='tweede');
 }
 
-function setHalve(val) {
-  ruleHalve = val;
-  localStorage.setItem('dart_halve', val);
-  document.getElementById('ruleEerste').className = val === 'eerste' ? 'text-[10px] font-black px-3 py-1 bg-[#f59e0b] text-black' : 'text-[10px] font-black px-3 py-1 text-[#94a3b8]';
-  document.getElementById('ruleTweede').className = val === 'tweede' ? 'text-[10px] font-black px-3 py-1 bg-[#10b981] text-black' : 'text-[10px] font-black px-3 py-1 text-[#94a3b8]';
+// ══════════════════════════════════════════
+//  SYNC BADGE
+// ══════════════════════════════════════════
+function setSync(state, txt) {
+  const el = document.getElementById('syncBadge');
+  el.className = `sync-badge ${state}`;
+  el.textContent = txt;
 }
 
-// REST database and planner code included in Javascript tag to complete offline compatibility
-// ...
-</script>
-</body>
-</html>`;
+// ══════════════════════════════════════════
+//  DATA LADEN
+// ══════════════════════════════════════════
+async function laadData() {
+  setSync('loading','⏳ LADEN…');
+  try {
+    [wedstrijden, spelers] = await Promise.all([
+      sbGet('wedstrijden','order=datum.asc,tijdstip.asc'),
+      sbGet('spelers','order=naam.asc')
+    ]);
+    setSync('ok','● VERBONDEN');
+    bouwDatumFilter();
+    vulBekerDropdowns();
+    renderBoards();
+    renderAll();
+  } catch(e) {
+    setSync('error','❌ FOUT');
+    toonErr(`Kan data niet laden: ${e.message}`);
+  }
+}
 
-    const blob = new Blob([rawHTML], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'stand_alone_plan_tool.html';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('✓ Standalone single-file HTML gedownload!', 'green');
+function toonErr(msg) {
+  document.getElementById('queueError').innerHTML = `<div class="err-box">⚠ ${msg}</div>`;
+  setTimeout(()=>document.getElementById('queueError').innerHTML='', 6000);
+}
+
+// ══════════════════════════════════════════
+//  DATUM FILTER
+// ══════════════════════════════════════════
+function bouwDatumFilter() {
+  const sel = document.getElementById('datumFilter');
+  const huidig = sel.value;
+  const datums = [...new Set(wedstrijden.map(w=>w.datum))].sort();
+  sel.innerHTML = '<option value="ALL">Alle datums</option>' +
+    datums.map(d=>`<option value="${d}">${fmtDatum(d)}</option>`).join('');
+  const vandaag = new Date().toISOString().slice(0,10);
+  const straks  = datums.find(d=>d>=vandaag);
+  if (huidig && huidig!=='ALL' && datums.includes(huidig)) sel.value = huidig;
+  else if (straks) sel.value = straks;
+  else if (datums.length) sel.value = datums[0];
+}
+
+function fmtDatum(d) {
+  if (!d) return '';
+  const [y,m,dag] = d.split('-');
+  const mnd=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  return `${parseInt(dag)} ${mnd[parseInt(m)-1]} ${y}`;
+}
+
+function huidigeDatum() { return document.getElementById('datumFilter').value; }
+
+function wisselAvond() { renderAll(); }
+
+function getOpen() {
+  const d = huidigeDatum();
+  return wedstrijden.filter(w => {
+    if (w.status==='gespeeld') return false;
+    if (d!=='ALL' && w.datum!==d) return false;
+    return true;
+  });
+}
+
+function getGespeeld() {
+  const d = huidigeDatum();
+  return wedstrijden.filter(w => {
+    if (w.status!=='gespeeld') return false;
+    if (d!=='ALL' && w.datum!==d) return false;
+    return true;
+  });
+}
+
+// ══════════════════════════════════════════
+//  RENDER ALL
+// ══════════════════════════════════════════
+function renderAll() {
+  renderAvondBanner();
+  renderQueue();
+  renderHistory();
+  renderWerklast();
+}
+
+// ══════════════════════════════════════════
+//  AVOND OVERZICHT BANNER
+// ══════════════════════════════════════════
+function renderAvondBanner() {
+  const d = huidigeDatum();
+  if (d==='ALL') { document.getElementById('avondBanner').innerHTML=''; return; }
+
+  const open    = getOpen();
+  const gespeeld = getGespeeld();
+  const totaal  = open.length + gespeeld.length;
+  const bezet   = Object.values(activeMatches).filter(Boolean).length;
+
+  // Verwachte eindtijd: alle open wedstrijden (incl beker) / 4 borden * 20 min
+  const minOver = Math.ceil(open.length / 4) * 20;
+  const eindTijd = new Date(Date.now() + minOver * 60000);
+  const eindStr  = `${String(eindTijd.getHours()).padStart(2,'0')}:${String(eindTijd.getMinutes()).padStart(2,'0')}`;
+
+  // Spelers met 3+ wedstrijden
+  const telling = {};
+  [...open,...gespeeld].forEach(w=>{
+    telling[w.thuis] = (telling[w.thuis]||0)+1;
+    telling[w.uit]   = (telling[w.uit]  ||0)+1;
+  });
+  const druk = Object.entries(telling).filter(([,n])=>n>=3).sort((a,b)=>b[1]-a[1]);
+
+  let warnHtml = '';
+  if (druk.length) {
+    warnHtml = `<div class="avond-warning">⚠ Druk schema: ${druk.map(([n,c])=>`<strong>${n}</strong> (${c}×)`).join(', ')}</div>`;
+  }
+
+  document.getElementById('avondBanner').innerHTML = `
+    <div class="avond-banner">
+      <div class="avond-banner-title">📊 Avondoverzicht — ${fmtDatum(d)}</div>
+      <div class="avond-stats">
+        <div class="avond-stat"><div class="avond-stat-val">${totaal}</div><div class="avond-stat-lbl">Totaal</div></div>
+        <div class="avond-stat"><div class="avond-stat-val" style="color:var(--orange);">${open.length}</div><div class="avond-stat-lbl">Open</div></div>
+        <div class="avond-stat"><div class="avond-stat-val" style="color:var(--green);">${gespeeld.length}</div><div class="avond-stat-lbl">Klaar</div></div>
+        <div class="avond-stat"><div class="avond-stat-val" style="color:var(--blue);">${eindStr}</div><div class="avond-stat-lbl">Verwacht einde</div></div>
+      </div>
+      ${warnHtml}
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+//  WERKLAST
+// ══════════════════════════════════════════
+function renderWerklast() {
+  const d = huidigeDatum();
+  if (d==='ALL') { document.getElementById('werklastSec').style.display='none'; return; }
+
+  const open = getOpen();
+  const gespeeld = getGespeeld();
+  const telling = {};
+  [...open,...gespeeld].forEach(w=>{
+    telling[w.thuis] = (telling[w.thuis]||0)+1;
+    telling[w.uit]   = (telling[w.uit]  ||0)+1;
+  });
+
+  const gesorteerd = Object.entries(telling).sort((a,b)=>b[1]-a[1]);
+  if (!gesorteerd.length) { document.getElementById('werklastSec').style.display='none'; return; }
+
+  const max = gesorteerd[0][1];
+  const sec = document.getElementById('werklastSec');
+  sec.style.display = 'block';
+  document.getElementById('werklastList').innerHTML = gesorteerd.map(([naam,cnt])=>{
+    const pct = Math.round(cnt/max*100);
+    const high = cnt >= 3;
+    return `<div class="werklast-row">
+      <span class="werklast-naam">${naam}</span>
+      <div class="werklast-bar-wrap"><div class="werklast-bar ${high?'high':''}" style="width:${pct}%"></div></div>
+      <span class="werklast-count ${high?'high':''}">${cnt}×</span>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+//  BANEN
+// ══════════════════════════════════════════
+function getBezetteSpelers() {
+  const s = new Set();
+  for (let b=1;b<=4;b++) {
+    const id = activeMatches[b]; if (!id) continue;
+    const m = wedstrijden.find(w=>w.id===id);
+    if (m) { s.add(m.thuis); s.add(m.uit); }
+    if (schrijvers[b]) s.add(schrijvers[b]);
+  }
+  return s;
+}
+
+function getBesteBord() {
+  // Kies het bord dat het langst vrij is (of nooit gebruikt)
+  let best = null, oudste = Infinity;
+  for (let b=1;b<=4;b++) {
+    if (activeMatches[b]!==null) continue;
+    const t = startTijden[b] || 0;
+    if (t < oudste) { oudste=t; best=b; }
+  }
+  return best;
+}
+
+function renderBoards() {
+  const grid = document.getElementById('boardsGrid');
+  grid.innerHTML = '';
+  for (let b=1;b<=4;b++) {
+    const id = activeMatches[b];
+    const card = document.createElement('div');
+    card.className = `board-card ${id?'busy':''}`;
+    card.setAttribute('data-bord', b);
+
+    if (!id) {
+      card.innerHTML = `
+        <div class="board-hdr">
+          <span class="board-num">🎯 BORD ${b}</span>
+          <span class="board-tag free">Vrij</span>
+        </div>
+        <div class="board-empty">
+          <span>⬇</span>
+          <span>Sleep wedstrijd hierheen of gebruik ▶ knop</span>
+        </div>`;
+      // Drag-over highlight
+      card.addEventListener('dragover', e=>{ e.preventDefault(); card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', ()=>card.classList.remove('drag-over'));
+      card.addEventListener('drop', e=>{
+        e.preventDefault(); card.classList.remove('drag-over');
+        const matchId = e.dataTransfer.getData('matchId');
+        if (matchId) startOpBord(matchId, b);
+      });
+    } else {
+      const m = wedstrijden.find(w=>w.id===id);
+      if (!m) { activeMatches[b]=null; renderBoards(); return; }
+      const badge = getDivChip(m);
+      const schrijverAlert = schrijvers[b]
+        ? `<div class="board-schrijver-alert">✍️ Schrijver: ${schrijvers[b]}</div>` : '';
+      let schrijverOpts = '<option value="">-- schrijver --</option>' +
+        spelers.map(s=>`<option value="${s.naam}" ${schrijvers[b]===s.naam?'selected':''}>${s.naam}</option>`).join('');
+      card.innerHTML = `
+        <div class="board-hdr">
+          <span class="board-num">🎯 BORD ${b} ${badge}</span>
+          <span class="board-tag busy">Bezig</span>
+        </div>
+        <div class="board-match">${m.thuis}<br><small style="color:var(--muted);font-weight:400;">vs</small><br>${m.uit}</div>
+        ${schrijverAlert}
+        <div class="board-schrijver">
+          <select class="sel" style="font-size:0.75rem;" onchange="wisselSchrijver(${b},this.value)">${schrijverOpts}</select>
+        </div>
+        <div class="board-acts">
+          <button class="btn btn-red btn-sm btn-full" onclick="openUitslagModal(${b})">🏁 Klaar</button>
+          <button class="btn btn-ghost btn-sm btn-full" onclick="herstelBaan(${b})">↩ Herstel</button>
+        </div>`;
+    }
+    grid.appendChild(card);
+  }
+}
+
+function startTimer(b) {
+  if (timers[b]) clearInterval(timers[b]);
+  startTijden[b] = Date.now();
+  timers[b] = setInterval(()=>{ const el=document.getElementById(`tmr${b}`); if(el) el.textContent=formMs(Date.now()-startTijden[b]); }, 1000);
+}
+function stopTimer(b) {
+  if (timers[b]) clearInterval(timers[b]);
+  timers[b]=null;
+  const d=startTijden[b]?formMs(Date.now()-startTijden[b]):'';
+  return d;
+}
+function formMs(ms) {
+  const s=Math.floor(ms/1000);
+  return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+function wisselSchrijver(b,naam) { schrijvers[b]=naam; renderQueue(); }
+function herstelBaan(b) {
+  stopTimer(b); activeMatches[b]=null; schrijvers[b]='';
+  renderBoards(); renderQueue();
+}
+
+// ══════════════════════════════════════════
+//  START OP BORD
+// ══════════════════════════════════════════
+async function startOpBord(matchId, bord) {
+  if (activeMatches[bord]!==null) { toast(`Bord ${bord} is bezet!`,'red'); return; }
+  activeMatches[bord] = matchId;
+  // schrijver NIET wissen — blijft zichtbaar van vorige partij
+  // Bijhouden rusttijd
+  const m = wedstrijden.find(w=>w.id===matchId);
+  if (m) { spelersLaatsteStart[m.thuis]=Date.now(); spelersLaatsteStart[m.uit]=Date.now(); }
+  startTimer(bord);
+  renderBoards(); renderQueue();
+  toast(`▶ Gestart op bord ${bord}`,'green');
+}
+
+// ══════════════════════════════════════════
+//  WACHTRIJ
+// ══════════════════════════════════════════
+function renderQueue() {
+  const container = document.getElementById('queueContainer');
+  container.innerHTML = '';
+  const open = getOpen();
+  const bezetteIds     = new Set(Object.values(activeMatches).filter(Boolean));
+  const bezetteSpelers = getBezetteSpelers();
+  const besteBord      = getBesteBord() || 1;
+
+  if (!open.length) {
+    container.innerHTML = '<div class="empty">Geen openstaande wedstrijden voor deze avond 🎯</div>';
+    renderHistory(); return;
+  }
+
+  // Sorteer: inhaal ALTIJD bovenaan, dan op tijdstip
+  const sorteer = (a,b) => {
+    if (a.is_inhaal && !b.is_inhaal) return -1;
+    if (!a.is_inhaal && b.is_inhaal) return 1;
+    const tA = a.tijdstip||'', tB = b.tijdstip||'';
+    if (!tA && !tB) return 0;
+    if (!tA) return 1;
+    if (!tB) return -1;
+    return tA.localeCompare(tB);
   };
 
-  return (
-    <div className="flex flex-col min-h-screen bg-[#0f1520] text-[#f1f5f9] font-sans">
-      <header className="flex items-center justify-between px-6 h-14 bg-[#080d16] border-b-2 border-[#2a3a56]">
-        <div className="flex items-center gap-3">
-          <span className="text-xl">🎯</span>
-          <h1 className="font-display font-black text-sm tracking-wider text-white">Kaale Bull</h1>
-        </div>
-        <div className="flex bg-[#161f30] p-1 rounded-lg border border-[#2a3a56]">
-          <button
-            onClick={() => setSelectedNav('dashboard')}
-            className={`px-4 py-1.5 rounded-md text-xs font-bold ${
-              selectedNav === 'dashboard' ? 'bg-[#10b981] text-black' : 'text-[#94a3b8] hover:text-white'
-            }`}
-          >
-            📋 Wedstrijdleiding
-          </button>
-          <button
-            onClick={() => setSelectedNav('planning')}
-            className={`px-4 py-1.5 rounded-md text-xs font-bold ${
-              selectedNav === 'planning' ? 'bg-[#f59e0b] text-black' : 'text-[#94a3b8] hover:text-white'
-            }`}
-          >
-            🗓 Planning Tool
-          </button>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="font-mono text-xl font-bold text-[#f59e0b]">{headerTime}</div>
-          <div className="text-[10px] bg-[#10b981]/15 text-[#10b981] font-bold px-3 py-1 rounded-full">
-            ● VERBONDEN
-          </div>
-        </div>
-      </header>
+  // Gebruik divisie kolom direct, niet getDivKey (die geeft 'inhaal' terug voor is_inhaal)
+  const isDivEre    = m => { const d=(m.divisie||'').toLowerCase(); return d.includes('ere') && !d.includes('beker'); };
+  const isDivEerste = m => { const d=(m.divisie||'').toLowerCase(); return (d.includes('eerste')||d.includes('1e')) && !d.includes('beker'); };
 
-      {selectedNav === 'dashboard' ? (
-        <div className="flex flex-col flex-1 overflow-hidden">
-          
-          {/* Live Banen */}
-          <section className="bg-[#161f30] p-4 border-b-2 border-[#2a3a56]">
-            <h2 className="text-[10px] font-bold text-[#94a3b8] uppercase mb-2">LIVE BANEN</h2>
-            <div className="grid grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map(b => {
-                const activeId = activeMatches[b];
-                const activeMatchObj = activeId ? matches.find(m => m.id === activeId) : null;
-                const isBusy = !!activeMatchObj;
-                return (
-                  <div
-                    key={b}
-                    className={`p-4 border rounded-xl min-h-[140px] flex flex-col justify-between ${
-                      isBusy ? 'border-[#ef4444] bg-[#ef4444]/5' : 'border-[#10b981] bg-[#10b981]/5'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-bold text-xs">🎯 BORD {b}</span>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded ${isBusy ? 'bg-[#ef4444]/25 text-[#ef4444]' : 'bg-[#10b981]/25 text-[#10b981]'}`}>
-                        {isBusy ? 'BEZIG' : 'VRIJ'}
-                      </span>
-                    </div>
+  const bekerLijst  = open.filter(m => !bezetteIds.has(m.id) && m.divisie?.toLowerCase().includes('beker'));
+  const ereLijst    = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && isDivEre(m)).sort(sorteer);
+  const eersteLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && isDivEerste(m)).sort(sorteer);
+  const overigLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && !isDivEre(m) && !isDivEerste(m)).sort(sorteer);
 
-                    {isBusy && activeMatchObj ? (
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div className="text-center text-xs font-bold my-auto">
-                          {activeMatchObj.thuis} <span className="text-[#94a3b8] font-normal mx-0.5">vs</span> {activeMatchObj.uit}
-                        </div>
-                        <div className="flex justify-between items-center pt-2 border-t border-[#2a3a56]">
-                          <span className="text-xs font-mono font-bold text-[#f59e0b]">
-                            ⏱ {formatElapsedTime(boardTimers[b])}
-                          </span>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => herstelBord(b)}
-                              className="p-1 hover:bg-[#ef4444]/10 rounded border border-[#2a3a56] text-[#94a3b8]"
-                            >
-                              <RotateCcw size={12} />
-                            </button>
-                            <button
-                              onClick={() => openUitslagSubmission(b)}
-                              className="px-2.5 py-1 text-[11px] font-bold bg-[#ef4444] text-[#000] rounded hover:bg-[#ff5555] transition-all"
-                            >
-                              Score
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center flex-1 border border-dashed border-[#2a3a56] rounded-lg p-2 text-[#94a3b8] text-[10px]">
-                        <span>Slepen of klik ▶</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+  let nr = 1;
 
-          {/* Core lists */}
-          <div className="flex flex-1 overflow-hidden">
-            <aside className="w-80 border-r border-[#2a3a56] bg-[#161f30] p-4 space-y-4 overflow-y-auto">
-              
-              <div className="bg-[#1e2a40]/20 border border-[#2a3a56] rounded-xl p-3">
-                <button
-                  onClick={() => setBekerOpen(!bekerOpen)}
-                  className="w-full flex justify-between items-center text-xs font-bold text-[#f59e0b] uppercase"
-                >
-                  <span className="flex items-center gap-1"><Trophy size={13} /> Beker toevoegen</span>
-                  <span>{bekerOpen ? '▼' : '►'}</span>
-                </button>
-                {bekerOpen && (
-                  <div className="mt-3 space-y-2">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div>
-                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase mb-0.5 block">Thuis</label>
-                        <select
-                          value={bekerThuis}
-                          onChange={e => setBekerThuis(e.target.value)}
-                          className="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1 w-full"
-                        >
-                          <option value="">--</option>
-                          {players.map(p => <option key={p.naam} value={p.naam}>{p.naam}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase mb-0.5 block">Uit</label>
-                        <select
-                          value={bekerUit}
-                          onChange={e => setBekerUit(e.target.value)}
-                          className="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1 w-full"
-                        >
-                          <option value="">--</option>
-                          {players.map(p => <option key={p.naam} value={p.naam}>{p.naam}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div>
-                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase mb-0.5 block">Datum</label>
-                        <input
-                          type="date"
-                          value={bekerDatum}
-                          onChange={e => setBekerDatum(e.target.value)}
-                          className="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1 w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase mb-0.5 block">Tijd</label>
-                        <input
-                          type="text"
-                          value={bekerTijd}
-                          onChange={e => setBekerTijd(e.target.value)}
-                          placeholder="19:30"
-                          className="bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1 w-full text-center"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleAddBeker}
-                      className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black text-xs font-bold py-1.5 rounded transition-all"
-                    >
-                      Bekerwedstrijd invoegen
-                    </button>
-                  </div>
-                )}
-              </div>
+  // ── BEKER BALK bovenaan ──
+  if (bekerLijst.length) {
+    const balk = document.createElement('div');
+    balk.className = 'beker-balk';
+    balk.innerHTML = `<div class="beker-balk-title">🏆 Bekerwedstrijden (${bekerLijst.length})</div>`;
+    const cards = document.createElement('div');
+    cards.className = 'beker-balk-cards';
+    bekerLijst.forEach(m => cards.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+    balk.appendChild(cards);
+    container.appendChild(balk);
+  }
 
-              <div className="bg-[#1e2a40]/10 border border-[#2a3a56] rounded-xl p-3">
-                <span className="text-[10px] font-bold text-[#94a3b8] uppercase block mb-1.5">👤 Speler toevoegen</span>
-                <div className="flex gap-1.5">
-                  <input
-                    type="text"
-                    value={newPlayerName}
-                    onChange={e => setNewPlayerName(e.target.value)}
-                    placeholder="Voer naam in..."
-                    className="flex-1 bg-[#1e2a40] border border-[#2a3a56] text-white text-xs rounded p-1.5"
-                  />
-                  <button onClick={handleAddNewPlayer} className="bg-[#1e2a40] text-xs font-bold border border-[#2a3a56] px-2 rounded">
-                    +
-                  </button>
-                </div>
-              </div>
+  // ── 2 KOLOMMEN ──
+  const cols = document.createElement('div');
+  cols.className = 'queue-cols';
 
-              <div className="bg-[#1e2a40]/10 border border-[#2a3a56] rounded-xl p-3">
-                <span className="text-[10px] font-bold text-[#94a3b8] uppercase block mb-1">📥 CSV importeren</span>
-                <p className="text-[8px] text-[#94a3b8] mb-2">Importeer of vervang speelrondes via CSV.</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <label className="border border-dashed border-[#2a3a56] text-center p-1 rounded hover:text-white text-[10px] font-bold cursor-pointer">
-                    Toevoegen
-                    <input type="file" accept=".csv" className="hidden" onChange={e => handleImportCSVFiles(e, 'toevoegen')} />
-                  </label>
-                  <label className="border border-dashed border-[#ef4444]/30 hover:border-[#ef4444] text-center p-1 rounded hover:text-white text-[10px] font-bold text-[#ef4444] cursor-pointer">
-                    Vervangen
-                    <input type="file" accept=".csv" className="hidden" onChange={e => handleImportCSVFiles(e, 'vervangen')} />
-                  </label>
-                </div>
-              </div>
+  // Ere kolom
+  const ereCol = document.createElement('div');
+  ereCol.className = 'queue-col';
+  ereCol.innerHTML = `<div class="queue-col-title ere">🔵 Ere Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${ereLijst.length} open</span></div>`;
+  if (!ereLijst.length && !overigLijst.length) {
+    ereCol.innerHTML += '<div class="empty">Niets open</div>';
+  } else {
+    [...ereLijst,...overigLijst].forEach(m => ereCol.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+  }
+  cols.appendChild(ereCol);
 
-            </aside>
+  // 1e Divisie kolom
+  const eersteCol = document.createElement('div');
+  eersteCol.className = 'queue-col';
+  eersteCol.innerHTML = `<div class="queue-col-title eerste">🟠 1e Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${eersteLijst.length} open</span></div>`;
+  if (!eersteLijst.length) {
+    eersteCol.innerHTML += '<div class="empty">Niets open</div>';
+  } else {
+    eersteLijst.forEach(m => eersteCol.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+  }
+  cols.appendChild(eersteCol);
 
-            {/* Speelschema en controls */}
-            <main className="flex-1 overflow-y-auto p-5 space-y-4">
-              <div className="flex items-center justify-between bg-[#161f30] p-3 rounded-xl border border-[#2a3a56]">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#94a3b8]">📅 SPEELAVOND:</span>
-                  <select
-                    value={selectedDatum}
-                    onChange={e => setSelectedDatum(e.target.value)}
-                    className="bg-[#1e2a40] border border-[#2a3a56] text-white rounded p-1 text-xs font-bold outline-none cursor-pointer"
-                  >
-                    <option value="ALL">Alle datums</option>
-                    {activeEvenings.map(d => <option key={d} value={d}>{getFmtKort(d)}</option>)}
-                  </select>
-
-                  <div className="flex rounded-lg border border-[#2a3a56] overflow-hidden bg-[#1e2a40] ml-3 text-xs">
-                    <button
-                      onClick={() => setHalveSeizoen('eerste')}
-                      className={`px-3 py-1.5 text-[10px] font-bold ${halveSeizoen === 'eerste' ? 'bg-[#f59e0b] text-black' : 'text-[#94a3b8]'}`}
-                    >
-                      1e helft - verliezer schrijft
-                    </button>
-                    <button
-                      onClick={() => setHalveSeizoen('tweede')}
-                      className={`px-3 py-1.5 text-[10px] font-bold ${halveSeizoen === 'tweede' ? 'bg-[#10b981] text-black' : 'text-[#94a3b8]'}`}
-                    >
-                      2e helft - winnaar schrijft
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleExportFullHTML}
-                  className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 text-[#94a3b8] hover:text-white bg-[#1e2a40] border border-[#2a3a56] rounded-md transition-all"
-                >
-                  <Download size={12} />
-                  Download Standalone HTML
-                </button>
-              </div>
-
-              {/* Grid Column Queue */}
-              <div className="grid grid-cols-2 gap-4">
-                
-                {/* ERE */}
-                <div className="bg-[#161f30]/40 rounded-xl border border-[#2a3a56] overflow-hidden">
-                  <div className="bg-[#a855f7]/10 p-3 flex justify-between items-center text-xs font-black text-[#a855f7] uppercase border-b border-[#2a3a56]">
-                    <span>🔵 ERE DIVISIE</span>
-                  </div>
-                  <div className="p-3 space-y-2">
-                    {filteredMatches
-                      .filter(m => m.divisie.toLowerCase().includes('ere') && !m.divisie.toLowerCase().includes('beker'))
-                      .map((m, idx) => {
-                        const isBlocked = activePlayerNames.has(m.thuis) || activePlayerNames.has(m.uit);
-                        return (
-                          <div key={m.id} className="flex bg-[#161f30] border border-[#2a3a56] rounded-lg p-2.5 justify-between items-center text-xs">
-                            <div>
-                              <div className="font-bold">{m.thuis} vs {m.uit}</div>
-                              {m.speelronde && <span className="text-[9px] text-[#94a3b8]">SR {m.speelronde}</span>}
-                            </div>
-                            <button
-                              disabled={isBlocked}
-                              onClick={() => startMatchOnBoard(m.id, getBesteBord())}
-                              className="px-2.5 py-1 text-[11px] font-bold bg-[#10b981] text-black rounded hover:bg-[#059669]"
-                            >
-                              ▶
-                            </button>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-
-                {/* 1E DIV */}
-                <div className="bg-[#161f30]/40 rounded-xl border border-[#2a3a56] overflow-hidden">
-                  <div className="bg-[#3b82f6]/10 p-3 flex justify-between items-center text-xs font-black text-[#3b82f6] uppercase border-b border-[#2a3a56]">
-                    <span>🟠 1E DIVISIE</span>
-                  </div>
-                  <div className="p-3 space-y-2">
-                    {filteredMatches
-                      .filter(m => (m.divisie.toLowerCase().includes('eerste') || m.divisie.toLowerCase().includes('1e')) && !m.divisie.toLowerCase().includes('beker'))
-                      .map((m, idx) => {
-                        const isBlocked = activePlayerNames.has(m.thuis) || activePlayerNames.has(m.uit);
-                        return (
-                          <div key={m.id} className="flex bg-[#161f30] border border-[#2a3a56] rounded-lg p-2.5 justify-between items-center text-xs">
-                            <div>
-                              <div className="font-bold">{m.thuis} vs {m.uit}</div>
-                              {m.speelronde && <span className="text-[9px] text-[#94a3b8]">SR {m.speelronde}</span>}
-                            </div>
-                            <button
-                              disabled={isBlocked}
-                              onClick={() => startMatchOnBoard(m.id, getBesteBord())}
-                              className="px-2.5 py-1 text-[11px] font-bold bg-[#10b981] text-black rounded hover:bg-[#059669]"
-                            >
-                              ▶
-                            </button>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-
-              </div>
-            </main>
-          </div>
-        </div>
-      ) : (
-        /* Planning view in workspace app */
-        <div className="p-6 max-w-4xl mx-auto space-y-6">
-          <div className="bg-[#1e2a40]/40 border border-[#2a3a56] rounded-xl p-6">
-            <h2 className="text-base font-black text-[#f59e0b] mb-1">🗓 1. Schema CSV inladen</h2>
-            <input type="file" onChange={ptHandleUpload} className="text-xs text-[#94a3b8]" />
-          </div>
-
-          <div className="bg-[#1e2a40]/40 border border-[#2a3a56] rounded-xl p-6 space-y-3">
-            <h2 className="text-base font-black text-[#f59e0b]">Criteria instellingen</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <input type="date" value={ptStartDate} onChange={e => setPtStartDate(e.target.value)} className="bg-[#161f30] text-xs p-2 text-white border border-[#2a3a56] rounded" />
-              <input type="date" value={ptEndDate} onChange={e => setPtEndDate(e.target.value)} className="bg-[#161f30] text-xs p-2 text-white border border-[#2a3a56] rounded" />
-            </div>
-            <button onClick={runSchedulerCompute} className="bg-[#f59e0b] text-black text-xs font-bold py-2 px-4 rounded w-full">
-              Bereken evenredige planning
-            </button>
-          </div>
-
-          {ptResult && (
-            <div className="bg-[#161f30] border border-[#2a3a56] rounded-xl p-5 space-y-3">
-              <h3 className="font-bold text-xs text-[#10b981]">Rapport berekende verdeling</h3>
-              <div className="text-xs">
-                <div>Aantal speelavonden gedetecteerd: <strong>{ptResult.eveningsCount} donderdagen</strong></div>
-                <div>Wedstrijden perfect verdeeld: <strong>{ptResult.scheduled.length} matches</strong></div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setPtPreviewVisible(!ptPreviewVisible)} className="text-xs font-bold px-3 py-1 bg-[#1e2a40] border border-[#2a3a56] rounded hover:text-white">
-                  Toon tafel preview
-                </button>
-                <button onClick={() => setDbConfirmModal(true)} className="text-xs font-bold px-3 py-1 bg-[#10b981] text-black rounded hover:bg-[#059669]">
-                  Opslaan in Supabase database
-                </button>
-              </div>
-
-              {ptPreviewVisible && (
-                <div className="border border-[#2a3a56] rounded-lg p-2 max-h-56 overflow-y-auto bg-[#1e2a40]/10">
-                  <table className="w-full text-[11px] text-[#94a3b8]">
-                    <thead>
-                      <tr className="border-b border-[#2a3a56]">
-                        <th className="p-1">Datum</th>
-                        <th className="p-1">Time</th>
-                        <th className="p-1">Divisie</th>
-                        <th className="p-1">Thuis</th>
-                        <th className="p-1">Uit</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ptResult.scheduled.slice(0, 50).map((m, i) => (
-                        <tr key={i} className="hover:bg-[#1e2a40]/30">
-                          <td className="p-1 font-bold text-[#f59e0b]">{getFmtKort(m.datum)}</td>
-                          <td className="p-1">{m.tijdstip}</td>
-                          <td className="p-1">{m.divisie}</td>
-                          <td className="p-1 text-white">{m.thuis}</td>
-                          <td className="p-1 text-white">{m.uit}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* WINNAAR/VERLIEZER MODAL REUSE */}
-      {uitslagModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/80 z-[100] p-4 text-xs">
-          <div className="bg-[#161f30] border border-[#2a3a56] rounded-2xl p-5 w-full max-w-sm">
-            <h3 className="text-xs font-black uppercase text-white mb-2">🏁 Bord {uitslagModal.boardNum} afsluiten</h3>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <button
-                onClick={() => setUitslagModal({ ...uitslagModal, selectedTarget: 'thuis' })}
-                className={`py-4 rounded border text-center ${uitslagModal.selectedTarget === 'thuis' ? 'border-[#10b981] text-[#10b981]' : 'border-[#2a3a56]'}`}
-              >
-                {uitslagModal.thuis} (Win)
-              </button>
-              <button
-                onClick={() => setUitslagModal({ ...uitslagModal, selectedTarget: 'uit' })}
-                className={`py-4 rounded border text-center ${uitslagModal.selectedTarget === 'uit' ? 'border-[#10b981] text-[#10b981]' : 'border-[#2a3a56]'}`}
-              >
-                {uitslagModal.uit} (Win)
-              </button>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setUitslagModal(null)} className="p-1.5 text-[#94a3b8]">Cancel</button>
-              <button disabled={!uitslagModal.selectedTarget} onClick={submitMatchScore} className="px-4 py-1.5 bg-[#10b981] text-black font-bold rounded">Confirm Score</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* VERZET MATCH REUSE */}
-      {verzetModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/80 z-[100] p-4 text-xs">
-          <div className="bg-[#161f30] border border-[#2a3a56] rounded-2xl p-5 w-full max-w-sm">
-            <h3 className="font-black text-white mb-2">📅 Wedstrijd verzetten</h3>
-            <p className="mb-3 text-[#94a3b8]">{verzetModal.thuis} vs {verzetModal.uit}</p>
-            <input type="date" value={verzetModal.datum} onChange={e => setVerzetModal({ ...verzetModal, datum: e.target.value })} className="bg-[#1e2a40] text-white p-2 rounded mb-3 w-full border border-[#2a3a56]" />
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setVerzetModal(null)} className="p-1.5 text-[#94a3b8]">Cancel</button>
-              <button onClick={handleVerzetAction} className="px-4 py-1.5 bg-[#10b981] text-black font-bold rounded">Opslaan</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* NOTES MODAL REUSE */}
-      {notitieModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/80 z-[100] p-4 text-xs">
-          <div className="bg-[#161f30] border border-[#2a3a56] rounded-2xl p-5 w-full max-w-sm">
-            <h3 className="font-black text-white mb-2">📝 Notitie toevoegen</h3>
-            <textarea value={notitieModal.notitie} onChange={e => setNotitieModal({ ...notitieModal, notitie: e.target.value })} className="bg-[#1e2a40] text-white p-2.5 rounded w-full border border-[#2a3a56] mb-3 min-h-[80px]" />
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setNotitieModal(null)} className="p-1.5 text-[#94a3b8]">Cancel</button>
-              <button onClick={handleSaveNotitie} className="px-4 py-1.5 bg-[#10b981] text-[#000] font-bold rounded">Opslaan</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SAVE BACKEND CONFIRM */}
-      {dbConfirmModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/80 z-[100] p-4 text-xs">
-          <div className="bg-[#161f30] border border-[#2a3a56] rounded-2xl p-5 w-full max-w-sm">
-            <h3 className="font-extrabold text-[#10b981] mb-2 flex items-center gap-1">💾 Bevestig database opslag</h3>
-            <p className="text-[#94a3b8] mb-4">Weet je zeker dat je de berekende rondes en speeldata permanent in je online Supabase database wilt wegschrijven?</p>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setDbConfirmModal(false)} className="p-1.5 text-[#94a3b8]">Cancel</button>
-              <button onClick={ptDBSaveAction} className="px-4 py-1.5 bg-[#10b981] text-black font-bold rounded">✓ Bevestigen</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Toast Alert */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[999] px-4 py-2.5 rounded-lg border bg-[#1e2a40] text-xs font-bold leading-normal transition-all">
-          {toast.msg}
-        </div>
-      )}
-    </div>
-  );
+  container.appendChild(cols);
+  renderHistory();
 }
-,Overwrite:true,TargetFile:/src/App.tsx,toolAction:Writing App.tsx logic,toolSummary:Writing App.tsx logic}
+
+function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
+  const isBlocked  = bezetteSpelers.has(m.thuis) || bezetteSpelers.has(m.uit);
+  const isInhaal   = m.is_inhaal;
+  const isBeker    = m.divisie?.toLowerCase().includes('beker');
+  const divKey     = getDivKey(m);
+
+  // Rusttijd check
+  const nuMs = Date.now();
+  const laastThuis = spelersLaatsteStart[m.thuis] || 0;
+  const laastUit   = spelersLaatsteStart[m.uit]   || 0;
+  const minRust    = Math.min(nuMs-laastThuis, nuMs-laastUit);
+  const teWeinigRust = (laastThuis>0||laastUit>0) && minRust < MIN_RUST_MS;
+  const rustWarn   = teWeinigRust && !isBlocked;
+  const rustMinuten = Math.ceil((MIN_RUST_MS-minRust)/60000);
+
+  const card = document.createElement('div');
+  card.className = `match-card div-${divKey} ${isBlocked?'blocked':''} ${rustWarn?'warn-rust':''}`;
+  card.draggable = !isBlocked;
+  card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); });
+
+  const tijdCls = isBeker?'beker':isInhaal?'inhaal':'normal';
+  const toonTijd = !isBeker && !isInhaal;
+
+  // Badges
+  const chip = getDivChip(m);
+  const origDatumBadge = m.originele_datum
+    ? `<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>` : '';
+  const rustBadge = rustWarn ? `<span class="warn-chip">⏳ rust: ${rustMinuten}min</span>` : '';
+  const notitieBadge = m.notitie ? `<span class="warn-chip" style="background:rgba(59,130,246,0.12);color:var(--blue);">📝</span>` : '';
+
+  // Bord opties, beste bord gesuggereerd
+  let bordOpts = '';
+  for (let b=1;b<=4;b++) {
+    const bezig = activeMatches[b]!==null;
+    bordOpts += `<option value="${b}" ${bezig?'disabled':''} ${b===besteBord&&!bezig?'selected':''}>${bezig?`Bord ${b} (bezet)`:`Bord ${b}`}</option>`;
+  }
+
+  card.innerHTML = `
+    <span class="match-nr">${nr}</span>
+    ${toonTijd ? `<span class="match-time ${tijdCls}">🕒 ${m.tijdstip||'--:--'}</span>` : ''}
+    <div class="match-info">
+      <div class="match-players">${m.thuis} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${m.uit}</div>
+      <div class="match-sub">
+        ${chip}
+        ${m.speelronde?`<span>SR ${m.speelronde}</span>`:''}
+        ${origDatumBadge}
+        ${rustBadge}
+        ${notitieBadge}
+        ${isBlocked?'<span style="color:var(--red);font-size:0.65rem;">⛔ speler bezig</span>':''}
+      </div>
+    </div>
+    <div class="match-acts">
+      <button class="btn btn-ghost btn-xs" onclick="openNotitieModal('${m.id}')" title="Notitie">📝</button>
+      <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>
+      ${isBeker?`<button class="btn btn-ghost btn-xs" onclick="verwijderBeker('${m.id}')" title="Verwijderen">🗑</button>`:''}
+      <select class="bord-sel" id="bs${m.id}" ${isBlocked?'disabled':''}>${bordOpts}</select>
+      <button class="btn btn-green btn-sm" ${isBlocked?'disabled':''} onclick="startOpBord('${m.id}',parseInt(document.getElementById('bs${m.id}').value))">▶</button>
+    </div>`;
+  return card;
+}
+
+// ══════════════════════════════════════════
+//  UITSLAG MODAL (winnaar/verliezer)
+// ══════════════════════════════════════════
+function openUitslagModal(bord) {
+  const id = activeMatches[bord]; if (!id) return;
+  const m  = wedstrijden.find(w=>w.id===id); if (!m) return;
+  uitslagBord   = bord;
+  gekozenSpeler = null;
+
+  document.getElementById('uitslagTitle').textContent = `Wedstrijd afsluiten — Bord ${bord}`;
+  document.getElementById('uitslagSub').textContent   = `${m.thuis} vs ${m.uit}`;
+  document.getElementById('uitslagNotitie').value     = m.notitie||'';
+  document.getElementById('uitslagOpslaanBtn').disabled = true;
+  document.getElementById('schrijverAankondiging').style.display = 'none';
+
+  // Halve seizoen label
+  const isVerliezer = halveSeizoen === 'eerste';
+  const modeEl = document.getElementById('winnerModeLabel');
+  modeEl.textContent = isVerliezer ? '✍️ VERLIEZER SCHRIJFT' : '✍️ WINNAAR SCHRIJFT';
+  modeEl.className   = `winner-mode-label ${isVerliezer?'verliezer':'winnaar'}`;
+
+  // Knoppen: klik = die speler is winnaar of verliezer
+  const actie = isVerliezer ? 'verliezer' : 'winnaar';
+  document.getElementById('winnerBtns').innerHTML = `
+    <button class="winner-btn" id="wbtn-${m.thuis}" onclick="kiesSpeler('${m.thuis}','${m.uit}')">
+      ${m.thuis}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7;">Klik als ${actie}</span>
+    </button>
+    <button class="winner-btn" id="wbtn-${m.uit}" onclick="kiesSpeler('${m.uit}','${m.thuis}')">
+      ${m.uit}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7;">Klik als ${actie}</span>
+    </button>`;
+
+  document.getElementById('uitslagModal').classList.add('open');
+}
+
+function kiesSpeler(gekozen, ander) {
+  const isVerliezer = halveSeizoen === 'eerste';
+  gekozenSpeler = gekozen;
+
+  // Highlight geselecteerde knop
+  const m = wedstrijden.find(w=>w.id===activeMatches[uitslagBord]);
+  if (!m) return;
+  [m.thuis, m.uit].forEach(naam => {
+    const btn = document.getElementById(`wbtn-${naam}`);
+    if (!btn) return;
+    btn.className = 'winner-btn' + (naam===gekozen ? (isVerliezer?' selected-verliezer':' selected-winnaar') : '');
+  });
+
+  // Schrijver bepalen
+  const schrijver = isVerliezer ? gekozen : ander; // verliezer schrijft / winnaar schrijft → ander is dan verliezer
+  // Wacht: als verliezer-modus → de gekozen speler IS de verliezer → die schrijft
+  // Als winnaar-modus → de gekozen speler IS de winnaar → de andere schrijft
+  const schrijverNaam = isVerliezer ? gekozen : ander;
+
+  const aanEl = document.getElementById('schrijverAankondiging');
+  aanEl.style.display = 'block';
+  aanEl.textContent = `✍️ Schrijver: ${schrijverNaam} → stuurt naar bord ${uitslagBord}`;
+
+  // Zet schrijver direct op het bord
+  schrijvers[uitslagBord] = schrijverNaam;
+  renderBoards();
+
+  document.getElementById('uitslagOpslaanBtn').disabled = false;
+}
+
+async function slaUitslagOp() {
+  if (uitslagBord===null || !gekozenSpeler) return;
+  const isVerliezer = halveSeizoen === 'eerste';
+  const notitie     = document.getElementById('uitslagNotitie').value.trim();
+  const id          = activeMatches[uitslagBord];
+  const m           = wedstrijden.find(w=>w.id===id);
+
+  // Uitslag opslaan als "Winnaar: X" of "Verliezer: X"
+  const uitslagTekst = isVerliezer
+    ? `Verliezer: ${gekozenSpeler}`
+    : `Winnaar: ${gekozenSpeler}`;
+
+  try {
+    await sbPatch('wedstrijden',id,{status:'gespeeld',uitslag:uitslagTekst,notitie:notitie||null,schrijver:schrijvers[uitslagBord]||null});
+    if (m) { m.status='gespeeld'; m.uitslag=uitslagTekst; m.notitie=notitie||null; m.schrijver=schrijvers[uitslagBord]||null; }
+    stopTimer(uitslagBord);
+    activeMatches[uitslagBord] = null;
+    // schrijver blijft zichtbaar op het bord totdat nieuwe wedstrijd start
+    sluitModal('uitslagModal');
+    uitslagBord=null; gekozenSpeler=null;
+    renderBoards(); renderAll();
+    toast(`✅ Klaar — ✍️ schrijver naar bord: ${m?.schrijver||'onbekend'}`, 'green');
+  } catch(e) { toast(`Fout: ${e.message}`,'red'); }
+}
+
+// ══════════════════════════════════════════
+//  VERZET MODAL
+// ══════════════════════════════════════════
+function openVerzetModal(id) {
+  verzetId = id;
+  const m = wedstrijden.find(w=>w.id===id); if (!m) return;
+  document.getElementById('verzetLabel').textContent = `${m.thuis} vs ${m.uit}`;
+  document.getElementById('verzetDatum').value = m.datum||'';
+  document.getElementById('verzetIsInhaal').checked = true;
+
+  // Toon originele datum als die er al is
+  const origEl = document.getElementById('verzetOrigDatum');
+  if (m.originele_datum) {
+    origEl.innerHTML = `<div class="orig-datum-info">📌 Originele datum: <strong>${fmtDatum(m.originele_datum)}</strong> — <a href="#" onclick="herstelOrigDatum('${id}');return false;" style="color:var(--orange);">Terugzetten</a></div>`;
+  } else {
+    origEl.innerHTML = '';
+  }
+  document.getElementById('verzetModal').classList.add('open');
+}
+
+async function slaVerzetOp() {
+  if (!verzetId) return;
+  const nieuweDatum = document.getElementById('verzetDatum').value;
+  const isInhaal    = document.getElementById('verzetIsInhaal').checked;
+  if (!nieuweDatum) { toast('Kies een datum','red'); return; }
+
+  const m = wedstrijden.find(w=>w.id===verzetId);
+  const origDatum = m?.originele_datum || m?.datum; // bewaar origineel
+
+  try {
+    await sbPatch('wedstrijden',verzetId,{
+      datum: nieuweDatum,
+      is_inhaal: isInhaal,
+      originele_datum: origDatum,
+      status: 'gepland'
+    });
+    if (m) { m.datum=nieuweDatum; m.is_inhaal=isInhaal; m.originele_datum=origDatum; }
+    sluitModal('verzetModal'); verzetId=null;
+    bouwDatumFilter(); renderAll();
+    toast(`📅 Verzet naar ${fmtDatum(nieuweDatum)}`,'orange');
+  } catch(e) { toast(`Fout: ${e.message}`,'red'); }
+}
+
+async function herstelOrigDatum(id) {
+  const m = wedstrijden.find(w=>w.id===id); if (!m||!m.originele_datum) return;
+  try {
+    await sbPatch('wedstrijden',id,{ datum:m.originele_datum, is_inhaal:false, originele_datum:null });
+    m.datum=m.originele_datum; m.is_inhaal=false; m.originele_datum=null;
+    sluitModal('verzetModal');
+    bouwDatumFilter(); renderAll();
+    toast(`↩ Teruggezet naar ${fmtDatum(m.datum)}`,'green');
+  } catch(e) { toast(`Fout: ${e.message}`,'red'); }
+}
+
+// ══════════════════════════════════════════
+//  NOTITIE MODAL
+// ══════════════════════════════════════════
+function openNotitieModal(id) {
+  notitieId = id;
+  const m = wedstrijden.find(w=>w.id===id); if (!m) return;
+  document.getElementById('notitieTitle').textContent = `📝 ${m.thuis} vs ${m.uit}`;
+  document.getElementById('notitieInp').value = m.notitie||'';
+  document.getElementById('notitieModal').classList.add('open');
+  setTimeout(()=>document.getElementById('notitieInp').focus(),100);
+}
+
+async function slaNotitieOp() {
+  if (!notitieId) return;
+  const notitie = document.getElementById('notitieInp').value.trim();
+  try {
+    await sbPatch('wedstrijden',notitieId,{notitie:notitie||null});
+    const m = wedstrijden.find(w=>w.id===notitieId);
+    if (m) m.notitie = notitie||null;
+    sluitModal('notitieModal'); notitieId=null;
+    renderQueue();
+    toast('📝 Notitie opgeslagen','green');
+  } catch(e) { toast(`Fout: ${e.message}`,'red'); }
+}
+
+// ══════════════════════════════════════════
+//  GESCHIEDENIS
+// ══════════════════════════════════════════
+function renderHistory() {
+  const container = document.getElementById('historyContainer');
+  const gespeeld  = getGespeeld();
+  if (!gespeeld.length) { container.innerHTML='<div class="empty">Nog niets gespeeld.</div>'; return; }
+  container.innerHTML = '';
+  gespeeld.forEach(m=>{
+    const card = document.createElement('div');
+    card.className='history-card';
+    card.innerHTML=`
+      <div class="history-info">
+        <div class="history-players">✅ ${m.thuis} vs ${m.uit}</div>
+        <div class="history-sub">${m.divisie||''}${m.speelronde?' · SR '+m.speelronde:''}</div>
+        ${m.notitie?`<div class="history-sub" style="color:var(--blue);">📝 ${m.notitie}</div>`:''}
+      </div>
+      <div class="history-right">
+        ${m.uitslag?`<span class="history-score">${m.uitslag}</span>`:''}
+        <button class="btn btn-ghost btn-xs" onclick="herstelWedstrijd('${m.id}')">↩</button>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+async function herstelWedstrijd(id) {
+  try {
+    await sbPatch('wedstrijden',id,{status:'gepland',uitslag:null});
+    const m=wedstrijden.find(w=>w.id===id);
+    if(m){m.status='gepland';m.uitslag=null;}
+    renderAll(); toast('↩ Terug naar gepland','');
+  } catch(e){toast(`Fout: ${e.message}`,'red');}
+}
+
+// ══════════════════════════════════════════
+//  BEKER
+// ══════════════════════════════════════════
+function toggleBeker() {
+  bekerOpen=!bekerOpen;
+  document.getElementById('bekerBody').classList.toggle('open',bekerOpen);
+  document.getElementById('bekerArrow').textContent=bekerOpen?'▼':'►';
+}
+
+function selectBO(w) {
+  gekozenBO=w;
+  ['bo5','bo7','bo9'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  const map={'Best of 5':'bo5','Best of 7':'bo7','Best of 9':'bo9'};
+  if(map[w]) document.getElementById(map[w]).classList.add('active');
+}
+
+function vulBekerDropdowns() {
+  const opts='<option value="">-- kies --</option>'+
+    spelers.map(s=>`<option value="${s.naam}">${s.naam}</option>`).join('');
+  document.getElementById('bekerThuis').innerHTML=opts;
+  document.getElementById('bekerUit').innerHTML=opts;
+}
+
+async function voegBekerToe() {
+  const thuis=document.getElementById('bekerThuis').value;
+  const uit=document.getElementById('bekerUit').value;
+  const datum=document.getElementById('bekerDatum').value;
+  const tijd=document.getElementById('bekerTijd').value.trim();
+  const ronde=document.getElementById('bekerRonde').value.trim();
+  if(!thuis||!uit){toast('Kies twee spelers','red');return;}
+  if(thuis===uit){toast('Kies twee verschillende spelers','red');return;}
+  if(!datum){toast('Kies een datum','red');return;}
+  try {
+    const [nieuw]=await sbPost('wedstrijden',{datum,tijdstip:tijd||null,divisie:`Beker (${gekozenBO})`,thuis,uit,speelronde:ronde||null,status:'gepland',is_inhaal:false});
+    wedstrijden.unshift(nieuw);
+    document.getElementById('bekerThuis').value='';
+    document.getElementById('bekerUit').value='';
+    document.getElementById('bekerTijd').value='';
+    document.getElementById('bekerRonde').value='';
+    document.getElementById('datumFilter').value=datum;
+    bouwDatumFilter(); document.getElementById('datumFilter').value=datum;
+    renderAll(); toast(`🏆 Bekerwedstrijd toegevoegd op ${fmtDatum(datum)}`,'orange');
+  } catch(e){toast(`Fout: ${e.message}`,'red');}
+}
+
+async function verwijderBeker(id) {
+  if(!confirm('Bekerwedstrijd verwijderen?')) return;
+  try {
+    await sbDelete('wedstrijden',id);
+    wedstrijden=wedstrijden.filter(w=>w.id!==id);
+    renderQueue(); toast('Bekerwedstrijd verwijderd','');
+  } catch(e){toast(`Fout: ${e.message}`,'red');}
+}
+
+// ══════════════════════════════════════════
+//  SPELERS
+// ══════════════════════════════════════════
+async function voegSpelerToe() {
+  const naam=document.getElementById('nieuweSpeler').value.trim();
+  if(!naam){toast('Vul een naam in','red');return;}
+  if(spelers.find(s=>s.naam.toLowerCase()===naam.toLowerCase())){toast('Speler bestaat al','red');return;}
+  try {
+    const [nieuw]=await sbPost('spelers',{naam});
+    spelers.push(nieuw); spelers.sort((a,b)=>a.naam.localeCompare(b.naam));
+    document.getElementById('nieuweSpeler').value='';
+    vulBekerDropdowns(); renderBoards();
+    toast(`👤 ${naam} toegevoegd`,'green');
+  } catch(e){toast(`Fout: ${e.message}`,'red');}
+}
+
+// ══════════════════════════════════════════
+//  CSV IMPORT
+// ══════════════════════════════════════════
+function importeerCSV(input, modus='toevoegen') {
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    const regels=ev.target.result.trim().split(/\r?\n/).filter(r=>r.trim());
+    if(regels.length<2){toast('CSV lijkt leeg','red');return;}
+    const sep=regels[0].includes(';')?';':',';
+    const hdrs=regels[0].split(sep).map(h=>h.replace(/"/g,'').trim().toLowerCase());
+    const fi=(...n)=>{for(const x of n){const i=hdrs.findIndex(h=>h.includes(x));if(i!==-1)return i;}return -1;};
+    const iD=fi('datum','date'),iT=fi('tijdstip','tijd','time'),iDiv=fi('divisie','div'),
+          iH=fi('thuis','home'),iU=fi('uit','away','gast'),iS=fi('speelronde','ronde');
+    if(iH===-1||iU===-1){toast('Kolommen Thuis/Uit niet gevonden','red');return;}
+
+    const rijen=[];
+    const nieuweNamen=new Set();
+    const csvDatums=new Set();
+    for(let i=1;i<regels.length;i++){
+      const cols=regels[i].split(sep).map(x=>x.replace(/^"|"$/g,'').trim());
+      const thuis=cols[iH]||'',uit=cols[iU]||'';
+      if(!thuis||!uit) continue;
+      if(/[-–]\s*bye\s*[-–]/i.test(thuis)||/[-–]\s*bye\s*[-–]/i.test(uit)) continue;
+      const datum=iD!==-1?(cols[iD]||''):''; if(!datum) continue;
+      const normD=normDatum(datum);
+      csvDatums.add(normD);
+      rijen.push({datum:normD,tijdstip:iT!==-1?(cols[iT]||null):null,divisie:iDiv!==-1?(cols[iDiv]||'Algemeen'):'Algemeen',thuis,uit,speelronde:iS!==-1?(cols[iS]||null):null,status:'gepland',is_inhaal:false});
+      if(!spelers.find(s=>s.naam===thuis)) nieuweNamen.add(thuis);
+      if(!spelers.find(s=>s.naam===uit))   nieuweNamen.add(uit);
+    }
+    if(!rijen.length){toast('Geen geldige wedstrijden','red');return;}
+    try {
+      if(modus==='vervangen') {
+        // Verwijder alleen GEPLANDE wedstrijden op de datums in de CSV (geen beker, geen gespeeld)
+        const datumLijst = [...csvDatums].join(',');
+        for(const datum of csvDatums) {
+          await fetch(`${SB_URL}/rest/v1/wedstrijden?datum=eq.${datum}&status=eq.gepland&divisie=not.ilike.*beker*`,{
+            method:'DELETE', headers:HDR
+          });
+        }
+        // Verwijder ook uit lokale state
+        wedstrijden = wedstrijden.filter(w =>
+          !csvDatums.has(w.datum) || w.status==='gespeeld' || w.divisie?.toLowerCase().includes('beker')
+        );
+        toast(`🔄 Vervangen: ${[...csvDatums].length} avond(en) gewist, opnieuw importeren…`,'orange');
+      }
+      const nieuws=await sbPost('wedstrijden',rijen);
+      wedstrijden.push(...nieuws);
+      if(nieuweNamen.size){
+        // Gebruik upsert om dubbele spelers te vermijden
+        const ns=await fetch(`${SB_URL}/rest/v1/spelers`,{
+          method:'POST',
+          headers:{...HDR,'Prefer':'resolution=ignore-duplicates,return=representation'},
+          body:JSON.stringify([...nieuweNamen].map(naam=>({naam})))
+        }).then(r=>r.json());
+        if(Array.isArray(ns)) { spelers.push(...ns); spelers.sort((a,b)=>a.naam.localeCompare(b.naam)); }
+      }
+      bouwDatumFilter(); vulBekerDropdowns(); renderBoards(); renderAll();
+      toast(`✓ ${rijen.length} wedstrijden ${modus==='vervangen'?'vervangen':'toegevoegd'}`,'green');
+    } catch(e){toast(`Import fout: ${e.message}`,'red');}
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
+function normDatum(r){
+  let m;
+  if((m=r.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/))) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  if((m=r.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/))) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  return r;
+}
+
+// ══════════════════════════════════════════
+//  DIV HELPERS
+// ══════════════════════════════════════════
+function getDivKey(m) {
+  const d=(m.divisie||'').toLowerCase();
+  if(m.is_inhaal) return 'inhaal';
+  if(d.includes('ere')) return 'ere';
+  if(d.includes('eerste')||d.includes('1e')) return 'eerste';
+  if(d.includes('beker')) return 'beker';
+  return 'general';
+}
+
+function getDivChip(m) {
+  const k=getDivKey(m);
+  const labels={ere:'Ere',eerste:'1e Div',beker:'Beker',inhaal:'Inhaal',general:'Div'};
+  return `<span class="div-chip ${k}">${labels[k]||m.divisie}</span>`;
+}
+
+// ══════════════════════════════════════════
+//  MODAL HELPERS
+// ══════════════════════════════════════════
+function sluitModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.addEventListener('keydown',e=>{
+  // Enter disabled for winner modal (use button)
+  if(e.key==='Escape'){sluitModal('uitslagModal');sluitModal('verzetModal');sluitModal('notitieModal');}
+});
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+let toastT;
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast show ${type}`;
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast',3000);
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+// Herstel halve seizoen toggle
+setHalve(halveSeizoen);
+
+// Geschiedenis inklapbaar
+let historyOpen = true;
+function toggleHistory() {
+  historyOpen = !historyOpen;
+  document.getElementById('historyBody').style.display = historyOpen ? 'block' : 'none';
+  document.getElementById('historyArrow').textContent  = historyOpen ? '▼' : '►';
+}
+
+
+// ══════════════════════════════════════════
+//  NAVIGATIE
+// ══════════════════════════════════════════
+function switchNav(view) {
+  document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
+  document.getElementById('planningView').classList.toggle('active', view === 'planning');
+  document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
+  document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
+  document.getElementById('navPlanning').classList.toggle('planning', view === 'planning');
+}
+
+// ══════════════════════════════════════════
+//  PLANNING TOOL
+// ══════════════════════════════════════════
+const PT_SLOTS = [
+  {tijd:'19:30',cap:4},{tijd:'19:50',cap:4},{tijd:'20:10',cap:4},
+  {tijd:'20:30',cap:4},{tijd:'20:50',cap:4},{tijd:'21:10',cap:4},
+  {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3}
+];
+
+let ptRijen   = [];
+let ptHeaders = [];
+let ptAvonden = [];
+let ptVerdeeld = [];
+
+function ptInitSlots() {
+  const grid = document.getElementById('ptSlotsGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  PT_SLOTS.forEach((s,i) => {
+    const div = document.createElement('div');
+    div.className = 'pt-slot-row';
+    div.innerHTML = `<span class="pt-slot-time">${s.tijd}</span>
+      <input type="number" class="pt-slot-count" id="ptSlot${i}" value="${s.cap}" min="0" max="8">
+      <span style="font-size:0.72rem;color:var(--muted);">wed.</span>`;
+    grid.appendChild(div);
+  });
+}
+ptInitSlots();
+
+// ── CSV LADEN ──
+function ptLaadCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const tekst = ev.target.result.trim();
+    const regels = tekst.split(/\r?\n/).filter(r => r.trim());
+    if (regels.length < 2) { ptMsg('ptCsvInfo','CSV lijkt leeg','err'); return; }
+
+    const sep = regels[0].includes(';') ? ';' : ',';
+    ptHeaders = regels[0].split(sep).map(h => h.replace(/"/g,'').trim());
+
+    ptRijen = [];
+    for (let i = 1; i < regels.length; i++) {
+      const cols = regels[i].split(sep).map(x => x.replace(/^"|"$/g,'').trim());
+      if (cols.every(x => !x)) continue;
+      const obj = {};
+      ptHeaders.forEach((h,j) => obj[h] = cols[j]||'');
+      ptRijen.push(obj);
+    }
+
+    const divKol   = ptHeaders.find(h => h.toLowerCase().includes('divisie')||h.toLowerCase().includes('div'));
+    const thuisKol = ptHeaders.find(h => h.toLowerCase().includes('thuis')||h.toLowerCase().includes('home'));
+    const uitKol   = ptHeaders.find(h => h.toLowerCase().includes('uit')||h.toLowerCase().includes('away'));
+
+    if (!thuisKol || !uitKol) {
+      ptMsg('ptCsvInfo',`Kolommen Thuis/Uit niet gevonden. Headers: ${ptHeaders.join(', ')}`,'err'); return;
+    }
+
+    // Splits: bye vs normaal
+    const isBye = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'') || /[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+    const byeCount = ptRijen.filter(isBye).length;
+    const speelCount = ptRijen.filter(r => !isBye(r)).length;
+
+    // Divisie telling
+    const divTelling = {};
+    ptRijen.filter(r => !isBye(r)).forEach(r => {
+      const d = divKol?(r[divKol]||'?'):'?';
+      divTelling[d] = (divTelling[d]||0)+1;
+    });
+    const divHtml = Object.entries(divTelling).map(([d,n]) => {
+      const cls = d.toLowerCase().includes('ere')&&!d.toLowerCase().includes('eerst') ? 'ere' : 'eerste';
+      return `<span style="font-size:0.7rem;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(${cls==='ere'?'168,85,247':'59,130,246'},0.2);color:var(--${cls==='ere'?'purple':'blue'});">${d}: ${n}</span>`;
+    }).join(' ');
+
+    document.getElementById('ptCsvDropLabel').className = 'pt-csv-drop loaded';
+    document.getElementById('ptCsvDropLabel').innerHTML =
+      `✓ ${file.name} — ${speelCount} wedstrijden ${divHtml}${byeCount>0?` · ${byeCount} BYE's (worden bewaard)`:''}<input type="file" id="ptCsvIn" accept=".csv" style="display:none;" onchange="ptLaadCSV(this)">`;
+
+    ptMsg('ptCsvInfo',`✓ ${ptRijen.length} rijen geladen (${speelCount} wedstrijden + ${byeCount} BYE's)`,'ok');
+    ptBerekenAvonden();
+  };
+  reader.readAsText(file);
+}
+
+// ── BEREKEN AVONDEN ──
+function ptBerekenAvonden() {
+  const start = new Date(document.getElementById('ptStart').value);
+  const eind  = new Date(document.getElementById('ptEind').value);
+  const uitgTekst = document.getElementById('ptUitgesloten').value;
+
+  const uitgesloten = new Set();
+  uitgTekst.split(',').forEach(d => {
+    d = d.trim(); if (!d) return;
+    const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (m) uitgesloten.add(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+    else uitgesloten.add(d);
+  });
+
+  ptAvonden = [];
+  const cur = new Date(start);
+  while (cur <= eind) {
+    if (cur.getDay() === 4) {
+      const key = cur.toISOString().slice(0,10);
+      ptAvonden.push({ datum: key, uitgesloten: uitgesloten.has(key) });
+    }
+    cur.setDate(cur.getDate()+1);
+  }
+
+  const actief = ptAvonden.filter(a => !a.uitgesloten);
+  const slotCaps = PT_SLOTS.map((s,i) => parseInt(document.getElementById(`ptSlot${i}`)?.value)||s.cap);
+  const perAvond = slotCaps.reduce((a,b)=>a+b,0);
+
+  const thuisKol = ptHeaders.find(h=>h.toLowerCase().includes('thuis')||h.toLowerCase().includes('home'));
+  const uitKol   = ptHeaders.find(h=>h.toLowerCase().includes('uit')||h.toLowerCase().includes('away'));
+  const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+  const speelbaar = ptRijen.filter(r => !isBye(r));
+
+  const past = speelbaar.length <= actief.length * perAvond;
+  const html = `
+    <div style="margin-top:12px;">
+      <div class="pt-stats-row">
+        <div class="pt-stat"><div class="pt-stat-val">${actief.length}</div><div class="pt-stat-lbl">Speelavonden</div></div>
+        <div class="pt-stat"><div class="pt-stat-val" style="color:var(--red);">${ptAvonden.filter(a=>a.uitgesloten).length}</div><div class="pt-stat-lbl">Uitgesloten</div></div>
+        <div class="pt-stat"><div class="pt-stat-val" style="color:var(--orange);">${perAvond}</div><div class="pt-stat-lbl">Per avond</div></div>
+        <div class="pt-stat"><div class="pt-stat-val" style="color:var(--blue);">${actief.length*perAvond}</div><div class="pt-stat-lbl">Totale capaciteit</div></div>
+        <div class="pt-stat"><div class="pt-stat-val" style="color:${past?'var(--green)':'var(--red)'};">${speelbaar.length}</div><div class="pt-stat-lbl">Wedstrijden</div></div>
+      </div>
+      <div style="font-size:0.78rem;color:${past?'var(--green)':'var(--red)'};margin-bottom:8px;">
+        ${past ? `✓ Alle ${speelbaar.length} wedstrijden passen (${actief.length*perAvond-speelbaar.length} plekken over)` : `⚠ ${speelbaar.length-actief.length*perAvond} wedstrijden te veel!`}
+      </div>
+      <div class="pt-avonden-preview">
+        ${ptAvonden.map(a=>`<div class="pt-avond-chip ${a.uitgesloten?'uit':''}">${ptFmtKort(a.datum)}</div>`).join('')}
+      </div>
+    </div>`;
+
+  document.getElementById('ptAvondenPreview').innerHTML = html;
+  if (ptRijen.length > 0) {
+    document.getElementById('ptStap3').style.display = 'block';
+    document.getElementById('ptStats').innerHTML = `
+      <div class="pt-stat"><div class="pt-stat-val">${speelbaar.length}</div><div class="pt-stat-lbl">Te verdelen</div></div>
+      <div class="pt-stat"><div class="pt-stat-val" style="color:var(--orange);">${ptRijen.filter(r=>isBye(r)).length}</div><div class="pt-stat-lbl">BYE's (bewaard)</div></div>
+      <div class="pt-stat"><div class="pt-stat-val" style="color:var(--green);">${actief.length}</div><div class="pt-stat-lbl">Avonden</div></div>`;
+  }
+}
+
+// ── VERDEEL LOGICA ──
+function ptVerdeel() {
+  const slotCaps = PT_SLOTS.map((s,i) => parseInt(document.getElementById(`ptSlot${i}`)?.value)||s.cap);
+  const actief   = ptAvonden.filter(a => !a.uitgesloten);
+  const N        = actief.length;
+  const perAvond = slotCaps.reduce((a,b)=>a+b,0);
+  if (!N) { ptMsg('ptError','Geen actieve avonden gevonden.','err'); return null; }
+
+  const fi       = (...n) => ptHeaders.find(h => n.some(x => h.toLowerCase().includes(x)));
+  const datumKol = fi('datum','date');
+  const tijdKol  = fi('tijdstip','tijd','time');
+  const divKol   = fi('divisie','div');
+  const thuisKol = fi('thuis','home');
+  const uitKol   = fi('uit','away','gast');
+  const srKol    = fi('speelronde','ronde');
+
+  const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+  const isEre    = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('ere')&&!d.includes('eerst'); };
+  const isEerste = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('eerste')||d.includes('1e'); };
+  const getSR    = r => parseInt(r[srKol]||'0')||0;
+
+  const byeRijen    = ptRijen.filter(r => isBye(r));
+  const ereRijen    = ptRijen.filter(r => !isBye(r) && isEre(r));
+  const eersteRijen = ptRijen.filter(r => !isBye(r) && isEerste(r));
+
+  // Periodes met dynamische deadlines op basis van N avonden
+  const ereQueues = [
+    { label:'Ere helft 1 (SR 1-20)',  deadline: Math.round(N/2), queue: ereRijen.filter(r=>getSR(r)>=1&&getSR(r)<=20).sort((a,b)=>getSR(a)-getSR(b)) },
+    { label:'Ere helft 2 (SR 21-40)', deadline: N,               queue: ereRijen.filter(r=>getSR(r)>=21&&getSR(r)<=40).sort((a,b)=>getSR(a)-getSR(b)) },
+  ];
+  const eersteQueues = [
+    { label:'1e periode 1 (SR 1-10)',  deadline: Math.round(N/4),   queue: eersteRijen.filter(r=>getSR(r)>=1&&getSR(r)<=10).sort((a,b)=>getSR(a)-getSR(b)) },
+    { label:'1e periode 2 (SR 11-20)', deadline: Math.round(N/2),   queue: eersteRijen.filter(r=>getSR(r)>=11&&getSR(r)<=20).sort((a,b)=>getSR(a)-getSR(b)) },
+    { label:'1e periode 3 (SR 21-30)', deadline: Math.round(N*3/4), queue: eersteRijen.filter(r=>getSR(r)>=21&&getSR(r)<=30).sort((a,b)=>getSR(a)-getSR(b)) },
+    { label:'1e periode 4 (SR 31-40)', deadline: N,                  queue: eersteRijen.filter(r=>getSR(r)>=31&&getSR(r)<=40).sort((a,b)=>getSR(a)-getSR(b)) },
+  ];
+
+  // Periode overzicht tonen
+  const overzichtHtml = `
+    <div style="margin-top:10px;background:var(--s2);border-radius:7px;overflow:hidden;border:1px solid var(--border);">
+      <div style="padding:7px 10px;font-size:0.68rem;font-weight:700;letter-spacing:1px;color:var(--muted);background:var(--s3);text-transform:uppercase;">Periode planning</div>
+      <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+        <thead><tr style="background:var(--s3);">
+          <th style="padding:5px 10px;text-align:left;color:var(--muted);font-size:0.65rem;">Periode</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--muted);font-size:0.65rem;">Wed.</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--muted);font-size:0.65rem;">Deadline</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--muted);font-size:0.65rem;">Gem./avond</th>
+        </tr></thead>
+        <tbody>
+          ${[...ereQueues,...eersteQueues].map(p=>{
+            const avg = p.deadline>0 ? (p.queue.length/p.deadline).toFixed(1) : '?';
+            const kleur = p.label.includes('Ere') ? 'color:#a855f7' : 'color:#3b82f6';
+            return `<tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:4px 10px;${kleur};font-weight:600;">${p.label}</td>
+              <td style="padding:4px 10px;text-align:right;">${p.queue.length}</td>
+              <td style="padding:4px 10px;text-align:right;color:var(--orange);">avond ${p.deadline}</td>
+              <td style="padding:4px 10px;text-align:right;color:var(--green);">~${avg}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  // Voeg toe aan preview (verwijder oude periode tabel eerst)
+  const prev = document.getElementById('ptAvondenPreview');
+  const bestaand = prev.querySelector('.periode-overzicht');
+  if (bestaand) bestaand.remove();
+  const div = document.createElement('div');
+  div.className = 'periode-overzicht';
+  div.innerHTML = overzichtHtml;
+  prev.appendChild(div);
+
+  // Verdeelalgoritme
+  ptVerdeeld = [];
+  byeRijen.forEach(r => ptVerdeeld.push({...r}));
+
+  const spelersPerDag = {};
+  const MAX_PER_SPELER = 2;
+
+  function pakVolgend(queue, datum) {
+    for (let i = 0; i < queue.length; i++) {
+      const r = queue[i];
+      const thuis = r[thuisKol]||'', uit = r[uitKol]||'';
+      const kT = `${thuis}|${datum}`, kU = `${uit}|${datum}`;
+      if ((spelersPerDag[kT]||0) < MAX_PER_SPELER && (spelersPerDag[kU]||0) < MAX_PER_SPELER) {
+        queue.splice(i,1);
+        spelersPerDag[kT] = (spelersPerDag[kT]||0)+1;
+        spelersPerDag[kU] = (spelersPerDag[kU]||0)+1;
+        return r;
+      }
+    }
+    return null;
+  }
+
+  let parity = 0;
+
+  for (let ai = 0; ai < actief.length; ai++) {
+    const datum   = actief[ai].datum;
+    const avondNr = ai + 1;
+
+    // Per periode urgentie berekenen: resterend / avonden tot deadline
+    const urgentie = q => q.queue.length / Math.max(1, q.deadline - avondNr + 1);
+    const ereGesorteerd    = [...ereQueues].sort((a,b) => urgentie(b)-urgentie(a));
+    const eersteGesorteerd = [...eersteQueues].sort((a,b) => urgentie(b)-urgentie(a));
+
+    // Budget per divisie per avond: gemiddeld wat er nog moet
+    const ereBudget    = Math.min(Math.round(perAvond/2), ereQueues.reduce((s,p)=>s+Math.ceil(p.queue.length/Math.max(1,p.deadline-avondNr+1)),0));
+    const eersteBudget = Math.min(perAvond - ereBudget,  eersteQueues.reduce((s,p)=>s+Math.ceil(p.queue.length/Math.max(1,p.deadline-avondNr+1)),0));
+
+    let ereTeller=0, eersteTeller=0;
+
+    for (let si = 0; si < PT_SLOTS.length; si++) {
+      const cap  = slotCaps[si];
+      const tijd = PT_SLOTS[si].tijd;
+      if (cap === 0) continue;
+
+      const ereSlot    = parity===0 ? Math.ceil(cap/2) : Math.floor(cap/2);
+      const eersteSlot = cap - ereSlot;
+      parity = parity===0 ? 1 : 0;
+
+      for (let j=0; j<ereSlot; j++) {
+        if (ereTeller >= ereBudget) break;
+        for (const p of ereGesorteerd) {
+          const rij = pakVolgend(p.queue, datum);
+          if (rij) {
+            const n={...rij};
+            if(datumKol) n[datumKol]=ptFmtNL(datum); else n['Datum']=ptFmtNL(datum);
+            if(tijdKol)  n[tijdKol]=tijd;             else n['Tijdstip']=tijd;
+            ptVerdeeld.push(n); ereTeller++; break;
+          }
+        }
+      }
+
+      for (let j=0; j<eersteSlot; j++) {
+        if (eersteTeller >= eersteBudget) break;
+        for (const p of eersteGesorteerd) {
+          const rij = pakVolgend(p.queue, datum);
+          if (rij) {
+            const n={...rij};
+            if(datumKol) n[datumKol]=ptFmtNL(datum); else n['Datum']=ptFmtNL(datum);
+            if(tijdKol)  n[tijdKol]=tijd;             else n['Tijdstip']=tijd;
+            ptVerdeeld.push(n); eersteTeller++; break;
+          }
+        }
+      }
+    }
+  }
+
+  const resterend = [...ereQueues,...eersteQueues].flatMap(p=>p.queue);
+  if (resterend.length > 0) {
+    ptMsg('ptError',`⚠ ${resterend.length} wedstrijden niet ingepland (spelersbelasting/te weinig avonden). Staan zonder datum in CSV.`,'err');
+    resterend.forEach(r => ptVerdeeld.push({...r}));
+  } else {
+    document.getElementById('ptError').innerHTML = '';
+  }
+
+  return ptVerdeeld;
+}
+
+function ptVerdeelEnDownload() {
+  const result = ptVerdeel(); if (!result) return;
+
+  const datumKol = ptHeaders.find(h=>h.toLowerCase().includes('datum')||h.toLowerCase().includes('date'))||'Datum';
+  const tijdKol  = ptHeaders.find(h=>h.toLowerCase().includes('tijdstip')||h.toLowerCase().includes('tijd'))||'Tijdstip';
+  const overig   = ptHeaders.filter(h=>h!==datumKol&&h!==tijdKol);
+  const allH     = [datumKol,tijdKol,...overig];
+
+  const regels = [allH.join(';')];
+  result.forEach(r => regels.push(allH.map(h=>`"${(r[h]||'').replace(/"/g,'""')}"`).join(';')));
+
+  const blob = new Blob([regels.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=`kaale_bull_planning_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  ptMsg('ptError',`✓ ${result.length} rijen geëxporteerd`,'ok');
+}
+
+function ptToonPreview() {
+  const result = ptVerdeel(); if (!result) return;
+  const wrap = document.getElementById('ptPreviewWrap');
+  if (wrap.style.display==='block'){wrap.style.display='none';return;}
+
+  const fi = (...n) => ptHeaders.find(h=>n.some(x=>h.toLowerCase().includes(x)));
+  const cols = [fi('datum','date'),fi('tijdstip','tijd'),fi('divisie','div'),fi('thuis','home'),fi('uit','away'),fi('speelronde','ronde')].filter(Boolean);
+  const uniq = [...new Set(cols)];
+
+  let html = `<div class="pt-preview-wrap"><table class="pt-table"><thead><tr>${uniq.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  result.slice(0,100).forEach(r => html+=`<tr>${uniq.map(h=>`<td>${r[h]||''}</td>`).join('')}</tr>`);
+  if (result.length>100) html+=`<tr><td colspan="${uniq.length}" style="color:var(--muted);text-align:center;padding:8px;">…en nog ${result.length-100} rijen</td></tr>`;
+  html+='</tbody></table></div>';
+  wrap.innerHTML=html; wrap.style.display='block';
+}
+
+// ── PDF EXPORT ──
+function ptExportPDF() {
+  const result = ptVerdeel(); if (!result) return;
+
+  const fi       = (...n) => ptHeaders.find(h=>n.some(x=>h.toLowerCase().includes(x)));
+  const datumKol = fi('datum','date')||'Datum';
+  const tijdKol  = fi('tijdstip','tijd')||'Tijdstip';
+  const divKol   = fi('divisie','div');
+  const thuisKol = fi('thuis','home');
+  const uitKol   = fi('uit','away','gast');
+  const srKol    = fi('speelronde','ronde');
+  const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+
+  const NL_M = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  function fmtLang(d) {
+    const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (!m) return d;
+    const dagen=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+    const dt = new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+    return `${dagen[dt.getDay()]} ${parseInt(m[1])} ${NL_M[parseInt(m[2])-1]} ${m[3]}`;
+  }
+
+  // Groepeer per datum — wedstrijden en byes apart
+  const perDatum = {};
+  const byesPerDatum = {};
+  result.forEach(r => {
+    const d = r[datumKol]||'';
+    if (!d) return;
+    if (isBye(r)) {
+      if (!byesPerDatum[d]) byesPerDatum[d] = [];
+      // Haal de echte spelersnaam op (niet de BYE kant)
+      const speler = /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'') ? r[uitKol] : r[thuisKol];
+      const div    = r[divKol]||'';
+      byesPerDatum[d].push({speler, div});
+    } else {
+      if (!perDatum[d]) perDatum[d] = [];
+      perDatum[d].push(r);
+    }
+  });
+
+  const datums = Object.keys(perDatum).sort((a,b)=>{
+    const pa=a.match(/^(\d+)-(\d+)-(\d+)$/), pb=b.match(/^(\d+)-(\d+)-(\d+)$/);
+    if(pa&&pb) return new Date(`${pa[3]}-${pa[2]}-${pa[1]}`)-new Date(`${pb[3]}-${pb[2]}-${pb[1]}`);
+    return a.localeCompare(b);
+  });
+
+  let paginaHtml = '';
+  datums.forEach((datum, di) => {
+    const wed = perDatum[datum]||[];
+    const byes = byesPerDatum[datum]||[];
+
+    // Groepeer op tijdstip
+    const perTijd = {};
+    wed.forEach(r => {
+      const t = r[tijdKol]||'--:--';
+      if (!perTijd[t]) perTijd[t] = {ere:[], eerste:[]};
+      const d = (r[divKol]||'').toLowerCase();
+      if (d.includes('ere')&&!d.includes('eerst')) perTijd[t].ere.push(r);
+      else perTijd[t].eerste.push(r);
+    });
+
+    let tabelHtml = '';
+    Object.keys(perTijd).sort().forEach(tijd => {
+      const {ere, eerste} = perTijd[tijd];
+      const maxR = Math.max(ere.length, eerste.length);
+      for (let i=0; i<maxR; i++) {
+        const e=ere[i], ee=eerste[i];
+        tabelHtml += `<tr>
+          <td class="tijd-cel">${i===0?tijd:''}</td>
+          <td class="div-ere">${e?'Ere':''}</td>
+          <td class="match-cel">${e?`<b>${e[thuisKol]||''}</b> <span class="vs">vs</span> ${e[uitKol]||''}`:''}</td>
+          <td class="sr-cel">${e&&srKol?`SR ${e[srKol]||''}`:''}</td>
+          <td class="mid-border"></td>
+          <td class="div-eerste">${ee?'1e':''}</td>
+          <td class="match-cel">${ee?`<b>${ee[thuisKol]||''}</b> <span class="vs">vs</span> ${ee[uitKol]||''}`:''}</td>
+          <td class="sr-cel">${ee&&srKol?`SR ${ee[srKol]||''}`:''}</td>
+        </tr>`;
+      }
+      tabelHtml += `<tr class="slot-sep"><td colspan="8"></td></tr>`;
+    });
+
+    // BYE footer
+    let byeHtml = '';
+    if (byes.length) {
+      const byeItems = byes.map(b => {
+        const cls = (b.div||'').toLowerCase().includes('ere')&&!(b.div||'').toLowerCase().includes('eerst') ? 'bye-ere' : 'bye-eerste';
+        return `<span class="${cls}">${b.speler}</span>`;
+      }).join('');
+      byeHtml = `<div class="bye-footer"><span class="bye-label">🟡 BYE deze avond:</span> ${byeItems}</div>`;
+    }
+
+    paginaHtml += `
+      <div class="pagina ${di>0?'break':''}">
+        <div class="pagina-header">
+          <div class="pagina-logo">🎯 Kaale Bull</div>
+          <div class="pagina-datum">${fmtLang(datum)}</div>
+          <div class="pagina-count">${wed.length} wedstrijden</div>
+        </div>
+        <table class="wed-table">
+          <thead>
+            <tr>
+              <th class="th-tijd">Tijd</th>
+              <th class="th-div">Div</th>
+              <th>🔵 Ere Divisie</th>
+              <th class="th-sr">SR</th>
+              <th class="th-mid"></th>
+              <th class="th-div">Div</th>
+              <th>🟠 1e Divisie</th>
+              <th class="th-sr">SR</th>
+            </tr>
+          </thead>
+          <tbody>${tabelHtml}</tbody>
+        </table>
+        ${byeHtml}
+      </div>`;
+  });
+
+  const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+<title>Kaale Bull — Seizoensplanning</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',Arial,sans-serif;color:#1a1a2e;background:#fff;}
+  .pagina{padding:14px 18px;page-break-inside:avoid;}
+  .break{page-break-before:always;padding-top:14px;}
+  .pagina-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:3px solid #1a1a2e;}
+  .pagina-logo{font-size:15px;font-weight:800;letter-spacing:1px;}
+  .pagina-datum{font-size:14px;font-weight:700;color:#3b82f6;}
+  .pagina-count{font-size:10px;color:#666;background:#f0f4ff;padding:2px 7px;border-radius:4px;}
+  .wed-table{width:100%;border-collapse:collapse;font-size:10px;}
+  .wed-table th{background:#1a1a2e;color:#fff;padding:5px 7px;text-align:left;font-size:9px;letter-spacing:0.5px;text-transform:uppercase;}
+  .wed-table td{padding:4px 7px;border-bottom:1px solid #eee;vertical-align:middle;}
+  .wed-table tbody tr:nth-child(even) td{background:#fafbff;}
+  .tijd-cel{font-weight:700;color:#f59e0b;font-family:monospace;font-size:11px;white-space:nowrap;width:44px;}
+  .match-cel{font-size:10px;}
+  .vs{color:#999;font-weight:400;font-size:9px;margin:0 2px;}
+  .div-ere{font-size:8px;font-weight:700;color:#a855f7;background:rgba(168,85,247,0.12);padding:1px 4px;border-radius:3px;white-space:nowrap;width:28px;text-align:center;}
+  .div-eerste{font-size:8px;font-weight:700;color:#3b82f6;background:rgba(59,130,246,0.12);padding:1px 4px;border-radius:3px;white-space:nowrap;width:28px;text-align:center;}
+  .sr-cel{color:#aaa;font-size:9px;width:32px;}
+  .th-tijd{width:44px;}.th-div{width:32px;}.th-sr{width:32px;}.th-mid{width:8px;background:#374151;}
+  .mid-border{background:#f0f0f0;width:8px;}
+  .slot-sep td{padding:1px 0;border-bottom:2px solid #e5e7eb;}
+  .bye-footer{margin-top:8px;padding:6px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:5px;font-size:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .bye-label{font-weight:700;color:#92400e;}
+  .bye-ere{background:rgba(168,85,247,0.12);color:#7c3aed;font-weight:600;padding:2px 7px;border-radius:3px;font-size:9px;}
+  .bye-eerste{background:rgba(59,130,246,0.12);color:#1d4ed8;font-weight:600;padding:2px 7px;border-radius:3px;font-size:9px;}
+  @media print{
+    @page{margin:0.8cm;size:A4 landscape;}
+    .break{page-break-before:always;}
+    .pagina{page-break-inside:avoid;}
+  }
+</style>
+</head><body>${paginaHtml}</body></html>`;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:9999;';
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    setTimeout(()=>{ iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(()=>iframe.remove(),1200); },400);
+  };
+  iframe.srcdoc = html;
+}
+
+// ── DATABASE IMPORT ──
+let ptImportData = null;
+
+function ptOpslaanInDatabase() {
+  const result = ptVerdeel(); if (!result) return;
+
+  const fi       = (...n) => ptHeaders.find(h=>n.some(x=>h.toLowerCase().includes(x)));
+  const datumKol = fi('datum','date');
+  const tijdKol  = fi('tijdstip','tijd','time');
+  const divKol   = fi('divisie','div');
+  const thuisKol = fi('thuis','home');
+  const uitKol   = fi('uit','away','gast');
+  const srKol    = fi('speelronde','ronde');
+  const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
+
+  // Bouw database rijen (geen byes)
+  const dbRijen = result.filter(r => !isBye(r) && r[datumKol]).map(r => ({
+    datum:       ptNormDatum(r[datumKol]||''),
+    tijdstip:    tijdKol ? (r[tijdKol]||null) : null,
+    divisie:     divKol  ? (r[divKol]||'Algemeen') : 'Algemeen',
+    thuis:       r[thuisKol]||'',
+    uit:         r[uitKol]||'',
+    speelronde:  srKol   ? (r[srKol]||null) : null,
+    status:      'gepland',
+    is_inhaal:   false
+  }));
+
+  if (!dbRijen.length) { ptMsg('ptError','Geen geldige wedstrijden om op te slaan.','err'); return; }
+
+  // Groepeer per datum voor preview
+  const perDatum = {};
+  dbRijen.forEach(r => { if (!perDatum[r.datum]) perDatum[r.datum]=[]; perDatum[r.datum].push(r); });
+  const datums = Object.keys(perDatum).sort();
+
+  ptImportData = dbRijen;
+
+  // Bouw preview modal
+  let previewRows = datums.slice(0,5).map(d =>
+    `<tr style="border-bottom:1px solid #2a3a56;">
+      <td style="padding:6px 10px;color:#f59e0b;font-weight:700;">${d}</td>
+      <td style="padding:6px 10px;">${perDatum[d].length} wedstrijden</td>
+      <td style="padding:6px 10px;color:#94a3b8;font-size:0.78rem;">${perDatum[d].slice(0,2).map(r=>`${r.thuis} vs ${r.uit}`).join(', ')}${perDatum[d].length>2?` ...`:''}</td>
+    </tr>`
+  ).join('');
+  if (datums.length > 5) previewRows += `<tr><td colspan="3" style="padding:6px 10px;color:#94a3b8;font-style:italic;">... en nog ${datums.length-5} avonden</td></tr>`;
+
+  document.getElementById('dbPreviewModal').classList.add('open');
+  document.getElementById('dbPreviewContent').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+      <thead><tr style="background:#243350;">
+        <th style="padding:6px 10px;text-align:left;font-size:0.7rem;color:#94a3b8;">DATUM</th>
+        <th style="padding:6px 10px;text-align:left;font-size:0.7rem;color:#94a3b8;">AANTAL</th>
+        <th style="padding:6px 10px;text-align:left;font-size:0.7rem;color:#94a3b8;">VOORBEELD</th>
+      </tr></thead>
+      <tbody>${previewRows}</tbody>
+    </table>
+    <div style="margin-top:10px;font-size:0.78rem;color:#94a3b8;">Totaal: <strong style="color:#f1f5f9;">${dbRijen.length} wedstrijden</strong> op <strong style="color:#f1f5f9;">${datums.length} avonden</strong></div>`;
+}
+
+async function ptBevestigImport() {
+  if (!ptImportData) return;
+  document.getElementById('dbPreviewModal').classList.remove('open');
+
+  const btn = document.getElementById('dbImportBtn');
+  btn.disabled = true; btn.textContent = '⏳ Bezig...';
+
+  try {
+    // Verzamel unieke spelersnamen
+    const namen = new Set();
+    ptImportData.forEach(r => { namen.add(r.thuis); namen.add(r.uit); });
+
+    // Spelers opslaan (ignore duplicates)
+    await fetch(`${SB_URL}/rest/v1/spelers`, {
+      method: 'POST',
+      headers: {...HDR, 'Prefer':'resolution=ignore-duplicates,return=representation'},
+      body: JSON.stringify([...namen].map(naam=>({naam})))
+    });
+
+    // Wedstrijden in batches van 100 opslaan
+    const batch = 100;
+    for (let i=0; i<ptImportData.length; i+=batch) {
+      await sbPost('wedstrijden', ptImportData.slice(i, i+batch));
+    }
+
+    // Herlaad data in dashboard
+    await laadData();
+    ptImportData = null;
+    btn.disabled = false; btn.textContent = '✅ Opgeslagen in database';
+    ptMsg('ptError', `✓ ${ptImportData?.length||'Alle'} wedstrijden opgeslagen in de database!`, 'ok');
+    setTimeout(()=>{ btn.textContent='💾 Opslaan in database'; }, 3000);
+  } catch(e) {
+    btn.disabled=false; btn.textContent='💾 Opslaan in database';
+    ptMsg('ptError',`Fout bij opslaan: ${e.message}`,'err');
+  }
+}
+
+function ptNormDatum(d) {
+  // dd-mm-yyyy → yyyy-mm-dd
+  const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  return d;
+}
+
+// ── HELPERS ──
+function ptFmtNL(d) {
+  const [y,m,dag]=d.split('-'); return `${dag}-${m}-${y}`;
+}
+function ptFmtKort(d) {
+  const [y,m,dag]=d.split('-');
+  const mnd=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  return `${parseInt(dag)} ${mnd[parseInt(m)-1]}`;
+}
+function ptMsg(elId, msg, type) {
+  const el=document.getElementById(elId); if(!el) return;
+  el.innerHTML=`<div style="padding:8px 12px;border-radius:6px;font-size:0.78rem;margin-top:6px;background:${type==='err'?'rgba(239,68,68,0.1)':'rgba(16,185,129,0.1)'};border:1px solid ${type==='err'?'rgba(239,68,68,0.3)':'rgba(16,185,129,0.3)'};color:${type==='err'?'var(--red)':'var(--green)'};">${msg}</div>`;
+}
+
+// Slot count wijziging → herbereken
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('pt-slot-count')) ptBerekenAvonden();
+});
+
+laadData();
+setInterval(laadData, 120000); // auto-refresh 2 min
+</script>
+<!-- MODAL: database import bevestiging -->
+<div class="overlay" id="dbPreviewModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">💾 Opslaan in database</div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">Controleer de wedstrijden die worden opgeslagen. BYE's worden overgeslagen.</div>
+    <div id="dbPreviewContent" style="margin-bottom:16px;background:var(--s2);border-radius:7px;overflow:hidden;max-height:300px;overflow-y:auto;"></div>
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:9px 12px;font-size:0.78rem;color:#ff8080;margin-bottom:14px;">
+      ⚠ Let op: bestaande <em>geplande</em> wedstrijden worden niet automatisch verwijderd. Gebruik eerst "🔄 Vervangen" in het wedstrijdleiding-tabblad als je een bestaande planning wil overschrijven.
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="sluitModal('dbPreviewModal')">Annuleren</button>
+      <button class="btn btn-green" onclick="ptBevestigImport()">✓ Bevestig — opslaan</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
