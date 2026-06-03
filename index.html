@@ -1538,105 +1538,224 @@ function ptBerekenAvonden() {
 function ptVerdeel() {
   const slotCaps = PT_SLOTS.map((s,i) => parseInt(document.getElementById(`ptSlot${i}`)?.value)||s.cap);
   const actief   = ptAvonden.filter(a => !a.uitgesloten);
-  const perAvond = slotCaps.reduce((a,b)=>a+b,0);
+  const N        = actief.length;
+  if (!N) { ptMsg('ptError','Geen actieve avonden gevonden.','err'); return null; }
 
-  const fi = (...n) => ptHeaders.find(h => n.some(x => h.toLowerCase().includes(x)));
+  const fi       = (...n) => ptHeaders.find(h => n.some(x => h.toLowerCase().includes(x)));
   const datumKol = fi('datum','date');
   const tijdKol  = fi('tijdstip','tijd','time');
   const divKol   = fi('divisie','div');
   const thuisKol = fi('thuis','home');
   const uitKol   = fi('uit','away','gast');
+  const srKol    = fi('speelronde','ronde');
 
   const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
   const isEre    = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('ere')&&!d.includes('eerst'); };
   const isEerste = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('eerste')||d.includes('1e'); };
+  const getSR    = r => parseInt(r[srKol]||'0')||0;
 
   const byeRijen    = ptRijen.filter(r => isBye(r));
-  const ereRijen    = ptRijen.filter(r => !isBye(r) && (divKol ? isEre(r) : true));
-  const eersteRijen = ptRijen.filter(r => !isBye(r) && divKol && isEerste(r));
-  const overigRijen = ptRijen.filter(r => !isBye(r) && divKol && !isEre(r) && !isEerste(r));
-  const speelbaar   = [...ereRijen, ...eersteRijen, ...overigRijen];
+  const ereRijen    = ptRijen.filter(r => !isBye(r) && isEre(r)).sort((a,b)=>getSR(a)-getSR(b));
+  const eersteRijen = ptRijen.filter(r => !isBye(r) && isEerste(r)).sort((a,b)=>getSR(a)-getSR(b));
 
-  if (speelbaar.length > actief.length * perAvond) {
-    ptMsg('ptError',`Te veel wedstrijden: ${speelbaar.length} maar slechts ${actief.length*perAvond} plekken.`,'err');
-    return null;
-  }
+  // ── PERIODES met deadline-avonden (dynamisch op N) ──
+  // Ere: 2 helften
+  const ereH1deadline = Math.round(N / 2);
+  const ereH2deadline = N;
+  // 1e: 4 periodes
+  const eersteP1deadline = Math.round(N / 4);
+  const eersteP2deadline = Math.round(N / 2);
+  const eersteP3deadline = Math.round(N * 3 / 4);
+  const eersteP4deadline = N;
 
+  // Splits in gesorteerde wachtrijen per periode
+  const ereH1    = ereRijen.filter(r => getSR(r)>=1  && getSR(r)<=20);
+  const ereH2    = ereRijen.filter(r => getSR(r)>=21 && getSR(r)<=40);
+  const eersteP1 = eersteRijen.filter(r => getSR(r)>=1  && getSR(r)<=10);
+  const eersteP2 = eersteRijen.filter(r => getSR(r)>=11 && getSR(r)<=20);
+  const eersteP3 = eersteRijen.filter(r => getSR(r)>=21 && getSR(r)<=30);
+  const eersteP4 = eersteRijen.filter(r => getSR(r)>=31 && getSR(r)<=40);
+
+  // ── BEREKEN GEMIDDELD PER AVOND PER PERIODE ──
+  // Ere H1: verdeeld over avonden 1 t/m ereH1deadline
+  // Ere H2: verdeeld over avonden ereH1deadline+1 t/m N
+  // 1e P1: verdeeld over avonden 1 t/m eersteP1deadline
+  // etc.
+  const ereH1AvondenCount    = ereH1deadline;
+  const ereH2AvondenCount    = N - ereH1deadline;
+  const eersteP1AvondenCount = eersteP1deadline;
+  const eersteP2AvondenCount = eersteP2deadline - eersteP1deadline;
+  const eersteP3AvondenCount = eersteP3deadline - eersteP2deadline;
+  const eersteP4AvondenCount = N - eersteP3deadline;
+
+  // Gemiddeld per avond (floating point, budget bijhouden met accumulator)
+  const ereH1PerAvond    = ereH1.length    / Math.max(1, ereH1AvondenCount);
+  const ereH2PerAvond    = ereH2.length    / Math.max(1, ereH2AvondenCount);
+  const eersteP1PerAvond = eersteP1.length / Math.max(1, eersteP1AvondenCount);
+  const eersteP2PerAvond = eersteP2.length / Math.max(1, eersteP2AvondenCount);
+  const eersteP3PerAvond = eersteP3.length / Math.max(1, eersteP3AvondenCount);
+  const eersteP4PerAvond = eersteP4.length / Math.max(1, eersteP4AvondenCount);
+
+  // ── PERIODE OVERZICHT TONEN ──
+  const periodes = [
+    { label:'Ere helft 1 (SR 1-20)',   count:ereH1.length,    deadline:ereH1deadline,    gem:ereH1PerAvond,    kleur:'#a855f7' },
+    { label:'Ere helft 2 (SR 21-40)',  count:ereH2.length,    deadline:ereH2deadline,    gem:ereH2PerAvond,    kleur:'#a855f7' },
+    { label:'1e periode 1 (SR 1-10)',  count:eersteP1.length, deadline:eersteP1deadline,  gem:eersteP1PerAvond, kleur:'#3b82f6' },
+    { label:'1e periode 2 (SR 11-20)', count:eersteP2.length, deadline:eersteP2deadline,  gem:eersteP2PerAvond, kleur:'#3b82f6' },
+    { label:'1e periode 3 (SR 21-30)', count:eersteP3.length, deadline:eersteP3deadline,  gem:eersteP3PerAvond, kleur:'#3b82f6' },
+    { label:'1e periode 4 (SR 31-40)', count:eersteP4.length, deadline:eersteP4deadline,  gem:eersteP4PerAvond, kleur:'#3b82f6' },
+  ];
+
+  const overzichtHtml = `
+    <div style="margin-top:10px;background:var(--s2);border-radius:7px;overflow:hidden;border:1px solid var(--border);">
+      <div style="padding:7px 10px;font-size:0.68rem;font-weight:700;letter-spacing:1px;color:var(--muted);background:var(--s3);text-transform:uppercase;">📊 Periode verdeling</div>
+      <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+        <thead><tr style="background:var(--s3);">
+          <th style="padding:5px 10px;text-align:left;color:var(--muted);font-size:0.65rem;">Periode</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--muted);font-size:0.65rem;">Wedstrijden</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--muted);font-size:0.65rem;">Avonden</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--muted);font-size:0.65rem;">Deadline</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--muted);font-size:0.65rem;">Gem./avond</th>
+        </tr></thead>
+        <tbody>
+          ${periodes.map(p=>`<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 10px;color:${p.kleur};font-weight:600;">${p.label}</td>
+            <td style="padding:4px 10px;text-align:right;">${p.count}</td>
+            <td style="padding:4px 10px;text-align:right;color:var(--muted);">${p.deadline}</td>
+            <td style="padding:4px 10px;text-align:right;color:var(--orange);">avond ${p.deadline}</td>
+            <td style="padding:4px 10px;text-align:right;color:var(--green);">~${p.gem.toFixed(1)}</td>
+          </tr>`).join('')}
+          <tr style="background:var(--s3);">
+            <td style="padding:4px 10px;font-weight:700;">Totaal</td>
+            <td style="padding:4px 10px;text-align:right;font-weight:700;">${ereRijen.length+eersteRijen.length}</td>
+            <td colspan="3" style="padding:4px 10px;text-align:right;color:var(--muted);">~${((ereRijen.length+eersteRijen.length)/N).toFixed(1)} per avond gemiddeld</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+
+  const prev = document.getElementById('ptAvondenPreview');
+  const bestaand = prev.querySelector('.periode-overzicht');
+  if (bestaand) bestaand.remove();
+  const ovDiv = document.createElement('div');
+  ovDiv.className = 'periode-overzicht';
+  ovDiv.innerHTML = overzichtHtml;
+  prev.appendChild(ovDiv);
+
+  // ── VERDEELALGORITME ──
+  // Gebruik accumulatoren (floating point budget) zodat verdeling precies klopt
   ptVerdeeld = [];
-  // BYE's hebben nog geen datum — die voegen we toe zonder datum/tijdstip
   byeRijen.forEach(r => ptVerdeeld.push({...r}));
 
-  // Werklast tracker per speler per datum
-  const spelersPerDag = {}; // "naam|datum" → count
+  const spelersPerDag = {};
   const MAX_PER_SPELER = 2;
 
-  // Wachtrij per divisie — afwisselend toewijzen
-  let ereQ    = [...ereRijen];
-  let eersteQ = [...eersteRijen];
-  let overigQ = [...overigRijen];
+  // Accumulatoren: hoeveel "budget" er al is opgebouwd maar nog niet gebruikt
+  const acc = {
+    ereH1:0, ereH2:0,
+    eersteP1:0, eersteP2:0, eersteP3:0, eersteP4:0
+  };
 
-  // Haal volgende wedstrijd op die past voor speler (max 2 per dag)
+  // Wachtrijen (al gesorteerd op SR)
+  const queues = {
+    ereH1:    [...ereH1],
+    ereH2:    [...ereH2],
+    eersteP1: [...eersteP1],
+    eersteP2: [...eersteP2],
+    eersteP3: [...eersteP3],
+    eersteP4: [...eersteP4],
+  };
+
   function pakVolgend(queue, datum) {
     for (let i = 0; i < queue.length; i++) {
       const r = queue[i];
       const thuis = r[thuisKol]||'', uit = r[uitKol]||'';
-      const keyT = `${thuis}|${datum}`, keyU = `${uit}|${datum}`;
-      if ((spelersPerDag[keyT]||0) < MAX_PER_SPELER && (spelersPerDag[keyU]||0) < MAX_PER_SPELER) {
+      const kT = `${thuis}|${datum}`, kU = `${uit}|${datum}`;
+      if ((spelersPerDag[kT]||0) < MAX_PER_SPELER && (spelersPerDag[kU]||0) < MAX_PER_SPELER) {
         queue.splice(i,1);
-        spelersPerDag[keyT] = (spelersPerDag[keyT]||0)+1;
-        spelersPerDag[keyU] = (spelersPerDag[keyU]||0)+1;
+        spelersPerDag[kT] = (spelersPerDag[kT]||0)+1;
+        spelersPerDag[kU] = (spelersPerDag[kU]||0)+1;
         return r;
       }
     }
-    return null; // geen geschikte wedstrijd gevonden
+    return null;
   }
 
-  let parity = 0; // afwisselen wie extra slot krijgt
+  function plaatsRij(r, datum, tijd) {
+    const n = {...r};
+    if (datumKol) n[datumKol] = ptFmtNL(datum); else n['Datum'] = ptFmtNL(datum);
+    if (tijdKol)  n[tijdKol]  = tijd;            else n['Tijdstip'] = tijd;
+    ptVerdeeld.push(n);
+  }
 
-  for (const avond of actief) {
-    if (ereQ.length===0 && eersteQ.length===0 && overigQ.length===0) break;
-    const datum = avond.datum;
+  let parity = 0;
 
-    for (let si = 0; si < PT_SLOTS.length; si++) {
-      const cap = slotCaps[si];
+  for (let ai = 0; ai < N; ai++) {
+    const datum   = actief[ai].datum;
+    const avondNr = ai + 1;
+
+    // Accumuleer budget voor deze avond (alleen actieve periodes)
+    if (avondNr <= ereH1deadline)                                          acc.ereH1    += ereH1PerAvond;
+    if (avondNr > ereH1deadline)                                           acc.ereH2    += ereH2PerAvond;
+    if (avondNr <= eersteP1deadline)                                        acc.eersteP1 += eersteP1PerAvond;
+    if (avondNr > eersteP1deadline && avondNr <= eersteP2deadline)          acc.eersteP2 += eersteP2PerAvond;
+    if (avondNr > eersteP2deadline && avondNr <= eersteP3deadline)          acc.eersteP3 += eersteP3PerAvond;
+    if (avondNr > eersteP3deadline)                                         acc.eersteP4 += eersteP4PerAvond;
+
+    // Hoeveel te plaatsen per divisie deze avond (floor van accumulator)
+    let ereTePlaatsen    = Math.floor(acc.ereH1) + Math.floor(acc.ereH2);
+    let eersteTePlaatsen = Math.floor(acc.eersteP1) + Math.floor(acc.eersteP2) + Math.floor(acc.eersteP3) + Math.floor(acc.eersteP4);
+
+    // Trek geplaatste aantallen af van accumulatoren
+    let ereH1Plaats    = Math.min(Math.floor(acc.ereH1),    queues.ereH1.length);
+    let ereH2Plaats    = Math.min(Math.floor(acc.ereH2),    queues.ereH2.length);
+    let eersteP1Plaats = Math.min(Math.floor(acc.eersteP1), queues.eersteP1.length);
+    let eersteP2Plaats = Math.min(Math.floor(acc.eersteP2), queues.eersteP2.length);
+    let eersteP3Plaats = Math.min(Math.floor(acc.eersteP3), queues.eersteP3.length);
+    let eersteP4Plaats = Math.min(Math.floor(acc.eersteP4), queues.eersteP4.length);
+
+    acc.ereH1    -= ereH1Plaats;
+    acc.ereH2    -= ereH2Plaats;
+    acc.eersteP1 -= eersteP1Plaats;
+    acc.eersteP2 -= eersteP2Plaats;
+    acc.eersteP3 -= eersteP3Plaats;
+    acc.eersteP4 -= eersteP4Plaats;
+
+    // Bouw plaatsingslijst: ere en eerste afwisselend per slot
+    // Ere: eerst H1, dan H2 | Eerste: P1→P2→P3→P4 op volgorde
+    const ereLijst    = [];
+    for (let i=0; i<ereH1Plaats; i++)    { const r=pakVolgend(queues.ereH1,datum);    if(r) ereLijst.push(r); else acc.ereH1++; }
+    for (let i=0; i<ereH2Plaats; i++)    { const r=pakVolgend(queues.ereH2,datum);    if(r) ereLijst.push(r); else acc.ereH2++; }
+    const eersteLijst = [];
+    for (let i=0; i<eersteP1Plaats; i++) { const r=pakVolgend(queues.eersteP1,datum); if(r) eersteLijst.push(r); else acc.eersteP1++; }
+    for (let i=0; i<eersteP2Plaats; i++) { const r=pakVolgend(queues.eersteP2,datum); if(r) eersteLijst.push(r); else acc.eersteP2++; }
+    for (let i=0; i<eersteP3Plaats; i++) { const r=pakVolgend(queues.eersteP3,datum); if(r) eersteLijst.push(r); else acc.eersteP3++; }
+    for (let i=0; i<eersteP4Plaats; i++) { const r=pakVolgend(queues.eersteP4,datum); if(r) eersteLijst.push(r); else acc.eersteP4++; }
+
+    // Verdeel over tijdslots: afwisselend ere/eerste
+    let ereIdx=0, eersteIdx=0;
+    for (let si=0; si<PT_SLOTS.length; si++) {
+      const cap  = slotCaps[si];
       const tijd = PT_SLOTS[si].tijd;
-      if (cap === 0) continue;
-
-      // Verdeel cap over ere/eerste, afwisselend wie de extra krijgt
-      const ereCount    = parity===0 ? Math.ceil(cap/2) : Math.floor(cap/2);
-      const eersteCount = cap - ereCount;
-      parity = parity===0 ? 1 : 0;
-
-      const planner = [
-        ...Array(ereCount).fill('ere'),
-        ...Array(eersteCount).fill('eerste')
-      ];
-
-      for (const div of planner) {
-        let rij = null;
-        if (div==='ere')    rij = pakVolgend(ereQ,datum);
-        if (div==='eerste') rij = pakVolgend(eersteQ,datum);
-        // Fallback: probeer overig, dan andere divisie
-        if (!rij) rij = pakVolgend(overigQ,datum);
-        if (!rij && div==='ere')    rij = pakVolgend(eersteQ,datum);
-        if (!rij && div==='eerste') rij = pakVolgend(ereQ,datum);
-        if (!rij) continue;
-
-        const nieuw = {...rij};
-        if (datumKol) nieuw[datumKol] = ptFmtNL(datum); else nieuw['Datum'] = ptFmtNL(datum);
-        if (tijdKol)  nieuw[tijdKol]  = tijd;            else nieuw['Tijdstip'] = tijd;
-        ptVerdeeld.push(nieuw);
-      }
+      if (cap===0) continue;
+      const ereSlot    = parity===0 ? Math.ceil(cap/2) : Math.floor(cap/2);
+      const eersteSlot = cap - ereSlot;
+      parity = parity===0?1:0;
+      for (let j=0; j<ereSlot;    j++) { if(ereIdx    < ereLijst.length)    plaatsRij(ereLijst[ereIdx++],       datum, tijd); }
+      for (let j=0; j<eersteSlot; j++) { if(eersteIdx < eersteLijst.length) plaatsRij(eersteLijst[eersteIdx++], datum, tijd); }
     }
   }
 
-  // Niet-geplaatste wedstrijden toevoegen zonder datum (spelersbelasting conflict)
-  const resterend = [...ereQ,...eersteQ,...overigQ];
+  // Resterende niet-geplaatste wedstrijden (door spelersbelasting)
+  const resterend = [
+    ...queues.ereH1,...queues.ereH2,
+    ...queues.eersteP1,...queues.eersteP2,...queues.eersteP3,...queues.eersteP4
+  ];
   if (resterend.length > 0) {
-    ptMsg('ptError',`⚠ ${resterend.length} wedstrijden konden niet ingepland worden door de 2-wedstrijden-per-speler-per-avond limiet. Ze staan zonder datum in de CSV.`,'err');
+    ptMsg('ptError',`⚠ ${resterend.length} wedstrijden niet ingepland door spelersbelasting — staan zonder datum in CSV.`,'err');
     resterend.forEach(r => ptVerdeeld.push({...r}));
   } else {
-    document.getElementById('ptError').innerHTML = '';
+    document.getElementById('ptError').innerHTML='';
   }
 
   return ptVerdeeld;
