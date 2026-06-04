@@ -119,6 +119,17 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .werklast-bar.high{background:var(--warn);}
 .werklast-count{font-weight:700;min-width:24px;text-align:right;color:var(--muted);}
 .werklast-count.high{color:var(--warn);}
+.werklast-row{cursor:pointer;}
+.werklast-row:hover{background:var(--s2);border-radius:4px;}
+.werklast-row.selected{background:rgba(59,130,246,0.12);border-radius:5px;border:1px solid rgba(59,130,246,0.3);}
+.speler-wedstrijden{margin-top:8px;display:none;}
+.speler-wedstrijden.open{display:block;}
+.speler-match-row{padding:5px 8px;border-radius:5px;background:var(--s2);border-left:3px solid var(--border);margin-bottom:3px;font-size:0.75rem;display:flex;align-items:center;gap:8px;}
+.speler-match-row.div-ere{border-left-color:var(--ere);}
+.speler-match-row.div-eerste{border-left-color:var(--eerste);}
+.speler-match-row.div-beker{border-left-color:var(--beker);}
+.speler-match-row.div-inhaal{border-left-color:var(--inhaal);}
+.speler-match-gespeeld{opacity:0.4;}
 
 /* ── DATE FILTER ── */
 .date-bar{padding:10px 16px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -359,6 +370,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <!-- WERKLAST -->
     <div class="sec" id="werklastSec" style="display:none;">
       <div class="sec-title">📊 Wedstrijden per speler</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+        <select class="sel" id="spelersFilter" style="flex:1;font-size:0.78rem;" onchange="filterOpSpeler(this.value)">
+          <option value="">— Alle spelers —</option>
+        </select>
+        <button class="btn btn-ghost btn-xs" id="wisFilterBtn" style="display:none;" onclick="wisSpelerFilter()">✕ Wis</button>
+      </div>
       <div id="werklastList"></div>
     </div>
 
@@ -695,14 +712,17 @@ function renderAvondBanner() {
 // ══════════════════════════════════════════
 //  WERKLAST
 // ══════════════════════════════════════════
+let actieveSpelerFilter = '';
+
 function renderWerklast() {
   const d = huidigeDatum();
   if (d==='ALL') { document.getElementById('werklastSec').style.display='none'; return; }
 
-  const open = getOpen();
+  const open     = getOpen();
   const gespeeld = getGespeeld();
-  const telling = {};
-  [...open,...gespeeld].forEach(w=>{
+  const alle     = [...open,...gespeeld];
+  const telling  = {};
+  alle.forEach(w=>{
     telling[w.thuis] = (telling[w.thuis]||0)+1;
     telling[w.uit]   = (telling[w.uit]  ||0)+1;
   });
@@ -710,18 +730,90 @@ function renderWerklast() {
   const gesorteerd = Object.entries(telling).sort((a,b)=>b[1]-a[1]);
   if (!gesorteerd.length) { document.getElementById('werklastSec').style.display='none'; return; }
 
+  // Vul spelers dropdown
+  const sel = document.getElementById('spelersFilter');
+  const huidig = sel.value;
+  sel.innerHTML = '<option value="">— Alle spelers —</option>' +
+    gesorteerd.map(([naam])=>`<option value="${naam}" ${naam===huidig?'selected':''}>${naam}</option>`).join('');
+
   const max = gesorteerd[0][1];
-  const sec = document.getElementById('werklastSec');
-  sec.style.display = 'block';
+  document.getElementById('werklastSec').style.display = 'block';
+
   document.getElementById('werklastList').innerHTML = gesorteerd.map(([naam,cnt])=>{
-    const pct = Math.round(cnt/max*100);
+    const pct  = Math.round(cnt/max*100);
     const high = cnt >= 3;
-    return `<div class="werklast-row">
+    const isSelected = naam === actieveSpelerFilter;
+
+    // Wedstrijden van deze speler voor detail view
+    const eigeWed = alle.filter(w => w.thuis===naam || w.uit===naam);
+    const openWed  = eigeWed.filter(w => w.status!=='gespeeld');
+    const doneWed  = eigeWed.filter(w => w.status==='gespeeld');
+
+    const detailRows = [...openWed,...doneWed].map(w=>{
+      const divKey = getDivKey(w);
+      const isSelf = w.thuis===naam;
+      const tegenstander = isSelf ? w.uit : w.thuis;
+      const rol = isSelf ? 'Thuis' : 'Uit';
+      return `<div class="speler-match-row div-${divKey} ${w.status==='gespeeld'?'speler-match-gespeeld':''}">
+        <span class="match-time normal" style="font-size:0.68rem;">${w.tijdstip||'--:--'}</span>
+        <span style="flex:1;font-weight:600;">${naam} <span style="color:var(--muted);font-weight:400;font-size:0.7rem;">(${rol})</span> vs ${tegenstander}</span>
+        ${getDivChip(w)}
+        ${w.status==='gespeeld'?'<span style="color:var(--green);font-size:0.7rem;">✓</span>':''}
+      </div>`;
+    }).join('');
+
+    return `<div class="werklast-row ${isSelected?'selected':''}" onclick="filterOpSpeler('${naam}')">
       <span class="werklast-naam">${naam}</span>
       <div class="werklast-bar-wrap"><div class="werklast-bar ${high?'high':''}" style="width:${pct}%"></div></div>
       <span class="werklast-count ${high?'high':''}">${cnt}×</span>
-    </div>`;
+    </div>
+    ${isSelected ? `<div class="speler-wedstrijden open">${detailRows}</div>` : ''}`;
   }).join('');
+}
+
+function filterOpSpeler(naam) {
+  actieveSpelerFilter = naam;
+  document.getElementById('spelersFilter').value = naam;
+  document.getElementById('wisFilterBtn').style.display = naam ? 'inline-flex' : 'none';
+
+  if (naam) {
+    // Filter de wachtrij op deze speler
+    const gefilterd = [...getOpen(),...getGespeeld()].filter(w => w.thuis===naam || w.uit===naam);
+    const container = document.getElementById('queueContainer');
+    container.innerHTML = '';
+
+    if (!gefilterd.length) {
+      container.innerHTML = `<div class="empty">Geen wedstrijden gevonden voor ${naam}</div>`;
+    } else {
+      const bezetteIds     = new Set(Object.values(activeMatches).filter(Boolean));
+      const bezetteSpelers = getBezetteSpelers();
+      const besteBord      = getBesteBord()||1;
+      let nr = 1;
+
+      // Header
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);padding:6px 2px;margin-bottom:6px;border-bottom:1px solid var(--border);';
+      hdr.textContent = `🔍 Wedstrijden van ${naam} (${gefilterd.length})`;
+      container.appendChild(hdr);
+
+      gefilterd.forEach(m => {
+        if (bezetteIds.has(m.id)) return;
+        container.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord));
+      });
+    }
+  } else {
+    // Terug naar normale wachtrij
+    renderQueue();
+  }
+  renderWerklast();
+}
+
+function wisSpelerFilter() {
+  actieveSpelerFilter = '';
+  document.getElementById('spelersFilter').value = '';
+  document.getElementById('wisFilterBtn').style.display = 'none';
+  renderQueue();
+  renderWerklast();
 }
 
 // ══════════════════════════════════════════
@@ -1767,7 +1859,11 @@ function ptVerdeelEnDownload() {
   const datumKol = ptHeaders.find(h=>h.toLowerCase().includes('datum')||h.toLowerCase().includes('date'))||'Datum';
   const tijdKol  = ptHeaders.find(h=>h.toLowerCase().includes('tijdstip')||h.toLowerCase().includes('tijd'))||'Tijdstip';
   const overig   = ptHeaders.filter(h=>h!==datumKol&&h!==tijdKol);
-  const allH     = [datumKol,tijdKol,...overig];
+  // Zorg dat Datum en Tijdstip altijd in de headers staan, ook als ze niet in de originele CSV stonden
+  const extraH   = [];
+  if (!ptHeaders.includes(datumKol)) extraH.push(datumKol);
+  if (!ptHeaders.includes(tijdKol))  extraH.push(tijdKol);
+  const allH     = [datumKol, tijdKol, ...overig.filter(h=>h!==datumKol&&h!==tijdKol)];
 
   const regels = [allH.join(';')];
   result.forEach(r => regels.push(allH.map(h=>`"${(r[h]||'').replace(/"/g,'""')}"`).join(';')));
