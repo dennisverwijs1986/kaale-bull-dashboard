@@ -124,7 +124,6 @@
   <button onclick="showTab('punten')">Punten</button>
 </nav>
 
-<!-- MIJN TEAM -->
 <div id="tab-mijn-team" class="page active">
   <div id="coach-login-wrap">
     <div class="card">
@@ -156,14 +155,12 @@
   </div>
 </div>
 
-<!-- SPELERS -->
 <div id="tab-spelers" class="page">
   <div id="spelers-login-msg" class="msg info" style="display:none;">Log eerst in op het 'Mijn team' tabblad om spelers te kiezen.</div>
   <input class="search-box" type="text" id="search-input" placeholder="Zoek speler..." oninput="filterSpelers()" />
   <div id="spelers-list" class="card"></div>
 </div>
 
-<!-- STAND -->
 <div id="tab-stand" class="page">
   <div class="card">
     <div class="card-title">Seizoensstand</div>
@@ -171,7 +168,6 @@
   </div>
 </div>
 
-<!-- PUNTEN -->
 <div id="tab-punten" class="page">
   <div class="card">
     <div class="card-title">Puntensysteem</div>
@@ -187,7 +183,7 @@
     <p style="font-size:14px;line-height:1.7;color:var(--muted);">
       Kies elke ronde <strong style="color:var(--text)">5 spelers</strong> uit de clubselectie vóór de deadline.<br><br>
       Wijs één speler aan als <strong style="color:var(--text)">aanvoerder</strong> door een al gekozen speler nogmaals aan te tikken. De aanvoerder scoort dubbele punten.<br><br>
-      Na de speelronde voert de beheerder de resultaten in. Punten worden automatisch berekend en de stand bijgewerkt.
+      Na de speelronde voert de beheerder de resultaten in. Punten worden automatisch berekend campfire de stand bijgewerkt.
     </p>
   </div>
 </div>
@@ -200,9 +196,9 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let coach = null;
 let actieveRonde = null;
 let alleSpelers = [];
-let gekozenSpelers = []; // array van speler-ids
-let aanvoerder = null;   // speler-id
-let bestaandeOpstelling = []; // al opgeslagen
+let gekozenSpelers = []; // array van speler-ids (als strings)
+let aanvoerder = null;   // speler-id (als string)
+let bestaandeOpstelling = []; 
 
 // ==================== INIT ====================
 async function init() {
@@ -242,7 +238,8 @@ async function loginCoach() {
   if (data && data.length > 0) {
     coach = data[0];
   } else {
-    const { data: nieuw } = await sb.from('pc_coaches').insert({ naam }).select().single();
+    const { data: nieuw, error } = await sb.from('pc_coaches').insert({ naam }).select().single();
+    if (error) return alert("Fout bij aanmaken coach: " + error.message);
     coach = nieuw;
   }
   localStorage.setItem('pc_coach', JSON.stringify(coach));
@@ -261,15 +258,16 @@ async function toonTeamContent() {
 
 // ==================== OPSTELLING ====================
 async function laadBestaandeOpstelling() {
+  if (!coach || !actieveRonde) return;
   const { data } = await sb.from('pc_opstellingen')
     .select('*, pc_spelers(naam, divisie)')
     .eq('coach_id', coach.id)
     .eq('ronde_id', actieveRonde.id);
   if (data && data.length > 0) {
     bestaandeOpstelling = data;
-    gekozenSpelers = data.map(o => o.speler_id);
+    gekozenSpelers = data.map(o => String(o.speler_id));
     const cap = data.find(o => o.is_aanvoerder);
-    aanvoerder = cap ? cap.speler_id : null;
+    aanvoerder = cap ? String(cap.speler_id) : null;
   }
 }
 
@@ -283,14 +281,14 @@ function renderTeam() {
     const div = document.createElement('div');
     if (i < gevuld) {
       const sid = gekozenSpelers[i];
-      const sp = alleSpelers.find(s => s.id === sid);
+      const sp = alleSpelers.find(s => String(s.id) === sid);
       const isCap = sid === aanvoerder;
       div.className = 'slot ' + (isCap ? 'captain' : 'filled');
       div.innerHTML = `
         ${isCap ? '<div class="captain-star">★</div>' : ''}
         <div class="slot-name">${sp ? sp.naam.split(' ')[0] + '<br>' + sp.naam.split(' ').slice(1).join(' ') : '?'}</div>
         <div class="slot-role">${isCap ? 'Aanvoerder' : 'Speler ' + (i+1)}</div>
-        <button class="remove-btn" onclick="verwijderSpeler(${sid})">✕</button>
+        <button class="remove-btn" onclick="verwijderSpeler('${sid}')">✕</button>
       `;
     } else {
       div.className = 'slot';
@@ -303,8 +301,10 @@ function renderTeam() {
   status.textContent = gevuld + ' van 5 spelers gekozen' + (aanvoerder ? ' · aanvoerder gekozen ✓' : ' · nog geen aanvoerder');
 
   const btn = document.getElementById('save-btn');
-  btn.disabled = actieveRonde && actieveRonde.gesloten;
-  if (actieveRonde && actieveRonde.gesloten) btn.textContent = 'Ronde gesloten';
+  if (btn) {
+    btn.disabled = actieveRonde && actieveRonde.gesloten;
+    if (actieveRonde && actieveRonde.gesloten) btn.textContent = 'Ronde gesloten';
+  }
 
   renderSpelers();
 }
@@ -322,15 +322,15 @@ async function saveOpstelling() {
   btn.disabled = true;
   btn.textContent = 'Opslaan...';
 
-  // Verwijder bestaande
+  // Verwijder bestaande opstelling voor deze ronde
   await sb.from('pc_opstellingen').delete().eq('coach_id', coach.id).eq('ronde_id', actieveRonde.id);
 
-  // Invoegen
+  // Invoegen nieuwe opstelling
   if (gekozenSpelers.length > 0) {
     const rows = gekozenSpelers.map(sid => ({
       coach_id: coach.id,
       ronde_id: actieveRonde.id,
-      speler_id: sid,
+      speler_id: parseInt(sid),
       is_aanvoerder: sid === aanvoerder
     }));
     const { error } = await sb.from('pc_opstellingen').insert(rows);
@@ -367,10 +367,9 @@ async function laadScore() {
   let details = '';
   resultaten.forEach(r => {
     if (!r.gespeeld) return;
-    const isCap = opstelling.find(o => o.speler_id === r.speler_id)?.is_aanvoerder;
+    const isCap = opstelling.find(o => String(o.speler_id) === String(r.speler_id))?.is_aanvoerder;
     let pts = 0;
-    if (r.gewonnen) pts += 10;
-    else pts += 2;
+    if (r.gewonnen) pts += 10; else pts += 2;
     if (r.heeft_180) pts += 5;
     if (r.heeft_100plus_finish) pts += 8;
     if (isCap) pts *= 2;
@@ -386,6 +385,7 @@ async function laadScore() {
 // ==================== SPELERS ====================
 function renderSpelers() {
   const lijst = document.getElementById('spelers-list');
+  if (!lijst) return;
   const zoek = (document.getElementById('search-input')?.value || '').toLowerCase();
 
   const div1 = alleSpelers.filter(s => s.divisie === 'Eredivisie' && s.naam.toLowerCase().includes(zoek));
@@ -403,13 +403,13 @@ function renderSpelers() {
   lijst.innerHTML = html || '<div style="color:var(--muted);font-size:14px;padding:8px 0;">Geen spelers gevonden.</div>';
 
   const loginMsg = document.getElementById('spelers-login-msg');
-  if (!coach) loginMsg.style.display = 'block';
-  else loginMsg.style.display = 'none';
+  if (loginMsg) {
+    loginMsg.style.display = !coach ? 'block' : 'none';
+  }
 }
 
 function spelersRij(s) {
-  // Zorg dat we altijd met strings vergelijken om type-fouten (int vs string) te voorkomen
-  const spelerId = String(s.id); 
+  const spelerId = String(s.id);
   const isGekozen = gekozenSpelers.map(String).includes(spelerId);
   const isCap = String(aanvoerder) === spelerId;
   const vol = gekozenSpelers.length >= 5 && !isGekozen;
@@ -420,17 +420,16 @@ function spelersRij(s) {
   if (isCap) { btnLabel = '★ Aanvoerder'; btnClass = 'btn-small captain'; }
   else if (isGekozen) { btnLabel = 'Gekozen ✓'; btnClass = 'btn-small selected'; }
 
-  // Zet s.id hier tussen single quotes zodat JS het áltijd als een string doorgeeft
   return `<div class="player-row">
     <span class="player-name">${s.naam}</span>
     <button class="${btnClass}" ${disabled} onclick="toggleSpeler('${s.id}')">${btnLabel}</button>
   </div>`;
 }
 
+function filterSpelers() { renderSpelers(); }
+
 function toggleSpeler(sid) {
   if (!coach) return;
-  
-  // Zorg ook hier dat we met strings werken
   const spelerId = String(sid);
 
   if (String(aanvoerder) === spelerId) {
@@ -458,7 +457,7 @@ async function laadStand() {
 
   if (opstellingen && resultaten) {
     opstellingen.forEach(o => {
-      const res = resultaten.find(r => r.speler_id === o.speler_id && r.ronde_id === o.ronde_id);
+      const res = resultaten.find(r => String(r.speler_id) === String(o.speler_id) && String(r.ronde_id) === String(o.ronde_id));
       if (!res || !res.gespeeld) return;
       let pts = 0;
       if (res.gewonnen) pts += 10; else pts += 2;
@@ -472,16 +471,18 @@ async function laadStand() {
   const gesorteerd = Object.values(scores).sort((a, b) => b.pts - a.pts);
   const medals = ['g1', 'g2', 'g3'];
   const lijst = document.getElementById('stand-list');
-  lijst.innerHTML = gesorteerd.map((c, i) => `
-    <div class="rank-row">
-      <div class="rank-num ${medals[i] || ''}">${i + 1}</div>
-      <div class="rank-info">
-        <div class="rank-name">${c.naam}</div>
-        <div class="rank-sub">coach</div>
+  if (lijst) {
+    lijst.innerHTML = gesorteerd.map((c, i) => `
+      <div class="rank-row">
+        <div class="rank-num ${medals[i] || ''}">${i + 1}</div>
+        <div class="rank-info">
+          <div class="rank-name">${c.naam}</div>
+          <div class="rank-sub">coach</div>
+        </div>
+        <div class="rank-pts">${c.pts}</div>
       </div>
-      <div class="rank-pts">${c.pts}</div>
-    </div>
-  `).join('') || '<div style="color:var(--muted);padding:8px;font-size:14px;">Nog geen scores.</div>';
+    `).join('') || '<div style="color:var(--muted);padding:8px;font-size:14px;">Nog geen scores.</div>';
+  }
 }
 
 // ==================== HELPERS ====================
@@ -489,14 +490,18 @@ function showTab(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
-  event.target.classList.add('active');
+  if(event && event.target) {
+     event.target.classList.add('active');
+  }
   if (id === 'stand') laadStand();
 }
 
 function toonMsg(elId, tekst, type) {
   const el = document.getElementById(elId);
-  el.innerHTML = `<div class="msg ${type}">${tekst}</div>`;
-  setTimeout(() => { el.innerHTML = ''; }, 4000);
+  if(el) {
+    el.innerHTML = `<div class="msg ${type}">${tekst}</div>`;
+    setTimeout(() => { el.innerHTML = ''; }, 4000);
+  }
 }
 
 init();
