@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Coach 🎯</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --accent: #1a1a2e;
+    --accent2: #e94560;
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --muted: #666;
+    --border: #e0e0e0;
+    --success: #2ecc71;
+    --warning: #f39c12;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  .header { background: var(--accent); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header .ronde-badge { background: var(--accent2); color: white; font-size: 12px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+
+  /* Nav */
+  .nav { background: white; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; }
+  .nav button { flex: 1; min-width: 80px; padding: 12px 8px; border: none; background: none; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .nav button.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  /* Pages */
+  .page { display: none; padding: 16px; max-width: 700px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+
+  /* Coach keuze */
+  .coach-select-wrap { display: flex; gap: 8px; margin-bottom: 16px; }
+  .coach-select-wrap input { flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
+  .coach-select-wrap button { padding: 10px 16px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer; font-size: 14px; }
+
+  /* Team slots */
+  .team-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px; }
+  .slot { border: 2px dashed var(--border); border-radius: var(--radius); padding: 10px 6px; text-align: center; min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); }
+  .slot.filled { border: 2px solid var(--border); background: #f9f9f9; }
+  .slot.captain { border-color: var(--warning); background: #fffbf0; }
+  .slot .slot-name { font-size: 11px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .slot .slot-role { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .slot .captain-star { font-size: 14px; }
+  .slot .remove-btn { font-size: 10px; color: var(--accent2); cursor: pointer; margin-top: 4px; background: none; border: none; }
+
+  /* Spelers lijst */
+  .search-box { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; margin-bottom: 12px; }
+  .div-header { font-size: 12px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 0 4px; }
+  .player-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .player-row:last-child { border-bottom: none; }
+  .player-name { font-size: 14px; font-weight: 500; }
+  .player-actions { display: flex; gap: 6px; }
+  .btn-small { font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 500; }
+  .btn-small.selected { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-small.captain { background: var(--warning); color: white; border-color: var(--warning); }
+  .btn-small:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Stand */
+  .rank-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-num { font-size: 20px; font-weight: 700; width: 32px; text-align: center; color: var(--muted); }
+  .rank-num.g1 { color: #FFD700; }
+  .rank-num.g2 { color: #C0C0C0; }
+  .rank-num.g3 { color: #CD7F32; }
+  .rank-info { flex: 1; }
+  .rank-name { font-size: 15px; font-weight: 600; }
+  .rank-sub { font-size: 12px; color: var(--muted); }
+  .rank-pts { font-size: 18px; font-weight: 700; }
+
+  /* Punten detail */
+  .pts-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .pts-row:last-child { border-bottom: none; }
+  .pts-val { font-weight: 600; }
+  .pts-val.green { color: var(--success); }
+  .pts-val.orange { color: var(--warning); }
+
+  /* Opslaan knop */
+  .save-btn { width: 100%; padding: 14px; background: var(--accent2); color: white; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  .save-btn:disabled { background: var(--muted); cursor: not-allowed; }
+
+  /* Status messages */
+  .msg { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 12px; font-weight: 500; }
+  .msg.success { background: #e8f8f0; color: #1a7a45; }
+  .msg.error { background: #fde8e8; color: #c0392b; }
+  .msg.info { background: #e8f0fe; color: #1a3a7a; }
+
+  /* Score samenvatting */
+  .score-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .total-pts { font-size: 28px; font-weight: 700; color: var(--accent2); }
+
+  /* Loader */
+  .loader { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .team-grid { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .slot { min-height: 60px; padding: 6px 3px; }
+    .slot .slot-name { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎯 Pro Coach</h1>
+  <span class="ronde-badge" id="header-ronde">Laden...</span>
+</div>
+
+<nav class="nav">
+  <button class="active" onclick="showTab('mijn-team')">Mijn team</button>
+  <button onclick="showTab('spelers')">Spelers</button>
+  <button onclick="showTab('stand')">Stand</button>
+  <button onclick="showTab('punten')">Punten</button>
+</nav>
+
+<!-- MIJN TEAM -->
+<div id="tab-mijn-team" class="page active">
+  <div id="coach-login-wrap">
+    <div class="card">
+      <div class="card-title">Wie ben jij?</div>
+      <div class="coach-select-wrap">
+        <input type="text" id="coach-naam-input" placeholder="Jouw naam..." autocomplete="off" />
+        <button onclick="loginCoach()">Start</button>
+      </div>
+      <div style="font-size:13px;color:var(--muted);">Voer je naam in zoals je die bij de club kent. Als je nog niet bestaat word je aangemaakt.</div>
+    </div>
+  </div>
+
+  <div id="team-content" style="display:none;">
+    <div id="team-msg"></div>
+    <div class="card">
+      <div class="card-title">Jouw opstelling — <span id="team-ronde-naam"></span></div>
+      <div class="team-grid" id="team-slots"></div>
+      <div id="team-status" style="font-size:13px;color:var(--muted);margin-bottom:8px;"></div>
+      <button class="save-btn" id="save-btn" onclick="saveOpstelling()">Opstelling opslaan</button>
+    </div>
+
+    <div class="card" id="score-card" style="display:none;">
+      <div class="score-header">
+        <div class="card-title" style="margin:0;">Score deze ronde</div>
+        <div class="total-pts" id="total-score">0 pts</div>
+      </div>
+      <div id="score-detail"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SPELERS -->
+<div id="tab-spelers" class="page">
+  <div id="spelers-login-msg" class="msg info" style="display:none;">Log eerst in op het 'Mijn team' tabblad om spelers te kiezen.</div>
+  <input class="search-box" type="text" id="search-input" placeholder="Zoek speler..." oninput="filterSpelers()" />
+  <div id="spelers-list" class="card"></div>
+</div>
+
+<!-- STAND -->
+<div id="tab-stand" class="page">
+  <div class="card">
+    <div class="card-title">Seizoensstand</div>
+    <div id="stand-list"><div class="loader">Stand laden...</div></div>
+  </div>
+</div>
+
+<!-- PUNTEN -->
+<div id="tab-punten" class="page">
+  <div class="card">
+    <div class="card-title">Puntensysteem</div>
+    <div class="pts-row"><span>Wedstrijd gewonnen</span><span class="pts-val green">+10 pts</span></div>
+    <div class="pts-row"><span>Wedstrijd verloren</span><span class="pts-val">+2 pts</span></div>
+    <div class="pts-row"><span>180 gegooid</span><span class="pts-val green">+5 pts</span></div>
+    <div class="pts-row"><span>100+ finish</span><span class="pts-val green">+8 pts</span></div>
+    <div class="pts-row"><span>Aanvoerder bonus (×2 op alles)</span><span class="pts-val orange">×2</span></div>
+    <div class="pts-row"><span>Speler niet gespeeld</span><span class="pts-val">0 pts</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Spelregels</div>
+    <p style="font-size:14px;line-height:1.7;color:var(--muted);">
+      Kies elke ronde <strong style="color:var(--text)">5 spelers</strong> uit de clubselectie vóór de deadline.<br><br>
+      Wijs één speler aan als <strong style="color:var(--text)">aanvoerder</strong> door een al gekozen speler nogmaals aan te tikken. De aanvoerder scoort dubbele punten.<br><br>
+      Na de speelronde voert de beheerder de resultaten in. Punten worden automatisch berekend en de stand bijgewerkt.
+    </p>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let coach = null;
+let actieveRonde = null;
+let alleSpelers = [];
+let gekozenSpelers = []; // array van speler-ids
+let aanvoerder = null;   // speler-id
+let bestaandeOpstelling = []; // al opgeslagen
+
+// ==================== INIT ====================
+async function init() {
+  const savedCoach = localStorage.getItem('pc_coach');
+  if (savedCoach) {
+    coach = JSON.parse(savedCoach);
+    toonTeamContent();
+  }
+  await laadRonde();
+  await laadSpelers();
+  await laadStand();
+}
+
+async function laadRonde() {
+  const { data } = await sb.from('pc_ronden').select('*').eq('gesloten', false).order('id', { ascending: false }).limit(1);
+  if (data && data.length > 0) {
+    actieveRonde = data[0];
+    document.getElementById('header-ronde').textContent = actieveRonde.naam;
+    document.getElementById('team-ronde-naam').textContent = actieveRonde.naam;
+  } else {
+    document.getElementById('header-ronde').textContent = 'Geen ronde';
+  }
+}
+
+async function laadSpelers() {
+  const { data } = await sb.from('pc_spelers').select('*').order('naam');
+  if (data) alleSpelers = data;
+  renderSpelers();
+}
+
+// ==================== COACH LOGIN ====================
+async function loginCoach() {
+  const naam = document.getElementById('coach-naam-input').value.trim();
+  if (!naam) return;
+
+  let { data } = await sb.from('pc_coaches').select('*').ilike('naam', naam).limit(1);
+  if (data && data.length > 0) {
+    coach = data[0];
+  } else {
+    const { data: nieuw } = await sb.from('pc_coaches').insert({ naam }).select().single();
+    coach = nieuw;
+  }
+  localStorage.setItem('pc_coach', JSON.stringify(coach));
+  toonTeamContent();
+}
+
+async function toonTeamContent() {
+  document.getElementById('coach-login-wrap').style.display = 'none';
+  document.getElementById('team-content').style.display = 'block';
+  if (coach && actieveRonde) {
+    await laadBestaandeOpstelling();
+    await laadScore();
+  }
+  renderTeam();
+}
+
+// ==================== OPSTELLING ====================
+async function laadBestaandeOpstelling() {
+  const { data } = await sb.from('pc_opstellingen')
+    .select('*, pc_spelers(naam, divisie)')
+    .eq('coach_id', coach.id)
+    .eq('ronde_id', actieveRonde.id);
+  if (data && data.length > 0) {
+    bestaandeOpstelling = data;
+    gekozenSpelers = data.map(o => o.speler_id);
+    const cap = data.find(o => o.is_aanvoerder);
+    aanvoerder = cap ? cap.speler_id : null;
+  }
+}
+
+function renderTeam() {
+  const grid = document.getElementById('team-slots');
+  grid.innerHTML = '';
+  const max = 5;
+  const gevuld = gekozenSpelers.length;
+
+  for (let i = 0; i < max; i++) {
+    const div = document.createElement('div');
+    if (i < gevuld) {
+      const sid = gekozenSpelers[i];
+      const sp = alleSpelers.find(s => s.id === sid);
+      const isCap = sid === aanvoerder;
+      div.className = 'slot ' + (isCap ? 'captain' : 'filled');
+      div.innerHTML = `
+        ${isCap ? '<div class="captain-star">★</div>' : ''}
+        <div class="slot-name">${sp ? sp.naam.split(' ')[0] + '<br>' + sp.naam.split(' ').slice(1).join(' ') : '?'}</div>
+        <div class="slot-role">${isCap ? 'Aanvoerder' : 'Speler ' + (i+1)}</div>
+        <button class="remove-btn" onclick="verwijderSpeler(${sid})">✕</button>
+      `;
+    } else {
+      div.className = 'slot';
+      div.innerHTML = '<div style="font-size:11px">leeg</div>';
+    }
+    grid.appendChild(div);
+  }
+
+  const status = document.getElementById('team-status');
+  status.textContent = gevuld + ' van 5 spelers gekozen' + (aanvoerder ? ' · aanvoerder gekozen ✓' : ' · nog geen aanvoerder');
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = actieveRonde && actieveRonde.gesloten;
+  if (actieveRonde && actieveRonde.gesloten) btn.textContent = 'Ronde gesloten';
+
+  renderSpelers();
+}
+
+function verwijderSpeler(sid) {
+  gekozenSpelers = gekozenSpelers.filter(id => id !== sid);
+  if (aanvoerder === sid) aanvoerder = null;
+  renderTeam();
+}
+
+async function saveOpstelling() {
+  if (!coach || !actieveRonde) return;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Opslaan...';
+
+  // Verwijder bestaande
+  await sb.from('pc_opstellingen').delete().eq('coach_id', coach.id).eq('ronde_id', actieveRonde.id);
+
+  // Invoegen
+  if (gekozenSpelers.length > 0) {
+    const rows = gekozenSpelers.map(sid => ({
+      coach_id: coach.id,
+      ronde_id: actieveRonde.id,
+      speler_id: sid,
+      is_aanvoerder: sid === aanvoerder
+    }));
+    const { error } = await sb.from('pc_opstellingen').insert(rows);
+    if (error) {
+      toonMsg('team-msg', 'Fout bij opslaan: ' + error.message, 'error');
+    } else {
+      toonMsg('team-msg', 'Opstelling opgeslagen! ✓', 'success');
+      await laadBestaandeOpstelling();
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Opstelling opslaan';
+}
+
+// ==================== SCORE ====================
+async function laadScore() {
+  if (!coach || !actieveRonde) return;
+  const { data: opstelling } = await sb.from('pc_opstellingen')
+    .select('speler_id, is_aanvoerder')
+    .eq('coach_id', coach.id)
+    .eq('ronde_id', actieveRonde.id);
+  if (!opstelling || opstelling.length === 0) return;
+
+  const spelerIds = opstelling.map(o => o.speler_id);
+  const { data: resultaten } = await sb.from('pc_resultaten')
+    .select('*, pc_spelers(naam)')
+    .eq('ronde_id', actieveRonde.id)
+    .in('speler_id', spelerIds);
+
+  if (!resultaten || resultaten.length === 0) return;
+
+  let totaal = 0;
+  let details = '';
+  resultaten.forEach(r => {
+    if (!r.gespeeld) return;
+    const isCap = opstelling.find(o => o.speler_id === r.speler_id)?.is_aanvoerder;
+    let pts = 0;
+    if (r.gewonnen) pts += 10;
+    else pts += 2;
+    if (r.heeft_180) pts += 5;
+    if (r.heeft_100plus_finish) pts += 8;
+    if (isCap) pts *= 2;
+    totaal += pts;
+    details += `<div class="pts-row"><span>${r.pc_spelers.naam}${isCap ? ' ★' : ''}</span><span class="pts-val green">+${pts} pts</span></div>`;
+  });
+
+  document.getElementById('total-score').textContent = totaal + ' pts';
+  document.getElementById('score-detail').innerHTML = details;
+  document.getElementById('score-card').style.display = 'block';
+}
+
+// ==================== SPELERS ====================
+function renderSpelers() {
+  const lijst = document.getElementById('spelers-list');
+  const zoek = (document.getElementById('search-input')?.value || '').toLowerCase();
+
+  const div1 = alleSpelers.filter(s => s.divisie === 'Eredivisie' && s.naam.toLowerCase().includes(zoek));
+  const div2 = alleSpelers.filter(s => s.divisie === 'Eerste Divisie' && s.naam.toLowerCase().includes(zoek));
+
+  let html = '';
+  if (div1.length > 0) {
+    html += `<div class="div-header">Eredivisie</div>`;
+    html += div1.map(s => spelersRij(s)).join('');
+  }
+  if (div2.length > 0) {
+    html += `<div class="div-header" style="margin-top:12px;">Eerste Divisie</div>`;
+    html += div2.map(s => spelersRij(s)).join('');
+  }
+  lijst.innerHTML = html || '<div style="color:var(--muted);font-size:14px;padding:8px 0;">Geen spelers gevonden.</div>';
+
+  const loginMsg = document.getElementById('spelers-login-msg');
+  if (!coach) loginMsg.style.display = 'block';
+  else loginMsg.style.display = 'none';
+}
+
+function spelersRij(s) {
+  const isGekozen = gekozenSpelers.includes(s.id);
+  const isCap = aanvoerder === s.id;
+  const vol = gekozenSpelers.length >= 5 && !isGekozen;
+  const disabled = (!coach || (vol && !isGekozen)) ? 'disabled' : '';
+
+  let btnLabel = 'Kies';
+  let btnClass = 'btn-small';
+  if (isCap) { btnLabel = '★ Aanvoerder'; btnClass = 'btn-small captain'; }
+  else if (isGekozen) { btnLabel = 'Gekozen ✓'; btnClass = 'btn-small selected'; }
+
+  return `<div class="player-row">
+    <span class="player-name">${s.naam}</span>
+    <button class="${btnClass}" ${disabled} onclick="toggleSpeler(${s.id})">${btnLabel}</button>
+  </div>`;
+}
+
+function filterSpelers() { renderSpelers(); }
+
+function toggleSpeler(sid) {
+  if (!coach) return;
+  if (aanvoerder === sid) {
+    aanvoerder = null;
+    gekozenSpelers = gekozenSpelers.filter(id => id !== sid);
+  } else if (gekozenSpelers.includes(sid)) {
+    aanvoerder = sid;
+  } else if (gekozenSpelers.length < 5) {
+    gekozenSpelers.push(sid);
+  }
+  renderTeam();
+  renderSpelers();
+}
+
+// ==================== STAND ====================
+async function laadStand() {
+  const { data: coaches } = await sb.from('pc_coaches').select('id, naam');
+  if (!coaches) return;
+
+  const { data: opstellingen } = await sb.from('pc_opstellingen').select('coach_id, speler_id, is_aanvoerder, ronde_id');
+  const { data: resultaten } = await sb.from('pc_resultaten').select('*');
+
+  const scores = {};
+  coaches.forEach(c => { scores[c.id] = { naam: c.naam, pts: 0 }; });
+
+  if (opstellingen && resultaten) {
+    opstellingen.forEach(o => {
+      const res = resultaten.find(r => r.speler_id === o.speler_id && r.ronde_id === o.ronde_id);
+      if (!res || !res.gespeeld) return;
+      let pts = 0;
+      if (res.gewonnen) pts += 10; else pts += 2;
+      if (res.heeft_180) pts += 5;
+      if (res.heeft_100plus_finish) pts += 8;
+      if (o.is_aanvoerder) pts *= 2;
+      if (scores[o.coach_id]) scores[o.coach_id].pts += pts;
+    });
+  }
+
+  const gesorteerd = Object.values(scores).sort((a, b) => b.pts - a.pts);
+  const medals = ['g1', 'g2', 'g3'];
+  const lijst = document.getElementById('stand-list');
+  lijst.innerHTML = gesorteerd.map((c, i) => `
+    <div class="rank-row">
+      <div class="rank-num ${medals[i] || ''}">${i + 1}</div>
+      <div class="rank-info">
+        <div class="rank-name">${c.naam}</div>
+        <div class="rank-sub">coach</div>
+      </div>
+      <div class="rank-pts">${c.pts}</div>
+    </div>
+  `).join('') || '<div style="color:var(--muted);padding:8px;font-size:14px;">Nog geen scores.</div>';
+}
+
+// ==================== HELPERS ====================
+function showTab(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+  if (id === 'stand') laadStand();
+}
+
+function toonMsg(elId, tekst, type) {
+  const el = document.getElementById(elId);
+  el.innerHTML = `<div class="msg ${type}">${tekst}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+init();
+</script>
+</body>
+</html>
