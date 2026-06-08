@@ -310,8 +310,9 @@ function renderTeam() {
 }
 
 function verwijderSpeler(sid) {
-  gekozenSpelers = gekozenSpelers.filter(id => id !== sid);
-  if (aanvoerder === sid) aanvoerder = null;
+  const spelerId = String(sid);
+  gekozenSpelers = gekozenSpelers.map(String).filter(id => id !== spelerId);
+  if (String(aanvoerder) === spelerId) aanvoerder = null;
   renderTeam();
 }
 
@@ -407,8 +408,10 @@ function renderSpelers() {
 }
 
 function spelersRij(s) {
-  const isGekozen = gekozenSpelers.includes(s.id);
-  const isCap = aanvoerder === s.id;
+  // Zorg dat we altijd met strings vergelijken om type-fouten (int vs string) te voorkomen
+  const spelerId = String(s.id); 
+  const isGekozen = gekozenSpelers.map(String).includes(spelerId);
+  const isCap = String(aanvoerder) === spelerId;
   const vol = gekozenSpelers.length >= 5 && !isGekozen;
   const disabled = (!coach || (vol && !isGekozen)) ? 'disabled' : '';
 
@@ -417,23 +420,26 @@ function spelersRij(s) {
   if (isCap) { btnLabel = '★ Aanvoerder'; btnClass = 'btn-small captain'; }
   else if (isGekozen) { btnLabel = 'Gekozen ✓'; btnClass = 'btn-small selected'; }
 
+  // Zet s.id hier tussen single quotes zodat JS het áltijd als een string doorgeeft
   return `<div class="player-row">
     <span class="player-name">${s.naam}</span>
-    <button class="${btnClass}" ${disabled} onclick="toggleSpeler(${s.id})">${btnLabel}</button>
+    <button class="${btnClass}" ${disabled} onclick="toggleSpeler('${s.id}')">${btnLabel}</button>
   </div>`;
 }
 
-function filterSpelers() { renderSpelers(); }
-
 function toggleSpeler(sid) {
   if (!coach) return;
-  if (aanvoerder === sid) {
+  
+  // Zorg ook hier dat we met strings werken
+  const spelerId = String(sid);
+
+  if (String(aanvoerder) === spelerId) {
     aanvoerder = null;
-    gekozenSpelers = gekozenSpelers.filter(id => id !== sid);
-  } else if (gekozenSpelers.includes(sid)) {
-    aanvoerder = sid;
+    gekozenSpelers = gekozenSpelers.map(String).filter(id => id !== spelerId);
+  } else if (gekozenSpelers.map(String).includes(spelerId)) {
+    aanvoerder = spelerId;
   } else if (gekozenSpelers.length < 5) {
-    gekozenSpelers.push(sid);
+    gekozenSpelers.push(spelerId);
   }
   renderTeam();
   renderSpelers();
