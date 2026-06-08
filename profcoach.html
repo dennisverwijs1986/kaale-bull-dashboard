@@ -276,6 +276,14 @@ function renderTeam() {
   grid.innerHTML = '';
   const max = 5;
   const gevuld = gekozenSpelers.length;
+  
+  // Bereken het gebruikte sterrenbudget
+  let gebruiktBudget = 0;
+  gekozenSpelers.forEach(sid => {
+    const sp = alleSpelers.find(s => String(s.id) === sid);
+    if (sp && sp.sterren) gebruiktBudget += sp.sterren;
+  });
+  const resterendBudget = 16 - gebruiktBudget;
 
   for (let i = 0; i < max; i++) {
     const div = document.createElement('div');
@@ -287,7 +295,7 @@ function renderTeam() {
       div.innerHTML = `
         ${isCap ? '<div class="captain-star">★</div>' : ''}
         <div class="slot-name">${sp ? sp.naam.split(' ')[0] + '<br>' + sp.naam.split(' ').slice(1).join(' ') : '?'}</div>
-        <div class="slot-role">${isCap ? 'Aanvoerder' : 'Speler ' + (i+1)}</div>
+        <div class="slot-role">${isCap ? 'Aanvoerder' : '⭐'.repeat(sp ? sp.sterren : 3)}</div>
         <button class="remove-btn" onclick="verwijderSpeler('${sid}')">✕</button>
       `;
     } else {
@@ -297,13 +305,26 @@ function renderTeam() {
     grid.appendChild(div);
   }
 
+  // Update de statusbalk met het sterrenbudget
   const status = document.getElementById('team-status');
-  status.textContent = gevuld + ' van 5 spelers gekozen' + (aanvoerder ? ' · aanvoerder gekozen ✓' : ' · nog geen aanvoerder');
+  status.innerHTML = `
+    <strong>Spelers:</strong> ${gevuld} / 5 <br>
+    <strong>Budget over:</strong> ${resterendBudget} / 16 sterren ${resterendBudget < 0 ? '<span style="color:var(--accent2); font-weight:bold;">(TE VEEL!)</span>' : ''} <br>
+    ${aanvoerder ? 'Anvoerder gekozen ✓' : 'Nog geen aanvoerder (klik nogmaals op een gekozen speler)'}
+  `;
 
   const btn = document.getElementById('save-btn');
   if (btn) {
-    btn.disabled = actieveRonde && actieveRonde.gesloten;
-    if (actieveRonde && actieveRonde.gesloten) btn.textContent = 'Ronde gesloten';
+    // Blokkeer de opslaan-knop als het budget overschreden is
+    const budgetTeVeel = resterendBudget < 0;
+    btn.disabled = (actieveRonde && actieveRonde.gesopened) || budgetTeVeel;
+    if (budgetTeVeel) {
+      btn.textContent = 'Sterrenbudget overschreden!';
+    } else if (actieveRonde && actieveRonde.gesloten) {
+      btn.textContent = 'Ronde gesloten';
+    } else {
+      btn.textContent = 'Opstelling opslaan';
+    }
   }
 
   renderSpelers();
@@ -413,7 +434,17 @@ function spelersRij(s) {
   const isGekozen = gekozenSpelers.map(String).includes(spelerId);
   const isCap = String(aanvoerder) === spelerId;
   const vol = gekozenSpelers.length >= 5 && !isGekozen;
-  const disabled = (!coach || (vol && !isGekozen)) ? 'disabled' : '';
+  
+  // Bereken huidig budget om te kijken of deze specifieke speler nog past
+  let huidigBudget = 0;
+  gekozenSpelers.forEach(sid => {
+    const sp = alleSpelers.find(x => String(x.id) === sid);
+    if (sp) huidigBudget += sp.sterren;
+  });
+  const pastNiet = (huidigBudget + s.sterren > 16) && !isGekozen;
+
+  // Knop is disabled als je niet bent ingelogd, je team vol is, óf als de speler te duur is
+  const disabled = (!coach || vol || pastNiet) ? 'disabled' : '';
 
   let btnLabel = 'Kies';
   let btnClass = 'btn-small';
@@ -421,11 +452,15 @@ function spelersRij(s) {
   else if (isGekozen) { btnLabel = 'Gekozen ✓'; btnClass = 'btn-small selected'; }
 
   return `<div class="player-row">
-    <span class="player-name">${s.naam}</span>
-    <button class="${btnClass}" ${disabled} onclick="toggleSpeler('${s.id}')">${btnLabel}</button>
+    <div>
+      <span class="player-name">${s.naam}</span><br>
+      <span style="font-size: 11px; color: var(--muted);">${'⭐'.repeat(s.sterren)} (${s.sterren} sterren)</span>
+    </div>
+    <div class="player-actions">
+      <button class="${btnClass}" ${disabled} onclick="toggleSpeler('${s.id}')">${btnLabel}</button>
+    </div>
   </div>`;
 }
-
 function filterSpelers() { renderSpelers(); }
 
 function toggleSpeler(sid) {
