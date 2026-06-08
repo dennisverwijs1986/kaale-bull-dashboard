@@ -124,17 +124,17 @@
   <button onclick="showTab('punten')">Punten</button>
 </nav>
 
-<div id="tab-mijn-team" class="page active">
-  <div id="coach-login-wrap">
-    <div class="card">
-      <div class="card-title">Wie ben jij?</div>
-      <div class="coach-select-wrap">
+<div class="card">
+      <div class="card-title">Inloggen / Registreren</div>
+      <div class="coach-select-wrap" style="flex-direction: column; gap: 12px;">
         <input type="text" id="coach-naam-input" placeholder="Jouw naam..." autocomplete="off" />
-        <button onclick="loginCoach()">Start</button>
+        <input type="password" id="coach-pincode-input" placeholder="4-cijferige pincode..." maxlength="4" pattern="[0-9]*" inputmode="numeric" autocomplete="off" />
+        <button onclick="loginCoach()" style="width: 100%;">Start</button>
       </div>
-      <div style="font-size:13px;color:var(--muted);">Voer je naam in zoals je die bij de club kent. Als je nog niet bestaat word je aangemaakt.</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;">
+        Nieuw hier? Vul je naam en een zelfverzonnen pincode van 4 cijfers in om je account aan te maken. Onthoud deze goed voor de volgende keer!
+      </div>
     </div>
-  </div>
 
   <div id="team-content" style="display:none;">
     <div id="team-msg"></div>
@@ -232,16 +232,33 @@ async function laadSpelers() {
 // ==================== COACH LOGIN ====================
 async function loginCoach() {
   const naam = document.getElementById('coach-naam-input').value.trim();
-  if (!naam) return;
+  const pincode = document.getElementById('coach-pincode-input').value.trim();
+  
+  if (!naam) return alert("Vul alsjeblieft je naam in.");
+  if (!pincode || pincode.length !== 4 || isNaN(pincode)) return alert("Vul een geldige pincode van 4 cijfers in.");
 
+  // 1. Check of de coach al bestaat
   let { data } = await sb.from('pc_coaches').select('*').ilike('naam', naam).limit(1);
+  
   if (data && data.length > 0) {
-    coach = data[0];
+    // Coach bestaat al, controleer de pincode
+    const bestaandeCoach = data[0];
+    if (bestaandeCoach.pincode && bestaandeCoach.pincode !== pincode) {
+      return alert("Onjuiste pincode voor deze naam! Probeer het nog eens.");
+    }
+    // Als de coach nog geen pincode had (migratie), voegen we hem nu toe
+    if (!bestaandeCoach.pincode) {
+      await sb.from('pc_coaches').update({ pincode }).eq('id', bestaandeCoach.id);
+      bestaandeCoach.pincode = pincode;
+    }
+    coach = bestaandeCoach;
   } else {
-    const { data: nieuw, error } = await sb.from('pc_coaches').insert({ naam }).select().single();
+    // 2. Coach bestaat nog niet, maak nieuw aan met de ingevoerde pincode
+    const { data: nieuw, error } = await sb.from('pc_coaches').insert({ naam, pincode }).select().single();
     if (error) return alert("Fout bij aanmaken coach: " + error.message);
     coach = nieuw;
   }
+  
   localStorage.setItem('pc_coach', JSON.stringify(coach));
   toonTeamContent();
 }
