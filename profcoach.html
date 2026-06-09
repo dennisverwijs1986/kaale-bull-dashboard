@@ -41,30 +41,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .pin-input { letter-spacing: 8px; font-size: 22px; font-weight: 700; text-align: center; }
 .primary-btn { width: 100%; padding: 13px; background: var(--accent2); color: #fff; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; }
 
-/* BUDGET BAR */
+/* BUDGET */
 .budget-bar-wrap { margin-bottom: 14px; }
 .budget-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
-.budget-label span { font-weight: 600; }
-.budget-label .over { color: var(--accent2); }
 .budget-track { height: 10px; background: var(--border); border-radius: 10px; overflow: hidden; }
 .budget-fill { height: 100%; border-radius: 10px; background: var(--green); transition: width .3s, background .3s; }
 .budget-fill.bijna { background: var(--orange); }
 .budget-fill.vol { background: var(--accent2); }
 
-/* TEAM GRID */
-.team-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+/* TEAM GRID - 6 spelers, 3+3 */
+.team-section-label { font-size: 11px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+.team-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
 .slot { border: 2px dashed var(--border); border-radius: 10px; padding: 8px 4px; text-align: center; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); }
 .slot.filled { border: 2px solid #c8e6c9; background: #f1f8f2; }
-.slot.captain { border-color: var(--orange); background: #fff8f0; }
 .slot-name { font-size: 11px; font-weight: 600; color: var(--text); line-height: 1.3; }
 .slot-role { font-size: 10px; color: var(--muted); margin-top: 2px; }
-.slot-cost { font-size: 10px; color: var(--muted); margin-top: 2px; }
 .slot .star { font-size: 13px; margin-bottom: 2px; }
 .remove-btn { font-size: 10px; color: var(--accent2); cursor: pointer; background: none; border: none; margin-top: 3px; }
 
 /* SPELERS */
 .search-box { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; margin-bottom: 12px; outline: none; }
 .div-header { font-size: 11px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: .08em; padding: 10px 0 5px; }
+.div-count { font-size: 11px; color: var(--muted); font-weight: 400; text-transform: none; }
 .player-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 8px; }
 .player-row:last-child { border-bottom: none; }
 .player-info { flex: 1; }
@@ -74,7 +72,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .cost-tag { font-size: 11px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 10px; }
 .btn-sm { font-size: 12px; padding: 6px 12px; border-radius: 7px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-weight: 500; white-space: nowrap; }
 .btn-sm.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-sm.cap { background: var(--orange); color: #fff; border-color: var(--orange); }
 .btn-sm:disabled { opacity: .35; cursor: not-allowed; }
 
 /* STAND */
@@ -101,9 +98,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .loader { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
 .total-pts { font-size: 30px; font-weight: 700; color: var(--accent2); }
 .deadline-info { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
-
-.budget-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
-.budget-legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.budget-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.budget-legend-item { font-size: 12px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -114,14 +110,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <h2>Pro Coach</h2>
     <p>Log in met je naam en pincode om mee te spelen.</p>
     <div id="login-msg"></div>
-    <div class="form-group">
-      <label>Naam</label>
-      <input type="text" id="login-naam" placeholder="Jouw naam..." autocomplete="name" />
-    </div>
-    <div class="form-group">
-      <label>Pincode</label>
-      <input type="password" inputmode="numeric" maxlength="4" id="login-pin" class="pin-input" placeholder="••••" />
-    </div>
+    <div class="form-group"><label>Naam</label><input type="text" id="login-naam" placeholder="Jouw naam..." autocomplete="name" /></div>
+    <div class="form-group"><label>Pincode</label><input type="password" inputmode="numeric" maxlength="4" id="login-pin" class="pin-input" placeholder="••••" /></div>
     <button class="primary-btn" onclick="doLogin()">Inloggen</button>
     <p style="font-size:12px;color:var(--muted);margin-top:16px;text-align:center;">Nog geen account? Vraag de beheerder.</p>
   </div>
@@ -150,13 +140,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="deadline-info" id="deadline-info"></div>
       <div class="budget-bar-wrap">
         <div class="budget-label">
-          <span>Budget: <span id="budget-gebruikt">0</span> / 15 punten</span>
-          <span id="budget-over" class="over"></span>
+          <span>Budget: <span id="budget-gebruikt">0</span> / 21 punten</span>
+          <span id="budget-over" style="color:var(--muted);font-weight:600;"></span>
         </div>
         <div class="budget-track"><div class="budget-fill" id="budget-fill" style="width:0%"></div></div>
       </div>
-      <div class="team-grid" id="team-slots"></div>
-      <div id="team-status" style="font-size:13px;color:var(--muted);margin-bottom:10px;"></div>
+      <div class="team-section-label">Eredivisie <span class="div-count" id="ere-count">(0/3)</span></div>
+      <div class="team-grid" id="team-slots-ere"></div>
+      <div class="team-section-label" style="margin-top:8px;">Eerste Divisie <span class="div-count" id="eer-count">(0/3)</span></div>
+      <div class="team-grid" id="team-slots-eer"></div>
+      <div id="team-status" style="font-size:13px;color:var(--muted);margin:10px 0;"></div>
       <button class="save-btn" id="save-btn" onclick="saveOpstelling()">Opstelling opslaan</button>
     </div>
     <div class="card" id="score-card" style="display:none;">
@@ -171,9 +164,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <!-- SPELERS -->
   <div id="tab-spelers" class="page">
     <div class="card" style="padding:12px 16px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
-        <span style="color:var(--muted);">Budget gebruikt:</span>
-        <strong id="sp-budget-label">0 / 15</strong>
+      <div style="display:flex;justify-content:space-between;font-size:13px;">
+        <span style="color:var(--muted);">Budget:</span>
+        <strong id="sp-budget-label">0 / 21</strong>
       </div>
       <div class="budget-legend">
         <div class="budget-legend-item">⭐⭐⭐⭐⭐ = 5 pts</div>
@@ -201,9 +194,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="card-title">Puntensysteem</div>
       <div class="pts-row"><span>Wedstrijd gewonnen</span><span class="pts-val green">+10 pts</span></div>
       <div class="pts-row"><span>Wedstrijd verloren</span><span class="pts-val">+2 pts</span></div>
+      <div class="pts-row"><span>Per gewonnen leg</span><span class="pts-val green">+2 pts</span></div>
       <div class="pts-row"><span>180 gegooid</span><span class="pts-val green">+5 pts</span></div>
       <div class="pts-row"><span>100+ finish</span><span class="pts-val green">+8 pts</span></div>
-      <div class="pts-row"><span>Aanvoerder (×2 op alles)</span><span class="pts-val orange">×2</span></div>
       <div class="pts-row"><span>Speler niet gespeeld</span><span class="pts-val">0 pts</span></div>
     </div>
     <div class="card">
@@ -214,15 +207,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="pts-row"><span>⭐⭐ Wisselvallig</span><span class="pts-val">2 budget</span></div>
       <div class="pts-row"><span>⭐ Outsider</span><span class="pts-val">1 budget</span></div>
       <div style="margin-top:12px;padding:10px 12px;background:var(--bg);border-radius:8px;font-size:13px;color:var(--muted);">
-        Je hebt <strong style="color:var(--text);">15 budgetpunten</strong> per ronde. Kies slim — je kunt niet alleen topspelers pakken!
+        Je hebt <strong style="color:var(--text);">21 budgetpunten</strong>. Kies <strong style="color:var(--text);">3 Eredivisie</strong> + <strong style="color:var(--text);">3 Eerste Divisie</strong> spelers. Ratings zijn per divisie bepaald.
       </div>
     </div>
     <div class="card">
       <div class="card-title">Spelregels</div>
       <p style="font-size:14px;line-height:1.8;color:var(--muted);">
-        Kies elke ronde <strong style="color:var(--text);">5 spelers</strong> binnen je budget van 15 punten.<br>
-        Tik een gekozen speler nogmaals aan om hem <strong style="color:var(--text);">aanvoerder</strong> te maken — die scoort dubbele punten.<br>
-        Na de ronde voert de beheerder de resultaten in. Punten worden automatisch berekend.
+        Kies elke ronde <strong style="color:var(--text);">3 Eredivisie + 3 Eerste Divisie spelers</strong> binnen je budget van 21 punten.<br>
+        Na de ronde importeert de beheerder de DartConnect CSV. Punten worden automatisch berekend.
       </p>
     </div>
   </div>
@@ -232,23 +224,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const MAX_BUDGET = 15;
+const MAX_BUDGET = 21, MAX_PER_DIV = 3;
 
 let coach = null, actieveRonde = null, alleSpelers = [];
-let gekozenSpelers = [], aanvoerder = null;
+let gekozenSpelers = [];
 
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-function sterren(r) { return '⭐'.repeat(r) + '☆'.repeat(5-r); }
-function budgetGebruikt() { return gekozenSpelers.reduce((t, sid) => { const s = alleSpelers.find(s => s.id === sid); return t + (s ? s.rating : 0); }, 0); }
+function sterren(r) { return '⭐'.repeat(r); }
+function budgetGebruikt() { return gekozenSpelers.reduce((t,sid) => { const s=alleSpelers.find(s=>s.id===sid); return t+(s?s.rating:0); },0); }
+function aantalDivisie(div) { return gekozenSpelers.filter(sid => { const s=alleSpelers.find(s=>s.id===sid); return s&&s.divisie===div; }).length; }
+function berekenPunten(r) {
+  if (!r || !r.gespeeld) return 0;
+  return (r.gewonnen ? 10 : 2) + ((r.gewonnen_legs||0) * 2) + (r.heeft_180 ? 5 : 0) + (r.heeft_100plus_finish ? 8 : 0);
+}
 
-// ── LOGIN ──
 async function doLogin() {
   const naam = document.getElementById('login-naam').value.trim();
-  const pin  = document.getElementById('login-pin').value.trim();
+  const pin = document.getElementById('login-pin').value.trim();
   if (!naam || pin.length < 4) { toonMsg('login-msg','Vul naam en 4-cijferige pincode in.','err'); return; }
   const hash = await sha256(pin);
   const { data, error } = await sb.from('pc_coaches').select('*').ilike('naam', naam).eq('pincode_hash', hash).single();
@@ -260,246 +256,211 @@ async function doLogin() {
 
 function doLogout() {
   localStorage.removeItem('pc_coach');
-  coach = null; actieveRonde = null; alleSpelers = [];
-  gekozenSpelers = []; aanvoerder = null;
-  document.getElementById('login-screen').style.display = 'block';
-  document.getElementById('app-screen').style.display = 'none';
+  coach=null; actieveRonde=null; alleSpelers=[]; gekozenSpelers=[];
+  document.getElementById('login-screen').style.display='block';
+  document.getElementById('app-screen').style.display='none';
 }
 
 async function startApp() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display = 'block';
-  await laadRonde();
-  await laadSpelers();
-  await laadBestaandeOpstelling();
-  await laadScore();
-  renderTeam();
-  renderSpelers();
-  laadStand();
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  await laadRonde(); await laadSpelers(); await laadBestaandeOpstelling(); await laadScore();
+  renderTeam(); renderSpelers(); laadStand();
 }
 
-// ── RONDE ──
 async function laadRonde() {
-  const { data } = await sb.from('pc_ronden').select('*').eq('gesloten', false).order('id',{ascending:false}).limit(1);
-  if (data && data.length) {
-    actieveRonde = data[0];
-    document.getElementById('header-ronde').textContent = actieveRonde.naam;
-    document.getElementById('team-ronde-naam').textContent = actieveRonde.naam;
+  const { data } = await sb.from('pc_ronden').select('*').eq('gesloten',false).order('id',{ascending:false}).limit(1);
+  if (data&&data.length) {
+    actieveRonde=data[0];
+    document.getElementById('header-ronde').textContent=actieveRonde.naam;
+    document.getElementById('team-ronde-naam').textContent=actieveRonde.naam;
     if (actieveRonde.deadline) {
-      const d = new Date(actieveRonde.deadline);
-      document.getElementById('deadline-info').textContent = 'Deadline: ' + d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'}) + ' om ' + d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+      const d=new Date(actieveRonde.deadline);
+      document.getElementById('deadline-info').textContent='Deadline: '+d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})+' om '+d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
     }
-  } else {
-    document.getElementById('header-ronde').textContent = 'Geen ronde';
-  }
+  } else { document.getElementById('header-ronde').textContent='Geen ronde'; }
 }
 
-// ── SPELERS ──
 async function laadSpelers() {
-  const { data } = await sb.from('pc_spelers').select('*').order('rating', {ascending: false}).order('naam');
-  if (data) alleSpelers = data;
+  const { data } = await sb.from('pc_spelers').select('*').order('rating',{ascending:false}).order('naam');
+  if (data) alleSpelers=data;
 }
 
-// ── OPSTELLING ──
 async function laadBestaandeOpstelling() {
-  if (!coach || !actieveRonde) return;
-  const { data } = await sb.from('pc_opstellingen').select('*').eq('coach_id', coach.id).eq('ronde_id', actieveRonde.id);
-  if (data && data.length) {
-    gekozenSpelers = data.map(o => o.speler_id);
-    const cap = data.find(o => o.is_aanvoerder);
-    aanvoerder = cap ? cap.speler_id : null;
-  }
+  if (!coach||!actieveRonde) return;
+  const { data } = await sb.from('pc_opstellingen').select('*').eq('coach_id',coach.id).eq('ronde_id',actieveRonde.id);
+  if (data&&data.length) { gekozenSpelers=data.map(o=>o.speler_id); }
 }
 
 function updateBudgetBar() {
-  const gebruikt = budgetGebruikt();
-  const pct = Math.min((gebruikt / MAX_BUDGET) * 100, 100);
-  const fill = document.getElementById('budget-fill');
-  fill.style.width = pct + '%';
-  fill.className = 'budget-fill' + (gebruikt >= MAX_BUDGET ? ' vol' : gebruikt >= 12 ? ' bijna' : '');
-  document.getElementById('budget-gebruikt').textContent = gebruikt;
-  const over = MAX_BUDGET - gebruikt;
-  const overEl = document.getElementById('budget-over');
-  overEl.textContent = over > 0 ? over + ' over' : over === 0 ? 'Budget vol' : 'Over budget!';
-  overEl.style.color = over < 0 ? 'var(--accent2)' : over === 0 ? 'var(--orange)' : 'var(--muted)';
-  const spLabel = document.getElementById('sp-budget-label');
-  if (spLabel) spLabel.textContent = gebruikt + ' / ' + MAX_BUDGET;
+  const g=budgetGebruikt(), pct=Math.min((g/MAX_BUDGET)*100,100);
+  const fill=document.getElementById('budget-fill');
+  fill.style.width=pct+'%';
+  fill.className='budget-fill'+(g>=MAX_BUDGET?' vol':g>=17?' bijna':'');
+  document.getElementById('budget-gebruikt').textContent=g;
+  const over=MAX_BUDGET-g;
+  const el=document.getElementById('budget-over');
+  el.textContent=over>0?over+' over':over===0?'Budget vol':'Over budget!';
+  el.style.color=over<0?'var(--accent2)':over===0?'var(--orange)':'var(--muted)';
+  const sp=document.getElementById('sp-budget-label');
+  if(sp) sp.textContent=g+' / '+MAX_BUDGET;
 }
 
 function renderTeam() {
-  const grid = document.getElementById('team-slots');
-  grid.innerHTML = '';
-  for (let i = 0; i < 5; i++) {
-    const div = document.createElement('div');
-    if (i < gekozenSpelers.length) {
-      const sid = gekozenSpelers[i];
-      const sp = alleSpelers.find(s => s.id === sid);
-      const isCap = sid === aanvoerder;
-      div.className = 'slot ' + (isCap ? 'captain' : 'filled');
-      div.innerHTML = `${isCap ? '<div class="star">★</div>' : ''}
-        <div class="slot-name">${sp ? sp.naam.split(' ')[0] : '?'}</div>
-        <div class="slot-cost">${sp ? '⭐'.repeat(sp.rating) : ''}</div>
-        <div class="slot-role">${isCap ? 'Aanvoerder' : 'Speler '+(i+1)}</div>
-        <button class="remove-btn" onclick="verwijderSpeler(${sid})">✕</button>`;
-    } else {
-      div.className = 'slot';
-      div.innerHTML = '<div>leeg</div>';
+  ['Eredivisie','Eerste Divisie'].forEach(div => {
+    const slotId = div==='Eredivisie' ? 'team-slots-ere' : 'team-slots-eer';
+    const countId = div==='Eredivisie' ? 'ere-count' : 'eer-count';
+    const spelers = gekozenSpelers.filter(sid => { const s=alleSpelers.find(s=>s.id===sid); return s&&s.divisie===div; });
+    document.getElementById(countId).textContent='('+spelers.length+'/3)';
+    const grid=document.getElementById(slotId);
+    grid.innerHTML='';
+    for(let i=0;i<3;i++) {
+      const d=document.createElement('div');
+      if(i<spelers.length) {
+        const sid=spelers[i]; const sp=alleSpelers.find(s=>s.id===sid);
+        d.className='slot filled';
+        d.innerHTML=`<div class="slot-name">${sp?sp.naam.split(' ')[0]:'?'}</div>
+          <div class="slot-role">Speler ${i+1}</div>
+          <div style="font-size:10px;color:#f1c40f;">${sp?'⭐'.repeat(sp.rating):''}</div>
+          <button class="remove-btn" onclick="verwijderSpeler(${sid})">✕</button>`;
+      } else { d.className='slot'; d.innerHTML='<div>leeg</div>'; }
+      grid.appendChild(d);
     }
-    grid.appendChild(div);
-  }
+  });
   updateBudgetBar();
-  const gesloten = actieveRonde && actieveRonde.gesloten;
-  document.getElementById('team-status').textContent = gekozenSpelers.length + '/5 gekozen' + (aanvoerder ? ' · aanvoerder ✓' : ' · nog geen aanvoerder');
-  const btn = document.getElementById('save-btn');
-  btn.disabled = gesloten;
-  btn.textContent = gesloten ? 'Ronde gesloten' : 'Opstelling opslaan';
+  const totaal=gekozenSpelers.length;
+  document.getElementById('team-status').textContent=totaal+'/6 gekozen';
+  const gesloten=actieveRonde&&actieveRonde.gesloten;
+  const btn=document.getElementById('save-btn');
+  btn.disabled=gesloten; btn.textContent=gesloten?'Ronde gesloten':'Opstelling opslaan';
   renderSpelers();
 }
 
 function verwijderSpeler(sid) {
-  gekozenSpelers = gekozenSpelers.filter(id => id !== sid);
-  if (aanvoerder === sid) aanvoerder = null;
+  gekozenSpelers=gekozenSpelers.filter(id=>id!==sid);
   renderTeam();
 }
 
 function toggleSpeler(sid) {
-  if (aanvoerder === sid) {
-    aanvoerder = null;
-    gekozenSpelers = gekozenSpelers.filter(id => id !== sid);
-  } else if (gekozenSpelers.includes(sid)) {
-    aanvoerder = sid;
-  } else if (gekozenSpelers.length < 5) {
-    const sp = alleSpelers.find(s => s.id === sid);
-    const nieuwBudget = budgetGebruikt() + (sp ? sp.rating : 0);
-    if (nieuwBudget > MAX_BUDGET) { toonMsg('team-msg', 'Niet genoeg budget voor ' + (sp ? sp.naam : 'deze speler') + '!', 'err'); return; }
+  if(gekozenSpelers.includes(sid)) { gekozenSpelers=gekozenSpelers.filter(id=>id!==sid); }
+  else {
+    const sp=alleSpelers.find(s=>s.id===sid);
+    if(!sp) return;
+    const divAantal=aantalDivisie(sp.divisie);
+    if(divAantal>=MAX_PER_DIV) { toonMsg('team-msg','Je hebt al 3 spelers uit de '+sp.divisie+'!','err'); return; }
+    if(budgetGebruikt()+sp.rating>MAX_BUDGET) { toonMsg('team-msg','Niet genoeg budget voor '+sp.naam+'!','err'); return; }
     gekozenSpelers.push(sid);
   }
   renderTeam();
 }
 
 async function saveOpstelling() {
-  if (!coach || !actieveRonde) return;
-  const btn = document.getElementById('save-btn');
-  btn.disabled = true; btn.textContent = 'Opslaan...';
-  await sb.from('pc_opstellingen').delete().eq('coach_id', coach.id).eq('ronde_id', actieveRonde.id);
-  if (gekozenSpelers.length > 0) {
-    const rows = gekozenSpelers.map(sid => ({ coach_id: coach.id, ronde_id: actieveRonde.id, speler_id: sid, is_aanvoerder: sid === aanvoerder }));
-    const { error } = await sb.from('pc_opstellingen').insert(rows);
-    if (error) toonMsg('team-msg', 'Fout: ' + error.message, 'err');
-    else toonMsg('team-msg', 'Opstelling opgeslagen ✓', 'ok');
+  if(!coach||!actieveRonde) return;
+  const btn=document.getElementById('save-btn');
+  btn.disabled=true; btn.textContent='Opslaan...';
+  await sb.from('pc_opstellingen').delete().eq('coach_id',coach.id).eq('ronde_id',actieveRonde.id);
+  if(gekozenSpelers.length>0) {
+    const rows=gekozenSpelers.map(sid=>({coach_id:coach.id,ronde_id:actieveRonde.id,speler_id:sid,is_aanvoerder:false}));
+    const {error}=await sb.from('pc_opstellingen').insert(rows);
+    if(error) toonMsg('team-msg','Fout: '+error.message,'err');
+    else toonMsg('team-msg','Opstelling opgeslagen ✓','ok');
   }
-  btn.disabled = false; btn.textContent = 'Opstelling opslaan';
+  btn.disabled=false; btn.textContent='Opstelling opslaan';
 }
 
-// ── SCORE ──
 async function laadScore() {
-  if (!coach || !actieveRonde) return;
-  const { data: ops } = await sb.from('pc_opstellingen').select('speler_id,is_aanvoerder').eq('coach_id', coach.id).eq('ronde_id', actieveRonde.id);
-  if (!ops || !ops.length) return;
-  const ids = ops.map(o => o.speler_id);
-  const { data: res } = await sb.from('pc_resultaten').select('*, pc_spelers(naam)').eq('ronde_id', actieveRonde.id).in('speler_id', ids);
-  if (!res || !res.length) return;
-  let totaal = 0, html = '';
+  if(!coach||!actieveRonde) return;
+  const {data:ops}=await sb.from('pc_opstellingen').select('speler_id').eq('coach_id',coach.id).eq('ronde_id',actieveRonde.id);
+  if(!ops||!ops.length) return;
+  const {data:res}=await sb.from('pc_resultaten').select('*,pc_spelers(naam)').eq('ronde_id',actieveRonde.id).in('speler_id',ops.map(o=>o.speler_id));
+  if(!res||!res.length) return;
+  let totaal=0, html='';
   res.forEach(r => {
-    if (!r.gespeeld) return;
-    const isCap = ops.find(o => o.speler_id === r.speler_id)?.is_aanvoerder;
-    let pts = (r.gewonnen ? 10 : 2) + (r.heeft_180 ? 5 : 0) + (r.heeft_100plus_finish ? 8 : 0);
-    if (isCap) pts *= 2;
-    totaal += pts;
-    html += `<div class="pts-row"><span>${r.pc_spelers.naam}${isCap?' ★':''}</span><span class="pts-val green">+${pts} pts</span></div>`;
+    const pts=berekenPunten(r);
+    totaal+=pts;
+    if(r.gespeeld) {
+      let detail=[];
+      if(r.gewonnen) detail.push('gewonnen +10'); else detail.push('verloren +2');
+      if(r.gewonnen_legs) detail.push(r.gewonnen_legs+' legs +'+(r.gewonnen_legs*2));
+      if(r.heeft_180) detail.push('180 +5');
+      if(r.heeft_100plus_finish) detail.push('100+ finish +8');
+      html+=`<div class="pts-row"><div><div>${r.pc_spelers.naam}</div><div style="font-size:11px;color:var(--muted);">${detail.join(' · ')}</div></div><span class="pts-val green">+${pts} pts</span></div>`;
+    }
   });
-  document.getElementById('total-score').textContent = totaal + ' pts';
-  document.getElementById('score-detail').innerHTML = html;
-  document.getElementById('score-card').style.display = 'block';
+  document.getElementById('total-score').textContent=totaal+' pts';
+  document.getElementById('score-detail').innerHTML=html;
+  document.getElementById('score-card').style.display='block';
 }
 
-// ── SPELERS RENDER ──
 function renderSpelers() {
-  const zoek = (document.getElementById('search-input')?.value || '').toLowerCase();
-  const gebruikt = budgetGebruikt();
-  const d1 = alleSpelers.filter(s => s.divisie === 'Eredivisie' && s.naam.toLowerCase().includes(zoek));
-  const d2 = alleSpelers.filter(s => s.divisie === 'Eerste Divisie' && s.naam.toLowerCase().includes(zoek));
-
-  const rij = s => {
-    const gekozen = gekozenSpelers.includes(s.id);
-    const isCap = aanvoerder === s.id;
-    const budgetTekort = !gekozen && (gebruikt + s.rating > MAX_BUDGET);
-    const vol = gekozenSpelers.length >= 5 && !gekozen;
-    const disabled = (budgetTekort || vol) && !gekozen ? 'disabled' : '';
-    let cls = 'btn-sm', lbl = 'Kies';
-    if (isCap) { cls = 'btn-sm cap'; lbl = '★ Aanvoerder'; }
-    else if (gekozen) { cls = 'btn-sm sel'; lbl = 'Gekozen ✓'; }
-    const reden = budgetTekort ? ' (te duur)' : vol ? ' (vol)' : '';
+  const zoek=(document.getElementById('search-input')?.value||'').toLowerCase();
+  const gebruikt=budgetGebruikt();
+  const rij=s=>{
+    const gekozen=gekozenSpelers.includes(s.id);
+    const divVol=aantalDivisie(s.divisie)>=MAX_PER_DIV&&!gekozen;
+    const budgetTekort=!gekozen&&(gebruikt+s.rating>MAX_BUDGET);
+    const teamVol=gekozenSpelers.length>=6&&!gekozen;
+    const disabled=(divVol||budgetTekort||teamVol)?'disabled':'';
+    let cls='btn-sm', lbl='Kies';
+    if(gekozen){cls='btn-sm sel';lbl='Gekozen ✓';}
+    const reden=divVol?'div vol':budgetTekort?'te duur':'';
     return `<div class="player-row">
       <div class="player-info">
         <div class="player-name">${s.naam}</div>
-        <div class="player-meta">
-          <span class="stars">${sterren(s.rating)}</span>
-          <span class="cost-tag">${s.rating} pt${s.rating !== 1 ? 's' : ''}</span>
-        </div>
+        <div class="player-meta"><span class="stars">${sterren(s.rating)}</span><span class="cost-tag">${s.rating} pt${s.rating!==1?'s':''}</span></div>
       </div>
-      <button class="${cls}" ${disabled} onclick="toggleSpeler(${s.id})" title="${reden}">${lbl}${reden ? '<br><small style=\'font-size:9px;opacity:.7;\'>'+reden+'</small>' : ''}</button>
+      <button class="${cls}" ${disabled} onclick="toggleSpeler(${s.id})">${lbl}${reden?'<br><small style="font-size:9px;opacity:.7;">('+reden+')</small>':''}</button>
     </div>`;
   };
-
-  let html = '';
-  if (d1.length) html += `<div class="div-header">Eredivisie</div>` + d1.map(rij).join('');
-  if (d2.length) html += `<div class="div-header" style="margin-top:10px;">Eerste Divisie</div>` + d2.map(rij).join('');
-  document.getElementById('spelers-list').innerHTML = html || '<div style="color:var(--muted);font-size:14px;padding:8px;">Geen spelers gevonden.</div>';
+  let html='';
+  const d1=alleSpelers.filter(s=>s.divisie==='Eredivisie'&&s.naam.toLowerCase().includes(zoek));
+  const d2=alleSpelers.filter(s=>s.divisie==='Eerste Divisie'&&s.naam.toLowerCase().includes(zoek));
+  if(d1.length) html+=`<div class="div-header">Eredivisie <span class="div-count">(${aantalDivisie('Eredivisie')}/3)</span></div>`+d1.map(rij).join('');
+  if(d2.length) html+=`<div class="div-header" style="margin-top:10px;">Eerste Divisie <span class="div-count">(${aantalDivisie('Eerste Divisie')}/3)</span></div>`+d2.map(rij).join('');
+  document.getElementById('spelers-list').innerHTML=html||'<div style="color:var(--muted);font-size:14px;padding:8px;">Geen spelers gevonden.</div>';
   updateBudgetBar();
 }
 
-// ── STAND ──
 async function laadStand() {
-  const [{ data: coaches }, { data: ops }, { data: res }] = await Promise.all([
-    sb.from('pc_coaches').select('id,naam').eq('is_beheerder', false),
-    sb.from('pc_opstellingen').select('coach_id,speler_id,is_aanvoerder,ronde_id'),
+  const [{data:coaches},{data:ops},{data:res}]=await Promise.all([
+    sb.from('pc_coaches').select('id,naam').eq('is_beheerder',false),
+    sb.from('pc_opstellingen').select('coach_id,speler_id,ronde_id'),
     sb.from('pc_resultaten').select('*')
   ]);
-  if (!coaches) return;
-  const scores = {};
-  coaches.forEach(c => { scores[c.id] = { naam: c.naam, pts: 0 }; });
-  if (ops && res) {
-    ops.forEach(o => {
-      const r = res.find(r => r.speler_id === o.speler_id && r.ronde_id === o.ronde_id);
-      if (!r || !r.gespeeld) return;
-      let pts = (r.gewonnen ? 10 : 2) + (r.heeft_180 ? 5 : 0) + (r.heeft_100plus_finish ? 8 : 0);
-      if (o.is_aanvoerder) pts *= 2;
-      if (scores[o.coach_id]) scores[o.coach_id].pts += pts;
+  if(!coaches) return;
+  const scores={};
+  coaches.forEach(c=>{scores[c.id]={naam:c.naam,pts:0};});
+  if(ops&&res) {
+    ops.forEach(o=>{
+      const r=res.find(r=>r.speler_id===o.speler_id&&r.ronde_id===o.ronde_id);
+      const pts=berekenPunten(r);
+      if(scores[o.coach_id]) scores[o.coach_id].pts+=pts;
     });
   }
-  const sorted = Object.values(scores).sort((a,b) => b.pts - a.pts);
-  const mc = ['r1','r2','r3'];
-  document.getElementById('stand-list').innerHTML = sorted.length
-    ? sorted.map((c,i) => `<div class="rank-row"><div class="rank-num ${mc[i]||''}">${i+1}</div><div><div class="rank-name">${c.naam}</div><div class="rank-sub">coach</div></div><div class="rank-pts">${c.pts} pts</div></div>`).join('')
-    : '<div style="color:var(--muted);padding:8px;font-size:14px;">Nog geen scores.</div>';
+  const sorted=Object.values(scores).sort((a,b)=>b.pts-a.pts);
+  const mc=['r1','r2','r3'];
+  document.getElementById('stand-list').innerHTML=sorted.length
+    ?sorted.map((c,i)=>`<div class="rank-row"><div class="rank-num ${mc[i]||''}">${i+1}</div><div><div class="rank-name">${c.naam}</div><div class="rank-sub">coach</div></div><div class="rank-pts">${c.pts} pts</div></div>`).join('')
+    :'<div style="color:var(--muted);padding:8px;font-size:14px;">Nog geen scores.</div>';
 }
 
-// ── UI HELPERS ──
-function showTab(id, btn) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
-  btn.classList.add('active');
-  if (id === 'stand') laadStand();
+function showTab(id,btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active'); btn.classList.add('active');
+  if(id==='stand') laadStand();
 }
 
-function toonMsg(elId, tekst, type) {
-  const el = document.getElementById(elId);
-  el.innerHTML = `<div class="msg ${type}">${tekst}</div>`;
-  setTimeout(() => el.innerHTML = '', 4000);
+function toonMsg(elId,tekst,type) {
+  const el=document.getElementById(elId);
+  el.innerHTML=`<div class="msg ${type}">${tekst}</div>`;
+  setTimeout(()=>el.innerHTML='',4000);
 }
 
-// ── INIT ──
-(async () => {
-  const saved = localStorage.getItem('pc_coach');
-  if (saved) {
-    coach = JSON.parse(saved);
-    const { data } = await sb.from('pc_coaches').select('id').eq('id', coach.id).single();
-    if (data) { startApp(); return; }
-    localStorage.removeItem('pc_coach');
-  }
-  document.getElementById('login-screen').style.display = 'block';
+(async()=>{
+  const saved=localStorage.getItem('pc_coach');
+  if(saved) { coach=JSON.parse(saved); const {data}=await sb.from('pc_coaches').select('id').eq('id',coach.id).single(); if(data){startApp();return;} localStorage.removeItem('pc_coach'); }
+  document.getElementById('login-screen').style.display='block';
 })();
 </script>
 </body>
