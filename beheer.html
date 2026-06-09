@@ -13,24 +13,18 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-
 .header { background: var(--accent); color: #fff; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
 .header h1 { font-size: 18px; font-weight: 700; }
 .logout-btn { background: none; border: 1px solid rgba(255,255,255,.4); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 20px; cursor: pointer; }
-
 .nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; }
 .nav button { flex: 1; min-width: 90px; padding: 12px 8px; border: none; background: none; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
 .nav button.active { color: var(--accent2); border-bottom-color: var(--accent2); }
-
 .page { display: none; padding: 16px; max-width: 750px; margin: 0 auto; }
 .page.active { display: block; }
-
 .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 14px; }
 .card-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; }
-
 .form-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 .form-row input, .form-row select { flex: 1; min-width: 120px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; }
-.form-row input:focus, .form-row select:focus { border-color: var(--accent2); }
 .btn { padding: 10px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btn-primary { background: var(--accent2); color: #fff; }
 .btn-success { background: var(--green); color: #fff; }
@@ -38,36 +32,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-sm.danger { background: #fde8e8; color: var(--red); }
 .btn-sm.ok { background: #e8f8f0; color: var(--green); }
 .btn-sm.edit { background: #e8f0fe; color: #1a3a7a; }
-
 .tabel { width: 100%; border-collapse: collapse; font-size: 14px; }
-.tabel th { text-align: left; padding: 8px 10px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid var(--border); }
-.tabel td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tabel th { text-align: left; padding: 8px 10px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; border-bottom: 2px solid var(--border); }
+.tabel td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .tabel tr:last-child td { border-bottom: none; }
-.tabel tr:hover td { background: #fafafa; }
-
 .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
 .badge-open { background: #e8f8f0; color: var(--green); }
 .badge-gesloten { background: #fde8e8; color: var(--red); }
 .badge-ere { background: #e8f0fe; color: #1a3a7a; }
 .badge-eer { background: #f0e8fe; color: #6a1a7a; }
-
 .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; font-weight: 500; }
 .msg.ok { background: #e8f8f0; color: #1a7a45; }
 .msg.err { background: #fde8e8; color: #c0392b; }
-
-.res-speler-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
-.res-speler-row:last-child { border-bottom: none; }
-.res-naam { font-size: 14px; font-weight: 500; flex: 1; min-width: 120px; }
-.res-checks { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.res-checks label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
-.res-checks input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
-
-/* STERREN RATING */
+.msg.inf { background: #e8f0fe; color: #1a3a7a; }
 .star-select { display: flex; gap: 4px; }
-.star-select button { background: none; border: none; font-size: 20px; cursor: pointer; padding: 2px; line-height: 1; opacity: .3; transition: opacity .15s; }
+.star-select button { background: none; border: none; font-size: 20px; cursor: pointer; padding: 2px; line-height: 1; opacity: .3; }
 .star-select button.aan { opacity: 1; }
-.star-select button:hover { opacity: .7; }
-
 .login-wrap { max-width: 360px; margin: 80px auto; }
 .login-wrap h2 { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
 .form-group { margin-bottom: 14px; }
@@ -75,6 +55,25 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .form-group input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 15px; outline: none; }
 .primary-btn { width: 100%; padding: 12px; background: var(--accent2); color: #fff; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; }
 .section-info { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+
+/* CSV IMPORT */
+.upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 30px; text-align: center; cursor: pointer; transition: border-color .2s; margin-bottom: 14px; }
+.upload-zone:hover, .upload-zone.drag { border-color: var(--accent2); background: #fff5f7; }
+.upload-zone input { display: none; }
+.upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
+.upload-zone p { font-size: 14px; color: var(--muted); }
+.upload-zone strong { color: var(--accent2); cursor: pointer; }
+.preview-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; flex-wrap: wrap; gap: 6px; }
+.preview-row:last-child { border-bottom: none; }
+.preview-naam { font-weight: 500; flex: 1; min-width: 140px; }
+.preview-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.stat-win { background: #e8f8f0; color: var(--green); }
+.stat-loss { background: #fde8e8; color: var(--red); }
+.stat-180 { background: #fff3e0; color: var(--orange); }
+.stat-100 { background: #e8f0fe; color: #1a3a7a; }
+.stat-legs { background: #f0f0f0; color: var(--muted); }
+.no-match { color: var(--red); font-size: 11px; }
 </style>
 </head>
 <body>
@@ -84,10 +83,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div style="font-size:36px;margin-bottom:12px;">🎯</div>
     <h2>Pro Coach Beheer</h2>
     <div id="login-msg"></div>
-    <div class="form-group">
-      <label>Wachtwoord</label>
-      <input type="password" id="beheer-ww" placeholder="••••••" />
-    </div>
+    <div class="form-group"><label>Wachtwoord</label><input type="password" id="beheer-ww" placeholder="••••••" /></div>
     <button class="primary-btn" onclick="loginBeheer()">Inloggen</button>
   </div>
 </div>
@@ -108,7 +104,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div id="tab-coaches" class="page active">
     <div class="card">
       <div class="card-title">Nieuw account aanmaken</div>
-      <p class="section-info">Maak hier een account aan voor elk lid. Pincode is 4 cijfers.</p>
       <div id="coach-msg"></div>
       <div class="form-row">
         <input type="text" id="nieuw-naam" placeholder="Naam lid..." />
@@ -149,22 +144,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <!-- RESULTATEN -->
   <div id="tab-resultaten" class="page">
     <div class="card">
-      <div class="card-title">Selecteer ronde</div>
+      <div class="card-title">Stap 1 — Selecteer ronde</div>
       <div class="form-row">
-        <select id="res-ronde-select" onchange="laadResultatenFormulier()">
+        <select id="res-ronde-select">
           <option value="">— Kies ronde —</option>
         </select>
       </div>
     </div>
-    <div id="resultaten-formulier"></div>
-    <div id="res-msg"></div>
+    <div class="card">
+      <div class="card-title">Stap 2 — Upload DartConnect CSV</div>
+      <p class="section-info">Download de wedstrijdexport uit DartConnect en upload die hier. Winnaars, legs, 180's en 100+ finishes worden automatisch verwerkt.</p>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-input').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+        <input type="file" id="csv-input" accept=".csv" onchange="handleFile(this.files[0])" />
+        <div class="icon">📂</div>
+        <p>Sleep CSV hier naartoe of <strong>klik om te kiezen</strong></p>
+        <p style="font-size:12px;margin-top:4px;">DartConnect Matches export (.csv)</p>
+      </div>
+      <div id="import-msg"></div>
+    </div>
+    <div id="preview-wrap" style="display:none;">
+      <div class="card">
+        <div class="card-title">Stap 3 — Controleer & importeer</div>
+        <p class="section-info" id="preview-info"></p>
+        <div id="preview-list"></div>
+        <button class="btn btn-success" style="width:100%;padding:13px;font-size:15px;border-radius:var(--radius);margin-top:12px;" onclick="importeerResultaten()">Resultaten importeren</button>
+      </div>
+    </div>
   </div>
 
   <!-- SPELERS -->
   <div id="tab-spelers" class="page">
     <div class="card">
       <div class="card-title">Speler toevoegen</div>
-      <p class="section-info">Stel per speler ook de rating in (1–5 sterren). Dit bepaalt de budgetkosten.</p>
       <div id="speler-msg"></div>
       <div class="form-row">
         <input type="text" id="sp-naam" placeholder="Naam speler..." />
@@ -184,7 +195,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
     <div class="card">
       <div class="card-title">Spelerslijst — ratings instellen</div>
-      <p class="section-info">Klik op de sterren om de rating van een speler te wijzigen. Wordt direct opgeslagen.</p>
       <table class="tabel">
         <thead><tr><th>Naam</th><th>Divisie</th><th>Rating</th><th></th></tr></thead>
         <tbody id="spelers-lijst"></tbody>
@@ -199,263 +209,323 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const BEHEER_HASH = '5c0c492c62ae7ea682a2c4dfef59b49d7ee36548991f944fa258a0e0be424729';
 
+let csvData = []; // parsed CSV ready to import
+let alleSpelers = [];
+
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
 async function loginBeheer() {
-  const ww = document.getElementById('beheer-ww').value;
-  const hash = await sha256(ww);
+  const hash = await sha256(document.getElementById('beheer-ww').value);
   if (hash !== BEHEER_HASH) { toonMsg('login-msg','Wachtwoord klopt niet.','err'); return; }
-  sessionStorage.setItem('pc_beheer', '1');
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display = 'block';
+  sessionStorage.setItem('pc_beheer','1');
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
   laadAlles();
 }
 
 function logoutBeheer() {
   sessionStorage.removeItem('pc_beheer');
-  document.getElementById('login-screen').style.display = 'block';
-  document.getElementById('app-screen').style.display = 'none';
-  document.getElementById('beheer-ww').value = '';
+  document.getElementById('login-screen').style.display='block';
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('beheer-ww').value='';
 }
 
 async function laadAlles() {
-  await Promise.all([laadCoaches(), laadRonden(), laadSpelers(), vulRondeSelect()]);
+  await Promise.all([laadCoaches(), laadRonden(), laadSpelersData(), vulRondeSelect()]);
 }
 
 // ── COACHES ──
 async function laadCoaches() {
-  const { data } = await sb.from('pc_coaches').select('*').order('naam');
-  const tbody = document.getElementById('coaches-lijst');
-  tbody.innerHTML = data ? data.map(c => `
-    <tr>
-      <td>${c.naam}</td>
-      <td><span class="badge ${c.is_beheerder ? 'badge-ere' : 'badge-eer'}">${c.is_beheerder ? 'Beheerder' : 'Coach'}</span></td>
-      <td>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <input type="text" inputmode="numeric" maxlength="4" id="pin-${c.id}" placeholder="Nieuwe pin" style="width:110px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;" />
-          <button class="btn-sm edit" onclick="wijzigPin(${c.id})">Opslaan</button>
-        </div>
-      </td>
-      <td>${!c.is_beheerder ? `<button class="btn-sm danger" onclick="verwijderCoach(${c.id})">Verwijder</button>` : ''}</td>
-    </tr>`).join('') : '';
+  const {data} = await sb.from('pc_coaches').select('*').order('naam');
+  document.getElementById('coaches-lijst').innerHTML = data ? data.map(c => `
+    <tr><td>${c.naam}</td>
+    <td><span class="badge ${c.is_beheerder?'badge-ere':'badge-eer'}">${c.is_beheerder?'Beheerder':'Coach'}</span></td>
+    <td><div style="display:flex;gap:6px;align-items:center;">
+      <input type="text" inputmode="numeric" maxlength="4" id="pin-${c.id}" placeholder="Nieuwe pin" style="width:110px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;" />
+      <button class="btn-sm edit" onclick="wijzigPin(${c.id})">Opslaan</button>
+    </div></td>
+    <td>${!c.is_beheerder?`<button class="btn-sm danger" onclick="verwijderCoach(${c.id})">Verwijder</button>`:''}</td></tr>`).join('') : '';
 }
 
 async function maakCoach() {
-  const naam = document.getElementById('nieuw-naam').value.trim();
-  const pin = document.getElementById('nieuw-pin').value.trim();
-  if (!naam || pin.length !== 4 || isNaN(pin)) { toonMsg('coach-msg','Vul naam en 4-cijferige pincode in.','err'); return; }
-  const hash = await sha256(pin);
-  const { error } = await sb.from('pc_coaches').insert({ naam, pincode_hash: hash, is_beheerder: false });
-  if (error) toonMsg('coach-msg','Fout: ' + error.message,'err');
-  else { toonMsg('coach-msg', naam + ' aangemaakt ✓','ok'); document.getElementById('nieuw-naam').value=''; document.getElementById('nieuw-pin').value=''; laadCoaches(); }
+  const naam=document.getElementById('nieuw-naam').value.trim(), pin=document.getElementById('nieuw-pin').value.trim();
+  if(!naam||pin.length!==4||isNaN(pin)){toonMsg('coach-msg','Vul naam en 4-cijferige pincode in.','err');return;}
+  const hash=await sha256(pin);
+  const {error}=await sb.from('pc_coaches').insert({naam,pincode_hash:hash,is_beheerder:false});
+  if(error) toonMsg('coach-msg','Fout: '+error.message,'err');
+  else{toonMsg('coach-msg',naam+' aangemaakt ✓','ok');document.getElementById('nieuw-naam').value='';document.getElementById('nieuw-pin').value='';laadCoaches();}
 }
 
 async function wijzigPin(id) {
-  const pin = document.getElementById('pin-'+id).value.trim();
-  if (pin.length !== 4 || isNaN(pin)) { alert('Vul een geldige 4-cijferige pincode in.'); return; }
-  const hash = await sha256(pin);
-  await sb.from('pc_coaches').update({ pincode_hash: hash }).eq('id', id);
+  const pin=document.getElementById('pin-'+id).value.trim();
+  if(pin.length!==4||isNaN(pin)){alert('Vul een geldige 4-cijferige pincode in.');return;}
+  await sb.from('pc_coaches').update({pincode_hash:await sha256(pin)}).eq('id',id);
   toonMsg('coach-msg','Pincode gewijzigd ✓','ok');
-  document.getElementById('pin-'+id).value = '';
+  document.getElementById('pin-'+id).value='';
 }
 
 async function verwijderCoach(id) {
-  if (!confirm('Coach verwijderen?')) return;
-  await sb.from('pc_opstellingen').delete().eq('coach_id', id);
-  await sb.from('pc_coaches').delete().eq('id', id);
+  if(!confirm('Coach verwijderen?'))return;
+  await sb.from('pc_opstellingen').delete().eq('coach_id',id);
+  await sb.from('pc_coaches').delete().eq('id',id);
   laadCoaches();
 }
 
 // ── RONDEN ──
 async function laadRonden() {
-  const { data } = await sb.from('pc_ronden').select('*').order('id');
-  const tbody = document.getElementById('ronden-lijst');
-  tbody.innerHTML = data ? data.map(r => {
-    const datum = r.datum ? new Date(r.datum).toLocaleDateString('nl-NL') : '—';
-    const deadline = r.deadline ? new Date(r.deadline).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
-    return `<tr>
-      <td><strong>${r.naam}</strong></td>
-      <td>${datum}</td>
-      <td>${deadline}</td>
-      <td><span class="badge ${r.gesloten ? 'badge-gesloten' : 'badge-open'}">${r.gesloten ? 'Gesloten' : 'Open'}</span></td>
+  const {data}=await sb.from('pc_ronden').select('*').order('id');
+  document.getElementById('ronden-lijst').innerHTML = data ? data.map(r=>{
+    const datum=r.datum?new Date(r.datum).toLocaleDateString('nl-NL'):'—';
+    const dl=r.deadline?new Date(r.deadline).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr><td><strong>${r.naam}</strong></td><td>${datum}</td><td>${dl}</td>
+      <td><span class="badge ${r.gesloten?'badge-gesloten':'badge-open'}">${r.gesloten?'Gesloten':'Open'}</span></td>
       <td style="display:flex;gap:6px;">
-        <button class="btn-sm ${r.gesloten ? 'ok' : 'danger'}" onclick="toggleRonde(${r.id}, ${r.gesloten})">${r.gesloten ? 'Openen' : 'Sluiten'}</button>
+        <button class="btn-sm ${r.gesloten?'ok':'danger'}" onclick="toggleRonde(${r.id},${r.gesloten})">${r.gesloten?'Openen':'Sluiten'}</button>
         <button class="btn-sm danger" onclick="verwijderRonde(${r.id})">✕</button>
-      </td>
-    </tr>`;
+      </td></tr>`;
   }).join('') : '';
   await vulRondeSelect();
 }
 
 async function maakRonde() {
-  const naam = document.getElementById('ronde-naam').value.trim();
-  const datum = document.getElementById('ronde-datum').value;
-  const deadline = document.getElementById('ronde-deadline').value;
-  if (!naam) { toonMsg('ronde-msg','Vul een naam in.','err'); return; }
-  const { error } = await sb.from('pc_ronden').insert({ naam, datum: datum||null, deadline: deadline||null, gesloten: false });
-  if (error) toonMsg('ronde-msg','Fout: '+error.message,'err');
-  else { toonMsg('ronde-msg',naam+' aangemaakt ✓','ok'); document.getElementById('ronde-naam').value=''; laadRonden(); }
+  const naam=document.getElementById('ronde-naam').value.trim();
+  if(!naam){toonMsg('ronde-msg','Vul een naam in.','err');return;}
+  const {error}=await sb.from('pc_ronden').insert({naam,datum:document.getElementById('ronde-datum').value||null,deadline:document.getElementById('ronde-deadline').value||null,gesloten:false});
+  if(error) toonMsg('ronde-msg','Fout: '+error.message,'err');
+  else{toonMsg('ronde-msg',naam+' aangemaakt ✓','ok');document.getElementById('ronde-naam').value='';laadRonden();}
 }
 
-async function toggleRonde(id, gesloten) {
-  await sb.from('pc_ronden').update({ gesloten: !gesloten }).eq('id', id);
+async function toggleRonde(id,gesloten){await sb.from('pc_ronden').update({gesloten:!gesloten}).eq('id',id);laadRonden();}
+async function verwijderRonde(id){
+  if(!confirm('Ronde en alle data verwijderen?'))return;
+  await sb.from('pc_resultaten').delete().eq('ronde_id',id);
+  await sb.from('pc_opstellingen').delete().eq('ronde_id',id);
+  await sb.from('pc_ronden').delete().eq('id',id);
   laadRonden();
 }
 
-async function verwijderRonde(id) {
-  if (!confirm('Ronde en alle data verwijderen?')) return;
-  await sb.from('pc_resultaten').delete().eq('ronde_id', id);
-  await sb.from('pc_opstellingen').delete().eq('ronde_id', id);
-  await sb.from('pc_ronden').delete().eq('id', id);
-  laadRonden();
-}
-
-// ── RESULTATEN ──
 async function vulRondeSelect() {
-  const { data } = await sb.from('pc_ronden').select('*').order('id');
-  const sel = document.getElementById('res-ronde-select');
-  const huidig = sel.value;
-  sel.innerHTML = '<option value="">— Kies ronde —</option>';
-  if (data) data.forEach(r => {
-    const opt = document.createElement('option');
-    opt.value = r.id; opt.textContent = r.naam + (r.gesloten ? ' (gesloten)' : '');
-    sel.appendChild(opt);
+  const {data}=await sb.from('pc_ronden').select('*').order('id');
+  const sel=document.getElementById('res-ronde-select'), huidig=sel.value;
+  sel.innerHTML='<option value="">— Kies ronde —</option>';
+  if(data) data.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.naam+(r.gesloten?' (gesloten)':'');sel.appendChild(o);});
+  if(huidig) sel.value=huidig;
+}
+
+// ── CSV IMPORT ──
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  const file=e.dataTransfer.files[0];
+  if(file) handleFile(file);
+}
+
+function handleFile(file) {
+  if(!file||!file.name.endsWith('.csv')){toonMsg('import-msg','Alleen CSV bestanden.','err');return;}
+  const reader=new FileReader();
+  reader.onload=e=>parseCSV(e.target.result);
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
+  if(!lines.length){toonMsg('import-msg','Leeg bestand.','err');return;}
+
+  // Parse header
+  const header=parseCSVLine(lines[0]);
+  const col=name=>header.findIndex(h=>h.trim()===name);
+  const iFirstName=col('First Name'), iLastName=col('Last Name, FI');
+  const iLWin=col('L-Win #'), iLegs=col('Legs'), iWinPct=col('L-Win %');
+  const i180=col('180s'), iHiDO=col('Hi DO'), iLink=col('Report Link');
+
+  if(iFirstName===-1||iLastName===-1){toonMsg('import-msg','Kon de CSV niet lezen. Is dit een DartConnect export?','err');return;}
+
+  // Parse rows
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const c=parseCSVLine(lines[i]);
+    if(c.length<5) continue;
+    const fn=(c[iFirstName]||'').trim();
+    const ln=(c[iLastName]||'').trim();
+    const achternaam=ln.split(',')[0].trim();
+    if(!fn||!achternaam) continue;
+    rows.push({
+      naam: fn+' '+achternaam,
+      gewonnenLegs: parseInt(c[iLWin])||0,
+      totaalLegs: parseInt(c[iLegs])||0,
+      winPct: parseInt(c[iWinPct])||0,
+      s180: parseInt(c[i180])||0,
+      hiDO: parseFloat(c[iHiDO])||0,
+      link: (c[iLink]||'').trim()
+    });
+  }
+
+  // Per wedstrijd (2 rijen per link): bepaal winnaar
+  const matches={};
+  rows.forEach(r=>{if(r.link){if(!matches[r.link])matches[r.link]=[];matches[r.link].push(r);}});
+
+  // Koppel aan pc_spelers
+  const resultaten=[];
+  const onbekend=[];
+  Object.values(matches).forEach(spelers=>{
+    if(spelers.length!==2) return;
+    spelers.forEach(s=>{
+      const dbSpeler=matchNaam(s.naam);
+      const gewonnen=s.winPct>50;
+      const heeft180=s.s180>0;
+      const heeft100=s.hiDO>=100;
+      if(dbSpeler){
+        resultaten.push({speler_id:dbSpeler.id,naam:dbSpeler.naam,csvNaam:s.naam,gewonnen,gewonnenLegs:s.gewonnenLegs,totaalLegs:s.totaalLegs,heeft180,heeft100});
+      } else {
+        onbekend.push(s.naam);
+      }
+    });
   });
-  if (huidig) sel.value = huidig;
+
+  csvData=resultaten;
+  toonPreview(resultaten,onbekend);
 }
 
-async function laadResultatenFormulier() {
-  const rondeId = document.getElementById('res-ronde-select').value;
-  const wrap = document.getElementById('resultaten-formulier');
-  if (!rondeId) { wrap.innerHTML = ''; return; }
-  const [{ data: spelers }, { data: bestaand }] = await Promise.all([
-    sb.from('pc_spelers').select('*').order('naam'),
-    sb.from('pc_resultaten').select('*').eq('ronde_id', rondeId)
-  ]);
-  const resMap = {};
-  if (bestaand) bestaand.forEach(r => { resMap[r.speler_id] = r; });
-
-  const d1 = spelers.filter(s => s.divisie === 'Eredivisie');
-  const d2 = spelers.filter(s => s.divisie === 'Eerste Divisie');
-
-  const rijHtml = s => {
-    const r = resMap[s.id] || {};
-    const gespeeld = r.gespeeld !== false;
-    return `<div class="res-speler-row">
-      <div style="flex:1;min-width:120px;">
-        <div class="res-naam">${s.naam}</div>
-        <div style="font-size:11px;color:#f1c40f;">${'⭐'.repeat(s.rating || 3)}</div>
-      </div>
-      <div class="res-checks">
-        <label><input type="checkbox" id="res-gespeeld-${s.id}" ${gespeeld?'checked':''} onchange="toggleGespeeld(${s.id})"> Gespeeld</label>
-        <label><input type="checkbox" id="res-gewonnen-${s.id}" ${r.gewonnen?'checked':''}> Gewonnen</label>
-        <label><input type="checkbox" id="res-180-${s.id}" ${r.heeft_180?'checked':''}> 180</label>
-        <label><input type="checkbox" id="res-100-${s.id}" ${r.heeft_100plus_finish?'checked':''}> 100+ finish</label>
-      </div>
-    </div>`;
-  };
-
-  wrap.innerHTML = `
-    <div class="card"><div class="card-title">Eredivisie</div>${d1.map(rijHtml).join('')}</div>
-    <div class="card"><div class="card-title">Eerste Divisie</div>${d2.map(rijHtml).join('')}</div>
-    <button class="btn btn-success" style="width:100%;padding:13px;font-size:15px;border-radius:var(--radius);margin-bottom:14px;" onclick="slaResultatenOp(${rondeId})">Resultaten opslaan</button>`;
+function parseCSVLine(line) {
+  const result=[]; let cur='', inQ=false;
+  for(const c of line){
+    if(c==='"'){inQ=!inQ;}
+    else if(c===','&&!inQ){result.push(cur);cur='';}
+    else cur+=c;
+  }
+  result.push(cur);
+  return result;
 }
 
-function toggleGespeeld(sid) {
-  const gespeeld = document.getElementById('res-gespeeld-'+sid).checked;
-  ['gewonnen','180','100'].forEach(f => {
-    const el = document.getElementById('res-'+f+'-'+sid);
-    if (el) { el.disabled = !gespeeld; if (!gespeeld) el.checked = false; }
+function matchNaam(csvNaam) {
+  const norm=s=>s.toLowerCase().replace(/[^a-z\s]/g,'').trim();
+  const target=norm(csvNaam);
+  // Exacte match eerst
+  let match=alleSpelers.find(s=>norm(s.naam)===target);
+  if(match) return match;
+  // Voornaam + begin achternaam
+  const [fn,...rest]=csvNaam.split(' ');
+  const achternaam=rest.join(' ');
+  match=alleSpelers.find(s=>{
+    const sn=norm(s.naam), sfn=norm(fn), san=norm(achternaam);
+    return sn.startsWith(norm(fn+' ')) && (sn.includes(san)||san.includes(sn.split(' ').slice(1).join(' ')));
   });
+  return match||null;
 }
 
-async function slaResultatenOp(rondeId) {
-  const { data: spelers } = await sb.from('pc_spelers').select('id');
-  const rows = spelers.map(s => ({
-    ronde_id: rondeId, speler_id: s.id,
-    gespeeld: document.getElementById('res-gespeeld-'+s.id)?.checked || false,
-    gewonnen: document.getElementById('res-gewonnen-'+s.id)?.checked || false,
-    heeft_180: document.getElementById('res-180-'+s.id)?.checked || false,
-    heeft_100plus_finish: document.getElementById('res-100-'+s.id)?.checked || false,
+function toonPreview(resultaten,onbekend) {
+  const wrap=document.getElementById('preview-wrap');
+  const list=document.getElementById('preview-list');
+  const info=document.getElementById('preview-info');
+  info.textContent=resultaten.length+' spelers herkend'+( onbekend.length?' · '+onbekend.length+' niet gevonden (niet in spelerslijst)':'');
+
+  list.innerHTML=resultaten.map(r=>`
+    <div class="preview-row">
+      <div class="preview-naam">${r.naam} <span style="font-size:11px;color:var(--muted);">(${r.csvNaam})</span></div>
+      <div class="preview-stats">
+        <span class="stat-chip ${r.gewonnen?'stat-win':'stat-loss'}">${r.gewonnen?'Gewonnen':'Verloren'}</span>
+        <span class="stat-chip stat-legs">${r.gewonnenLegs}/${r.totaalLegs} legs</span>
+        ${r.heeft180?'<span class="stat-chip stat-180">180 ✓</span>':''}
+        ${r.heeft100?'<span class="stat-chip stat-100">100+ finish ✓</span>':''}
+      </div>
+    </div>`).join('');
+
+  if(onbekend.length){
+    list.innerHTML+=`<div style="margin-top:12px;padding:10px;background:#fde8e8;border-radius:8px;font-size:13px;color:var(--red);">
+      <strong>Niet gevonden:</strong> ${onbekend.join(', ')}</div>`;
+  }
+  wrap.style.display='block';
+}
+
+async function importeerResultaten() {
+  const rondeId=document.getElementById('res-ronde-select').value;
+  if(!rondeId){toonMsg('import-msg','Selecteer eerst een ronde.','err');return;}
+  if(!csvData.length){toonMsg('import-msg','Geen data om te importeren.','err');return;}
+
+  const rows=csvData.map(r=>({
+    ronde_id:parseInt(rondeId),
+    speler_id:r.speler_id,
+    gespeeld:true,
+    gewonnen:r.gewonnen,
+    gewonnen_legs:r.gewonnenLegs,
+    totaal_legs:r.totaalLegs,
+    heeft_180:r.heeft180,
+    heeft_100plus_finish:r.heeft100
   }));
-  const { error } = await sb.from('pc_resultaten').upsert(rows, { onConflict: 'ronde_id,speler_id' });
-  if (error) toonMsg('res-msg','Fout: '+error.message,'err');
-  else toonMsg('res-msg','Resultaten opgeslagen ✓','ok');
+
+  const {error}=await sb.from('pc_resultaten').upsert(rows,{onConflict:'ronde_id,speler_id'});
+  if(error) toonMsg('import-msg','Fout: '+error.message,'err');
+  else {
+    toonMsg('import-msg',csvData.length+' resultaten geïmporteerd ✓','ok');
+    document.getElementById('preview-wrap').style.display='none';
+    csvData=[];
+  }
 }
 
 // ── SPELERS ──
-async function laadSpelers() {
-  const { data } = await sb.from('pc_spelers').select('*').order('divisie').order('naam');
-  const tbody = document.getElementById('spelers-lijst');
-  if (!data) return;
-  tbody.innerHTML = data.map(s => {
-    const rating = s.rating || 3;
-    const sterrenHtml = [1,2,3,4,5].map(n =>
-      `<button onclick="setRating(${s.id},${n})" class="${n <= rating ? 'aan' : ''}">⭐</button>`
-    ).join('');
-    return `<tr>
-      <td>${s.naam}</td>
+async function laadSpelersData() {
+  const {data}=await sb.from('pc_spelers').select('*').order('divisie').order('naam');
+  if(data) alleSpelers=data;
+  const tbody=document.getElementById('spelers-lijst');
+  if(!tbody||!data) return;
+  tbody.innerHTML=data.map(s=>{
+    const rating=s.rating||3;
+    const sterren=[1,2,3,4,5].map(n=>`<button onclick="setRating(${s.id},${n})" class="${n<=rating?'aan':''}" >⭐</button>`).join('');
+    return `<tr><td>${s.naam}</td>
       <td><span class="badge ${s.divisie==='Eredivisie'?'badge-ere':'badge-eer'}">${s.divisie}</span></td>
-      <td><div class="star-select" id="stars-${s.id}">${sterrenHtml}</div></td>
-      <td><button class="btn-sm danger" onclick="verwijderSpeler(${s.id})">Verwijder</button></td>
-    </tr>`;
+      <td><div class="star-select" id="stars-${s.id}">${sterren}</div></td>
+      <td><button class="btn-sm danger" onclick="verwijderSpeler(${s.id})">Verwijder</button></td></tr>`;
   }).join('');
 }
 
-async function setRating(spelerId, rating) {
-  await sb.from('pc_spelers').update({ rating }).eq('id', spelerId);
-  // Update sterren UI direct
-  const wrap = document.getElementById('stars-'+spelerId);
-  if (wrap) {
-    wrap.querySelectorAll('button').forEach((btn, i) => {
-      btn.className = i < rating ? 'aan' : '';
-    });
-  }
-  toonMsg('speler-msg', 'Rating opgeslagen ✓', 'ok');
+async function setRating(spelerId,rating) {
+  await sb.from('pc_spelers').update({rating}).eq('id',spelerId);
+  const wrap=document.getElementById('stars-'+spelerId);
+  if(wrap) wrap.querySelectorAll('button').forEach((b,i)=>{b.className=i<rating?'aan':'';});
+  // Update lokale cache
+  const sp=alleSpelers.find(s=>s.id===spelerId);
+  if(sp) sp.rating=rating;
+  toonMsg('speler-msg','Rating opgeslagen ✓','ok');
 }
 
 async function voegSpelerToe() {
-  const naam = document.getElementById('sp-naam').value.trim();
-  const divisie = document.getElementById('sp-div').value;
-  const rating = parseInt(document.getElementById('sp-rating').value);
-  if (!naam) { toonMsg('speler-msg','Vul een naam in.','err'); return; }
-  const { error } = await sb.from('pc_spelers').insert({ naam, divisie, rating });
-  if (error) toonMsg('speler-msg','Fout: '+error.message,'err');
-  else { toonMsg('speler-msg',naam+' toegevoegd ✓','ok'); document.getElementById('sp-naam').value=''; laadSpelers(); }
+  const naam=document.getElementById('sp-naam').value.trim();
+  const divisie=document.getElementById('sp-div').value;
+  const rating=parseInt(document.getElementById('sp-rating').value);
+  if(!naam){toonMsg('speler-msg','Vul een naam in.','err');return;}
+  const {error}=await sb.from('pc_spelers').insert({naam,divisie,rating});
+  if(error) toonMsg('speler-msg','Fout: '+error.message,'err');
+  else{toonMsg('speler-msg',naam+' toegevoegd ✓','ok');document.getElementById('sp-naam').value='';laadSpelersData();}
 }
 
 async function verwijderSpeler(id) {
-  if (!confirm('Speler verwijderen?')) return;
-  await sb.from('pc_resultaten').delete().eq('speler_id', id);
-  await sb.from('pc_opstellingen').delete().eq('speler_id', id);
-  await sb.from('pc_spelers').delete().eq('id', id);
-  laadSpelers();
+  if(!confirm('Speler verwijderen?'))return;
+  await sb.from('pc_resultaten').delete().eq('speler_id',id);
+  await sb.from('pc_opstellingen').delete().eq('speler_id',id);
+  await sb.from('pc_spelers').delete().eq('id',id);
+  laadSpelersData();
 }
 
-// ── UI ──
-function showTab(id, btn) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
-  btn.classList.add('active');
+function showTab(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active'); btn.classList.add('active');
 }
 
-function toonMsg(elId, tekst, type) {
-  const el = document.getElementById(elId);
-  el.innerHTML = `<div class="msg ${type}">${tekst}</div>`;
-  setTimeout(() => el.innerHTML = '', 4000);
+function toonMsg(elId,tekst,type){
+  const el=document.getElementById(elId);
+  el.innerHTML=`<div class="msg ${type}">${tekst}</div>`;
+  setTimeout(()=>el.innerHTML='',5000);
 }
 
-if (sessionStorage.getItem('pc_beheer')) {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display = 'block';
+if(sessionStorage.getItem('pc_beheer')){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
   laadAlles();
-} else {
-  document.getElementById('login-screen').style.display = 'block';
-}
+} else { document.getElementById('login-screen').style.display='block'; }
 </script>
 </body>
 </html>
