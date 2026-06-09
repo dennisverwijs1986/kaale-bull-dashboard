@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Coach — Beheer 🎯</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --accent: #1a1a2e; --accent2: #e94560; --bg: #f4f4f6;
+  --card: #fff; --text: #1a1a2e; --muted: #777; --border: #e2e2e6;
+  --green: #27ae60; --orange: #e67e22; --red: #e74c3c; --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+
+.header { background: var(--accent); color: #fff; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 18px; font-weight: 700; }
+.logout-btn { background: none; border: 1px solid rgba(255,255,255,.4); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 20px; cursor: pointer; }
+
+.nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; }
+.nav button { flex: 1; min-width: 90px; padding: 12px 8px; border: none; background: none; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+.nav button.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+.page { display: none; padding: 16px; max-width: 750px; margin: 0 auto; }
+.page.active { display: block; }
+
+.card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 14px; }
+.card-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; }
+
+.form-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.form-row input, .form-row select { flex: 1; min-width: 120px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; }
+.form-row input:focus, .form-row select:focus { border-color: var(--accent2); }
+.btn { padding: 10px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn-primary { background: var(--accent2); color: #fff; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
+.btn-sm.danger { background: #fde8e8; color: var(--red); }
+.btn-sm.ok { background: #e8f8f0; color: var(--green); }
+.btn-sm.edit { background: #e8f0fe; color: #1a3a7a; }
+
+.tabel { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabel th { text-align: left; padding: 8px 10px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid var(--border); }
+.tabel td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tabel tr:last-child td { border-bottom: none; }
+.tabel tr:hover td { background: #fafafa; }
+
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+.badge-open { background: #e8f8f0; color: var(--green); }
+.badge-gesloten { background: #fde8e8; color: var(--red); }
+.badge-ere { background: #e8f0fe; color: #1a3a7a; }
+.badge-eer { background: #f0e8fe; color: #6a1a7a; }
+
+.msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; font-weight: 500; }
+.msg.ok { background: #e8f8f0; color: #1a7a45; }
+.msg.err { background: #fde8e8; color: #c0392b; }
+
+.res-speler-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+.res-speler-row:last-child { border-bottom: none; }
+.res-naam { font-size: 14px; font-weight: 500; flex: 1; min-width: 120px; }
+.res-checks { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.res-checks label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
+.res-checks input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+
+/* STERREN RATING */
+.star-select { display: flex; gap: 4px; }
+.star-select button { background: none; border: none; font-size: 20px; cursor: pointer; padding: 2px; line-height: 1; opacity: .3; transition: opacity .15s; }
+.star-select button.aan { opacity: 1; }
+.star-select button:hover { opacity: .7; }
+
+.login-wrap { max-width: 360px; margin: 80px auto; }
+.login-wrap h2 { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px; }
+.form-group input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 15px; outline: none; }
+.primary-btn { width: 100%; padding: 12px; background: var(--accent2); color: #fff; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; }
+.section-info { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div id="login-screen" style="padding:16px;">
+  <div class="login-wrap">
+    <div style="font-size:36px;margin-bottom:12px;">🎯</div>
+    <h2>Pro Coach Beheer</h2>
+    <div id="login-msg"></div>
+    <div class="form-group">
+      <label>Wachtwoord</label>
+      <input type="password" id="beheer-ww" placeholder="••••••" />
+    </div>
+    <button class="primary-btn" onclick="loginBeheer()">Inloggen</button>
+  </div>
+</div>
+
+<div id="app-screen" style="display:none;">
+  <div class="header">
+    <h1>🎯 Pro Coach — Beheer</h1>
+    <button class="logout-btn" onclick="logoutBeheer()">Uitloggen</button>
+  </div>
+  <nav class="nav">
+    <button class="active" onclick="showTab('coaches',this)">Coaches</button>
+    <button onclick="showTab('ronden',this)">Ronden</button>
+    <button onclick="showTab('resultaten',this)">Resultaten</button>
+    <button onclick="showTab('spelers',this)">Spelers</button>
+  </nav>
+
+  <!-- COACHES -->
+  <div id="tab-coaches" class="page active">
+    <div class="card">
+      <div class="card-title">Nieuw account aanmaken</div>
+      <p class="section-info">Maak hier een account aan voor elk lid. Pincode is 4 cijfers.</p>
+      <div id="coach-msg"></div>
+      <div class="form-row">
+        <input type="text" id="nieuw-naam" placeholder="Naam lid..." />
+        <input type="text" inputmode="numeric" maxlength="4" id="nieuw-pin" placeholder="Pincode (4 cijfers)" />
+        <button class="btn btn-primary" onclick="maakCoach()">Aanmaken</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Bestaande coaches</div>
+      <table class="tabel">
+        <thead><tr><th>Naam</th><th>Rol</th><th>Pincode wijzigen</th><th></th></tr></thead>
+        <tbody id="coaches-lijst"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RONDEN -->
+  <div id="tab-ronden" class="page">
+    <div class="card">
+      <div class="card-title">Nieuwe ronde aanmaken</div>
+      <div id="ronde-msg"></div>
+      <div class="form-row">
+        <input type="text" id="ronde-naam" placeholder="Naam (bijv. Ronde 5)" />
+        <input type="date" id="ronde-datum" />
+        <input type="datetime-local" id="ronde-deadline" />
+        <button class="btn btn-primary" onclick="maakRonde()">Aanmaken</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Alle ronden</div>
+      <table class="tabel">
+        <thead><tr><th>Naam</th><th>Datum</th><th>Deadline</th><th>Status</th><th></th></tr></thead>
+        <tbody id="ronden-lijst"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RESULTATEN -->
+  <div id="tab-resultaten" class="page">
+    <div class="card">
+      <div class="card-title">Selecteer ronde</div>
+      <div class="form-row">
+        <select id="res-ronde-select" onchange="laadResultatenFormulier()">
+          <option value="">— Kies ronde —</option>
+        </select>
+      </div>
+    </div>
+    <div id="resultaten-formulier"></div>
+    <div id="res-msg"></div>
+  </div>
+
+  <!-- SPELERS -->
+  <div id="tab-spelers" class="page">
+    <div class="card">
+      <div class="card-title">Speler toevoegen</div>
+      <p class="section-info">Stel per speler ook de rating in (1–5 sterren). Dit bepaalt de budgetkosten.</p>
+      <div id="speler-msg"></div>
+      <div class="form-row">
+        <input type="text" id="sp-naam" placeholder="Naam speler..." />
+        <select id="sp-div">
+          <option value="Eredivisie">Eredivisie</option>
+          <option value="Eerste Divisie">Eerste Divisie</option>
+        </select>
+        <select id="sp-rating">
+          <option value="1">⭐ (1 pt)</option>
+          <option value="2">⭐⭐ (2 pts)</option>
+          <option value="3" selected>⭐⭐⭐ (3 pts)</option>
+          <option value="4">⭐⭐⭐⭐ (4 pts)</option>
+          <option value="5">⭐⭐⭐⭐⭐ (5 pts)</option>
+        </select>
+        <button class="btn btn-primary" onclick="voegSpelerToe()">Toevoegen</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Spelerslijst — ratings instellen</div>
+      <p class="section-info">Klik op de sterren om de rating van een speler te wijzigen. Wordt direct opgeslagen.</p>
+      <table class="tabel">
+        <thead><tr><th>Naam</th><th>Divisie</th><th>Rating</th><th></th></tr></thead>
+        <tbody id="spelers-lijst"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const BEHEER_HASH = '5c0c492c62ae7ea682a2c4dfef59b49d7ee36548991f944fa258a0e0be424729';
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function loginBeheer() {
+  const ww = document.getElementById('beheer-ww').value;
+  const hash = await sha256(ww);
+  if (hash !== BEHEER_HASH) { toonMsg('login-msg','Wachtwoord klopt niet.','err'); return; }
+  sessionStorage.setItem('pc_beheer', '1');
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  laadAlles();
+}
+
+function logoutBeheer() {
+  sessionStorage.removeItem('pc_beheer');
+  document.getElementById('login-screen').style.display = 'block';
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('beheer-ww').value = '';
+}
+
+async function laadAlles() {
+  await Promise.all([laadCoaches(), laadRonden(), laadSpelers(), vulRondeSelect()]);
+}
+
+// ── COACHES ──
+async function laadCoaches() {
+  const { data } = await sb.from('pc_coaches').select('*').order('naam');
+  const tbody = document.getElementById('coaches-lijst');
+  tbody.innerHTML = data ? data.map(c => `
+    <tr>
+      <td>${c.naam}</td>
+      <td><span class="badge ${c.is_beheerder ? 'badge-ere' : 'badge-eer'}">${c.is_beheerder ? 'Beheerder' : 'Coach'}</span></td>
+      <td>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" inputmode="numeric" maxlength="4" id="pin-${c.id}" placeholder="Nieuwe pin" style="width:110px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;" />
+          <button class="btn-sm edit" onclick="wijzigPin(${c.id})">Opslaan</button>
+        </div>
+      </td>
+      <td>${!c.is_beheerder ? `<button class="btn-sm danger" onclick="verwijderCoach(${c.id})">Verwijder</button>` : ''}</td>
+    </tr>`).join('') : '';
+}
+
+async function maakCoach() {
+  const naam = document.getElementById('nieuw-naam').value.trim();
+  const pin = document.getElementById('nieuw-pin').value.trim();
+  if (!naam || pin.length !== 4 || isNaN(pin)) { toonMsg('coach-msg','Vul naam en 4-cijferige pincode in.','err'); return; }
+  const hash = await sha256(pin);
+  const { error } = await sb.from('pc_coaches').insert({ naam, pincode_hash: hash, is_beheerder: false });
+  if (error) toonMsg('coach-msg','Fout: ' + error.message,'err');
+  else { toonMsg('coach-msg', naam + ' aangemaakt ✓','ok'); document.getElementById('nieuw-naam').value=''; document.getElementById('nieuw-pin').value=''; laadCoaches(); }
+}
+
+async function wijzigPin(id) {
+  const pin = document.getElementById('pin-'+id).value.trim();
+  if (pin.length !== 4 || isNaN(pin)) { alert('Vul een geldige 4-cijferige pincode in.'); return; }
+  const hash = await sha256(pin);
+  await sb.from('pc_coaches').update({ pincode_hash: hash }).eq('id', id);
+  toonMsg('coach-msg','Pincode gewijzigd ✓','ok');
+  document.getElementById('pin-'+id).value = '';
+}
+
+async function verwijderCoach(id) {
+  if (!confirm('Coach verwijderen?')) return;
+  await sb.from('pc_opstellingen').delete().eq('coach_id', id);
+  await sb.from('pc_coaches').delete().eq('id', id);
+  laadCoaches();
+}
+
+// ── RONDEN ──
+async function laadRonden() {
+  const { data } = await sb.from('pc_ronden').select('*').order('id');
+  const tbody = document.getElementById('ronden-lijst');
+  tbody.innerHTML = data ? data.map(r => {
+    const datum = r.datum ? new Date(r.datum).toLocaleDateString('nl-NL') : '—';
+    const deadline = r.deadline ? new Date(r.deadline).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `<tr>
+      <td><strong>${r.naam}</strong></td>
+      <td>${datum}</td>
+      <td>${deadline}</td>
+      <td><span class="badge ${r.gesloten ? 'badge-gesloten' : 'badge-open'}">${r.gesloten ? 'Gesloten' : 'Open'}</span></td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn-sm ${r.gesloten ? 'ok' : 'danger'}" onclick="toggleRonde(${r.id}, ${r.gesloten})">${r.gesloten ? 'Openen' : 'Sluiten'}</button>
+        <button class="btn-sm danger" onclick="verwijderRonde(${r.id})">✕</button>
+      </td>
+    </tr>`;
+  }).join('') : '';
+  await vulRondeSelect();
+}
+
+async function maakRonde() {
+  const naam = document.getElementById('ronde-naam').value.trim();
+  const datum = document.getElementById('ronde-datum').value;
+  const deadline = document.getElementById('ronde-deadline').value;
+  if (!naam) { toonMsg('ronde-msg','Vul een naam in.','err'); return; }
+  const { error } = await sb.from('pc_ronden').insert({ naam, datum: datum||null, deadline: deadline||null, gesloten: false });
+  if (error) toonMsg('ronde-msg','Fout: '+error.message,'err');
+  else { toonMsg('ronde-msg',naam+' aangemaakt ✓','ok'); document.getElementById('ronde-naam').value=''; laadRonden(); }
+}
+
+async function toggleRonde(id, gesloten) {
+  await sb.from('pc_ronden').update({ gesloten: !gesloten }).eq('id', id);
+  laadRonden();
+}
+
+async function verwijderRonde(id) {
+  if (!confirm('Ronde en alle data verwijderen?')) return;
+  await sb.from('pc_resultaten').delete().eq('ronde_id', id);
+  await sb.from('pc_opstellingen').delete().eq('ronde_id', id);
+  await sb.from('pc_ronden').delete().eq('id', id);
+  laadRonden();
+}
+
+// ── RESULTATEN ──
+async function vulRondeSelect() {
+  const { data } = await sb.from('pc_ronden').select('*').order('id');
+  const sel = document.getElementById('res-ronde-select');
+  const huidig = sel.value;
+  sel.innerHTML = '<option value="">— Kies ronde —</option>';
+  if (data) data.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id; opt.textContent = r.naam + (r.gesloten ? ' (gesloten)' : '');
+    sel.appendChild(opt);
+  });
+  if (huidig) sel.value = huidig;
+}
+
+async function laadResultatenFormulier() {
+  const rondeId = document.getElementById('res-ronde-select').value;
+  const wrap = document.getElementById('resultaten-formulier');
+  if (!rondeId) { wrap.innerHTML = ''; return; }
+  const [{ data: spelers }, { data: bestaand }] = await Promise.all([
+    sb.from('pc_spelers').select('*').order('naam'),
+    sb.from('pc_resultaten').select('*').eq('ronde_id', rondeId)
+  ]);
+  const resMap = {};
+  if (bestaand) bestaand.forEach(r => { resMap[r.speler_id] = r; });
+
+  const d1 = spelers.filter(s => s.divisie === 'Eredivisie');
+  const d2 = spelers.filter(s => s.divisie === 'Eerste Divisie');
+
+  const rijHtml = s => {
+    const r = resMap[s.id] || {};
+    const gespeeld = r.gespeeld !== false;
+    return `<div class="res-speler-row">
+      <div style="flex:1;min-width:120px;">
+        <div class="res-naam">${s.naam}</div>
+        <div style="font-size:11px;color:#f1c40f;">${'⭐'.repeat(s.rating || 3)}</div>
+      </div>
+      <div class="res-checks">
+        <label><input type="checkbox" id="res-gespeeld-${s.id}" ${gespeeld?'checked':''} onchange="toggleGespeeld(${s.id})"> Gespeeld</label>
+        <label><input type="checkbox" id="res-gewonnen-${s.id}" ${r.gewonnen?'checked':''}> Gewonnen</label>
+        <label><input type="checkbox" id="res-180-${s.id}" ${r.heeft_180?'checked':''}> 180</label>
+        <label><input type="checkbox" id="res-100-${s.id}" ${r.heeft_100plus_finish?'checked':''}> 100+ finish</label>
+      </div>
+    </div>`;
+  };
+
+  wrap.innerHTML = `
+    <div class="card"><div class="card-title">Eredivisie</div>${d1.map(rijHtml).join('')}</div>
+    <div class="card"><div class="card-title">Eerste Divisie</div>${d2.map(rijHtml).join('')}</div>
+    <button class="btn btn-success" style="width:100%;padding:13px;font-size:15px;border-radius:var(--radius);margin-bottom:14px;" onclick="slaResultatenOp(${rondeId})">Resultaten opslaan</button>`;
+}
+
+function toggleGespeeld(sid) {
+  const gespeeld = document.getElementById('res-gespeeld-'+sid).checked;
+  ['gewonnen','180','100'].forEach(f => {
+    const el = document.getElementById('res-'+f+'-'+sid);
+    if (el) { el.disabled = !gespeeld; if (!gespeeld) el.checked = false; }
+  });
+}
+
+async function slaResultatenOp(rondeId) {
+  const { data: spelers } = await sb.from('pc_spelers').select('id');
+  const rows = spelers.map(s => ({
+    ronde_id: rondeId, speler_id: s.id,
+    gespeeld: document.getElementById('res-gespeeld-'+s.id)?.checked || false,
+    gewonnen: document.getElementById('res-gewonnen-'+s.id)?.checked || false,
+    heeft_180: document.getElementById('res-180-'+s.id)?.checked || false,
+    heeft_100plus_finish: document.getElementById('res-100-'+s.id)?.checked || false,
+  }));
+  const { error } = await sb.from('pc_resultaten').upsert(rows, { onConflict: 'ronde_id,speler_id' });
+  if (error) toonMsg('res-msg','Fout: '+error.message,'err');
+  else toonMsg('res-msg','Resultaten opgeslagen ✓','ok');
+}
+
+// ── SPELERS ──
+async function laadSpelers() {
+  const { data } = await sb.from('pc_spelers').select('*').order('divisie').order('naam');
+  const tbody = document.getElementById('spelers-lijst');
+  if (!data) return;
+  tbody.innerHTML = data.map(s => {
+    const rating = s.rating || 3;
+    const sterrenHtml = [1,2,3,4,5].map(n =>
+      `<button onclick="setRating(${s.id},${n})" class="${n <= rating ? 'aan' : ''}">⭐</button>`
+    ).join('');
+    return `<tr>
+      <td>${s.naam}</td>
+      <td><span class="badge ${s.divisie==='Eredivisie'?'badge-ere':'badge-eer'}">${s.divisie}</span></td>
+      <td><div class="star-select" id="stars-${s.id}">${sterrenHtml}</div></td>
+      <td><button class="btn-sm danger" onclick="verwijderSpeler(${s.id})">Verwijder</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function setRating(spelerId, rating) {
+  await sb.from('pc_spelers').update({ rating }).eq('id', spelerId);
+  // Update sterren UI direct
+  const wrap = document.getElementById('stars-'+spelerId);
+  if (wrap) {
+    wrap.querySelectorAll('button').forEach((btn, i) => {
+      btn.className = i < rating ? 'aan' : '';
+    });
+  }
+  toonMsg('speler-msg', 'Rating opgeslagen ✓', 'ok');
+}
+
+async function voegSpelerToe() {
+  const naam = document.getElementById('sp-naam').value.trim();
+  const divisie = document.getElementById('sp-div').value;
+  const rating = parseInt(document.getElementById('sp-rating').value);
+  if (!naam) { toonMsg('speler-msg','Vul een naam in.','err'); return; }
+  const { error } = await sb.from('pc_spelers').insert({ naam, divisie, rating });
+  if (error) toonMsg('speler-msg','Fout: '+error.message,'err');
+  else { toonMsg('speler-msg',naam+' toegevoegd ✓','ok'); document.getElementById('sp-naam').value=''; laadSpelers(); }
+}
+
+async function verwijderSpeler(id) {
+  if (!confirm('Speler verwijderen?')) return;
+  await sb.from('pc_resultaten').delete().eq('speler_id', id);
+  await sb.from('pc_opstellingen').delete().eq('speler_id', id);
+  await sb.from('pc_spelers').delete().eq('id', id);
+  laadSpelers();
+}
+
+// ── UI ──
+function showTab(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function toonMsg(elId, tekst, type) {
+  const el = document.getElementById(elId);
+  el.innerHTML = `<div class="msg ${type}">${tekst}</div>`;
+  setTimeout(() => el.innerHTML = '', 4000);
+}
+
+if (sessionStorage.getItem('pc_beheer')) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  laadAlles();
+} else {
+  document.getElementById('login-screen').style.display = 'block';
+}
+</script>
+</body>
+</html>
