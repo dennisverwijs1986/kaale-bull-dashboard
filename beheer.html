@@ -144,16 +144,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <!-- RESULTATEN -->
   <div id="tab-resultaten" class="page">
     <div class="card">
-      <div class="card-title">Stap 1 — Selecteer ronde</div>
-      <div class="form-row">
-        <select id="res-ronde-select">
-          <option value="">— Kies ronde —</option>
-        </select>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Stap 2 — Upload DartConnect CSV</div>
-      <p class="section-info">Download de wedstrijdexport uit DartConnect en upload die hier. Winnaars, legs, 180's en 100+ finishes worden automatisch verwerkt.</p>
+      <div class="card-title">Upload DartConnect CSV</div>
+      <p class="section-info">Upload de seizoensexport uit DartConnect. Het systeem koppelt elke wedstrijd automatisch aan de juiste ronde via de wedstrijdenplanning.</p>
       <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-input').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
         <input type="file" id="csv-input" accept=".csv" onchange="handleFile(this.files[0])" />
         <div class="icon">📂</div>
@@ -209,7 +201,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const BEHEER_HASH = '5c0c492c62ae7ea682a2c4dfef59b49d7ee36548991f944fa258a0e0be424729';
 
-let csvData = []; // parsed CSV ready to import
+let csvData = [], csvLinks = []; // parsed CSV ready to import
 let alleSpelers = [];
 
 async function sha256(str) {
@@ -326,11 +318,11 @@ function handleDrop(e) {
 function handleFile(file) {
   if(!file||!file.name.endsWith('.csv')){toonMsg('import-msg','Alleen CSV bestanden.','err');return;}
   const reader=new FileReader();
-  reader.onload=e=>parseCSV(e.target.result);
+  reader.onload=async e=>await parseCSV(e.target.result);
   reader.readAsText(file);
 }
 
-function parseCSV(text) {
+async function parseCSV(text) {
   const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
   if(!lines.length){toonMsg('import-msg','Leeg bestand.','err');return;}
 
@@ -363,30 +355,88 @@ function parseCSV(text) {
     });
   }
 
-  // Per wedstrijd (2 rijen per link): bepaal winnaar
+  // Per wedstrijd (2 rijen per link): eerste rij = thuis, tweede rij = uit
   const matches={};
-  rows.forEach(r=>{if(r.link){if(!matches[r.link])matches[r.link]=[];matches[r.link].push(r);}});
+  rows.forEach(r=>{
+    if(r.link){
+      if(!matches[r.link]) matches[r.link]=[];
+      matches[r.link].push(r);
+    }
+  });
 
-  // Koppel aan pc_spelers
-  const resultaten=[];
-  const onbekend=[];
-  Object.values(matches).forEach(spelers=>{
+  // Haal al geimporteerde links op
+  const alleLinks=Object.keys(matches);
+  const {data:bestaandeLinks}=await sb.from('pc_geimporteerde_matches').select('report_link').in('report_link',alleLinks);
+  const alGedaan=new Set((bestaandeLinks||[]).map(r=>r.report_link));
+
+  // Haal wedstrijdenplanning op uit Supabase
+  const {data:planning}=await sb.from('wedstrijden').select('thuis,uit,speelronde');
+  if(!planning){toonMsg('import-msg','Kon wedstrijdenplanning niet ophalen.','err');return;}
+
+  // Zorg dat pc_ronden bestaan voor alle speelrondes
+  const {data:bestaandeRonden}=await sb.from('pc_ronden').select('id,naam');
+  const rondenMap={}; // speelronde nummer -> pc_ronden id
+  (bestaandeRonden||[]).forEach(r=>{
+    const num=r.naam.replace('Ronde ','').trim();
+    rondenMap[num]=r.id;
+  });
+
+  // Maak ontbrekende rondes aan
+  const alleRondes=[...new Set(planning.map(w=>w.speelronde))].sort((a,b)=>parseInt(a)-parseInt(b));
+  const ontbrekend=alleRondes.filter(r=>!rondenMap[r]);
+  if(ontbrekend.length){
+    const {data:nieuweRonden}=await sb.from('pc_ronden').insert(
+      ontbrekend.map(r=>({naam:'Ronde '+r,gesloten:false}))
+    ).select();
+    (nieuweRonden||[]).forEach(r=>{
+      const num=r.naam.replace('Ronde ','').trim();
+      rondenMap[num]=r.id;
+    });
+  }
+
+  // Koppel aan pc_spelers en wedstrijdenplanning
+  const resultaten=[], onbekend=[], overgeslagen=[], nietGevonden=[];
+  Object.entries(matches).forEach(([link,spelers])=>{
     if(spelers.length!==2) return;
-    spelers.forEach(s=>{
+    if(alGedaan.has(link)){overgeslagen.push(link);return;}
+
+    const thuisSpeler=spelers[0]; // eerste rij = thuis
+    const uitSpeler=spelers[1];   // tweede rij = uit
+
+    const thuisNorm=normNaam(thuisSpeler.naam);
+    const uitNorm=normNaam(uitSpeler.naam);
+
+    // Zoek wedstrijd in planning
+    const wedstrijd=planning.find(w=>
+      normNaam(w.thuis)===thuisNorm && normNaam(w.uit)===uitNorm
+    );
+
+    if(!wedstrijd){
+      nietGevonden.push(thuisSpeler.naam+' vs '+uitSpeler.naam);
+      return;
+    }
+
+    const rondeId=rondenMap[String(wedstrijd.speelronde)];
+    if(!rondeId) return;
+
+    [thuisSpeler, uitSpeler].forEach(s=>{
       const dbSpeler=matchNaam(s.naam);
-      const gewonnen=s.winPct>50;
-      const heeft180=s.s180>0;
-      const heeft100=s.hiDO>=100;
       if(dbSpeler){
-        resultaten.push({speler_id:dbSpeler.id,naam:dbSpeler.naam,csvNaam:s.naam,gewonnen,gewonnenLegs:s.gewonnenLegs,totaalLegs:s.totaalLegs,heeft180,heeft100});
+        resultaten.push({
+          speler_id:dbSpeler.id, naam:dbSpeler.naam, csvNaam:s.naam,
+          gewonnen:s.winPct>50, gewonnenLegs:s.gewonnenLegs,
+          totaalLegs:s.totaalLegs, heeft180:s.s180>0,
+          heeft100:s.hiDO>=100, link, rondeId
+        });
       } else {
-        onbekend.push(s.naam);
+        if(!onbekend.includes(s.naam)) onbekend.push(s.naam);
       }
     });
   });
 
   csvData=resultaten;
-  toonPreview(resultaten,onbekend);
+  csvLinks=[...new Set(resultaten.map(r=>r.link))];
+  toonPreview(resultaten,onbekend,overgeslagen,nietGevonden);
 }
 
 function parseCSVLine(line) {
@@ -398,6 +448,10 @@ function parseCSVLine(line) {
   }
   result.push(cur);
   return result;
+}
+
+function normNaam(naam) {
+  return (naam||'').toLowerCase().replace(/[^a-z\s]/g,'').trim();
 }
 
 function matchNaam(csvNaam) {
@@ -416,22 +470,41 @@ function matchNaam(csvNaam) {
   return match||null;
 }
 
-function toonPreview(resultaten,onbekend) {
+function toonPreview(resultaten,onbekend,overgeslagen=[],nietGevonden=[]) {
   const wrap=document.getElementById('preview-wrap');
   const list=document.getElementById('preview-list');
   const info=document.getElementById('preview-info');
-  info.textContent=resultaten.length+' spelers herkend'+( onbekend.length?' · '+onbekend.length+' niet gevonden (niet in spelerslijst)':'');
+  const nieuw=[...new Set(resultaten.map(r=>r.link))].length;
+  // Groepeer per ronde voor overzicht
+  const perRonde={};
+  resultaten.forEach(r=>{
+    if(!perRonde[r.rondeId]) perRonde[r.rondeId]=[];
+    perRonde[r.rondeId].push(r);
+  });
+  const aantalRondes=Object.keys(perRonde).length;
+  info.textContent=nieuw+' nieuwe wedstrijden in '+aantalRondes+' ronde(s)'
+    +(overgeslagen.length?' · '+overgeslagen.length+' overgeslagen (al geïmporteerd)':'')
+    +(onbekend.length?' · '+onbekend.length+' spelers niet herkend':'')
+    +(nietGevonden.length?' · '+nietGevonden.length+' wedstrijden niet in planning':'');
 
-  list.innerHTML=resultaten.map(r=>`
-    <div class="preview-row">
-      <div class="preview-naam">${r.naam} <span style="font-size:11px;color:var(--muted);">(${r.csvNaam})</span></div>
-      <div class="preview-stats">
-        <span class="stat-chip ${r.gewonnen?'stat-win':'stat-loss'}">${r.gewonnen?'Gewonnen':'Verloren'}</span>
-        <span class="stat-chip stat-legs">${r.gewonnenLegs}/${r.totaalLegs} legs</span>
-        ${r.heeft180?'<span class="stat-chip stat-180">180 ✓</span>':''}
-        ${r.heeft100?'<span class="stat-chip stat-100">100+ finish ✓</span>':''}
-      </div>
-    </div>`).join('');
+  // Groepeer per ronde in preview
+  const perRonde={};
+  resultaten.forEach(r=>{if(!perRonde[r.rondeId])perRonde[r.rondeId]=[];perRonde[r.rondeId].push(r);});
+  let html='';
+  Object.entries(perRonde).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(([rondeId,spelers])=>{
+    html+=`<div style="font-size:11px;font-weight:700;color:var(--accent2);text-transform:uppercase;padding:10px 0 4px;letter-spacing:.06em;">Ronde ${rondeId}</div>`;
+    html+=spelers.map(r=>`
+      <div class="preview-row">
+        <div class="preview-naam">${r.naam}</div>
+        <div class="preview-stats">
+          <span class="stat-chip ${r.gewonnen?'stat-win':'stat-loss'}">${r.gewonnen?'Gewonnen':'Verloren'}</span>
+          <span class="stat-chip stat-legs">${r.gewonnenLegs}/${r.totaalLegs} legs</span>
+          ${r.heeft180?'<span class="stat-chip stat-180">180 ✓</span>':''}
+          ${r.heeft100?'<span class="stat-chip stat-100">100+ finish ✓</span>':''}
+        </div>
+      </div>`).join('');
+  });
+  list.innerHTML=html;
 
   if(onbekend.length){
     list.innerHTML+=`<div style="margin-top:12px;padding:10px;background:#fde8e8;border-radius:8px;font-size:13px;color:var(--red);">
@@ -441,8 +514,6 @@ function toonPreview(resultaten,onbekend) {
 }
 
 async function importeerResultaten() {
-  const rondeId=document.getElementById('res-ronde-select').value;
-  if(!rondeId){toonMsg('import-msg','Selecteer eerst een ronde.','err');return;}
   if(!csvData.length){toonMsg('import-msg','Geen data om te importeren.','err');return;}
 
   const rows=csvData.map(r=>({
@@ -457,12 +528,18 @@ async function importeerResultaten() {
   }));
 
   const {error}=await sb.from('pc_resultaten').upsert(rows,{onConflict:'ronde_id,speler_id'});
-  if(error) toonMsg('import-msg','Fout: '+error.message,'err');
-  else {
-    toonMsg('import-msg',csvData.length+' resultaten geïmporteerd ✓','ok');
-    document.getElementById('preview-wrap').style.display='none';
-    csvData=[];
+  if(error){toonMsg('import-msg','Fout: '+error.message,'err');return;}
+
+  // Sla geimporteerde links op zodat ze niet dubbel worden verwerkt
+  if(csvLinks.length){
+    const linkRows=csvLinks.map(link=>({report_link:link,ronde_id:parseInt(rondeId)}));
+    await sb.from('pc_geimporteerde_matches').upsert(linkRows,{onConflict:'report_link'});
   }
+
+  const aantalWedstrijden=csvLinks.length;
+  toonMsg('import-msg',aantalWedstrijden+' wedstrijden geïmporteerd ✓','ok');
+  document.getElementById('preview-wrap').style.display='none';
+  csvData=[]; csvLinks=[];
 }
 
 // ── SPELERS ──
