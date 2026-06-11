@@ -169,8 +169,8 @@ function render(rows, filename) {
   const divsHtml = divisions.map((div, di) => {
     const pp = players.filter(p => p.div === div);
 
-    // 1. Ranglijst: iedereen met ≥1 180, gesorteerd op 180 desc
-    const ranglijst = [...pp].filter(p => p.s180 > 0)
+    // 1. Ranglijst: ALLE spelers, gesorteerd op 180 desc
+    const ranglijst = [...pp]
       .sort((a,b) => b.s180 - a.s180 || b.hvPlus - a.hvPlus);
 
     const rangRows = ranglijst.map((p,i) => `<tr>
@@ -215,7 +215,7 @@ function render(rows, filename) {
 
       <div class="section-label">📋 Ranglijst — 180's</div>
       <div class="table-card">
-        <div class="card-head">Alle spelers met minimaal één 180</div>
+        <div class="card-head">Alle spelers — gesorteerd op 180</div>
         <table>
           <thead><tr>
             <th></th><th>Speler</th>
