@@ -10,314 +10,269 @@
     --bg2: #16213e;
     --bg3: #0f3460;
     --green: #00d4aa;
-    --green-dim: #00d4aa22;
+    --green-dim: #00d4aa18;
     --gold: #ffd700;
     --silver: #c0c0c0;
     --bronze: #cd7f32;
     --text: #e0e0e0;
-    --text-dim: #888;
-    --border: #ffffff18;
+    --text-dim: #7a8a99;
+    --border: #ffffff14;
     --radius: 10px;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    font-size: 14px;
-    min-height: 100vh;
-  }
+  header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 10px; }
+  header h1 { font-size: 17px; font-weight: 600; color: var(--green); }
+  header .sub { color: var(--text-dim); font-size: 13px; }
 
-  header {
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    padding: 1rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  header h1 { font-size: 18px; font-weight: 600; color: var(--green); }
-  header span { color: var(--text-dim); font-size: 13px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
-  .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
-
-  /* Upload zone */
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 3rem 2rem;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    background: var(--bg2);
-    margin-bottom: 2rem;
-  }
+  /* Upload */
+  .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 2.5rem 2rem; text-align: center; cursor: pointer; background: var(--bg2); transition: border-color .2s, background .2s; margin-bottom: 24px; }
   .upload-zone:hover { border-color: var(--green); background: var(--green-dim); }
-  .upload-zone .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
-  .upload-zone p { color: var(--text-dim); font-size: 13px; margin-top: 6px; }
+  .upload-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+  .upload-zone .hint { color: var(--text-dim); font-size: 12px; margin-top: 4px; }
   #fileInput { display: none; }
 
-  /* Top stats bar */
-  .stats-bar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    margin-bottom: 2rem;
-  }
-  .stat-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1rem;
-  }
-  .stat-card .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
-  .stat-card .value { font-size: 22px; font-weight: 600; color: var(--green); }
-  .stat-card .sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  /* Controls */
+  .controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  .season-tag { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); border-radius: 999px; padding: 4px 14px; font-size: 12px; font-weight: 600; }
+  .btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 6px 14px; cursor: pointer; font-size: 12px; transition: border-color .15s, color .15s; }
+  .btn:hover { border-color: var(--green); color: var(--green); }
 
-  /* Section header */
-  .section-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--green);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .section-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
+  /* Division tabs */
+  .tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab { background: var(--bg2); border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 7px 18px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+  .tab.active { background: var(--bg3); border-color: var(--green); color: var(--green); }
+  .tab:hover:not(.active) { border-color: var(--text-dim); color: var(--text); }
 
-  /* Grid layout */
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.25rem; }
-  .grid-3-last { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+  /* Division section */
+  .division { display: none; }
+  .division.active { display: block; }
 
-  /* Table card */
-  .table-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-  .table-card .card-head {
-    padding: 10px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg3);
-  }
+  /* Section label */
+  .section-label { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: .08em; margin: 24px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Tables */
+  .table-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .card-head { padding: 10px 14px; font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); background: var(--bg3); }
   table { width: 100%; border-collapse: collapse; }
-  td { padding: 7px 14px; border-bottom: 1px solid var(--border); }
+  th { padding: 7px 12px; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); text-align: right; }
+  th:first-child, th:nth-child(2) { text-align: left; }
+  td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--green-dim); }
-  .rank { color: var(--text-dim); font-size: 12px; width: 28px; }
-  .rank-1 { color: var(--gold); font-weight: 700; }
-  .rank-2 { color: var(--silver); font-weight: 600; }
-  .rank-3 { color: var(--bronze); font-weight: 600; }
-  .player-name { flex: 1; }
-  .val {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    font-weight: 600;
-    color: var(--green);
-    font-size: 13px;
+  .rank { width: 28px; color: var(--text-dim); font-size: 12px; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .green { color: var(--green); font-weight: 600; }
+  .gold-txt { color: var(--gold); }
+  .silver-txt { color: var(--silver); }
+  .bronze-txt { color: var(--bronze); }
+
+  /* Grid layouts */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+  @media (max-width: 800px) {
+    .grid-3, .grid-2 { grid-template-columns: 1fr; }
   }
 
-  /* Season selector */
-  .controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .season-tag {
-    background: var(--green-dim);
-    border: 1px solid var(--green);
-    color: var(--green);
-    border-radius: 999px;
-    padding: 4px 14px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .btn-reload {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    border-radius: var(--radius);
-    padding: 6px 14px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .btn-reload:hover { border-color: var(--green); color: var(--green); }
-
-  /* Print styles */
+  /* Print */
   @media print {
-    body { background: white; color: #111; }
-    header { background: #111; }
-    .upload-zone, .btn-reload { display: none; }
-    .table-card { border: 1px solid #ddd; page-break-inside: avoid; }
-    .table-card .card-head { background: #f0f0f0; color: #333; }
-    td { border-bottom: 1px solid #eee; }
-    .val { color: #007a5e; }
-    .stat-card { background: #f8f8f8; border: 1px solid #ddd; }
-    .stat-card .value { color: #007a5e; }
-    .section-label { color: #007a5e; }
+    body { background: #fff; color: #111; }
+    header { background: #1a1a2e; }
+    .upload-zone, .btn, .controls .btn { display: none !important; }
+    .tabs { display: none !important; }
+    .division { display: block !important; page-break-before: always; }
+    .division:first-of-type { page-break-before: avoid; }
+    .table-card { border: 1px solid #ddd; page-break-inside: avoid; break-inside: avoid; }
+    .card-head { background: #f0f0f0; color: #333; }
+    td, th { border-color: #eee; }
+    .green { color: #007a5e; }
+    var(--bg2) { background: #fff; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <span style="font-size:1.4rem;">🎯</span>
+  <span style="font-size:1.3rem">🎯</span>
   <h1>Kaale Bull</h1>
-  <span>— Seizoensstatistieken</span>
+  <span class="sub">— Seizoensstatistieken</span>
 </header>
 
 <div class="container">
   <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
     <div class="icon">📊</div>
-    <div style="font-size:15px;font-weight:600;">CSV uploaden</div>
-    <p>DartConnect leaderboard export (puntkomma-gescheiden)<br>Sleep een bestand hierheen of klik om te bladeren</p>
+    <div style="font-size:15px;font-weight:600">CSV uploaden</div>
+    <div class="hint">DartConnect leaderboard export (puntkomma-gescheiden) — sleep of klik</div>
   </div>
   <input type="file" id="fileInput" accept=".csv">
-
   <div id="output"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.0/papaparse.min.js"></script>
 <script>
 const fileInput = document.getElementById('fileInput');
-const dropZone = document.getElementById('dropZone');
-const output = document.getElementById('output');
+const dropZone  = document.getElementById('dropZone');
+const output    = document.getElementById('output');
 
 fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor='var(--green)'; });
 dropZone.addEventListener('dragleave', () => dropZone.style.borderColor='');
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.style.borderColor = '';
-  handleFile(e.dataTransfer.files[0]);
-});
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.style.borderColor=''; handleFile(e.dataTransfer.files[0]); });
+
+function n(v) { return (typeof v==='number' && !isNaN(v)) ? v : 0; }
+function f2(v) { return parseFloat(v).toFixed(2); }
+
+function medalOrNum(i) {
+  if (i===0) return '<span class="gold-txt">🥇</span>';
+  if (i===1) return '<span class="silver-txt">🥈</span>';
+  if (i===2) return '<span class="bronze-txt">🥉</span>';
+  return i+1;
+}
 
 function handleFile(file) {
   if (!file) return;
   Papa.parse(file, {
-    header: true,
-    delimiter: ';',
-    dynamicTyping: true,
-    skipEmptyLines: true,
-    complete: r => renderStats(r.data, file.name),
-    error: err => output.innerHTML = `<p style="color:#f66;padding:1rem;">Fout: ${err.message}</p>`
+    header: true, delimiter: ';', dynamicTyping: true, skipEmptyLines: true,
+    complete: r => render(r.data, file.name),
+    error: err => output.innerHTML = `<p style="color:#f66;padding:1rem">Fout: ${err.message}</p>`
   });
 }
 
-function n(v) { return (typeof v === 'number' && !isNaN(v)) ? v : 0; }
-
-function renderStats(rows, filename) {
+function render(rows, filename) {
+  // Bereken velden
   const players = rows.map(r => ({
-    naam: (r['First'] + ' ' + r['Last']).trim(),
+    naam:    ((r['First']||'') + ' ' + (r['Last']||'')).trim(),
+    div:     r['Division'] || 'Onbekend',
     matches: n(r['Matches']),
-    hPlus: n(r['T00_19']) + n(r['T20_39']),
-    hvPlus: n(r['T40_59']) + n(r['T60_79']),
-    s180: n(r['180']),
-    gem: parseFloat(r['3DA']) || 0,
+    s180:    n(r['180']),
+    hvPlus:  n(r['T40_59']) + n(r['T60_79']),  // 140+
+    hPlus:   n(r['T00_19']) + n(r['T20_39']),  // 100+
+    gem:     parseFloat(r['3DA']) || 0,
     hFinish: n(r['HDO']),
     bestLeg: n(r['Best Leg']) || 0,
-  })).filter(p => p.naam.trim() && p.matches > 0);
+  })).filter(p => p.naam && p.matches > 0);
 
-  const hasBL = players.some(p => p.bestLeg > 0);
-
+  const divisions = [...new Set(players.map(p => p.div))].sort();
   const season = filename.replace('.csv','').replace('Leaderboard_export_','').replace(/_/g,'-');
 
-  function sorted(key, asc=false) {
-    return [...players].sort((a,b) => asc ? a[key]-b[key] : b[key]-a[key]);
-  }
+  // Tabs HTML
+  const tabsHtml = divisions.map((d,i) =>
+    `<div class="tab ${i===0?'active':''}" onclick="switchTab(${i})">${d}</div>`
+  ).join('');
 
-  function rankClass(i) {
-    if (i===0) return 'rank-1';
-    if (i===1) return 'rank-2';
-    if (i===2) return 'rank-3';
-    return 'rank';
-  }
+  // Build division sections
+  const divsHtml = divisions.map((div, di) => {
+    const pp = players.filter(p => p.div === div);
 
-  function table(data, valFn, fmt) {
-    return data.slice(0,10).map((p,i) => `
-      <tr>
-        <td class="${rankClass(i)}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
-        <td>${p.naam}</td>
-        <td class="val">${fmt ? parseFloat(valFn(p)).toFixed(2) : valFn(p)}</td>
-      </tr>`).join('');
-  }
+    // 1. Ranglijst: iedereen met ≥1 180, gesorteerd op 180 desc
+    const ranglijst = [...pp].filter(p => p.s180 > 0)
+      .sort((a,b) => b.s180 - a.s180 || b.hvPlus - a.hvPlus);
 
-  function card(title, rows) {
-    return `<div class="table-card">
-      <div class="card-head">${title}</div>
-      <table><tbody>${rows}</tbody></table>
+    const rangRows = ranglijst.map((p,i) => `<tr>
+      <td class="rank">${medalOrNum(i)}</td>
+      <td>${p.naam}</td>
+      <td class="num green">${p.s180}</td>
+      <td class="num">${p.hvPlus}</td>
+      <td class="num">${p.hPlus}</td>
+      <td class="num">${f2(p.gem)}</td>
+      <td class="num">${p.bestLeg > 0 ? p.bestLeg : '—'}</td>
+    </tr>`).join('');
+
+    // 2. Top 10 beste 3DA
+    const top3da = [...pp].sort((a,b) => b.gem - a.gem).slice(0,10);
+    const top3daRows = top3da.map((p,i) => `<tr>
+      <td class="rank">${medalOrNum(i)}</td>
+      <td>${p.naam}</td>
+      <td class="num green">${f2(p.gem)}</td>
+    </tr>`).join('');
+
+    // 3. Alle 100+ finishes
+    const finishes = [...pp].filter(p => p.hFinish >= 100).sort((a,b) => b.hFinish - a.hFinish);
+    const finishRows = finishes.length > 0
+      ? finishes.map((p,i) => `<tr>
+          <td class="rank">${medalOrNum(i)}</td>
+          <td>${p.naam}</td>
+          <td class="num green">${p.hFinish}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="3" style="color:var(--text-dim);padding:10px 12px">Geen 100+ finishes</td></tr>';
+
+    // 4. Beste leg onder 18 darts
+    const legUnder18 = [...pp].filter(p => p.bestLeg > 0 && p.bestLeg < 18).sort((a,b) => a.bestLeg - b.bestLeg);
+    const legRows = legUnder18.length > 0
+      ? legUnder18.map((p,i) => `<tr>
+          <td class="rank">${medalOrNum(i)}</td>
+          <td>${p.naam}</td>
+          <td class="num green">${p.bestLeg}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="3" style="color:var(--text-dim);padding:10px 12px">Geen legs onder 18 darts</td></tr>';
+
+    return `<div class="division ${di===0?'active':''}" data-div="${di}">
+
+      <div class="section-label">📋 Ranglijst — 180's</div>
+      <div class="table-card">
+        <div class="card-head">Alle spelers met minimaal één 180</div>
+        <table>
+          <thead><tr>
+            <th></th><th>Speler</th>
+            <th class="num">180</th>
+            <th class="num">140+</th>
+            <th class="num">100+</th>
+            <th class="num">3DA</th>
+            <th class="num">Beste leg</th>
+          </tr></thead>
+          <tbody>${rangRows || '<tr><td colspan="7" style="color:var(--text-dim);padding:10px 12px">Geen data</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      <div class="section-label" style="margin-top:28px">📊 Overige statistieken</div>
+      <div class="grid-3">
+        <div class="table-card">
+          <div class="card-head">🏆 Top 10 beste 3DA</div>
+          <table>
+            <thead><tr><th></th><th>Speler</th><th class="num">Gem.</th></tr></thead>
+            <tbody>${top3daRows}</tbody>
+          </table>
+        </div>
+        <div class="table-card">
+          <div class="card-head">🎯 100+ finishes</div>
+          <table>
+            <thead><tr><th></th><th>Speler</th><th class="num">Finish</th></tr></thead>
+            <tbody>${finishRows}</tbody>
+          </table>
+        </div>
+        <div class="table-card">
+          <div class="card-head">⚡ Beste leg (onder 18 darts)</div>
+          <table>
+            <thead><tr><th></th><th>Speler</th><th class="num">Darts</th></tr></thead>
+            <tbody>${legRows}</tbody>
+          </table>
+        </div>
+      </div>
     </div>`;
-  }
+  }).join('');
 
-  const top = by => sorted(by)[0];
-  const t180 = top('s180'), tGem = top('gem'), tHF = top('hFinish');
-
+  dropZone.style.display = 'none';
   output.innerHTML = `
     <div class="controls">
       <span class="season-tag">📅 Seizoen ${season}</span>
-      <button class="btn-reload" onclick="document.getElementById('fileInput').click()">📂 Andere CSV laden</button>
-      <button class="btn-reload" onclick="window.print()">🖨️ Afdrukken / PDF</button>
-    </div>
-
-    <div class="section-label">Overzicht</div>
-    <div class="stats-bar">
-      <div class="stat-card">
-        <div class="label">Spelers</div>
-        <div class="value">${players.length}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Beste gemiddelde</div>
-        <div class="value">${tGem.gem.toFixed(2)}</div>
-        <div class="sub">${tGem.naam}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Meeste 180's</div>
-        <div class="value">${t180.s180}</div>
-        <div class="sub">${t180.naam}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Hoogste finish</div>
-        <div class="value">${tHF.hFinish}</div>
-        <div class="sub">${tHF.naam}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="document.getElementById('fileInput').click()">📂 Andere CSV</button>
+        <button class="btn" onclick="window.print()">🖨️ Afdrukken / PDF</button>
       </div>
     </div>
-
-    <div class="section-label">Scores</div>
-    <div class="grid-3">
-      ${card('🎯 Meeste 180\'s', table(sorted('s180'), p=>p.s180))}
-      ${card('🔥 Meeste 140+', table(sorted('hvPlus'), p=>p.hvPlus))}
-      ${card('💯 Meeste 100+', table(sorted('hPlus'), p=>p.hPlus))}
-    </div>
-
-    <div class="section-label">Prestaties</div>
-    <div class="grid-3-last">
-      ${card('📈 3-darts gemiddelde', table(sorted('gem'), p=>p.gem, true))}
-      ${card('🏁 Hoogste finish', table(sorted('hFinish'), p=>p.hFinish))}
-      ${hasBL ? card('⚡ Beste leg (min. darts)', table(sorted('bestLeg',true).filter(p=>p.bestLeg>0), p=>p.bestLeg)) : card('⚡ Beste leg', '<tr><td colspan="3" style="color:var(--text-dim);padding:1rem;">Geen data beschikbaar</td></tr>')}
-    </div>
+    <div class="tabs" id="tabs">${tabsHtml}</div>
+    ${divsHtml}
   `;
+}
 
-  dropZone.style.display = 'none';
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  document.querySelectorAll('.division').forEach((d,i) => d.classList.toggle('active', i===idx));
 }
 </script>
 </body>
