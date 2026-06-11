@@ -81,17 +81,32 @@
 
   /* Print */
   @media print {
-    body { background: #fff; color: #111; }
-    header { background: #1a1a2e; }
-    .upload-zone, .btn, .controls .btn { display: none !important; }
+    :root {
+      --bg: #fff; --bg2: #fff; --bg3: #f0f0f0;
+      --green: #007a5e; --green-dim: #e8f5f1;
+      --border: #ddd; --text: #111; --text-dim: #555;
+    }
+    @page { size: A4 landscape; margin: 8mm; }
+    body { background: #fff; color: #111; font-size: 10px; }
+    header { background: #1a1a2e !important; padding: 6px 14px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .upload-zone, .btn { display: none !important; }
     .tabs { display: none !important; }
-    .division { display: block !important; page-break-before: always; }
-    .division:first-of-type { page-break-before: avoid; }
-    .table-card { border: 1px solid #ddd; page-break-inside: avoid; break-inside: avoid; }
-    .card-head { background: #f0f0f0; color: #333; }
-    td, th { border-color: #eee; }
-    .green { color: #007a5e; }
-    var(--bg2) { background: #fff; }
+    .controls { margin-bottom: 8px !important; }
+    .season-tag { border: 1px solid #007a5e !important; color: #007a5e !important; background: #e8f5f1 !important; font-size: 10px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .container { padding: 0 !important; max-width: 100% !important; }
+
+    /* Elke divisie op eigen pagina */
+    .division { display: block !important; page-break-before: always; break-before: page; }
+    .division:first-of-type { page-break-before: avoid; break-before: avoid; }
+
+    /* 2-koloms layout: ranglijst links, 3 stats rechts */
+    .print-layout { display: grid !important; grid-template-columns: 58% 40% !important; gap: 14px !important; align-items: start !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    .section-label { margin: 0 0 5px !important; font-size: 9px !important; }
+    .table-card { border: 1px solid #ddd !important; page-break-inside: avoid; break-inside: avoid; }
+    .card-head { background: #f0f0f0 !important; color: #333 !important; padding: 4px 8px !important; font-size: 9px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    td, th { padding: 2.5px 6px !important; font-size: 9px !important; border-color: #eee !important; }
+    .grid-3 { display: flex !important; flex-direction: column !important; gap: 8px !important; }
   }
 </style>
 </head>
@@ -213,6 +228,7 @@ function render(rows, filename) {
 
     return `<div class="division ${di===0?'active':''}" data-div="${di}">
 
+      <div class="print-layout"><div>
       <div class="section-label">📋 Ranglijst — 180's</div>
       <div class="table-card">
         <div class="card-head">Alle spelers — gesorteerd op 180</div>
@@ -229,7 +245,8 @@ function render(rows, filename) {
         </table>
       </div>
 
-      <div class="section-label" style="margin-top:28px">📊 Overige statistieken</div>
+      </div><div>
+      <div class="section-label">📊 Overige statistieken</div>
       <div class="grid-3">
         <div class="table-card">
           <div class="card-head">🏆 Top 10 beste 3DA</div>
@@ -253,6 +270,7 @@ function render(rows, filename) {
           </table>
         </div>
       </div>
+      </div></div>
     </div>`;
   }).join('');
 
