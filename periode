@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Darts Periodestand</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #161921;
+    --border:    #242830;
+    --accent:    #e8c84b;
+    --accent2:   #f07020;
+    --text:      #e8eaf0;
+    --muted:     #6b7280;
+    --winner-bg: #1a1e10;
+    --winner-border: #e8c84b;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bullseye {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .bullseye::before {
+    content: '';
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--accent2);
+    position: absolute;
+  }
+  .bullseye::after {
+    content: '';
+    width: 7px; height: 7px;
+    background: var(--accent2);
+    border-radius: 50%;
+    position: absolute;
+  }
+  header h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  header h1 span { color: var(--accent); }
+  .season-badge {
+    margin-left: auto;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 3px;
+  }
+
+  /* ── Main layout ── */
+  main { padding: 28px 32px; max-width: 1300px; }
+
+  /* ── Import panel ── */
+  .import-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+  .import-panel h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .import-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .field-group label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .field-group select, .field-group input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    min-width: 180px;
+    cursor: pointer;
+  }
+  .field-group select:focus, .field-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .field-group input[type="number"] { min-width: 80px; }
+
+  .btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 9px 20px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--accent); color: #0d0f14; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-danger { background: transparent; border: 1px solid #e74c3c; color: #e74c3c; font-size: 12px; padding: 6px 14px; }
+
+  /* file drop */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 6px;
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); }
+  .drop-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+  }
+  .drop-zone-icon { font-size: 28px; margin-bottom: 8px; }
+  .drop-zone p { font-size: 13px; color: var(--muted); }
+  .drop-zone p strong { color: var(--accent); }
+
+  /* column mapper */
+  .col-mapper {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-top: 16px;
+    display: none;
+  }
+  .col-mapper.visible { display: block; }
+  .col-mapper h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .mapper-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  /* data status */
+  .data-status {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  .data-status.ok { color: #4caf7d; }
+
+  /* ── Period tabs ── */
+  .period-nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+  }
+  .period-tab {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 22px 12px;
+    border: none; border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+    position: relative;
+    top: 1px;
+  }
+  .period-tab:hover { color: var(--text); }
+  .period-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .period-tab .winner-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-left: 6px;
+    vertical-align: middle;
+    margin-bottom: 1px;
+  }
+
+  /* ── Stand table ── */
+  .period-section { display: none; }
+  .period-section.active { display: block; }
+
+  .period-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .period-header h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px; font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .round-range {
+    font-size: 12px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .winner-banner {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: var(--winner-bg);
+    border: 1px solid var(--winner-border);
+    border-radius: 5px;
+    padding: 10px 18px;
+    margin-bottom: 18px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .winner-banner.visible { display: flex; }
+  .winner-banner .trophy { font-size: 20px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead th {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  thead th.num { text-align: right; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+  tbody tr:hover { background: rgba(255,255,255,.03); }
+  tbody tr.rank-1 { background: rgba(232,200,75,.06); }
+  tbody tr.rank-1:hover { background: rgba(232,200,75,.09); }
+
+  tbody td {
+    padding: 11px 12px;
+    font-size: 14px;
+  }
+  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td.pts {
+    text-align: right;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 17px; font-weight: 700;
+    color: var(--text);
+  }
+  tbody tr.rank-1 td.pts { color: var(--accent); }
+
+  .rank-cell {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 700;
+    color: var(--muted);
+    width: 36px;
+  }
+  .rank-1 .rank-cell { color: var(--accent); }
+
+  .player-name {
+    font-weight: 600;
+  }
+  .rank-1 .player-name { color: var(--text); }
+
+  .delta {
+    font-size: 11px; font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .delta.pos { background: rgba(76,175,125,.15); color: #4caf7d; }
+  .delta.neg { background: rgba(231,76,60,.12); color: #e74c3c; }
+  .delta.neu { color: var(--muted); }
+
+  /* empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .big { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    header, main { padding: 16px; }
+    .import-row { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bullseye"></div>
+  <h1>Periode<span>Stand</span></h1>
+  <div class="season-badge">Seizoen 2025–26</div>
+</header>
+
+<main>
+
+  <!-- Import panel -->
+  <div class="import-panel">
+    <h2>CSV Import</h2>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".csv">
+      <div class="drop-zone-icon">📂</div>
+      <p><strong>Klik of sleep</strong> een DartConnect CSV-export hier naartoe</p>
+    </div>
+
+    <!-- Column mapper (hidden until file loaded) -->
+    <div class="col-mapper" id="colMapper">
+      <h3>Koppel kolommen</h3>
+      <div class="mapper-grid" id="mapperGrid"></div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div class="field-group">
+          <label>Rondes per periode</label>
+          <input type="number" id="roundsPerPeriod" value="10" min="1" max="50">
+        </div>
+        <div class="field-group">
+          <label>Kolom met rondenummer</label>
+          <select id="roundColSel"><option value="">— geen, gebruik volgorde —</option></select>
+        </div>
+        <button class="btn btn-primary" id="buildBtn">Stand opbouwen →</button>
+        <button class="btn btn-danger" id="clearBtn">Wis data</button>
+      </div>
+    </div>
+
+    <div class="data-status" id="dataStatus">Nog geen bestand geladen.</div>
+  </div>
+
+  <!-- Period tabs -->
+  <div class="period-nav" id="periodNav" style="display:none"></div>
+
+  <!-- Period sections -->
+  <div id="periodSections"></div>
+
+</main>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let csvHeaders = [];
+let csvRows    = [];     // array of objects
+let matchData  = [];     // parsed rows: { player, round, wins, played, points }
+
+// ─── Drop / file pick ────────────────────────────────────
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => parseCSV(e.target.result);
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  // Detect separator
+  const firstLine = text.split('\n')[0];
+  const sep = firstLine.includes(';') ? ';' : ',';
+
+  const lines = text.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) { setStatus('CSV lijkt leeg.'); return; }
+
+  csvHeaders = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+  csvRows = lines.slice(1).map(line => {
+    const vals = splitCSVLine(line, sep);
+    const obj = {};
+    csvHeaders.forEach((h, i) => obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''));
+    return obj;
+  });
+
+  setStatus(`✓ ${csvRows.length} rijen geladen — koppel nu de kolommen.`, true);
+  buildMapper();
+}
+
+function splitCSVLine(line, sep) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === sep && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+// ─── Column mapper ───────────────────────────────────────
+const REQUIRED_FIELDS = [
+  { id: 'col_player', label: 'Spelersnaam' },
+  { id: 'col_round',  label: 'Ronde #' },
+  { id: 'col_points', label: 'Punten (deze wedstrijd)' },
+  { id: 'col_wins',   label: 'Gewonnen legs / sets (optioneel)' },
+  { id: 'col_played', label: 'Gespeelde legs / sets (optioneel)' },
+];
+
+function buildMapper() {
+  const grid = document.getElementById('mapperGrid');
+  const roundSel = document.getElementById('roundColSel');
+  grid.innerHTML = '';
+  roundSel.innerHTML = '<option value="">— geen, gebruik volgorde —</option>';
+
+  // Auto-detect hints
+  const hints = {
+    col_player: ['name','naam','player','speler','deelnemer'],
+    col_round:  ['round','ronde','week','speelronde','matchday'],
+    col_points: ['pts','punten','points','score'],
+    col_wins:   ['won','wins','gewon','gewonnen','legs won'],
+    col_played: ['played','gespeeld','legs played','matches'],
+  };
+
+  REQUIRED_FIELDS.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'field-group';
+    const lbl = document.createElement('label');
+    lbl.textContent = f.label;
+    const sel = document.createElement('select');
+    sel.id = f.id;
+    const empty = document.createElement('option');
+    empty.value = ''; empty.textContent = '— kies kolom —';
+    sel.appendChild(empty);
+    csvHeaders.forEach(h => {
+      const opt = document.createElement('option');
+      opt.value = h; opt.textContent = h;
+      sel.appendChild(opt);
+    });
+    // auto-select
+    const auto = csvHeaders.find(h => hints[f.id].some(hint => h.toLowerCase().includes(hint)));
+    if (auto) sel.value = auto;
+    div.appendChild(lbl);
+    div.appendChild(sel);
+    grid.appendChild(div);
+  });
+
+  // round col selector (duplicate for roundColSel)
+  csvHeaders.forEach(h => {
+    const opt = document.createElement('option'); opt.value = h; opt.textContent = h;
+    roundSel.appendChild(opt);
+  });
+  const autoRound = csvHeaders.find(h => ['round','ronde','week','speelronde'].some(x => h.toLowerCase().includes(x)));
+  if (autoRound) { roundSel.value = autoRound; document.getElementById('col_round').value = autoRound; }
+
+  document.getElementById('colMapper').classList.add('visible');
+}
+
+// ─── Build stands ────────────────────────────────────────
+document.getElementById('buildBtn').addEventListener('click', buildStands);
+document.getElementById('clearBtn').addEventListener('click', clearAll);
+
+function buildStands() {
+  const colPlayer = document.getElementById('col_player').value;
+  const colRound  = document.getElementById('col_round').value;
+  const colPoints = document.getElementById('col_points').value;
+  const colWins   = document.getElementById('col_wins').value;
+  const colPlayed = document.getElementById('col_played').value;
+  const rpp       = parseInt(document.getElementById('roundsPerPeriod').value) || 10;
+
+  if (!colPlayer || !colPoints) {
+    setStatus('Koppel minimaal Spelersnaam en Punten.'); return;
+  }
+
+  // Parse rows
+  matchData = csvRows.map((row, idx) => ({
+    player: row[colPlayer] || '?',
+    round:  colRound ? (parseInt(row[colRound]) || (idx + 1)) : (idx + 1),
+    points: parseFloat(row[colPoints]) || 0,
+    wins:   colWins   ? (parseFloat(row[colWins])   || 0) : null,
+    played: colPlayed ? (parseFloat(row[colPlayed]) || 0) : null,
+  }));
+
+  if (!matchData.length) { setStatus('Geen data na parsen.'); return; }
+
+  const maxRound = Math.max(...matchData.map(r => r.round));
+  const numPeriods = Math.ceil(maxRound / rpp);
+
+  renderPeriods(matchData, rpp, numPeriods);
+  setStatus(`Stand opgebouwd: ${maxRound} rondes → ${numPeriods} periodes.`, true);
+}
+
+function clearAll() {
+  csvHeaders = []; csvRows = []; matchData = [];
+  document.getElementById('colMapper').classList.remove('visible');
+  document.getElementById('periodNav').style.display = 'none';
+  document.getElementById('periodSections').innerHTML = '';
+  document.getElementById('mapperGrid').innerHTML = '';
+  setStatus('Data gewist.');
+  fileInput.value = '';
+}
+
+// ─── Render ──────────────────────────────────────────────
+function renderPeriods(data, rpp, numPeriods) {
+  const nav      = document.getElementById('periodNav');
+  const sections = document.getElementById('periodSections');
+  nav.innerHTML = ''; sections.innerHTML = '';
+  nav.style.display = 'flex';
+
+  for (let p = 1; p <= numPeriods; p++) {
+    const startRound = (p - 1) * rpp + 1;
+    const endRound   = p * rpp;
+
+    const periodRows = data.filter(r => r.round >= startRound && r.round <= endRound);
+    const stand      = calcStand(periodRows);
+    const completed  = periodRows.some(r => r.round === endRound);
+    const winner     = stand[0];
+
+    // Tab
+    const tab = document.createElement('button');
+    tab.className = 'period-tab' + (p === 1 ? ' active' : '');
+    tab.dataset.period = p;
+    tab.innerHTML = `Periode ${p}${completed ? ' <span class="winner-dot"></span>' : ''}`;
+    tab.addEventListener('click', () => switchPeriod(p));
+    nav.appendChild(tab);
+
+    // Section
+    const sec = document.createElement('div');
+    sec.className = 'period-section' + (p === 1 ? ' active' : '');
+    sec.id = `period-${p}`;
+
+    const banner = winner && completed
+      ? `<div class="winner-banner visible"><span class="trophy">🏆</span> Periodewinnaar: ${winner.player} — ${winner.points} punten</div>`
+      : winner
+      ? `<div class="winner-banner visible" style="border-color:#6b7280;color:#a0a8b0"><span class="trophy">🎯</span> Koploper: ${winner.player} — ${winner.points} punten</div>`
+      : '';
+
+    const completedLabel = data.filter(r => r.round >= startRound && r.round <= endRound);
+    const roundsPlayed   = [...new Set(completedLabel.map(r => r.round))].length;
+
+    sec.innerHTML = `
+      <div class="period-header">
+        <h2>Periode ${p}</h2>
+        <span class="round-range">Ronde ${startRound}–${endRound} &nbsp;·&nbsp; ${roundsPlayed} / ${rpp} gespeeld</span>
+      </div>
+      ${banner}
+      ${stand.length ? renderTable(stand) : '<div class="empty-state"><div class="big">🎯</div><p>Geen data voor deze periode.<br>Controleer of de juiste kolommen zijn gekoppeld.</p></div>'}
+    `;
+    sections.appendChild(sec);
+  }
+}
+
+function calcStand(rows) {
+  const players = {};
+  rows.forEach(r => {
+    if (!players[r.player]) players[r.player] = { player: r.player, points: 0, wins: 0, played: 0 };
+    players[r.player].points += r.points;
+    if (r.wins   !== null) players[r.player].wins   += r.wins;
+    if (r.played !== null) players[r.player].played += r.played;
+  });
+  return Object.values(players).sort((a, b) => b.points - a.points || b.wins - a.wins);
+}
+
+function renderTable(stand) {
+  const showWins   = stand.some(r => r.wins > 0);
+  const showPlayed = stand.some(r => r.played > 0);
+
+  let html = `<table><thead><tr>
+    <th>#</th>
+    <th>Speler</th>
+    ${showPlayed ? '<th class="num">Gespeeld</th>' : ''}
+    ${showWins   ? '<th class="num">Gewonnen</th>' : ''}
+    <th class="num">Punten</th>
+  </tr></thead><tbody>`;
+
+  stand.forEach((row, i) => {
+    const rank = i + 1;
+    const gap  = i === 0 ? '' : (stand[0].points - row.points);
+    const deltaHtml = i === 0
+      ? '<span class="delta pos">leidend</span>'
+      : `<span class="delta neg">-${gap}</span>`;
+
+    html += `<tr class="${rank === 1 ? 'rank-1' : ''}">
+      <td class="rank-cell">${rank}</td>
+      <td><span class="player-name">${esc(row.player)}</span></td>
+      ${showPlayed ? `<td class="num">${row.played}</td>` : ''}
+      ${showWins   ? `<td class="num">${row.wins}</td>` : ''}
+      <td class="pts">${row.points} ${deltaHtml}</td>
+    </tr>`;
+  });
+
+  return html + '</tbody></table>';
+}
+
+function switchPeriod(p) {
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.toggle('active', +t.dataset.period === p));
+  document.querySelectorAll('.period-section').forEach(s => s.classList.toggle('active', s.id === `period-${p}`));
+}
+
+function setStatus(msg, ok = false) {
+  const el = document.getElementById('dataStatus');
+  el.textContent = msg;
+  el.className = 'data-status' + (ok ? ' ok' : '');
+}
+
+function esc(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
