@@ -3,669 +3,420 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Darts Periodestand</title>
+<title>Kaale Bull — Periodestand</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f14;--surface:#161921;--surface2:#1c202b;--border:#242830;
+  --accent:#e8c84b;--accent2:#f07020;--green:#4caf7d;--red:#e74c3c;
+  --text:#e8eaf0;--muted:#6b7280;
+}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-size:15px;min-height:100vh}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+header{display:flex;align-items:center;gap:14px;padding:20px 28px;border-bottom:1px solid var(--border)}
+.bullseye{width:40px;height:40px;border-radius:50%;border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+.bullseye::before{content:'';width:16px;height:16px;border-radius:50%;border:2px solid var(--accent2);position:absolute}
+.bullseye::after{content:'';width:6px;height:6px;background:var(--accent2);border-radius:50%;position:absolute}
+header h1{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+header h1 span{color:var(--accent)}
+.season-badge{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:4px 10px;border-radius:3px}
 
-  :root {
-    --bg:        #0d0f14;
-    --surface:   #161921;
-    --border:    #242830;
-    --accent:    #e8c84b;
-    --accent2:   #f07020;
-    --text:      #e8eaf0;
-    --muted:     #6b7280;
-    --winner-bg: #1a1e10;
-    --winner-border: #e8c84b;
-  }
+main{padding:24px 28px;max-width:1200px}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Barlow', sans-serif;
-    font-size: 15px;
-    min-height: 100vh;
-  }
+/* import bar */
+.import-bar{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.import-bar h2{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);flex-shrink:0}
+.file-btn{position:relative;overflow:hidden;display:inline-block}
+.file-btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.btn{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:7px 16px;border-radius:4px;border:none;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-primary{background:var(--accent);color:#0d0f14}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.import-status{font-size:13px;color:var(--muted)}
+.import-status.ok{color:var(--green)}
+.import-status.err{color:var(--red)}
 
-  /* ── Header ── */
-  header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 24px 32px 20px;
-    border-bottom: 1px solid var(--border);
-  }
-  .bullseye {
-    width: 44px; height: 44px;
-    border-radius: 50%;
-    border: 3px solid var(--accent);
-    display: flex; align-items: center; justify-content: center;
-    position: relative;
-    flex-shrink: 0;
-  }
-  .bullseye::before {
-    content: '';
-    width: 18px; height: 18px;
-    border-radius: 50%;
-    border: 2px solid var(--accent2);
-    position: absolute;
-  }
-  .bullseye::after {
-    content: '';
-    width: 7px; height: 7px;
-    background: var(--accent2);
-    border-radius: 50%;
-    position: absolute;
-  }
-  header h1 {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 26px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-  header h1 span { color: var(--accent); }
-  .season-badge {
-    margin-left: auto;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 5px 12px;
-    border-radius: 3px;
-  }
+/* col mapper */
+.col-mapper{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:14px 18px;margin-top:12px;display:none}
+.col-mapper.visible{display:block}
+.col-mapper h3{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.mapper-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+.field-group{display:flex;flex-direction:column;gap:4px}
+.field-group label{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.field-group select{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;padding:7px 10px;border-radius:4px;cursor:pointer}
+.field-group select:focus{outline:none;border-color:var(--accent)}
 
-  /* ── Main layout ── */
-  main { padding: 28px 32px; max-width: 1300px; }
+/* divisie tabs */
+.div-tabs{display:flex;border-bottom:1px solid var(--border)}
+.div-tab{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 24px 12px;border:none;border-bottom:3px solid transparent;background:transparent;color:var(--muted);cursor:pointer;transition:color .15s,border-color .15s;position:relative;top:1px}
+.div-tab:hover{color:var(--text)}
+.div-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 
-  /* ── Import panel ── */
-  .import-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 24px;
-    margin-bottom: 32px;
-  }
-  .import-panel h2 {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 16px;
-  }
-  .import-row {
-    display: flex;
-    gap: 12px;
-    align-items: flex-end;
-    flex-wrap: wrap;
-  }
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .field-group label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .field-group select, .field-group input[type="number"] {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: 'Barlow', sans-serif;
-    font-size: 14px;
-    padding: 8px 12px;
-    border-radius: 4px;
-    min-width: 180px;
-    cursor: pointer;
-  }
-  .field-group select:focus, .field-group input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-  .field-group input[type="number"] { min-width: 80px; }
+/* period tabs */
+.period-nav{display:flex;gap:4px;padding:16px 0 0;margin-bottom:20px}
+.period-tab{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:7px 16px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.period-tab:hover{color:var(--text);border-color:var(--text)}
+.period-tab.active{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
+.period-tab .dot{display:inline-block;width:5px;height:5px;background:currentColor;border-radius:50%;margin-left:5px;vertical-align:middle;margin-bottom:1px}
 
-  .btn {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    padding: 9px 20px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    transition: opacity .15s;
-  }
-  .btn:hover { opacity: .85; }
-  .btn-primary { background: var(--accent); color: #0d0f14; }
-  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
-  .btn-danger { background: transparent; border: 1px solid #e74c3c; color: #e74c3c; font-size: 12px; padding: 6px 14px; }
+.div-section{display:none}
+.div-section.active{display:block}
+.period-section{display:none}
+.period-section.active{display:block}
 
-  /* file drop */
-  .drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: 6px;
-    padding: 28px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color .2s;
-    margin-bottom: 16px;
-    position: relative;
-  }
-  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); }
-  .drop-zone input[type="file"] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
-  }
-  .drop-zone-icon { font-size: 28px; margin-bottom: 8px; }
-  .drop-zone p { font-size: 13px; color: var(--muted); }
-  .drop-zone p strong { color: var(--accent); }
+.period-header{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+.period-header h2{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:1px}
+.round-range{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
 
-  /* column mapper */
-  .col-mapper {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px 20px;
-    margin-top: 16px;
-    display: none;
-  }
-  .col-mapper.visible { display: block; }
-  .col-mapper h3 {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px; font-weight: 700; letter-spacing: 2px;
-    text-transform: uppercase; color: var(--muted);
-    margin-bottom: 14px;
-  }
-  .mapper-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 14px;
-  }
+.winner-banner{display:none;align-items:center;gap:10px;background:rgba(232,200,75,.07);border:1px solid var(--accent);border-radius:5px;padding:9px 16px;margin-bottom:14px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent)}
+.winner-banner.visible{display:flex}
+.leader-banner{display:none;align-items:center;gap:10px;background:rgba(107,114,128,.07);border:1px solid var(--border);border-radius:5px;padding:9px 16px;margin-bottom:14px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.leader-banner.visible{display:flex}
 
-  /* data status */
-  .data-status {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 10px;
-  }
-  .data-status.ok { color: #4caf7d; }
+.progress-wrap{margin-bottom:20px}
+.progress-label{display:flex;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px}
 
-  /* ── Period tabs ── */
-  .period-nav {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 24px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 0;
-  }
-  .period-tab {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px; font-weight: 700; letter-spacing: 1px;
-    text-transform: uppercase;
-    padding: 10px 22px 12px;
-    border: none; border-bottom: 3px solid transparent;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    transition: color .15s, border-color .15s;
-    position: relative;
-    top: 1px;
-  }
-  .period-tab:hover { color: var(--text); }
-  .period-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .period-tab .winner-dot {
-    display: inline-block;
-    width: 6px; height: 6px;
-    background: var(--accent);
-    border-radius: 50%;
-    margin-left: 6px;
-    vertical-align: middle;
-    margin-bottom: 1px;
-  }
+table{width:100%;border-collapse:collapse}
+thead th{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:9px 12px;text-align:left;border-bottom:1px solid var(--border)}
+thead th.r{text-align:right}
+tbody tr{border-bottom:1px solid rgba(36,40,48,.6);transition:background .1s}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+tbody tr.top{background:rgba(232,200,75,.05)}
+tbody tr.top:hover{background:rgba(232,200,75,.08)}
+tbody td{padding:10px 12px;font-size:14px}
+tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
+.rank-cell{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--muted);width:32px}
+.top .rank-cell{color:var(--accent)}
+.player-name{font-weight:600}
+.pts-cell{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;text-align:right}
+.top .pts-cell{color:var(--accent)}
+.gap-cell{text-align:right}
+.gap{font-size:11px;font-weight:600;padding:2px 6px;border-radius:3px}
+.gap.lead{background:rgba(76,175,125,.15);color:var(--green)}
+.gap.behind{background:rgba(231,76,60,.1);color:var(--red)}
 
-  /* ── Stand table ── */
-  .period-section { display: none; }
-  .period-section.active { display: block; }
+.overall-header{display:flex;align-items:baseline;gap:14px;margin-bottom:14px;padding-top:16px}
+.overall-header h2{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:1px}
 
-  .period-header {
-    display: flex;
-    align-items: baseline;
-    gap: 16px;
-    margin-bottom: 18px;
-  }
-  .period-header h2 {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 22px; font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .round-range {
-    font-size: 12px; font-weight: 600; letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .winner-banner {
-    display: none;
-    align-items: center;
-    gap: 12px;
-    background: var(--winner-bg);
-    border: 1px solid var(--winner-border);
-    border-radius: 5px;
-    padding: 10px 18px;
-    margin-bottom: 18px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--accent);
-  }
-  .winner-banner.visible { display: flex; }
-  .winner-banner .trophy { font-size: 20px; }
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty .icon{font-size:32px;margin-bottom:10px}
+.empty p{font-size:13px;line-height:1.6}
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  thead th {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 11px; font-weight: 700; letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding: 10px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-  }
-  thead th.num { text-align: right; }
-
-  tbody tr {
-    border-bottom: 1px solid var(--border);
-    transition: background .1s;
-  }
-  tbody tr:hover { background: rgba(255,255,255,.03); }
-  tbody tr.rank-1 { background: rgba(232,200,75,.06); }
-  tbody tr.rank-1:hover { background: rgba(232,200,75,.09); }
-
-  tbody td {
-    padding: 11px 12px;
-    font-size: 14px;
-  }
-  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  tbody td.pts {
-    text-align: right;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 17px; font-weight: 700;
-    color: var(--text);
-  }
-  tbody tr.rank-1 td.pts { color: var(--accent); }
-
-  .rank-cell {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px; font-weight: 700;
-    color: var(--muted);
-    width: 36px;
-  }
-  .rank-1 .rank-cell { color: var(--accent); }
-
-  .player-name {
-    font-weight: 600;
-  }
-  .rank-1 .player-name { color: var(--text); }
-
-  .delta {
-    font-size: 11px; font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-variant-numeric: tabular-nums;
-  }
-  .delta.pos { background: rgba(76,175,125,.15); color: #4caf7d; }
-  .delta.neg { background: rgba(231,76,60,.12); color: #e74c3c; }
-  .delta.neu { color: var(--muted); }
-
-  /* empty state */
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--muted);
-  }
-  .empty-state .big { font-size: 40px; margin-bottom: 12px; }
-  .empty-state p { font-size: 14px; line-height: 1.6; }
-
-  /* ── Responsive ── */
-  @media (max-width: 600px) {
-    header, main { padding: 16px; }
-    .import-row { flex-direction: column; align-items: stretch; }
-  }
+.loading{text-align:center;padding:48px;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
 
 <header>
   <div class="bullseye"></div>
-  <h1>Periode<span>Stand</span></h1>
-  <div class="season-badge">Seizoen 2025–26</div>
+  <h1>Kaale Bull — <span>Periodestand</span></h1>
+  <div class="season-badge">Seizoen 2026–27</div>
 </header>
 
 <main>
-
-  <!-- Import panel -->
-  <div class="import-panel">
-    <h2>CSV Import</h2>
-
-    <div class="drop-zone" id="dropZone">
-      <input type="file" id="fileInput" accept=".csv">
-      <div class="drop-zone-icon">📂</div>
-      <p><strong>Klik of sleep</strong> een DartConnect CSV-export hier naartoe</p>
+  <!-- Import bar -->
+  <div class="import-bar">
+    <h2>DartConnect import</h2>
+    <div class="file-btn">
+      <button class="btn btn-ghost">📂 CSV laden</button>
+      <input type="file" id="csvFile" accept=".csv">
     </div>
-
-    <!-- Column mapper (hidden until file loaded) -->
-    <div class="col-mapper" id="colMapper">
-      <h3>Koppel kolommen</h3>
-      <div class="mapper-grid" id="mapperGrid"></div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <div class="field-group">
-          <label>Rondes per periode</label>
-          <input type="number" id="roundsPerPeriod" value="10" min="1" max="50">
-        </div>
-        <div class="field-group">
-          <label>Kolom met rondenummer</label>
-          <select id="roundColSel"><option value="">— geen, gebruik volgorde —</option></select>
-        </div>
-        <button class="btn btn-primary" id="buildBtn">Stand opbouwen →</button>
-        <button class="btn btn-danger" id="clearBtn">Wis data</button>
-      </div>
-    </div>
-
-    <div class="data-status" id="dataStatus">Nog geen bestand geladen.</div>
+    <span class="import-status" id="importStatus">Nog geen uitslagen geladen — stand op basis van schema.</span>
+  </div>
+  <div class="col-mapper" id="colMapper">
+    <h3>Koppel DartConnect kolommen</h3>
+    <div class="mapper-grid" id="mapperGrid"></div>
+    <button class="btn btn-primary" id="applyMap">Toepassen →</button>
   </div>
 
-  <!-- Period tabs -->
-  <div class="period-nav" id="periodNav" style="display:none"></div>
+  <!-- Divisie tabs -->
+  <div class="div-tabs">
+    <button class="div-tab active" data-div="eerste">Eerste Divisie</button>
+    <button class="div-tab" data-div="eredivisie">Eredivisie</button>
+  </div>
 
-  <!-- Period sections -->
-  <div id="periodSections"></div>
+  <!-- Eerste Divisie -->
+  <div class="div-section active" id="div-eerste">
+    <div class="period-nav" id="periodNav"></div>
+    <div id="periodSections"></div>
+  </div>
 
+  <!-- Eredivisie -->
+  <div class="div-section" id="div-eredivisie">
+    <div class="overall-header">
+      <h2>Eredivisie</h2>
+      <span class="round-range" id="eredivisieInfo"></span>
+    </div>
+    <div id="eredivisieTable"></div>
+  </div>
 </main>
 
 <script>
-// ─── State ───────────────────────────────────────────────
-let csvHeaders = [];
-let csvRows    = [];     // array of objects
-let matchData  = [];     // parsed rows: { player, round, wins, played, points }
+const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const RPP = 10;
+const NUM_PERIODS = 4;
 
-// ─── Drop / file pick ────────────────────────────────────
-const dropZone  = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
+let wedstrijden = [];
+let dcMatches   = [];
+let csvHeaders  = [], csvRows = [];
 
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  handleFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
-
-function handleFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => parseCSV(e.target.result);
-  reader.readAsText(file);
+// ── Load Supabase (no auth needed now) ───────────────────────────────
+async function loadWedstrijden() {
+  document.getElementById('periodSections').innerHTML = '<div class="loading">Wedstrijden laden…</div>';
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/wedstrijden?select=*&limit=2000`, {
+      headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` }
+    });
+    if (!res.ok) throw new Error(await res.text());
+    wedstrijden = await res.json();
+    render();
+  } catch(e) {
+    document.getElementById('periodSections').innerHTML = `<div class="empty"><div class="icon">⚠️</div><p>Fout bij laden: ${esc(e.message)}</p></div>`;
+  }
 }
 
+// ── CSV ───────────────────────────────────────────────────────────────
+document.getElementById('csvFile').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => parseCSV(ev.target.result);
+  reader.readAsText(file);
+});
+
 function parseCSV(text) {
-  // Detect separator
-  const firstLine = text.split('\n')[0];
-  const sep = firstLine.includes(';') ? ';' : ',';
-
-  const lines = text.trim().split('\n').map(l => l.trim()).filter(Boolean);
-  if (lines.length < 2) { setStatus('CSV lijkt leeg.'); return; }
-
-  csvHeaders = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+  const sep = text.split('\n')[0].includes(';') ? ';' : ',';
+  const lines = text.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+  csvHeaders = lines[0].split(sep).map(h=>h.trim().replace(/^"|"$/g,''));
   csvRows = lines.slice(1).map(line => {
-    const vals = splitCSVLine(line, sep);
+    const vals = splitLine(line, sep);
     const obj = {};
-    csvHeaders.forEach((h, i) => obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''));
+    csvHeaders.forEach((h,i) => obj[h] = (vals[i]||'').trim().replace(/^"|"$/g,''));
     return obj;
   });
-
-  setStatus(`✓ ${csvRows.length} rijen geladen — koppel nu de kolommen.`, true);
+  setImportStatus(`${csvRows.length} regels geladen — koppel kolommen hieronder.`);
   buildMapper();
 }
 
-function splitCSVLine(line, sep) {
-  const result = []; let cur = ''; let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { inQ = !inQ; }
-    else if (c === sep && !inQ) { result.push(cur); cur = ''; }
-    else cur += c;
-  }
-  result.push(cur);
-  return result;
+function splitLine(line, sep) {
+  const r=[]; let cur=''; let q=false;
+  for(const c of line){ if(c==='"') q=!q; else if(c===sep&&!q){r.push(cur);cur='';}else cur+=c; }
+  r.push(cur); return r;
 }
 
-// ─── Column mapper ───────────────────────────────────────
-const REQUIRED_FIELDS = [
-  { id: 'col_player', label: 'Spelersnaam' },
-  { id: 'col_round',  label: 'Ronde #' },
-  { id: 'col_points', label: 'Punten (deze wedstrijd)' },
-  { id: 'col_wins',   label: 'Gewonnen legs / sets (optioneel)' },
-  { id: 'col_played', label: 'Gespeelde legs / sets (optioneel)' },
+const MAPPER_FIELDS = [
+  { id:'col_thuis',    label:'Thuisspeler',  hints:['thuis','home','player1','speler1'] },
+  { id:'col_uit',      label:'Uitspeler',    hints:['uit','away','player2','speler2'] },
+  { id:'col_datum',    label:'Datum',        hints:['date','datum','dag'] },
+  { id:'col_thuisLegs',label:'Legs thuis',   hints:['home','thuis','legs home','home legs','score home','thuis legs','home score'] },
+  { id:'col_uitLegs',  label:'Legs uit',     hints:['away','uit','legs away','away legs','score away','uit legs','away score'] },
 ];
 
 function buildMapper() {
   const grid = document.getElementById('mapperGrid');
-  const roundSel = document.getElementById('roundColSel');
   grid.innerHTML = '';
-  roundSel.innerHTML = '<option value="">— geen, gebruik volgorde —</option>';
-
-  // Auto-detect hints
-  const hints = {
-    col_player: ['name','naam','player','speler','deelnemer'],
-    col_round:  ['round','ronde','week','speelronde','matchday'],
-    col_points: ['pts','punten','points','score'],
-    col_wins:   ['won','wins','gewon','gewonnen','legs won'],
-    col_played: ['played','gespeeld','legs played','matches'],
-  };
-
-  REQUIRED_FIELDS.forEach(f => {
-    const div = document.createElement('div');
-    div.className = 'field-group';
-    const lbl = document.createElement('label');
-    lbl.textContent = f.label;
-    const sel = document.createElement('select');
-    sel.id = f.id;
-    const empty = document.createElement('option');
-    empty.value = ''; empty.textContent = '— kies kolom —';
-    sel.appendChild(empty);
-    csvHeaders.forEach(h => {
-      const opt = document.createElement('option');
-      opt.value = h; opt.textContent = h;
-      sel.appendChild(opt);
-    });
-    // auto-select
-    const auto = csvHeaders.find(h => hints[f.id].some(hint => h.toLowerCase().includes(hint)));
+  MAPPER_FIELDS.forEach(f => {
+    const div = document.createElement('div'); div.className = 'field-group';
+    const lbl = document.createElement('label'); lbl.textContent = f.label;
+    const sel = document.createElement('select'); sel.id = f.id;
+    sel.appendChild(new Option('— kies kolom —',''));
+    csvHeaders.forEach(h => sel.appendChild(new Option(h,h)));
+    const auto = csvHeaders.find(h => f.hints.some(hint => h.toLowerCase().includes(hint)));
     if (auto) sel.value = auto;
-    div.appendChild(lbl);
-    div.appendChild(sel);
-    grid.appendChild(div);
+    div.appendChild(lbl); div.appendChild(sel); grid.appendChild(div);
   });
-
-  // round col selector (duplicate for roundColSel)
-  csvHeaders.forEach(h => {
-    const opt = document.createElement('option'); opt.value = h; opt.textContent = h;
-    roundSel.appendChild(opt);
-  });
-  const autoRound = csvHeaders.find(h => ['round','ronde','week','speelronde'].some(x => h.toLowerCase().includes(x)));
-  if (autoRound) { roundSel.value = autoRound; document.getElementById('col_round').value = autoRound; }
-
   document.getElementById('colMapper').classList.add('visible');
 }
 
-// ─── Build stands ────────────────────────────────────────
-document.getElementById('buildBtn').addEventListener('click', buildStands);
-document.getElementById('clearBtn').addEventListener('click', clearAll);
+document.getElementById('applyMap').addEventListener('click', () => {
+  const get = id => document.getElementById(id).value;
+  const colThuis    = get('col_thuis');
+  const colUit      = get('col_uit');
+  const colDatum    = get('col_datum');
+  const colThuisLegs= get('col_thuisLegs');
+  const colUitLegs  = get('col_uitLegs');
 
-function buildStands() {
-  const colPlayer = document.getElementById('col_player').value;
-  const colRound  = document.getElementById('col_round').value;
-  const colPoints = document.getElementById('col_points').value;
-  const colWins   = document.getElementById('col_wins').value;
-  const colPlayed = document.getElementById('col_played').value;
-  const rpp       = parseInt(document.getElementById('roundsPerPeriod').value) || 10;
-
-  if (!colPlayer || !colPoints) {
-    setStatus('Koppel minimaal Spelersnaam en Punten.'); return;
+  if (!colThuis || !colUit || !colThuisLegs || !colUitLegs) {
+    setImportStatus('Koppel minimaal: thuisspeler, uitspeler, legs thuis en legs uit.', true); return;
   }
 
-  // Parse rows
-  matchData = csvRows.map((row, idx) => ({
-    player: row[colPlayer] || '?',
-    round:  colRound ? (parseInt(row[colRound]) || (idx + 1)) : (idx + 1),
-    points: parseFloat(row[colPoints]) || 0,
-    wins:   colWins   ? (parseFloat(row[colWins])   || 0) : null,
-    played: colPlayed ? (parseFloat(row[colPlayed]) || 0) : null,
-  }));
+  dcMatches = csvRows.map(r => ({
+    thuis:     norm(r[colThuis]     || ''),
+    uit:       norm(r[colUit]       || ''),
+    datum:     colDatum ? (r[colDatum]||'').slice(0,10) : '',
+    thuisLegs: parseFloat(r[colThuisLegs]) || 0,
+    uitLegs:   parseFloat(r[colUitLegs])   || 0,
+  })).filter(r => r.thuis || r.uit);
 
-  if (!matchData.length) { setStatus('Geen data na parsen.'); return; }
-
-  const maxRound = Math.max(...matchData.map(r => r.round));
-  const numPeriods = Math.ceil(maxRound / rpp);
-
-  renderPeriods(matchData, rpp, numPeriods);
-  setStatus(`Stand opgebouwd: ${maxRound} rondes → ${numPeriods} periodes.`, true);
-}
-
-function clearAll() {
-  csvHeaders = []; csvRows = []; matchData = [];
+  setImportStatus(`✓ ${dcMatches.length} uitslagen geladen.`, false, true);
   document.getElementById('colMapper').classList.remove('visible');
-  document.getElementById('periodNav').style.display = 'none';
-  document.getElementById('periodSections').innerHTML = '';
-  document.getElementById('mapperGrid').innerHTML = '';
-  setStatus('Data gewist.');
-  fileInput.value = '';
+  render();
+});
+
+// ── Matching & stand ─────────────────────────────────────────────────
+function norm(s){ return String(s).trim().toLowerCase(); }
+
+function getScore(w) {
+  const wThuis = norm(w.thuis);
+  const wUit   = norm(w.uit);
+  const wDatum = (w.datum||'').slice(0,10);
+
+  const match = dcMatches.find(m => {
+    const sameCombi = (m.thuis===wThuis && m.uit===wUit) || (m.thuis===wUit && m.uit===wThuis);
+    const datumOk   = !m.datum || !wDatum || m.datum===wDatum;
+    return sameCombi && datumOk;
+  });
+  if (!match) return null;
+
+  const flipped = match.thuis !== wThuis;
+  return {
+    thuisLegs: flipped ? match.uitLegs  : match.thuisLegs,
+    uitLegs:   flipped ? match.thuisLegs : match.uitLegs,
+  };
 }
 
-// ─── Render ──────────────────────────────────────────────
-function renderPeriods(data, rpp, numPeriods) {
-  const nav      = document.getElementById('periodNav');
-  const sections = document.getElementById('periodSections');
-  nav.innerHTML = ''; sections.innerHTML = '';
-  nav.style.display = 'flex';
+// Puntensysteem: legs gewonnen = punten
+function calcStand(subset) {
+  const players = {};
+  const ensure = name => {
+    if (!players[name]) players[name] = { name, legs:0, gespeeld:0 };
+  };
 
-  for (let p = 1; p <= numPeriods; p++) {
-    const startRound = (p - 1) * rpp + 1;
-    const endRound   = p * rpp;
+  subset.forEach(w => {
+    const score = getScore(w);
+    ensure(w.thuis); ensure(w.uit);
+    if (!score) return;
+    players[w.thuis].gespeeld++;
+    players[w.uit].gespeeld++;
+    players[w.thuis].legs += score.thuisLegs;
+    players[w.uit].legs   += score.uitLegs;
+  });
 
-    const periodRows = data.filter(r => r.round >= startRound && r.round <= endRound);
-    const stand      = calcStand(periodRows);
-    const completed  = periodRows.some(r => r.round === endRound);
-    const winner     = stand[0];
+  return Object.values(players).sort((a,b) => b.legs - a.legs);
+}
+
+// ── Render ────────────────────────────────────────────────────────────
+function render() {
+  renderEersteDivisie();
+  renderEredivisie();
+}
+
+function renderEersteDivisie() {
+  const nav  = document.getElementById('periodNav');
+  const secs = document.getElementById('periodSections');
+  nav.innerHTML = ''; secs.innerHTML = '';
+
+  const ed = wedstrijden.filter(w => w.divisie === 'Eerste Divisie');
+
+  for (let p = 1; p <= NUM_PERIODS; p++) {
+    const start  = (p-1)*RPP + 1;
+    const end    = p*RPP;
+    const subset = ed.filter(w => +w.speelronde >= start && +w.speelronde <= end);
+    const played = subset.filter(w => getScore(w) !== null);
+    const isComplete = played.length > 0 && played.length === subset.length;
+    const hasData    = played.length > 0;
+    const roundsPlayed = [...new Set(played.map(w => w.speelronde))].length;
+    const pct = Math.round((roundsPlayed / RPP) * 100);
 
     // Tab
     const tab = document.createElement('button');
-    tab.className = 'period-tab' + (p === 1 ? ' active' : '');
-    tab.dataset.period = p;
-    tab.innerHTML = `Periode ${p}${completed ? ' <span class="winner-dot"></span>' : ''}`;
+    tab.className = 'period-tab' + (p===1?' active':'');
+    tab.dataset.p = p;
+    tab.innerHTML = `Periode ${p}${isComplete ? ' <span class="dot"></span>' : ''}`;
     tab.addEventListener('click', () => switchPeriod(p));
     nav.appendChild(tab);
 
-    // Section
+    // Stand
+    const stand  = calcStand(subset);
+    const leader = stand[0];
+
+    let banner = '';
+    if (isComplete && leader) {
+      banner = `<div class="winner-banner visible">🏆 Periodewinnaar: ${esc(leader.name)} — ${leader.legs} legs</div>`;
+    } else if (hasData && leader) {
+      banner = `<div class="leader-banner visible">🎯 Koploper: ${esc(leader.name)} — ${leader.legs} legs</div>`;
+    }
+
     const sec = document.createElement('div');
-    sec.className = 'period-section' + (p === 1 ? ' active' : '');
-    sec.id = `period-${p}`;
-
-    const banner = winner && completed
-      ? `<div class="winner-banner visible"><span class="trophy">🏆</span> Periodewinnaar: ${winner.player} — ${winner.points} punten</div>`
-      : winner
-      ? `<div class="winner-banner visible" style="border-color:#6b7280;color:#a0a8b0"><span class="trophy">🎯</span> Koploper: ${winner.player} — ${winner.points} punten</div>`
-      : '';
-
-    const completedLabel = data.filter(r => r.round >= startRound && r.round <= endRound);
-    const roundsPlayed   = [...new Set(completedLabel.map(r => r.round))].length;
-
+    sec.className = 'period-section' + (p===1?' active':'');
+    sec.id = `ps-${p}`;
     sec.innerHTML = `
       <div class="period-header">
         <h2>Periode ${p}</h2>
-        <span class="round-range">Ronde ${startRound}–${endRound} &nbsp;·&nbsp; ${roundsPlayed} / ${rpp} gespeeld</span>
+        <span class="round-range">Ronde ${start}–${end}</span>
       </div>
       ${banner}
-      ${stand.length ? renderTable(stand) : '<div class="empty-state"><div class="big">🎯</div><p>Geen data voor deze periode.<br>Controleer of de juiste kolommen zijn gekoppeld.</p></div>'}
+      <div class="progress-wrap">
+        <div class="progress-label"><span>${roundsPlayed} van ${RPP} rondes gespeeld</span><span>${pct}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      ${hasData ? renderTable(stand) : '<div class="empty"><div class="icon">🎯</div><p>Nog geen uitslagen voor deze periode.<br>Importeer een DartConnect CSV om de stand te zien.</p></div>'}
     `;
-    sections.appendChild(sec);
+    secs.appendChild(sec);
   }
 }
 
-function calcStand(rows) {
-  const players = {};
-  rows.forEach(r => {
-    if (!players[r.player]) players[r.player] = { player: r.player, points: 0, wins: 0, played: 0 };
-    players[r.player].points += r.points;
-    if (r.wins   !== null) players[r.player].wins   += r.wins;
-    if (r.played !== null) players[r.player].played += r.played;
-  });
-  return Object.values(players).sort((a, b) => b.points - a.points || b.wins - a.wins);
+function renderEredivisie() {
+  const er = wedstrijden.filter(w => w.divisie === 'Eredivisie');
+  const stand = calcStand(er);
+  const played = er.filter(w => getScore(w) !== null);
+  const roundsPlayed = [...new Set(played.map(w => w.speelronde))].length;
+  document.getElementById('eredivisieInfo').textContent = `${roundsPlayed} van 40 rondes gespeeld`;
+  document.getElementById('eredivisieTable').innerHTML = stand.some(r=>r.gespeeld>0)
+    ? renderTable(stand)
+    : '<div class="empty"><div class="icon">🎯</div><p>Nog geen uitslagen — importeer een DartConnect CSV.</p></div>';
 }
 
 function renderTable(stand) {
-  const showWins   = stand.some(r => r.wins > 0);
-  const showPlayed = stand.some(r => r.played > 0);
-
   let html = `<table><thead><tr>
-    <th>#</th>
-    <th>Speler</th>
-    ${showPlayed ? '<th class="num">Gespeeld</th>' : ''}
-    ${showWins   ? '<th class="num">Gewonnen</th>' : ''}
-    <th class="num">Punten</th>
+    <th>#</th><th>Speler</th>
+    <th class="r">Gespeeld</th>
+    <th class="r">Legs</th>
+    <th class="r">Verschil</th>
   </tr></thead><tbody>`;
 
-  stand.forEach((row, i) => {
-    const rank = i + 1;
-    const gap  = i === 0 ? '' : (stand[0].points - row.points);
-    const deltaHtml = i === 0
-      ? '<span class="delta pos">leidend</span>'
-      : `<span class="delta neg">-${gap}</span>`;
-
-    html += `<tr class="${rank === 1 ? 'rank-1' : ''}">
-      <td class="rank-cell">${rank}</td>
-      <td><span class="player-name">${esc(row.player)}</span></td>
-      ${showPlayed ? `<td class="num">${row.played}</td>` : ''}
-      ${showWins   ? `<td class="num">${row.wins}</td>` : ''}
-      <td class="pts">${row.points} ${deltaHtml}</td>
+  stand.forEach((r,i) => {
+    const gapHtml = i===0
+      ? '<span class="gap lead">leidend</span>'
+      : `<span class="gap behind">-${stand[0].legs - r.legs}</span>`;
+    html += `<tr class="${i===0?'top':''}">
+      <td class="rank-cell">${i+1}</td>
+      <td><span class="player-name">${esc(r.name)}</span></td>
+      <td class="r">${r.gespeeld}</td>
+      <td class="r pts-cell">${r.legs}</td>
+      <td class="gap-cell">${gapHtml}</td>
     </tr>`;
   });
-
   return html + '</tbody></table>';
 }
 
 function switchPeriod(p) {
-  document.querySelectorAll('.period-tab').forEach(t => t.classList.toggle('active', +t.dataset.period === p));
-  document.querySelectorAll('.period-section').forEach(s => s.classList.toggle('active', s.id === `period-${p}`));
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.toggle('active', +t.dataset.p===p));
+  document.querySelectorAll('.period-section').forEach(s => s.classList.toggle('active', s.id===`ps-${p}`));
 }
 
-function setStatus(msg, ok = false) {
-  const el = document.getElementById('dataStatus');
+document.querySelectorAll('.div-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.div-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.div-section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`div-${tab.dataset.div}`).classList.add('active');
+  });
+});
+
+function setImportStatus(msg, isErr=false, isOk=false) {
+  const el = document.getElementById('importStatus');
   el.textContent = msg;
-  el.className = 'data-status' + (ok ? ' ok' : '');
+  el.className = 'import-status' + (isOk?' ok':isErr?' err':'');
 }
 
-function esc(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Start
+loadWedstrijden();
 </script>
 </body>
 </html>
