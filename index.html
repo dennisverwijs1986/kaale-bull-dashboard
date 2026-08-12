@@ -25,10 +25,10 @@
   --warn:    #f97316;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
 
 /* ── TOPBAR ── */
-.topbar{background:#080d16;border-bottom:2px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:12px;}
+.topbar{background:#080d16;border-bottom:2px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:12px;flex-shrink:0;}
 .topbar-logo{font-size:1.15rem;font-weight:800;letter-spacing:1px;display:flex;align-items:center;gap:8px;}
 .topbar-right{display:flex;align-items:center;gap:14px;}
 .clock{font-family:monospace;font-size:1.4rem;color:var(--orange);font-weight:bold;}
@@ -39,7 +39,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .sync-badge.error{background:rgba(239,68,68,0.15);color:var(--red);}
 
 /* ── BOARDS BAR ── */
-.boards-bar{background:var(--s1);border-bottom:2px solid var(--border);padding:12px 20px;}
+.boards-bar{background:var(--s1);border-bottom:2px solid var(--border);padding:12px 20px;flex-shrink:0;}
 .boards-bar-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
 .boards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
 .board-card{background:var(--s2);border-radius:10px;padding:12px 14px;border:1px solid var(--border);border-top:3px solid var(--green);transition:all 0.2s;min-height:140px;display:flex;flex-direction:column;}
@@ -57,7 +57,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .board-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:0.75rem;gap:4px;border:2px dashed var(--border);border-radius:7px;padding:8px;text-align:center;}
 
 /* ── MAIN AREA ── */
-.main-area{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 56px - 178px);overflow:hidden;}
+.main-area{display:grid;grid-template-columns:340px 1fr;height:100%;overflow:hidden;}
 .panel-left{border-right:1px solid var(--border);overflow-y:auto;background:var(--s1);}
 .panel-right{overflow-y:auto;background:var(--bg);}
 
@@ -242,15 +242,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .board-schrijver-alert { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; color: var(--orange); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
 .dashboard-view.hidden{display:none !important;}
 /* ── NAV TABS ── */
-.nav-tabs{background:#080d16;border-bottom:1px solid var(--border);display:flex;gap:0;padding:0 20px;}
+.nav-tabs{background:#080d16;border-bottom:1px solid var(--border);display:flex;gap:0;padding:0 20px;flex-shrink:0;}
 .nav-tab{padding:10px 18px;font-size:0.78rem;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;user-select:none;letter-spacing:0.5px;}
 .nav-tab:hover{color:var(--text);}
 .nav-tab.active{color:var(--green);border-bottom-color:var(--green);}
 .nav-tab.planning.active{color:var(--orange);border-bottom-color:var(--orange);}
-.dashboard-view{display:block;}
+/* ── VIEW CONTAINER (blijft onder topbar/nav/boards-bar, die altijd zichtbaar blijven) ── */
+.view-container{flex:1;min-height:0;position:relative;overflow:hidden;}
+.dashboard-view{display:block;height:100%;}
 .dashboard-view.hidden{display:none !important;}
-.planning-view{display:none;height:calc(100vh - 92px);overflow-y:auto;padding:24px;background:var(--bg);}
+.planning-view{display:none;height:100%;overflow-y:auto;padding:24px;background:var(--bg);}
 .planning-view.active{display:block;}
+/* ── EXTERNE PAGINA'S IN IFRAME (Stats / Planning) ── */
+.external-view{display:none;height:100%;background:var(--bg);}
+.external-view.active{display:block;}
+.external-view iframe{width:100%;height:100%;border:none;display:block;}
 /* planning tool cards */
 .pt-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;max-width:860px;}
 .pt-title{font-size:0.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
@@ -294,21 +300,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 <div class="nav-tabs">
   <div class="nav-tab active" id="navDashboard" onclick="switchNav('dashboard')">📋 Wedstrijdleiding</div>
   <div class="nav-tab planning" id="navPlanning" onclick="switchNav('planning')">🗓 Planning Tool</div>
-  <div style="flex:1;"></div>
-  <a class="nav-tab" href="https://dennisverwijs1986.github.io/kaale-bull-dashboard/stats.html" target="_blank" style="text-decoration:none;color:var(--muted);">📊 Stats</a>
-  <a class="nav-tab" href="https://dennisverwijs1986.github.io/kaale-bull-dashboard/profcoach.html" target="_blank" style="text-decoration:none;color:var(--muted);">🎯 ProfCoach</a>
-  <a class="nav-tab" href="https://dennisverwijs1986.github.io/kaale-bull-dashboard/beheer.html" target="_blank" style="text-decoration:none;color:var(--muted);">⚙️ Beheer</a>
-  <a class="nav-tab" href="https://dennisverwijs1986.github.io/kaale-bull-dashboard/planning.html" target="_blank" style="text-decoration:none;color:var(--muted);">🗓 Planning</a>
+  <div class="nav-tab" id="navStats" onclick="switchNav('stats')">📊 Stats</div>
 </div>
 
-<!-- ── DASHBOARD VIEW ── -->
-<div class="dashboard-view" id="dashboardView">
-
-<!-- ── BOARDS BAR ── -->
+<!-- ── BOARDS BAR (altijd zichtbaar, ook bij Planning Tool / Stats) ── -->
 <div class="boards-bar">
   <div class="boards-bar-title">🟢 Live Banen</div>
   <div class="boards-grid" id="boardsGrid"></div>
 </div>
+
+<!-- ── VIEW CONTAINER ── -->
+<div class="view-container" id="viewContainer">
+
+<!-- ── DASHBOARD VIEW ── -->
+<div class="dashboard-view" id="dashboardView">
 
 <!-- ── MAIN AREA ── -->
 <div class="main-area">
@@ -472,6 +477,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div id="ptPreviewWrap" style="display:none;"></div>
   </div>
 </div>
+
+<!-- ── STATS VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
+<div class="external-view" id="statsView">
+  <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/stats.html" title="Stats"></iframe>
+</div>
+
+</div><!-- end view-container -->
 
 <!-- MODAL: winnaar/verliezer -->
 <div class="overlay" id="uitslagModal">
@@ -1481,9 +1493,11 @@ function toggleHistory() {
 function switchNav(view) {
   document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
   document.getElementById('planningView').classList.toggle('active', view === 'planning');
+  document.getElementById('statsView').classList.toggle('active', view === 'stats');
   document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
   document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
   document.getElementById('navPlanning').classList.toggle('planning', view === 'planning');
+  document.getElementById('navStats').classList.toggle('active', view === 'stats');
 }
 
 // ══════════════════════════════════════════
