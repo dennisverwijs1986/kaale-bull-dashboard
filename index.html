@@ -301,6 +301,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <div class="nav-tab active" id="navDashboard" onclick="switchNav('dashboard')">📋 Wedstrijdleiding</div>
   <div class="nav-tab planning" id="navPlanning" onclick="switchNav('planning')">🗓 Planning Tool</div>
   <div class="nav-tab" id="navStats" onclick="switchNav('stats')">📊 Stats</div>
+  <div class="nav-tab" id="navSpelers" onclick="switchNav('spelers')">🧑‍🤝‍🧑 Spelerbeheer</div>
 </div>
 
 <!-- ── BOARDS BAR (altijd zichtbaar, ook bij Planning Tool / Stats) ── -->
@@ -481,6 +482,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 <!-- ── STATS VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
 <div class="external-view" id="statsView">
   <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/stats.html" title="Stats"></iframe>
+</div>
+
+<!-- ── SPELERBEHEER VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
+<div class="external-view" id="spelersView">
+  <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/spelerbeheer.html" title="Spelerbeheer"></iframe>
 </div>
 
 </div><!-- end view-container -->
@@ -1494,10 +1500,12 @@ function switchNav(view) {
   document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
   document.getElementById('planningView').classList.toggle('active', view === 'planning');
   document.getElementById('statsView').classList.toggle('active', view === 'stats');
+  document.getElementById('spelersView').classList.toggle('active', view === 'spelers');
   document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
   document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
   document.getElementById('navPlanning').classList.toggle('planning', view === 'planning');
   document.getElementById('navStats').classList.toggle('active', view === 'stats');
+  document.getElementById('navSpelers').classList.toggle('active', view === 'spelers');
 }
 
 // ══════════════════════════════════════════
