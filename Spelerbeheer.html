@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spelerbeheer - De Kaale Bull</title>
+<style>
+  :root {
+    --bg:      #0f1520;
+    --s1:      #161f30;
+    --s2:      #1e2a40;
+    --s3:      #243350;
+    --border:  #2a3a56;
+    --text:    #f1f5f9;
+    --muted:   #94a3b8;
+    --green:   #10b981;
+    --red:     #ef4444;
+    --orange:  #f59e0b;
+    --blue:    #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+    color: var(--text);
+  }
+  header {
+    background: #080d16;
+    color: var(--text);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--border);
+  }
+  header h1 {
+    font-size: 1.15rem;
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+  header .accent { color: var(--orange); }
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  /* Login scherm */
+  #login-screen {
+    max-width: 360px;
+    margin: 80px auto;
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.35);
+    text-align: center;
+  }
+  #login-screen h2 { margin-top: 0; color: var(--text); }
+  #login-screen input {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    margin: 12px 0;
+  }
+  #login-screen button, .btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  #login-screen button:hover, .btn:hover { background: #059669; }
+  #login-error { color: var(--red); font-size: 0.9rem; min-height: 20px; }
+
+  /* App */
+  #app { display: none; }
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .toolbar input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 12px;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 0.95rem;
+  }
+  .toolbar button {
+    padding: 10px 16px;
+    background: var(--s2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+  .toolbar button:hover { border-color: #4a5a76; }
+
+  #status-msg {
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+    display: none;
+  }
+  #status-msg.ok { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.3); display: block; }
+  #status-msg.err { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.3); display: block; }
+
+  .player-card {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+  }
+  .player-name {
+    font-weight: 600;
+    font-size: 1.02rem;
+    color: var(--text);
+  }
+  .player-meta {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .chevron {
+    transition: transform 0.2s;
+    color: var(--muted);
+  }
+  .player-card.open .chevron { transform: rotate(90deg); }
+
+  .player-body {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .player-card.open .player-body { display: block; }
+
+  .field-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .field-group {
+    flex: 1;
+    min-width: 160px;
+  }
+  .field-group label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .field-group input, .field-group select {
+    width: 100%;
+    padding: 9px 10px;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 0.92rem;
+  }
+  .field-group input:focus, .field-group select:focus { outline: none; border-color: var(--blue); }
+  .save-btn {
+    padding: 9px 16px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.88rem;
+  }
+  .save-btn:hover { background: #059669; }
+  .save-btn:disabled { background: #4a5a76; color: var(--muted); cursor: default; }
+
+  #add-player-card {
+    background: var(--s1);
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  #add-player-card h3 { margin-top: 0; font-size: 0.95rem; color: var(--text); }
+
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 0;
+  }
+  .loading { text-align: center; color: var(--muted); padding: 40px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎯 Kaale Bull <span class="accent">— Spelerbeheer</span></h1>
+</header>
+
+<main>
+
+  <div id="login-screen">
+    <h2>Inloggen</h2>
+    <p style="color:#777; font-size:0.9rem;">Alleen voor wedstrijdleiding</p>
+    <input type="password" id="password-input" placeholder="Wachtwoord" autocomplete="off">
+    <button onclick="tryLogin()">Inloggen</button>
+    <div id="login-error"></div>
+  </div>
+
+  <div id="app">
+    <div id="status-msg"></div>
+
+    <div id="add-player-card">
+      <h3>+ Nieuwe speler toevoegen</h3>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Naam</label>
+          <input type="text" id="new-naam" placeholder="Volledige naam">
+        </div>
+        <div class="field-group">
+          <label>Divisie</label>
+          <select id="new-divisie">
+            <option value="">— geen —</option>
+            <option value="Eredivisie">Eredivisie</option>
+            <option value="Eerste Divisie">Eerste Divisie</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>E-mail</label>
+          <input type="email" id="new-email" placeholder="naam@voorbeeld.nl">
+        </div>
+        <div class="field-group">
+          <label>Telefoon</label>
+          <input type="text" id="new-telefoon" placeholder="06-12345678">
+        </div>
+      </div>
+      <button class="btn" style="width:auto; padding: 9px 18px;" onclick="addPlayer()">Speler toevoegen</button>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="search-input" placeholder="Zoek op naam..." oninput="renderPlayers()">
+    </div>
+
+    <div id="players-list" class="loading">Spelers laden...</div>
+  </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/supabase-js/2.39.0/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+  // Publieke anon key van dit project - alleen leesrechten + beperkte schrijfrechten op spelers tabellen
+  const SUPABASE_ANON_KEY = 'REPLACE_WITH_ANON_KEY';
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let allPlayers = [];
+  let allContacts = {};
+
+  async function tryLogin() {
+    const input = document.getElementById('password-input').value;
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+
+    if (!input) return;
+
+    const { data, error } = await supabaseClient
+      .from('instellingen')
+      .select('waarde')
+      .eq('sleutel', 'spelerbeheer_wachtwoord')
+      .single();
+
+    if (error || !data) {
+      errEl.textContent = 'Kon niet inloggen, probeer opnieuw.';
+      return;
+    }
+
+    if (input === data.waarde) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      sessionStorage.setItem('spelerbeheer_ok', '1');
+      loadPlayers();
+    } else {
+      errEl.textContent = 'Onjuist wachtwoord.';
+    }
+  }
+
+  document.getElementById('password-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') tryLogin();
+  });
+
+  // Blijf ingelogd binnen deze browser-sessie
+  if (sessionStorage.getItem('spelerbeheer_ok') === '1') {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadPlayers();
+  }
+
+  function showStatus(msg, ok) {
+    const el = document.getElementById('status-msg');
+    el.textContent = msg;
+    el.className = ok ? 'ok' : 'err';
+    setTimeout(() => { el.className = ''; el.textContent=''; }, 3500);
+  }
+
+  async function loadPlayers() {
+    const listEl = document.getElementById('players-list');
+    listEl.innerHTML = '<div class="loading">Spelers laden...</div>';
+
+    const { data: spelers, error: sErr } = await supabaseClient
+      .from('spelers')
+      .select('*')
+      .order('naam');
+
+    if (sErr) {
+      listEl.innerHTML = '<div class="empty-state">Fout bij laden: ' + sErr.message + '</div>';
+      return;
+    }
+
+    const { data: contacts, error: cErr } = await supabaseClient
+      .from('spelers_contact')
+      .select('*');
+
+    allContacts = {};
+    if (!cErr && contacts) {
+      contacts.forEach(c => { allContacts[c.speler_id] = c; });
+    }
+
+    allPlayers = spelers || [];
+    renderPlayers();
+  }
+
+  function renderPlayers() {
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const listEl = document.getElementById('players-list');
+
+    const filtered = allPlayers.filter(p => p.naam.toLowerCase().includes(search));
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">Geen spelers gevonden</div>';
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(p => {
+      const contact = allContacts[p.id] || {};
+      const metaBits = [];
+      if (p.divisie) metaBits.push(p.divisie);
+      if (contact.email) metaBits.push(contact.email);
+      const meta = metaBits.length ? metaBits.join(' · ') : 'Geen gegevens ingevuld';
+
+      return `
+        <div class="player-card" id="card-${p.id}">
+          <div class="player-header" onclick="toggleCard('${p.id}')">
+            <div>
+              <div class="player-name">${escapeHtml(p.naam)}</div>
+              <div class="player-meta">${escapeHtml(meta)}</div>
+            </div>
+            <div class="chevron">▶</div>
+          </div>
+          <div class="player-body">
+            <div class="field-row">
+              <div class="field-group">
+                <label>Naam</label>
+                <input type="text" id="naam-${p.id}" value="${escapeAttr(p.naam)}">
+              </div>
+              <div class="field-group">
+                <label>Divisie</label>
+                <select id="divisie-${p.id}">
+                  <option value="" ${!p.divisie ? 'selected' : ''}>— geen —</option>
+                  <option value="Eredivisie" ${p.divisie === 'Eredivisie' ? 'selected' : ''}>Eredivisie</option>
+                  <option value="Eerste Divisie" ${p.divisie === 'Eerste Divisie' ? 'selected' : ''}>Eerste Divisie</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label>E-mail</label>
+                <input type="email" id="email-${p.id}" value="${escapeAttr(contact.email || '')}">
+              </div>
+              <div class="field-group">
+                <label>Telefoon</label>
+                <input type="text" id="telefoon-${p.id}" value="${escapeAttr(contact.telefoon || '')}">
+              </div>
+            </div>
+            <button class="save-btn" onclick="savePlayer('${p.id}')">Opslaan</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function toggleCard(id) {
+    document.getElementById('card-' + id).classList.toggle('open');
+  }
+
+  async function savePlayer(id) {
+    const naam = document.getElementById(`naam-${id}`).value.trim();
+    const divisie = document.getElementById(`divisie-${id}`).value || null;
+    const email = document.getElementById(`email-${id}`).value.trim() || null;
+    const telefoon = document.getElementById(`telefoon-${id}`).value.trim() || null;
+
+    if (!naam) {
+      showStatus('Naam mag niet leeg zijn.', false);
+      return;
+    }
+
+    const { error: updateErr } = await supabaseClient
+      .from('spelers')
+      .update({ naam, divisie })
+      .eq('id', id);
+
+    if (updateErr) {
+      showStatus('Fout bij opslaan speler: ' + updateErr.message, false);
+      return;
+    }
+
+    const { error: contactErr } = await supabaseClient
+      .from('spelers_contact')
+      .upsert({ speler_id: id, email, telefoon }, { onConflict: 'speler_id' });
+
+    if (contactErr) {
+      showStatus('Fout bij opslaan contactgegevens: ' + contactErr.message, false);
+      return;
+    }
+
+    showStatus('Opgeslagen: ' + naam, true);
+    await loadPlayers();
+    document.getElementById('card-' + id).classList.add('open');
+  }
+
+  async function addPlayer() {
+    const naam = document.getElementById('new-naam').value.trim();
+    const divisie = document.getElementById('new-divisie').value || null;
+    const email = document.getElementById('new-email').value.trim() || null;
+    const telefoon = document.getElementById('new-telefoon').value.trim() || null;
+
+    if (!naam) {
+      showStatus('Vul een naam in.', false);
+      return;
+    }
+
+    const { data: inserted, error: insertErr } = await supabaseClient
+      .from('spelers')
+      .insert({ naam, divisie })
+      .select()
+      .single();
+
+    if (insertErr) {
+      showStatus('Fout bij toevoegen: ' + insertErr.message, false);
+      return;
+    }
+
+    if (email || telefoon) {
+      await supabaseClient
+        .from('spelers_contact')
+        .insert({ speler_id: inserted.id, email, telefoon });
+    }
+
+    document.getElementById('new-naam').value = '';
+    document.getElementById('new-divisie').value = '';
+    document.getElementById('new-email').value = '';
+    document.getElementById('new-telefoon').value = '';
+
+    showStatus('Speler toegevoegd: ' + naam, true);
+    await loadPlayers();
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+  function escapeAttr(str) {
+    return String(str).replace(/"/g, '&quot;');
+  }
+</script>
+
+</body>
+</html>
