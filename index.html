@@ -525,7 +525,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     </label>
     <div class="modal-acts">
       <button class="btn btn-ghost" onclick="sluitModal('verzetModal')">Annuleren</button>
-      <button class="btn btn-green" onclick="slaVerzetOp()">✓ Verzetten</button>
+      <button class="btn btn-green" onclick="slaVerzetOp(false)">✓ Verzetten</button>
+      <button class="btn btn-orange" id="verzetInformeerBtn" onclick="slaVerzetOp(true)">📧 Verzet & informeer</button>
     </div>
   </div>
 </div>
@@ -1204,7 +1205,7 @@ function openVerzetModal(id) {
   document.getElementById('verzetModal').classList.add('open');
 }
 
-async function slaVerzetOp() {
+async function slaVerzetOp(informeer) {
   if (!verzetId) return;
   const nieuweDatum = document.getElementById('verzetDatum').value;
   const isInhaal    = document.getElementById('verzetIsInhaal').checked;
@@ -1212,6 +1213,10 @@ async function slaVerzetOp() {
 
   const m = wedstrijden.find(w=>w.id===verzetId);
   const origDatum = m?.originele_datum || m?.datum; // bewaar origineel
+  const idVoorMail = verzetId;
+
+  const informeerBtn = document.getElementById('verzetInformeerBtn');
+  if (informeer && informeerBtn) { informeerBtn.disabled = true; informeerBtn.textContent = '📧 Bezig...'; }
 
   try {
     await sbPatch('wedstrijden',verzetId,{
@@ -1224,7 +1229,25 @@ async function slaVerzetOp() {
     sluitModal('verzetModal'); verzetId=null;
     bouwDatumFilter(); renderAll();
     toast(`📅 Verzet naar ${fmtDatum(nieuweDatum)}`,'orange');
+
+    if (informeer) {
+      try {
+        const res = await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${SB_KEY}`, 'apikey':SB_KEY },
+          body: JSON.stringify({ type:'verzet', wedstrijd_id: idVoorMail })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Onbekende fout');
+        toast(`📧 Spelers geïnformeerd (${data.verzonden_naar} mail(s))`,'green');
+      } catch(mailErr) {
+        toast(`⚠ Verzet gelukt, maar mail mislukt: ${mailErr.message}`,'red');
+      }
+    }
   } catch(e) { toast(`Fout: ${e.message}`,'red'); }
+  finally {
+    if (informeerBtn) { informeerBtn.disabled = false; informeerBtn.textContent = '📧 Verzet & informeer'; }
+  }
 }
 
 async function herstelOrigDatum(id) {
