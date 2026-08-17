@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logboek - De Kaale Bull</title>
+<style>
+  :root {
+    --bg:      #0f1520;
+    --s1:      #161f30;
+    --s2:      #1e2a40;
+    --s3:      #243350;
+    --border:  #2a3a56;
+    --text:    #f1f5f9;
+    --muted:   #94a3b8;
+    --green:   #10b981;
+    --red:     #ef4444;
+    --orange:  #f59e0b;
+    --blue:    #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+    color: var(--text);
+  }
+  header {
+    background: #080d16;
+    color: var(--text);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--border);
+  }
+  header h1 { font-size: 1.15rem; margin: 0; font-weight: 800; letter-spacing: 0.5px; }
+  header .accent { color: var(--orange); }
+  main { max-width: 1000px; margin: 0 auto; padding: 20px; }
+
+  #login-screen {
+    max-width: 360px; margin: 80px auto; background: var(--s1);
+    border: 1px solid var(--border); border-radius: 10px; padding: 30px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.35); text-align: center;
+  }
+  #login-screen h2 { margin-top: 0; color: var(--text); }
+  #login-screen input {
+    width: 100%; padding: 12px; font-size: 1rem; background: var(--s2);
+    border: 1px solid var(--border); color: var(--text); border-radius: 6px; margin: 12px 0;
+  }
+  #login-screen button, .btn {
+    width: 100%; padding: 12px; font-size: 1rem; background: var(--green);
+    color: #000; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;
+  }
+  #login-error { color: var(--red); font-size: 0.85rem; min-height: 18px; margin-top: 4px; }
+
+  #app { display: none; }
+
+  .stats-row { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .stat-card {
+    flex: 1; min-width: 130px; background: var(--s1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 800; }
+  .stat-card .lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .toolbar {
+    display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .toolbar input, .toolbar select {
+    background: var(--s2); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 10px; border-radius: 6px; font-size: 0.85rem;
+  }
+  .toolbar input[type="text"] { flex: 1; min-width: 160px; }
+
+  .log-card {
+    background: var(--s1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 10px;
+  }
+  .log-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .log-match { font-weight: 700; font-size: 0.92rem; }
+  .log-meta { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
+  .badge-ok { background: rgba(16,185,129,0.15); color: var(--green); }
+  .badge-err { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-none { background: rgba(148,163,184,0.15); color: var(--muted); }
+  .badge-actie { background: rgba(245,158,11,0.15); color: var(--orange); }
+  .log-error { color: var(--red); font-size: 0.78rem; margin-top: 6px; }
+  .log-datum { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 0; }
+  .loading { text-align: center; color: var(--muted); padding: 40px 0; }
+
+  details#beheer { margin-top: 24px; background: var(--s1); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  details#beheer summary { cursor: pointer; font-weight: 700; font-size: 0.85rem; }
+  .wl-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .wl-row:last-child { border-bottom: none; }
+  .wl-naam { flex: 1; }
+  .wl-inactief { color: var(--muted); text-decoration: line-through; }
+  .small-btn {
+    background: var(--s3); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; font-size: 0.75rem; cursor: pointer;
+  }
+  .small-btn.danger { color: var(--red); }
+  #wl-add { display: flex; gap: 8px; margin-top: 10px; }
+  #wl-add input { flex: 1; background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎯 Kaale Bull <span class="accent">— Logboek</span></h1>
+</header>
+
+<main>
+
+  <div id="login-screen">
+    <h2>Inloggen</h2>
+    <p style="color:#777; font-size:0.9rem;">Alleen voor wedstrijdleiding</p>
+    <input type="password" id="password-input" placeholder="Wachtwoord" autocomplete="off">
+    <button onclick="tryLogin()">Inloggen</button>
+    <div id="login-error"></div>
+  </div>
+
+  <div id="app">
+    <div class="stats-row" id="stats-row"></div>
+
+    <div class="toolbar">
+      <input type="text" id="search-input" placeholder="Zoek op speler..." oninput="renderLog()">
+      <select id="actie-filter" onchange="renderLog()">
+        <option value="">Alle acties</option>
+        <option value="verzet">Verzet</option>
+        <option value="nieuwe_beker">Nieuwe beker</option>
+        <option value="overig">Overig</option>
+      </select>
+      <select id="mail-filter" onchange="renderLog()">
+        <option value="">Mail: alle</option>
+        <option value="ok">Mail verstuurd</option>
+        <option value="fout">Mail mislukt</option>
+        <option value="geen">Geen mail</option>
+      </select>
+    </div>
+
+    <div id="log-list" class="loading">Log laden...</div>
+
+    <details id="beheer">
+      <summary>👥 Wedstrijdleiding-namen beheren</summary>
+      <div id="wl-list"></div>
+      <div id="wl-add">
+        <input type="text" id="wl-new-naam" placeholder="Nieuwe naam...">
+        <button class="small-btn" onclick="voegWedstrijdleiderToe()">+ Toevoegen</button>
+      </div>
+    </details>
+  </div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let allLog = [];
+  let allWL  = [];
+
+  async function tryLogin() {
+    const input = document.getElementById('password-input').value;
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+    if (!input) return;
+
+    const { data, error } = await supabaseClient
+      .from('instellingen')
+      .select('waarde')
+      .eq('sleutel', 'spelerbeheer_wachtwoord')
+      .single();
+
+    if (error || !data) { errEl.textContent = 'Kon niet inloggen, probeer opnieuw.'; return; }
+
+    if (input === data.waarde) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      sessionStorage.setItem('spelerbeheer_ok', '1');
+      loadAll();
+    } else {
+      errEl.textContent = 'Onjuist wachtwoord.';
+    }
+  }
+
+  document.getElementById('password-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') tryLogin();
+  });
+
+  if (sessionStorage.getItem('spelerbeheer_ok') === '1') {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  }
+
+  async function loadAll() {
+    await Promise.all([loadLog(), loadWL()]);
+  }
+
+  async function loadLog() {
+    const { data, error } = await supabaseClient
+      .from('wijziging_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(300);
+    if (error) {
+      document.getElementById('log-list').innerHTML = `<div class="empty-state">Kon logboek niet laden: ${error.message}</div>`;
+      return;
+    }
+    allLog = data || [];
+    renderStats();
+    renderLog();
+  }
+
+  async function loadWL() {
+    const { data, error } = await supabaseClient
+      .from('wedstrijdleiding')
+      .select('*')
+      .order('naam', { ascending: true });
+    if (error) return;
+    allWL = data || [];
+    renderWL();
+  }
+
+  function renderStats() {
+    const totaal = allLog.length;
+    const mailOk = allLog.filter(l => l.mail_verstuurd).length;
+    const mailFout = allLog.filter(l => !l.mail_verstuurd && l.mail_error).length;
+    const vandaag = new Date().toISOString().slice(0,10);
+    const vandaagCount = allLog.filter(l => (l.created_at||'').slice(0,10) === vandaag).length;
+
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat-card"><div class="num">${totaal}</div><div class="lbl">Totaal wijzigingen</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--green)">${mailOk}</div><div class="lbl">Mails verstuurd</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--red)">${mailFout}</div><div class="lbl">Mails mislukt</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--orange)">${vandaagCount}</div><div class="lbl">Vandaag</div></div>
+    `;
+  }
+
+  function fmtDatetime(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('nl-NL', { day:'2-digit', month:'short' }) + ' ' +
+           d.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
+  }
+  function fmtDatum(d) {
+    if (!d) return null;
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('nl-NL', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  function renderLog() {
+    const zoek = document.getElementById('search-input').value.trim().toLowerCase();
+    const actieF = document.getElementById('actie-filter').value;
+    const mailF = document.getElementById('mail-filter').value;
+
+    let rows = allLog.filter(l => {
+      if (zoek) {
+        const hay = `${l.thuis||''} ${l.uit||''} ${l.gewijzigd_door||''}`.toLowerCase();
+        if (!hay.includes(zoek)) return false;
+      }
+      if (actieF && l.actie !== actieF) return false;
+      if (mailF === 'ok' && !l.mail_verstuurd) return false;
+      if (mailF === 'fout' && !(!l.mail_verstuurd && l.mail_error)) return false;
+      if (mailF === 'geen' && !(!l.mail_verstuurd && !l.mail_error)) return false;
+      return true;
+    });
+
+    const listEl = document.getElementById('log-list');
+    if (rows.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">Geen wijzigingen gevonden.</div>';
+      return;
+    }
+
+    listEl.innerHTML = rows.map(l => {
+      const actieLabel = l.actie === 'verzet' ? '📅 Verzet' : l.actie === 'nieuwe_beker' ? '🏆 Nieuwe beker' : '✏️ Overig';
+      let mailBadge;
+      if (l.mail_verstuurd) mailBadge = `<span class="badge badge-ok">📧 Mail verstuurd</span>`;
+      else if (l.mail_error) mailBadge = `<span class="badge badge-err">⚠ Mail mislukt</span>`;
+      else mailBadge = `<span class="badge badge-none">geen mail</span>`;
+
+      const datumWijziging = (l.oude_datum && l.nieuwe_datum && l.oude_datum !== l.nieuwe_datum)
+        ? `${fmtDatum(l.oude_datum)} → <strong>${fmtDatum(l.nieuwe_datum)}</strong>`
+        : (l.nieuwe_datum ? fmtDatum(l.nieuwe_datum) : '');
+
+      return `
+        <div class="log-card">
+          <div class="log-top">
+            <div>
+              <div class="log-match">${l.thuis||'?'} vs ${l.uit||'?'} <span class="badge badge-actie">${actieLabel}</span></div>
+              <div class="log-meta">${datumWijziging} ${l.divisie?('· '+l.divisie):''}</div>
+              <div class="log-meta">Door: <strong>${l.gewijzigd_door||'-'}</strong> ${mailBadge}</div>
+              ${l.mail_error ? `<div class="log-error">${l.mail_error}</div>` : ''}
+            </div>
+            <div class="log-datum">${fmtDatetime(l.created_at)}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderWL() {
+    const el = document.getElementById('wl-list');
+    if (allWL.length === 0) { el.innerHTML = '<div class="empty-state">Nog geen namen toegevoegd.</div>'; return; }
+    el.innerHTML = allWL.map(w => `
+      <div class="wl-row">
+        <div class="wl-naam ${w.actief ? '' : 'wl-inactief'}">${w.naam}</div>
+        <button class="small-btn" onclick="toggleWL('${w.id}', ${!w.actief})">${w.actief ? 'Deactiveren' : 'Activeren'}</button>
+        <button class="small-btn danger" onclick="verwijderWL('${w.id}')">Verwijderen</button>
+      </div>
+    `).join('');
+  }
+
+  async function voegWedstrijdleiderToe() {
+    const input = document.getElementById('wl-new-naam');
+    const naam = input.value.trim();
+    if (!naam) return;
+    const { error } = await supabaseClient.from('wedstrijdleiding').insert({ naam });
+    if (error) { alert('Kon niet toevoegen: ' + error.message); return; }
+    input.value = '';
+    loadWL();
+  }
+
+  async function toggleWL(id, actief) {
+    await supabaseClient.from('wedstrijdleiding').update({ actief }).eq('id', id);
+    loadWL();
+  }
+
+  async function verwijderWL(id) {
+    if (!confirm('Deze naam definitief verwijderen?')) return;
+    await supabaseClient.from('wedstrijdleiding').delete().eq('id', id);
+    loadWL();
+  }
+</script>
+</body>
+</html>
