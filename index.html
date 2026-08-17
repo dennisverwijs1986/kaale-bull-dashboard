@@ -714,9 +714,12 @@ function renderAvondBanner() {
   const totaal  = open.length + gespeeld.length;
   const bezet   = Object.values(activeMatches).filter(Boolean).length;
 
-  // Verwachte eindtijd: alle open wedstrijden (incl beker) / 4 borden * 20 min
-  const minOver = Math.ceil(open.length / 4) * 20;
-  const eindTijd = new Date(Date.now() + minOver * 60000);
+  // Verwachte eindtijd: gehele avond (alle wedstrijden incl beker) start altijd om 19:30,
+  // verdeeld over 4 borden × 20 min per wedstrijd
+  const minTotaal = Math.ceil(totaal / 4) * 20;
+  const [startUur, startMin] = ['19','30'];
+  const eindTijd = new Date(`${d}T${startUur}:${startMin}:00`);
+  eindTijd.setMinutes(eindTijd.getMinutes() + minTotaal);
   const eindStr  = `${String(eindTijd.getHours()).padStart(2,'0')}:${String(eindTijd.getMinutes()).padStart(2,'0')}`;
 
   // Spelers met 3+ wedstrijden
@@ -983,10 +986,9 @@ function renderQueue() {
     renderHistory(); return;
   }
 
-  // Sorteer: inhaal ALTIJD bovenaan, dan op tijdstip
+  // Sorteer op tijdstip; inhaalwedstrijden hebben geen tijdstip en komen dus
+  // vanzelf na de laatst geplande wedstrijd in de kolom (blijven wel zichtbaar)
   const sorteer = (a,b) => {
-    if (a.is_inhaal && !b.is_inhaal) return -1;
-    if (!a.is_inhaal && b.is_inhaal) return 1;
     const tA = a.tijdstip||'', tB = b.tijdstip||'';
     if (!tA && !tB) return 0;
     if (!tA) return 1;
