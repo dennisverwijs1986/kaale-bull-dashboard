@@ -302,6 +302,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <div class="nav-tab planning" id="navPlanning" onclick="switchNav('planning')">🗓 Planning Tool</div>
   <div class="nav-tab" id="navStats" onclick="switchNav('stats')">📊 Stats</div>
   <div class="nav-tab" id="navSpelers" onclick="switchNav('spelers')">🧑‍🤝‍🧑 Spelerbeheer</div>
+  <div class="nav-tab" id="navLogboek" onclick="switchNav('logboek')">📝 Logboek</div>
 </div>
 
 <!-- ── BOARDS BAR (altijd zichtbaar, ook bij Planning Tool / Stats) ── -->
@@ -489,6 +490,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/spelerbeheer.html" title="Spelerbeheer"></iframe>
 </div>
 
+<!-- ── LOGBOEK VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
+<div class="external-view" id="logboekView">
+  <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/logboek.html" title="Logboek"></iframe>
+</div>
+
 </div><!-- end view-container -->
 
 <!-- MODAL: winnaar/verliezer -->
@@ -519,6 +525,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div id="verzetOrigDatum"></div>
     <div style="margin-bottom:12px;">
       <div class="ig"><div class="lbl">NIEUWE DATUM</div><input type="date" class="inp" id="verzetDatum"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div class="ig"><div class="lbl">GEWIJZIGD DOOR</div><select class="sel" id="verzetDoor"><option value="">-- kies --</option></select></div>
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--muted);cursor:pointer;margin-bottom:8px;">
       <input type="checkbox" id="verzetIsInhaal" checked> Markeren als inhaalwedstrijd
@@ -563,6 +572,7 @@ const sbDelete = async (t,id)      => { const r=await fetch(`${SB_URL}/rest/v1/$
 // ══════════════════════════════════════════
 let wedstrijden = [];
 let spelers     = [];
+let wedstrijdleiders = [];
 let gekozenBO    = 'Best of 5';
 let bekerOpen    = false;
 let verzetId     = null;
@@ -615,13 +625,15 @@ function setSync(state, txt) {
 async function laadData() {
   setSync('loading','⏳ LADEN…');
   try {
-    [wedstrijden, spelers] = await Promise.all([
+    [wedstrijden, spelers, wedstrijdleiders] = await Promise.all([
       sbGet('wedstrijden','order=datum.asc,tijdstip.asc'),
-      sbGet('spelers','order=naam.asc')
+      sbGet('spelers','order=naam.asc'),
+      sbGet('wedstrijdleiding','order=naam.asc&actief=eq.true')
     ]);
     setSync('ok','● VERBONDEN');
     bouwDatumFilter();
     vulBekerDropdowns();
+    vulVerzetDoorDropdown();
     renderBoards();
     renderAll();
   } catch(e) {
@@ -1188,11 +1200,20 @@ async function slaUitslagOp() {
 // ══════════════════════════════════════════
 //  VERZET MODAL
 // ══════════════════════════════════════════
+function vulVerzetDoorDropdown() {
+  const sel = document.getElementById('verzetDoor'); if (!sel) return;
+  const huidige = sel.value;
+  sel.innerHTML = '<option value="">-- kies --</option>' +
+    wedstrijdleiders.map(w=>`<option value="${w.naam}">${w.naam}</option>`).join('');
+  sel.value = huidige || '';
+}
+
 function openVerzetModal(id) {
   verzetId = id;
   const m = wedstrijden.find(w=>w.id===id); if (!m) return;
   document.getElementById('verzetLabel').textContent = `${m.thuis} vs ${m.uit}`;
   document.getElementById('verzetDatum').value = m.datum||'';
+  document.getElementById('verzetDoor').value = '';
   document.getElementById('verzetIsInhaal').checked = true;
 
   // Toon originele datum als die er al is
@@ -1209,9 +1230,12 @@ async function slaVerzetOp(informeer) {
   if (!verzetId) return;
   const nieuweDatum = document.getElementById('verzetDatum').value;
   const isInhaal    = document.getElementById('verzetIsInhaal').checked;
+  const gewijzigdDoor = document.getElementById('verzetDoor').value;
   if (!nieuweDatum) { toast('Kies een datum','red'); return; }
+  if (!gewijzigdDoor) { toast('Kies wie de wijziging doet','red'); return; }
 
   const m = wedstrijden.find(w=>w.id===verzetId);
+  const oudeDatum = m?.datum || null;
   const origDatum = m?.originele_datum || m?.datum; // bewaar origineel
   const idVoorMail = verzetId;
 
@@ -1230,12 +1254,31 @@ async function slaVerzetOp(informeer) {
     bouwDatumFilter(); renderAll();
     toast(`📅 Verzet naar ${fmtDatum(nieuweDatum)}`,'orange');
 
+    // Log de wijziging, ongeacht of we ook informeren
+    let logId = null;
+    try {
+      const logRow = await sbPost('wijziging_log', {
+        wedstrijd_id: idVoorMail,
+        thuis: m?.thuis || null,
+        uit: m?.uit || null,
+        divisie: m?.divisie || null,
+        actie: 'verzet',
+        oude_datum: oudeDatum,
+        nieuwe_datum: nieuweDatum,
+        gewijzigd_door: gewijzigdDoor,
+        mail_verstuurd: false
+      });
+      logId = logRow?.[0]?.id || null;
+    } catch(logErr) {
+      console.error('Kon wijziging niet loggen:', logErr);
+    }
+
     if (informeer) {
       try {
         const res = await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`, {
           method: 'POST',
           headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${SB_KEY}`, 'apikey':SB_KEY },
-          body: JSON.stringify({ type:'verzet', wedstrijd_id: idVoorMail })
+          body: JSON.stringify({ type:'verzet', wedstrijd_id: idVoorMail, gewijzigd_door: gewijzigdDoor, wijziging_log_id: logId })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Onbekende fout');
@@ -1524,11 +1567,13 @@ function switchNav(view) {
   document.getElementById('planningView').classList.toggle('active', view === 'planning');
   document.getElementById('statsView').classList.toggle('active', view === 'stats');
   document.getElementById('spelersView').classList.toggle('active', view === 'spelers');
+  document.getElementById('logboekView').classList.toggle('active', view === 'logboek');
   document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
   document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
   document.getElementById('navPlanning').classList.toggle('planning', view === 'planning');
   document.getElementById('navStats').classList.toggle('active', view === 'stats');
   document.getElementById('navSpelers').classList.toggle('active', view === 'spelers');
+  document.getElementById('navLogboek').classList.toggle('active', view === 'logboek');
 }
 
 // ══════════════════════════════════════════
