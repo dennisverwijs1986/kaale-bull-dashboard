@@ -791,7 +791,7 @@ function renderWerklast() {
       const tegenstander = isSelf ? w.uit : w.thuis;
       const rol = isSelf ? 'Thuis' : 'Uit';
       return `<div class="speler-match-row div-${divKey} ${w.status==='gespeeld'?'speler-match-gespeeld':''}">
-        <span class="match-time normal" style="font-size:0.68rem;">${w.tijdstip||'--:--'}</span>
+        ${w.is_inhaal ? '' : `<span class="match-time normal" style="font-size:0.68rem;">${w.tijdstip||'--:--'}</span>`}
         <span style="flex:1;font-weight:600;">${naam} <span style="color:var(--muted);font-weight:400;font-size:0.7rem;">(${rol})</span> vs ${tegenstander}</span>
         ${getDivChip(w)}
         ${w.status==='gespeeld'?'<span style="color:var(--green);font-size:0.7rem;">✓</span>':''}
