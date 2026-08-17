@@ -986,9 +986,10 @@ function renderQueue() {
     renderHistory(); return;
   }
 
-  // Sorteer op tijdstip; inhaalwedstrijden hebben geen tijdstip en komen dus
-  // vanzelf na de laatst geplande wedstrijd in de kolom (blijven wel zichtbaar)
+  // Sorteer: inhaal ALTIJD bovenaan, dan op tijdstip
   const sorteer = (a,b) => {
+    if (a.is_inhaal && !b.is_inhaal) return -1;
+    if (!a.is_inhaal && b.is_inhaal) return 1;
     const tA = a.tijdstip||'', tB = b.tijdstip||'';
     if (!tA && !tB) return 0;
     if (!tA) return 1;
