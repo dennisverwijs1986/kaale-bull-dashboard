@@ -23,6 +23,7 @@
   --beker:   #f59e0b;
   --inhaal:  #ef4444;
   --warn:    #f97316;
+  --nnb:     #06b6d4;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
@@ -221,6 +222,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .beker-balk-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--beker); margin-bottom: 6px; }
 .beker-balk-cards { display: flex; flex-wrap: wrap; gap: 6px; }
 .beker-balk-cards .match-card { flex: 1; min-width: 240px; }
+.nnb-banner{background:linear-gradient(90deg,rgba(6,182,212,0.12),rgba(6,182,212,0.05));border:1px solid rgba(6,182,212,0.3);border-radius:8px;padding:10px 12px;margin-bottom:14px;}
+.nnb-banner-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--nnb);margin-bottom:8px;}
+.nnb-list{display:flex;flex-direction:column;gap:6px;}
+.nnb-item{background:var(--s1);border:1px solid var(--border);border-left:4px solid var(--nnb);border-radius:7px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.nnb-item-info{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:0.8rem;}
+.nnb-item-info .orig-datum{font-size:0.68rem;}
+.nnb-chip{font-size:0.62rem;font-weight:700;padding:1px 6px;border-radius:3px;background:rgba(6,182,212,0.15);color:var(--nnb);text-transform:uppercase;letter-spacing:0.5px;}
 
 /* ── HALVE SEIZOEN TOGGLE ── */
 .halve-toggle { display: flex; align-items: center; gap: 0; background: var(--s2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
@@ -410,6 +418,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     </div>
 
     <div class="queue-wrap">
+      <!-- NNB: wedstrijden zonder bekende (inhaal)datum, altijd zichtbaar ongeacht avondfilter -->
+      <div id="nnbBanner"></div>
+
       <!-- AVOND OVERZICHT -->
       <div id="avondBanner"></div>
 
@@ -526,6 +537,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div style="margin-bottom:12px;">
       <div class="ig"><div class="lbl">NIEUWE DATUM</div><input type="date" class="inp" id="verzetDatum"></div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--nnb);cursor:pointer;margin-bottom:12px;">
+      <input type="checkbox" id="verzetNNB" onchange="toggleVerzetNNB()"> 🕓 Datum nog niet bekend (NNB)
+    </label>
     <div style="margin-bottom:12px;">
       <div class="ig"><div class="lbl">GEWIJZIGD DOOR</div><select class="sel" id="verzetDoor"><option value="">-- kies --</option></select></div>
     </div>
@@ -653,7 +667,7 @@ function toonErr(msg) {
 function bouwDatumFilter() {
   const sel = document.getElementById('datumFilter');
   const huidig = sel.value;
-  const datums = [...new Set(wedstrijden.map(w=>w.datum))].sort();
+  const datums = [...new Set(wedstrijden.filter(w=>!w.datum_nnb).map(w=>w.datum))].sort();
   sel.innerHTML = '<option value="ALL">Alle datums</option>' +
     datums.map(d=>`<option value="${d}">${fmtDatum(d)}</option>`).join('');
   const vandaag = new Date().toISOString().slice(0,10);
@@ -678,6 +692,7 @@ function getOpen() {
   const d = huidigeDatum();
   return wedstrijden.filter(w => {
     if (w.status==='gespeeld') return false;
+    if (w.datum_nnb) return false; // NNB-wedstrijden staan los in de aparte NNB-balk
     if (d!=='ALL' && w.datum!==d) return false;
     return true;
   });
@@ -696,10 +711,38 @@ function getGespeeld() {
 //  RENDER ALL
 // ══════════════════════════════════════════
 function renderAll() {
+  renderNNBBanner();
   renderAvondBanner();
   renderQueue();
   renderHistory();
   renderWerklast();
+}
+
+// ══════════════════════════════════════════
+//  NNB (datum nog niet bekend) — altijd zichtbaar, los van avondfilter
+// ══════════════════════════════════════════
+function renderNNBBanner() {
+  const el = document.getElementById('nnbBanner');
+  if (!el) return;
+  const lijst = wedstrijden.filter(w => w.datum_nnb && w.status!=='gespeeld');
+  if (!lijst.length) { el.innerHTML = ''; return; }
+
+  const items = lijst.map(m => `
+    <div class="nnb-item">
+      <div class="nnb-item-info">
+        <span class="nnb-chip">NNB</span>
+        ${getDivChip(m)}
+        <strong>${m.thuis} vs ${m.uit}</strong>
+        ${m.originele_datum ? `<span class="orig-datum">oorspr.: ${fmtDatum(m.originele_datum)}</span>` : ''}
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')">📅 Datum instellen</button>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="nnb-banner">
+      <div class="nnb-banner-title">🕓 Nog niet bekend — nieuwe datum ontbreekt (${lijst.length})</div>
+      <div class="nnb-list">${items}</div>
+    </div>`;
 }
 
 // ══════════════════════════════════════════
@@ -1215,26 +1258,39 @@ function openVerzetModal(id) {
   verzetId = id;
   const m = wedstrijden.find(w=>w.id===id); if (!m) return;
   document.getElementById('verzetLabel').textContent = `${m.thuis} vs ${m.uit}`;
-  document.getElementById('verzetDatum').value = m.datum||'';
+  document.getElementById('verzetDatum').value = m.datum_nnb ? '' : (m.datum||'');
   document.getElementById('verzetDoor').value = '';
   document.getElementById('verzetIsInhaal').checked = true;
+  document.getElementById('verzetNNB').checked = !!m.datum_nnb;
+  toggleVerzetNNB();
 
-  // Toon originele datum als die er al is
+  // Toon originele datum en/of NNB-status als die er al is
   const origEl = document.getElementById('verzetOrigDatum');
+  let origHtml = '';
   if (m.originele_datum) {
-    origEl.innerHTML = `<div class="orig-datum-info">📌 Originele datum: <strong>${fmtDatum(m.originele_datum)}</strong> — <a href="#" onclick="herstelOrigDatum('${id}');return false;" style="color:var(--orange);">Terugzetten</a></div>`;
-  } else {
-    origEl.innerHTML = '';
+    origHtml += `<div class="orig-datum-info">📌 Originele datum: <strong>${fmtDatum(m.originele_datum)}</strong> — <a href="#" onclick="herstelOrigDatum('${id}');return false;" style="color:var(--orange);">Terugzetten</a></div>`;
   }
+  if (m.datum_nnb) {
+    origHtml += `<div class="orig-datum-info" style="color:var(--nnb);border-color:rgba(6,182,212,0.3);background:rgba(6,182,212,0.08);">🕓 Huidige status: datum nog niet bekend (NNB)</div>`;
+  }
+  origEl.innerHTML = origHtml;
   document.getElementById('verzetModal').classList.add('open');
+}
+
+function toggleVerzetNNB() {
+  const nnb = document.getElementById('verzetNNB').checked;
+  const datumInp = document.getElementById('verzetDatum');
+  datumInp.disabled = nnb;
+  if (nnb) datumInp.value = '';
 }
 
 async function slaVerzetOp(informeer) {
   if (!verzetId) return;
-  const nieuweDatum = document.getElementById('verzetDatum').value;
-  const isInhaal    = document.getElementById('verzetIsInhaal').checked;
-  const gewijzigdDoor = document.getElementById('verzetDoor').value;
-  if (!nieuweDatum) { toast('Kies een datum','red'); return; }
+  const isNNB          = document.getElementById('verzetNNB').checked;
+  const nieuweDatumInp  = document.getElementById('verzetDatum').value;
+  const isInhaal        = document.getElementById('verzetIsInhaal').checked;
+  const gewijzigdDoor   = document.getElementById('verzetDoor').value;
+  if (!isNNB && !nieuweDatumInp) { toast('Kies een datum (of vink NNB aan)','red'); return; }
   if (!gewijzigdDoor) { toast('Kies wie de wijziging doet','red'); return; }
 
   const m = wedstrijden.find(w=>w.id===verzetId);
@@ -1242,20 +1298,25 @@ async function slaVerzetOp(informeer) {
   const origDatum = m?.originele_datum || m?.datum; // bewaar origineel
   const idVoorMail = verzetId;
 
+  // Bij NNB is er nog geen nieuwe datum: de datum-kolom (verplicht) blijft ongewijzigd
+  // totdat er wél een datum wordt ingevuld; datum_nnb geeft aan dat dit een placeholder is.
+  const nieuweDatum = isNNB ? (nieuweDatumInp || m?.datum || oudeDatum) : nieuweDatumInp;
+
   const informeerBtn = document.getElementById('verzetInformeerBtn');
   if (informeer && informeerBtn) { informeerBtn.disabled = true; informeerBtn.textContent = '📧 Bezig...'; }
 
   try {
     await sbPatch('wedstrijden',verzetId,{
       datum: nieuweDatum,
+      datum_nnb: isNNB,
       is_inhaal: isInhaal,
       originele_datum: origDatum,
       status: 'gepland'
     });
-    if (m) { m.datum=nieuweDatum; m.is_inhaal=isInhaal; m.originele_datum=origDatum; }
+    if (m) { m.datum=nieuweDatum; m.datum_nnb=isNNB; m.is_inhaal=isInhaal; m.originele_datum=origDatum; }
     sluitModal('verzetModal'); verzetId=null;
     bouwDatumFilter(); renderAll();
-    toast(`📅 Verzet naar ${fmtDatum(nieuweDatum)}`,'orange');
+    toast(isNNB ? '🕓 Gemarkeerd als NNB — nieuwe datum nog niet bekend' : `📅 Verzet naar ${fmtDatum(nieuweDatum)}`,'orange');
 
     // Log de wijziging, ongeacht of we ook informeren
     let logId = null;
@@ -1267,8 +1328,9 @@ async function slaVerzetOp(informeer) {
         divisie: m?.divisie || null,
         actie: 'verzet',
         oude_datum: oudeDatum,
-        nieuwe_datum: nieuweDatum,
+        nieuwe_datum: isNNB ? null : nieuweDatum,
         gewijzigd_door: gewijzigdDoor,
+        notitie: isNNB ? 'Nog niet bekend (NNB)' : null,
         mail_verstuurd: false
       });
       logId = logRow?.[0]?.id || null;
@@ -1299,8 +1361,8 @@ async function slaVerzetOp(informeer) {
 async function herstelOrigDatum(id) {
   const m = wedstrijden.find(w=>w.id===id); if (!m||!m.originele_datum) return;
   try {
-    await sbPatch('wedstrijden',id,{ datum:m.originele_datum, is_inhaal:false, originele_datum:null });
-    m.datum=m.originele_datum; m.is_inhaal=false; m.originele_datum=null;
+    await sbPatch('wedstrijden',id,{ datum:m.originele_datum, is_inhaal:false, originele_datum:null, datum_nnb:false });
+    m.datum=m.originele_datum; m.is_inhaal=false; m.originele_datum=null; m.datum_nnb=false;
     sluitModal('verzetModal');
     bouwDatumFilter(); renderAll();
     toast(`↩ Teruggezet naar ${fmtDatum(m.datum)}`,'green');
