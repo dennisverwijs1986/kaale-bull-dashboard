@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaale Bull — Demo Mode (Oefenen)</title>
+<style>
+:root {
+  --bg:      #0f1520;
+  --s1:      #161f30;
+  --s2:      #1e2a40;
+  --s3:      #243350;
+  --border:  #2a3a56;
+  --text:    #f1f5f9;
+  --muted:   #94a3b8;
+  --green:   #10b981;
+  --red:     #ef4444;
+  --orange:  #f59e0b;
+  --blue:    #3b82f6;
+  --purple:  #a855f7;
+  --ere:     #a855f7;
+  --eerste:  #3b82f6;
+  --beker:   #f59e0b;
+  --inhaal:  #ef4444;
+  --warn:    #f97316;
+  --nnb:     #06b6d4;
+  --demo:    #ff1744;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+/* ── DEMO BANNER ── */
+.demo-banner{background:linear-gradient(90deg,#ff1744 0%,#ff5252 100%);padding:10px 20px;text-align:center;font-weight:700;font-size:0.9rem;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;box-shadow:0 4px 12px rgba(255,23,68,0.3);}
+.demo-banner::before{content:'🎓';font-size:1.2rem;}
+
+/* ── TOPBAR ── */
+.topbar{background:#080d16;border-bottom:2px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:12px;flex-shrink:0;}
+.topbar-logo{font-size:1.15rem;font-weight:800;letter-spacing:1px;display:flex;align-items:center;gap:8px;}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.clock{font-family:monospace;font-size:1.4rem;color:var(--orange);font-weight:bold;}
+.sync-badge{font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;}
+.sync-badge.ok{background:rgba(16,185,129,0.15);color:var(--green);}
+
+/* ── BOARDS BAR ── */
+.boards-bar{background:var(--s1);border-bottom:2px solid var(--border);padding:12px 20px;flex-shrink:0;}
+.boards-bar-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.boards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.board-card{background:var(--s2);border-radius:10px;padding:12px 14px;border:1px solid var(--border);border-top:3px solid var(--green);transition:all 0.2s;min-height:140px;display:flex;flex-direction:column;}
+.board-card.busy{border-top-color:var(--red);}
+.board-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.board-num{font-weight:800;font-size:1rem;font-family:monospace;letter-spacing:1px;display:flex;align-items:center;gap:6px;}
+.board-tag{font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;}
+.board-tag.free{background:rgba(16,185,129,0.15);color:var(--green);}
+.board-tag.busy{background:rgba(239,68,68,0.15);color:var(--red);}
+.board-match{font-size:0.9rem;font-weight:700;margin-bottom:4px;line-height:1.3;}
+.board-schrijver{margin-bottom:8px;}
+.board-acts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto;}
+.board-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:0.75rem;gap:4px;border:2px dashed var(--border);border-radius:7px;padding:8px;text-align:center;}
+
+/* ── MAIN AREA ── */
+.main-area{display:grid;grid-template-columns:340px 1fr;height:100%;overflow:hidden;}
+.panel-left{border-right:1px solid var(--border);overflow-y:auto;background:var(--s1);}
+.panel-right{overflow-y:auto;background:var(--bg);}
+
+/* ── SECTION ── */
+.sec{padding:14px;border-bottom:1px solid var(--border);}
+.sec-title{font-size:0.67rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:none;border-radius:5px;padding:7px 13px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:inherit;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-green{background:var(--green);color:#000;}
+.btn-green:hover:not(:disabled){background:#059669;}
+.btn-red{background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-red:hover:not(:disabled){background:rgba(239,68,68,0.3);}
+.btn-orange{background:var(--orange);color:#000;}
+.btn-orange:hover:not(:disabled){background:#d97706;}
+.btn-ghost{background:var(--s2);color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover:not(:disabled){color:var(--text);border-color:#4a5a76;}
+.btn-sm{padding:5px 10px;font-size:0.75rem;}
+.btn-xs{padding:3px 7px;font-size:0.7rem;}
+.btn-full{width:100%;}
+
+/* ── INPUTS ── */
+.inp,.sel{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 10px;font-size:0.83rem;font-family:inherit;width:100%;}
+.inp:focus,.sel:focus{outline:none;border-color:var(--blue);}
+.sel{cursor:pointer;}
+.row{display:flex;gap:8px;}
+.ig{flex:1;display:flex;flex-direction:column;gap:4px;}
+.lbl{font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:0.5px;}
+
+/* ── MATCH CARD ── */
+.match-card{background:var(--s1);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:7px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:8px;transition:all 0.15s;}
+.match-card.div-ere{border-left-color:var(--ere);}
+.match-card.div-eerste{border-left-color:var(--eerste);}
+.match-card.div-beker{border-left-color:var(--beker);}
+.match-card.div-inhaal{border-left-color:var(--inhaal);}
+.match-card-info{flex:1;min-width:0;}
+.match-card-title{font-weight:700;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.match-card-meta{font-size:0.7rem;color:var(--muted);margin-top:3px;}
+.match-card-badge{font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap;}
+.match-status.gepland{background:rgba(59,130,246,0.15);color:var(--blue);}
+.match-status.verzet{background:rgba(245,158,11,0.15);color:var(--orange);}
+.match-status.live{background:rgba(16,185,129,0.15);color:var(--green);}
+.match-status.afgehandeld{background:rgba(148,163,184,0.15);color:var(--muted);}
+
+/* ── QUEUE ── */
+.queue-wrap{padding:14px;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding-left:14px;}
+.tab{padding:10px 16px;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.2s;font-family:inherit;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--green);border-bottom-color:var(--green);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* ── MODAL & OVERLAY ── */
+.overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:20px;max-width:520px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.8);}
+.modal-title{font-size:1rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+/* ── TUTORIAL ── */
+.tutorial-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;}
+.tutorial-overlay.active{display:block;}
+.tutorial-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);}
+.tutorial-spotlight{position:absolute;background:rgba(0,0,0,0.08);border:3px solid var(--green);border-radius:8px;box-shadow:0 0 30px rgba(16,185,129,0.4),inset 0 0 15px rgba(16,185,129,0.1);}
+.tutorial-tooltip{position:absolute;background:var(--s1);border:2px solid var(--green);border-radius:8px;padding:16px;max-width:320px;box-shadow:0 10px 40px rgba(0,0,0,0.8);color:var(--text);font-size:0.9rem;line-height:1.5;z-index:1000;display:flex;flex-direction:column;gap:12px;}
+.tutorial-tooltip-title{font-weight:700;font-size:1rem;color:var(--green);}
+.tutorial-tooltip-text{color:var(--muted);}
+.tutorial-controls{display:flex;gap:8px;justify-content:flex-end;}
+.tutorial-controls button{padding:6px 12px;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:0.8rem;}
+.tutorial-skip{background:rgba(239,68,68,0.2);color:var(--red);}
+.tutorial-skip:hover{background:rgba(239,68,68,0.3);}
+.tutorial-next{background:var(--green);color:#000;}
+.tutorial-next:hover{background:#059669;}
+
+/* ── TOAST ── */
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:12px 16px;box-shadow:0 10px 30px rgba(0,0,0,0.5);display:flex;align-items:center;gap:10px;animation:slideIn 0.3s ease;min-width:280px;}
+.toast.success{border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);}
+.toast.success .toast-icon{color:var(--green);}
+.toast.info{border-color:rgba(59,130,246,0.3);background:rgba(59,130,246,0.1);}
+.toast.info .toast-icon{color:var(--blue);}
+.toast-icon{font-size:1.2rem;}
+.toast-text{flex:1;font-size:0.85rem;}
+@keyframes slideIn{from{transform:translateX(400px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+/* ── HELP BADGE ── */
+.help-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:var(--orange);color:#000;border-radius:50%;font-weight:700;font-size:0.75rem;cursor:help;margin-left:4px;}
+</style>
+<body>
+
+<!-- DEMO BANNER -->
+<div class="demo-banner">🎓 DEMO MODE — Dit zijn nep-gegevens voor oefenen. Je kunt hier veilig alles proberen!</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">⚫ Kaale Bull</div>
+  <div class="topbar-right">
+    <div class="clock" id="clock">--:--</div>
+    <div class="sync-badge ok">✓ Demo (offline)</div>
+  </div>
+</div>
+
+<!-- BOARDS BAR -->
+<div class="boards-bar">
+  <div class="boards-bar-title">📺 Live Banen</div>
+  <div class="boards-grid">
+    <div class="board-card busy">
+      <div class="board-hdr">
+        <div class="board-num">🎯 Baan 1</div>
+        <div class="board-tag busy">BEZIG</div>
+      </div>
+      <div class="board-match">Pietje vs Jantje</div>
+      <div class="board-schrijver">Schr: Martijn</div>
+      <div style="font-size:0.75rem;color:var(--muted);">⏱ 18:45 — ~19:05</div>
+    </div>
+    <div class="board-card">
+      <div class="board-hdr">
+        <div class="board-num">🎯 Baan 2</div>
+        <div class="board-tag free">VRIJ</div>
+      </div>
+      <div class="board-empty">
+        <div>⏸</div>
+        <div>Wacht op volgende</div>
+      </div>
+    </div>
+    <div class="board-card">
+      <div class="board-hdr">
+        <div class="board-num">🎯 Baan 3</div>
+        <div class="board-tag free">VRIJ</div>
+      </div>
+      <div class="board-empty">
+        <div>⏸</div>
+        <div>Wacht op volgende</div>
+      </div>
+    </div>
+    <div class="board-card">
+      <div class="board-hdr">
+        <div class="board-num">🎯 Baan 4</div>
+        <div class="board-tag free">VRIJ</div>
+      </div>
+      <div class="board-empty">
+        <div>⏸</div>
+        <div>Wacht op volgende</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN AREA -->
+<div class="main-area">
+  
+  <!-- LEFT PANEL -->
+  <div class="panel-left">
+    <div class="tabs" id="tabNav">
+      <button class="tab active" data-tab="wedstrijdleiding">📋 Wedstrijdleiding</button>
+      <button class="tab" data-tab="planning">🗓️ Planning Tool</button>
+      <button class="tab" data-tab="info">ℹ️ Hulp</button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel-right">
+    <!-- TAB: Wedstrijdleiding -->
+    <div class="tab-content active" id="tab-wedstrijdleiding">
+      <div class="queue-wrap">
+        <h2 style="font-size:0.9rem;margin-bottom:12px;color:var(--text);">Vandaag: Dinsdag 21 mei 2024</h2>
+        <div id="wedstrijdenVandaag" style="display:flex;flex-direction:column;gap:6px;">
+          <!-- Wedstrijden laden hier -->
+        </div>
+        <div style="margin-top:14px;padding:12px;background:var(--s2);border-radius:6px;border-left:3px solid var(--blue);font-size:0.8rem;">
+          <strong>💡 Tip:</strong> Klik op een wedstrijd om deze in te stellen, te verzetten of af te zeggen.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: Planning Tool -->
+    <div class="tab-content" id="tab-planning">
+      <div class="queue-wrap">
+        <h2 style="font-size:0.9rem;margin-bottom:12px;color:var(--text);">Volledige Planning</h2>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;">
+          <div class="ig">
+            <label class="lbl">Filterdatum:</label>
+            <input type="date" id="filterDatum" class="inp" value="2024-05-21">
+          </div>
+          <div class="ig">
+            <label class="lbl">Divisie:</label>
+            <select id="filterDivisie" class="sel">
+              <option value="">Alle</option>
+              <option value="Eredivisie">Eredivisie</option>
+              <option value="Eerste Divisie">Eerste Divisie</option>
+              <option value="Beker">Beker</option>
+            </select>
+          </div>
+        </div>
+        <div id="planningList" style="display:flex;flex-direction:column;gap:6px;">
+          <!-- Planning laden hier -->
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: Hulp -->
+    <div class="tab-content" id="tab-info">
+      <div class="queue-wrap">
+        <h2 style="font-size:0.9rem;margin-bottom:14px;color:var(--text);">📖 Wat doet elk onderdeel?</h2>
+        
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          
+          <div style="background:var(--s2);border-radius:8px;border-left:4px solid var(--green);padding:12px;">
+            <div style="font-weight:700;color:var(--green);margin-bottom:6px;">📺 Live Banen (bovenkant)</div>
+            <div style="font-size:0.85rem;color:var(--muted);line-height:1.5;">
+              Hier zie je in real-time wat er op elke speelbaan gebeurt. Groen = vrij, rood = bezig. De wedstrijdleiding kan vanaf hier snel de volgende wedstrijden toewijzen.
+            </div>
+          </div>
+
+          <div style="background:var(--s2);border-radius:8px;border-left:4px solid var(--blue);padding:12px;">
+            <div style="font-weight:700;color:var(--blue);margin-bottom:6px;">📋 Wedstrijdleiding Tab</div>
+            <div style="font-size:0.85rem;color:var(--muted);line-height:1.5;">
+              Alles wat vandaag speelt. Je kunt hier:
+              <ul style="margin-top:6px;margin-left:16px;">
+                <li>Een wedstrijd <strong>instellen</strong> (toewijzen aan een baan)</li>
+                <li>Een wedstrijd <strong>verzetten</strong> (naar ander moment)</li>
+                <li>Een wedstrijd <strong>afzeggen</strong></li>
+              </ul>
+            </div>
+          </div>
+
+          <div style="background:var(--s2);border-radius:8px;border-left:4px solid var(--purple);padding:12px;">
+            <div style="font-weight:700;color:var(--purple);margin-bottom:6px;">🗓️ Planning Tool Tab</div>
+            <div style="font-size:0.85rem;color:var(--muted);line-height:1.5;">
+              Overzicht van alle komende wedstrijden. Hier zie je de complete planning en kun je deze filteren op datum of divisie. Handig voor beter overzicht.
+            </div>
+          </div>
+
+          <div style="background:var(--s2);border-radius:8px;border-left:4px solid var(--orange);padding:12px;">
+            <div style="font-weight:700;color:var(--orange);margin-bottom:6px;">📧 Verzet & Informeer</div>
+            <div style="font-size:0.85rem;color:var(--muted);line-height:1.5;">
+              Wanneer je een wedstrijd verzet, kun je via deze knop automatisch een e-mail naar de betrokken spelers sturen met het nieuwe moment. (In demo mode: lokaal opgeslagen)
+            </div>
+          </div>
+
+          <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(59,130,246,0.1));border-radius:8px;border-left:4px solid var(--green);padding:12px;margin-top:8px;">
+            <div style="font-weight:700;color:var(--green);margin-bottom:6px;">🎓 Oefenen in demo mode</div>
+            <div style="font-size:0.85rem;color:var(--muted);line-height:1.5;">
+              Dit zijn allemaal nep-gegevens. Je kunt alles uitproberen zonder echte data aan te tasten. Alle wijzigingen worden lokaal opgeslagen en verdwijnen als je de pagina vernieuwt.
+            </div>
+          </div>
+
+          <button class="btn btn-green btn-full" onclick="startTutorial()" style="margin-top:12px;">
+            ▶️ Start interactieve rondleiding
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TUTORIAL OVERLAY -->
+<div class="tutorial-overlay" id="tutorialOverlay">
+  <div class="tutorial-backdrop"></div>
+  <div class="tutorial-spotlight" id="tutorialSpotlight"></div>
+  <div class="tutorial-tooltip" id="tutorialTooltip">
+    <div class="tutorial-tooltip-title" id="tooltipTitle">Welkom!</div>
+    <div class="tutorial-tooltip-text" id="tooltipText">We starten de rondleiding...</div>
+    <div class="tutorial-controls">
+      <button class="tutorial-skip" onclick="skipTutorial()">Overslaan</button>
+      <button class="tutorial-next" onclick="nextTutorialStep()">Volgende →</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- MODAL: Wedstrijd Inzetten -->
+<div class="overlay" id="inzetModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">🎯 Wedstrijd Inzetten</div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">
+      Selecteer de baan en tijd:
+    </div>
+    <div class="ig" style="margin-bottom:12px;">
+      <label class="lbl">Kies baan:</label>
+      <select class="sel" id="inzetBaan">
+        <option value="1">Baan 1</option>
+        <option value="2">Baan 2</option>
+        <option value="3">Baan 3</option>
+        <option value="4">Baan 4</option>
+      </select>
+    </div>
+    <div class="ig" style="margin-bottom:12px;">
+      <label class="lbl">Starttijd:</label>
+      <input type="time" class="inp" id="inzetTijd" value="19:25">
+    </div>
+    <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:10px;font-size:0.78rem;color:var(--muted);margin-bottom:14px;">
+      ℹ️ Geschatte eindtijd: <strong id="eindtijdPreview">19:45</strong>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="sluitModal('inzetModal')">Annuleren</button>
+      <button class="btn btn-green" onclick="bevestigInzet()">✓ Inzetten</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Wedstrijd Verzetten -->
+<div class="overlay" id="verzetModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">📅 Wedstrijd Verzetten</div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">
+      Naar welke datum/tijd?
+    </div>
+    <div class="row" style="margin-bottom:12px;">
+      <div class="ig">
+        <label class="lbl">Nieuwe datum:</label>
+        <input type="date" class="inp" id="verzetnuevaDatum" value="2024-05-22">
+      </div>
+      <div class="ig">
+        <label class="lbl">Tijd (optioneel):</label>
+        <input type="time" class="inp" id="verzetnuevaTijd" value="">
+      </div>
+    </div>
+    <div class="ig" style="margin-bottom:12px;">
+      <label class="lbl">Gewijzigd door:</label>
+      <select class="sel" id="verzet_door">
+        <option value="Dennis Verwijs">Dennis Verwijs</option>
+        <option value="Martijn Vermaas">Martijn Vermaas</option>
+        <option value="Andere">Andere</option>
+      </select>
+    </div>
+    <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:10px;font-size:0.78rem;color:var(--muted);margin-bottom:14px;">
+      ℹ️ Deze wijziging wordt gelogd.
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="sluitModal('verzetModal')">Annuleren</button>
+      <button class="btn btn-orange" onclick="bevestigVerzet()">📧 Verzet & Informeer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Wedstrijd Afzeggen -->
+<div class="overlay" id="afzegModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">❌ Wedstrijd Afzeggen?</div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">
+      Weet je zeker dat je deze wedstrijd wil afzeggen? Dit kan niet ongedaan gemaakt worden.
+    </div>
+    <div class="ig" style="margin-bottom:12px;">
+      <label class="lbl">Reden (optioneel):</label>
+      <input type="text" class="inp" id="afzegReden" placeholder="bijv. Ziek, Geen speelbanen, etc.">
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="sluitModal('afzegModal')">Nee, teruggaan</button>
+      <button class="btn btn-red" onclick="bevestigAfzeg()">✓ Ja, afzeggen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DEMO MODE - IN-MEMORY DATA (localStorage)
+// ══════════════════════════════════════════════════════════════
+
+const DEMO_DATA = {
+  spelers: [
+    'Pietje van den Berg', 'Jantje Bakker', 'Koen Jansen', 'Frank Hendriksen',
+    'Marcel van Dijk', 'Erik Vermeulen', 'Hans Leeman', 'Jan Smeets',
+    'Ruud Hermans', 'Wim Maes', 'Bert Geuens', 'Luc Michiels',
+    'Tom Vandamme', 'Stefan Evers', 'Peter Geelen', 'Geert Beckers',
+    'Paul Mertens', 'Danny Nijs', 'Rik Vlieminckx', 'Niels Moens'
+  ],
+  wedstrijden: [
+    { id: 1, datum: '2024-05-21', thuis: 'Pietje van den Berg', uit: 'Jantje Bakker', divisie: 'Eerste Divisie', speelronde: 1, status: 'gepland', baan: null, tijdstip: null },
+    { id: 2, datum: '2024-05-21', thuis: 'Koen Jansen', uit: 'Frank Hendriksen', divisie: 'Eerste Divisie', speelronde: 1, status: 'gepland', baan: null, tijdstip: null },
+    { id: 3, datum: '2024-05-21', thuis: 'Marcel van Dijk', uit: 'Erik Vermeulen', divisie: 'Eerste Divisie', speelronde: 1, status: 'gepland', baan: null, tijdstip: null },
+    { id: 4, datum: '2024-05-21', thuis: 'Hans Leeman', uit: 'Jan Smeets', divisie: 'Eerste Divisie', speelronde: 1, status: 'inzet', baan: 1, tijdstip: '18:45' },
+    { id: 5, datum: '2024-05-21', thuis: 'Ruud Hermans', uit: 'Wim Maes', divisie: 'Eerste Divisie', speelronde: 1, status: 'afgehandeld', baan: 2, tijdstip: '18:00' },
+    { id: 6, datum: '2024-05-21', thuis: 'Bert Geuens', uit: 'Luc Michiels', divisie: 'Eredivisie', speelronde: 1, status: 'gepland', baan: null, tijdstip: null },
+    { id: 7, datum: '2024-05-22', thuis: 'Tom Vandamme', uit: 'Stefan Evers', divisie: 'Eerste Divisie', speelronde: 2, status: 'gepland', baan: null, tijdstip: null },
+    { id: 8, datum: '2024-05-22', thuis: 'Peter Geelen', uit: 'Geert Beckers', divisie: 'Beker (Best of 5)', speelronde: 1, status: 'gepland', baan: null, tijdstip: null },
+    { id: 9, datum: '2024-05-23', thuis: 'Paul Mertens', uit: 'Danny Nijs', divisie: 'Eerste Divisie', speelronde: 2, status: 'verzet', baan: null, tijdstip: null },
+    { id: 10, datum: '2024-05-24', thuis: 'Rik Vlieminckx', uit: 'Niels Moens', divisie: 'Eredivisie', speelronde: 2, status: 'gepland', baan: null, tijdstip: null }
+  ],
+  wijzigingen: []
+};
+
+let demoData = { ...DEMO_DATA };
+let currentMatch = null;
+let tutorialStep = 0;
+let tutorialActive = false;
+
+// Load from localStorage if exists
+function loadDemoData() {
+  const stored = localStorage.getItem('demo_data');
+  if (stored) demoData = JSON.parse(stored);
+  else saveDemoData();
+}
+
+function saveDemoData() {
+  localStorage.setItem('demo_data', JSON.stringify(demoData));
+}
+
+// ══════════════════════════════════════════════════════════════
+// UI INIT
+// ══════════════════════════════════════════════════════════════
+
+function init() {
+  loadDemoData();
+  setupClock();
+  setupTabs();
+  laadWedstrijdenVandaag();
+  laadPlanningTool();
+  
+  // Check if first visit
+  if (!localStorage.getItem('demo_visited')) {
+    localStorage.setItem('demo_visited', 'true');
+    setTimeout(() => startTutorial(), 500);
+  }
+}
+
+function setupClock() {
+  const updateClock = () => {
+    const now = new Date();
+    document.getElementById('clock').textContent = 
+      `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  };
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabName = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// WEDSTRIJDEN WEERGAVE
+// ══════════════════════════════════════════════════════════════
+
+function laadWedstrijdenVandaag() {
+  const vandaag = '2024-05-21';
+  const wedstrijden = demoData.wedstrijden.filter(w => w.datum === vandaag);
+  
+  const html = wedstrijden.map(w => `
+    <div class="match-card div-${w.divisie.toLowerCase().replace(' ','')}" onclick="openMatchMenu(${w.id})">
+      <div class="match-card-info">
+        <div class="match-card-title">${w.thuis} vs ${w.uit}</div>
+        <div class="match-card-meta">
+          <div>${w.divisie} • Ronde ${w.speelronde}</div>
+          <div style="margin-top:4px;">
+            ${w.status === 'gepland' ? `<span class="match-card-badge match-status gepland">📋 Gepland</span>` : ''}
+            ${w.status === 'inzet' ? `<span class="match-card-badge match-status live">▶️ Inzet op baan ${w.baan} (${w.tijdstip})</span>` : ''}
+            ${w.status === 'afgehandeld' ? `<span class="match-card-badge match-status afgehandeld">✓ Afgehandeld</span>` : ''}
+            ${w.status === 'verzet' ? `<span class="match-card-badge match-status verzet">📅 Verzet</span>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  
+  document.getElementById('wedstrijdenVandaag').innerHTML = html;
+}
+
+function laadPlanningTool() {
+  const filterDatum = document.getElementById('filterDatum').value;
+  const filterDiv = document.getElementById('filterDivisie').value;
+  
+  let wedstrijden = demoData.wedstrijden.filter(w => 
+    (!filterDatum || w.datum >= filterDatum) &&
+    (!filterDiv || w.divisie.includes(filterDiv))
+  );
+  
+  const perDatum = {};
+  wedstrijden.forEach(w => {
+    if (!perDatum[w.datum]) perDatum[w.datum] = [];
+    perDatum[w.datum].push(w);
+  });
+  
+  const html = Object.entries(perDatum).sort().map(([datum, matches]) => `
+    <div style="margin-bottom:14px;">
+      <div style="font-weight:700;font-size:0.9rem;color:var(--orange);margin-bottom:8px;">📅 ${formatDatum(datum)}</div>
+      ${matches.map(w => `
+        <div class="match-card div-${w.divisie.toLowerCase().replace(' ','')}">
+          <div class="match-card-info">
+            <div class="match-card-title">${w.thuis} vs ${w.uit}</div>
+            <div class="match-card-meta">
+              ${w.divisie} • Ronde ${w.speelronde}
+              ${w.baan ? ` • Baan ${w.baan} (${w.tijdstip})` : ' • Niet ingezet'}
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+  
+  document.getElementById('planningList').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MATCH MENU
+// ══════════════════════════════════════════════════════════════
+
+function openMatchMenu(matchId) {
+  const match = demoData.wedstrijden.find(w => w.id === matchId);
+  if (!match) return;
+  
+  currentMatch = match;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay open';
+  overlay.style.zIndex = '999';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-title">${match.thuis} vs ${match.uit}</div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
+        <div>${match.divisie} • Ronde ${match.speelronde}</div>
+        <div style="margin-top:4px;">Status: <strong>${
+          match.status === 'gepland' ? '📋 Gepland' :
+          match.status === 'inzet' ? '▶️ Inzet' :
+          match.status === 'afgehandeld' ? '✓ Afgehandeld' :
+          '📅 Verzet'
+        }</strong></div>
+      </div>
+      <div class="modal-acts" style="flex-direction:column;gap:6px;">
+        ${match.status === 'gepland' ? `
+          <button class="btn btn-green btn-full" onclick="openInzetModal()">🎯 Inzetten (op baan)</button>
+          <button class="btn btn-orange btn-full" onclick="openVerzet Modal()">📅 Verzetten</button>
+          <button class="btn btn-red btn-full" onclick="openAfzegModal()">❌ Afzeggen</button>
+        ` : `
+          <button class="btn btn-orange btn-full" onclick="openVerzet Modal()">📅 Opnieuw verzetten</button>
+          <button class="btn btn-ghost btn-full" onclick="closeMatchMenu()">Sluiten</button>
+        `}
+      </div>
+    </div>
+  `;
+  
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+      currentMatch = null;
+    }
+  });
+  
+  document.body.appendChild(overlay);
+}
+
+function closeMatchMenu() {
+  document.body.querySelectorAll('.overlay').forEach(o => {
+    if (o.style.zIndex === '999') o.remove();
+  });
+  currentMatch = null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MODAL FUNCTIONS
+// ══════════════════════════════════════════════════════════════
+
+function openInzetModal() {
+  closeMatchMenu();
+  document.getElementById('inzetModal').classList.add('open');
+}
+
+function openVerzet Modal() {
+  closeMatchMenu();
+  document.getElementById('verzetModal').classList.add('open');
+}
+
+function openAfzegModal() {
+  closeMatchMenu();
+  document.getElementById('afzegModal').classList.add('open');
+}
+
+function sluitModal(id) {
+  document.getElementById(id).classList.remove('open');
+  currentMatch = null;
+}
+
+function bevestigInzet() {
+  if (!currentMatch) return;
+  
+  const baan = document.getElementById('inzetBaan').value;
+  const tijd = document.getElementById('inzetTijd').value;
+  
+  currentMatch.baan = parseInt(baan);
+  currentMatch.tijdstip = tijd;
+  currentMatch.status = 'inzet';
+  
+  saveDemoData();
+  toast(`✓ ${currentMatch.thuis} ingezet op baan ${baan} om ${tijd}`, 'success');
+  sluitModal('inzetModal');
+  laadWedstrijdenVandaag();
+}
+
+function bevestigVerzet() {
+  if (!currentMatch) return;
+  
+  const nieuweD = document.getElementById('verzetnuevaDatum').value;
+  const nieuweT = document.getElementById('verzetnuevaTijd').value;
+  const door = document.getElementById('verzet_door').value;
+  
+  // Log wijziging
+  demoData.wijzigingen.push({
+    match_id: currentMatch.id,
+    oude_datum: currentMatch.datum,
+    nieuwe_datum: nieuweD,
+    gewijzigd_door: door,
+    timestamp: new Date().toISOString()
+  });
+  
+  currentMatch.datum = nieuweD;
+  if (nieuweT) currentMatch.tijdstip = nieuweT;
+  currentMatch.status = 'verzet';
+  currentMatch.baan = null;
+  
+  saveDemoData();
+  toast(`📅 ${currentMatch.thuis} verzet naar ${formatDatum(nieuweD)}`, 'success');
+  toast(`📧 E-mail verstuurd naar betrokken spelers`, 'info');
+  sluitModal('verzetModal');
+  laadWedstrijdenVandaag();
+  laadPlanningTool();
+}
+
+function bevestigAfzeg() {
+  if (!currentMatch) return;
+  
+  const reden = document.getElementById('afzegReden').value;
+  
+  currentMatch.status = 'afgehandeld';
+  currentMatch.baan = null;
+  
+  saveDemoData();
+  toast(`❌ ${currentMatch.thuis} afgeblazen ${reden ? '(' + reden + ')' : ''}`, 'success');
+  sluitModal('afzegModal');
+  laadWedstrijdenVandaag();
+}
+
+// ══════════════════════════════════════════════════════════════
+// TUTORIAL
+// ══════════════════════════════════════════════════════════════
+
+const tutorialSteps = [
+  {
+    target: '.topbar',
+    title: '👋 Welkom in demo mode!',
+    text: 'Dit is een veilige trainingsomgeving. Je kunt hier alles uitproberen zonder echte data aan te tasten.'
+  },
+  {
+    target: '.boards-bar',
+    title: '📺 Live Banen',
+    text: 'Hier zie je in real-time wat er op elke speelbaan gebeurt. Groen = vrij, rood = bezig met een wedstrijd.'
+  },
+  {
+    target: '.tabs',
+    title: '📋 Navigatietabs',
+    text: 'Kies hier tussen de verschillende onderdelen: Wedstrijdleiding (dagelijks werk), Planning (overzicht), en Hulp (deze gids).'
+  },
+  {
+    target: '.match-card',
+    title: '🎯 Een wedstrijd selecteren',
+    text: 'Klik op een wedstrijdkaart om deze in te stellen, te verzetten, of af te zeggen. Probeer het nu!'
+  },
+  {
+    target: '.demo-banner',
+    title: '✅ Je bent klaar!',
+    text: 'Je weet nu hoe het dashboard werkt. Ga naar de echte versie wanneer je zeker bent. Veel sterkte!'
+  }
+];
+
+function startTutorial() {
+  tutorialActive = true;
+  tutorialStep = 0;
+  document.getElementById('tutorialOverlay').classList.add('active');
+  showTutorialStep();
+}
+
+function showTutorialStep() {
+  const step = tutorialSteps[tutorialStep];
+  const target = document.querySelector(step.target);
+  
+  if (!target) {
+    skipTutorial();
+    return;
+  }
+  
+  const rect = target.getBoundingClientRect();
+  const spotlight = document.getElementById('tutorialSpotlight');
+  const tooltip = document.getElementById('tutorialTooltip');
+  
+  spotlight.style.left = (rect.left - 8) + 'px';
+  spotlight.style.top = (rect.top - 8) + 'px';
+  spotlight.style.width = (rect.width + 16) + 'px';
+  spotlight.style.height = (rect.height + 16) + 'px';
+  
+  document.getElementById('tooltipTitle').textContent = step.title;
+  document.getElementById('tooltipText').textContent = step.text;
+  
+  let tooltipLeft = rect.right + 20;
+  let tooltipTop = rect.top;
+  
+  if (tooltipLeft + 320 > window.innerWidth) {
+    tooltipLeft = rect.left - 320 - 20;
+  }
+  if (tooltipTop + 200 > window.innerHeight) {
+    tooltipTop = window.innerHeight - 200 - 20;
+  }
+  
+  tooltip.style.left = tooltipLeft + 'px';
+  tooltip.style.top = tooltipTop + 'px';
+}
+
+function nextTutorialStep() {
+  tutorialStep++;
+  if (tutorialStep >= tutorialSteps.length) {
+    skipTutorial();
+  } else {
+    showTutorialStep();
+  }
+}
+
+function skipTutorial() {
+  tutorialActive = false;
+  document.getElementById('tutorialOverlay').classList.remove('active');
+  tutorialStep = 0;
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════
+
+function formatDatum(d) {
+  const [y, m, dag] = d.split('-');
+  const days = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
+  const months = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  const date = new Date(y, parseInt(m) - 1, dag);
+  return `${days[date.getDay()]} ${dag} ${months[parseInt(m) - 1]} ${y}`;
+}
+
+function toast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <div class="toast-icon">${type === 'success' ? '✓' : 'ℹ'}</div>
+    <div class="toast-text">${message}</div>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+
+init();
+
+// Event listeners
+document.getElementById('filterDatum').addEventListener('change', laadPlanningTool);
+document.getElementById('filterDivisie').addEventListener('change', laadPlanningTool);
+</script>
+
+</body>
+</html>
