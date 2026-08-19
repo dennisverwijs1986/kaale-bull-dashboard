@@ -979,6 +979,16 @@ function renderBoards() {
              <button class="dc-ctrl-btn" onclick="dcZetHoogte(${b},-20)">−</button>
              <button class="dc-ctrl-btn" onclick="dcZetHoogte(${b},20)">+</button>
            </div>
+         </div>
+         <div class="dc-ctrl-row">
+           <div class="dc-ctrl-group">
+             <span class="dc-ctrl-lbl">verschuif</span>
+             <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},0,-20)" title="omhoog">↑</button>
+             <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},0,20)" title="omlaag">↓</button>
+             <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},-20,0)" title="links">←</button>
+             <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},20,0)" title="rechts">→</button>
+           </div>
+           <button class="dc-ctrl-btn" style="width:auto;padding:0 6px;" onclick="dcReset(${b})" title="reset naar standaard">⟲ reset</button>
          </div>`
       : '';
 
@@ -1060,6 +1070,14 @@ function dcSchaalWaarde(b) {
   const v = parseFloat(localStorage.getItem(`dc_schaal_${b}`)||'0.3');
   return isNaN(v) ? 0.3 : v;
 }
+function dcOffsetX(b) {
+  const v = parseInt(localStorage.getItem(`dc_offx_${b}`)||'0',10);
+  return isNaN(v) ? 0 : v;
+}
+function dcOffsetY(b) {
+  const v = parseInt(localStorage.getItem(`dc_offy_${b}`)||'0',10);
+  return isNaN(v) ? 0 : v;
+}
 function dcZetHoogte(b, delta) {
   const h = Math.max(100, Math.min(700, dcHoogte(b)+delta));
   localStorage.setItem(`dc_hoogte_${b}`, h);
@@ -1070,12 +1088,24 @@ function dcZetSchaal(b, delta) {
   localStorage.setItem(`dc_schaal_${b}`, s);
   dcPas(b);
 }
+function dcZetPositie(b, dx, dy) {
+  localStorage.setItem(`dc_offx_${b}`, dcOffsetX(b)+dx);
+  localStorage.setItem(`dc_offy_${b}`, dcOffsetY(b)+dy);
+  dcPas(b);
+}
+function dcReset(b) {
+  localStorage.removeItem(`dc_hoogte_${b}`);
+  localStorage.removeItem(`dc_schaal_${b}`);
+  localStorage.removeItem(`dc_offx_${b}`);
+  localStorage.removeItem(`dc_offy_${b}`);
+  dcPas(b);
+}
 function dcPas(b) {
   const wrap = document.getElementById(`dcWrap${b}`);
   if (!wrap) return;
   const iframe = wrap.querySelector('iframe');
   wrap.style.height = dcHoogte(b)+'px';
-  if (iframe) iframe.style.transform = `scale(${dcSchaalWaarde(b)})`;
+  if (iframe) iframe.style.transform = `scale(${dcSchaalWaarde(b)}) translate(${-dcOffsetX(b)}px,${-dcOffsetY(b)}px)`;
   const pct = document.getElementById(`dcSchaalPct${b}`);
   if (pct) pct.textContent = Math.round(dcSchaalWaarde(b)*100)+'%';
 }
