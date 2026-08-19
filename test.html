@@ -63,8 +63,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .dc-inp-row{display:flex;gap:5px;margin-top:6px;}
 .dc-inp{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:5px 7px;font-size:0.72rem;font-family:monospace;width:100%;}
 .dc-inp:focus{outline:none;border-color:var(--nnb);}
-.dc-frame-wrap{margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid var(--border);position:relative;width:100%;aspect-ratio:16/9;background:#000;}
-.dc-frame-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none;}
+.dc-frame-wrap{margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid var(--border);position:relative;width:100%;background:#000;}
+.dc-frame-wrap iframe{position:absolute;top:0;left:0;width:400px;border:none;transform-origin:0 0;}
+.dc-height-row{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:3px;}
+.dc-height-lbl{font-size:0.62rem;color:var(--muted);margin-right:2px;}
+.dc-height-btn{background:var(--s2);border:1px solid var(--border);color:var(--muted);border-radius:4px;width:20px;height:20px;font-size:0.7rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.dc-height-btn:hover{color:var(--text);border-color:var(--nnb);}
 
 /* ── MAIN AREA ── */
 .main-area{display:grid;grid-template-columns:340px 1fr;height:100%;overflow:hidden;}
@@ -961,7 +965,12 @@ function renderBoards() {
            <button class="dc-link ${dcCode?'linked':''}" onclick="toggleDartCodeInput(${b})">📺 ${dcCode?`Gekoppeld: ${dcCodeKort}`:'DartConnect koppelen'}</button>
          </div>`;
     const dcFrame = (dcCode && !dartCodesOpen[b])
-      ? `<div class="dc-frame-wrap"><iframe src="https://tv.dartconnect.com/tvscoreboard/${dcCode}" loading="lazy"></iframe></div>`
+      ? `<div class="dc-frame-wrap" id="dcWrap${b}" style="height:${dcHoogte(b)}px"><iframe src="https://tv.dartconnect.com/tvscoreboard/${dcCode}" loading="lazy"></iframe></div>
+         <div class="dc-height-row">
+           <span class="dc-height-lbl">hoogte</span>
+           <button class="dc-height-btn" onclick="dcZetHoogte(${b},-20)">−</button>
+           <button class="dc-height-btn" onclick="dcZetHoogte(${b},20)">+</button>
+         </div>`
       : '';
 
     if (!id) {
@@ -1010,6 +1019,7 @@ function renderBoards() {
         </div>`;
     }
     grid.appendChild(card);
+    if (dcCode && !dartCodesOpen[b]) dcInitSchaal(b);
   }
 }
 
@@ -1031,6 +1041,35 @@ function formMs(ms) {
 function wisselSchrijver(b,naam) { schrijvers[b]=naam; renderQueue(); }
 
 // ── DARTCONNECT KOPPELCODE ──
+const DC_BASE_BREEDTE = 400; // vaste (niet-responsive) breedte van de DartConnect TV-scoreboard widget
+const dcObservers = {};
+
+function dcHoogte(b) {
+  const v = parseInt(localStorage.getItem(`dc_hoogte_${b}`)||'260',10);
+  return isNaN(v) ? 260 : v;
+}
+function dcZetHoogte(b, delta) {
+  const h = Math.max(120, Math.min(700, dcHoogte(b)+delta));
+  localStorage.setItem(`dc_hoogte_${b}`, h);
+  const wrap = document.getElementById(`dcWrap${b}`);
+  if (wrap) { wrap.style.height = h+'px'; dcSchaal(wrap); }
+}
+function dcSchaal(wrap) {
+  const iframe = wrap?.querySelector('iframe');
+  if (!iframe) return;
+  const schaal = wrap.clientWidth / DC_BASE_BREEDTE;
+  iframe.style.transform = `scale(${schaal})`;
+  iframe.style.height = (wrap.clientHeight / schaal) + 'px';
+}
+function dcInitSchaal(b) {
+  const wrap = document.getElementById(`dcWrap${b}`);
+  if (!wrap) return;
+  dcSchaal(wrap);
+  if (dcObservers[b]) dcObservers[b].disconnect();
+  dcObservers[b] = new ResizeObserver(()=>dcSchaal(wrap));
+  dcObservers[b].observe(wrap);
+}
+
 function toggleDartCodeInput(b) {
   dartCodesOpen[b] = !dartCodesOpen[b];
   renderBoards();
