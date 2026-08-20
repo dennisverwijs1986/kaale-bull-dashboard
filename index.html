@@ -370,7 +370,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
             </div>
           </div>
           <div style="margin-bottom:10px;"><div class="lbl" style="margin-bottom:4px;">RONDE</div><input type="text" class="inp" id="bekerRonde" placeholder="bijv. 1/4 finale"></div>
-          <button class="btn btn-orange btn-full" onclick="voegBekerToe()">🔥 Toevoegen aan wachtrij</button>
+          <div style="margin-bottom:10px;"><div class="lbl" style="margin-bottom:4px;">GEWIJZIGD DOOR</div><select class="sel" id="bekerDoor"><option value="">-- kies --</option></select></div>
+          <button class="btn btn-orange btn-full" onclick="voegBekerToe(true)">📧 Plan in en informeer</button>
+          <button class="btn btn-ghost btn-full" style="margin-top:8px;color:var(--nnb);border-color:rgba(6,182,212,0.3);" onclick="voegBekerToe(false)">🕓 Plan in zonder datum (NNB, geen mail)</button>
         </div>
       </div>
     </div>
@@ -1621,27 +1623,71 @@ function vulBekerDropdowns() {
     spelers.map(s=>`<option value="${s.naam}">${s.naam}</option>`).join('');
   document.getElementById('bekerThuis').innerHTML=opts;
   document.getElementById('bekerUit').innerHTML=opts;
+  const doorSel=document.getElementById('bekerDoor');
+  if (doorSel) {
+    const huidige=doorSel.value;
+    doorSel.innerHTML='<option value="">-- kies --</option>'+
+      wedstrijdleiders.map(w=>`<option value="${w.naam}">${w.naam}</option>`).join('');
+    doorSel.value=huidige||'';
+  }
 }
 
-async function voegBekerToe() {
+// informeer=true  → "Plan in en informeer": datum verplicht, mailtje naar spelers + wedstrijdleiding
+// informeer=false → "Plan in zonder datum": datum optioneel (NNB), géén mail — handig om na de loting
+//                    in één keer alle bekerwedstrijden vast te leggen zonder spelers te storen.
+async function voegBekerToe(informeer) {
   const thuis=document.getElementById('bekerThuis').value;
   const uit=document.getElementById('bekerUit').value;
-  const datum=document.getElementById('bekerDatum').value;
+  const datumInp=document.getElementById('bekerDatum').value;
   const tijd=document.getElementById('bekerTijd').value.trim();
   const ronde=document.getElementById('bekerRonde').value.trim();
+  const gewijzigdDoor=document.getElementById('bekerDoor').value;
   if(!thuis||!uit){toast('Kies twee spelers','red');return;}
   if(thuis===uit){toast('Kies twee verschillende spelers','red');return;}
-  if(!datum){toast('Kies een datum','red');return;}
+  if(informeer && !datumInp){toast('Kies een datum (of gebruik "Plan in zonder datum")','red');return;}
+
+  const isNNB = !informeer && !datumInp;
+  // datum is verplicht in de database; bij NNB zonder gekozen datum gebruiken we vandaag als placeholder,
+  // deze wordt nergens getoond zolang datum_nnb=true staat (matches staan los in de NNB-balk).
+  const datum = datumInp || new Date().toISOString().slice(0,10);
+
   try {
-    const [nieuw]=await sbPost('wedstrijden',{datum,tijdstip:tijd||null,divisie:`Beker (${gekozenBO})`,thuis,uit,speelronde:ronde||null,status:'gepland',is_inhaal:false});
+    const [nieuw]=await sbPost('wedstrijden',{
+      datum, tijdstip:tijd||null, divisie:`Beker (${gekozenBO})`, thuis, uit,
+      speelronde:ronde||null, status:'gepland', is_inhaal:false, datum_nnb:isNNB
+    });
     wedstrijden.unshift(nieuw);
     document.getElementById('bekerThuis').value='';
     document.getElementById('bekerUit').value='';
+    document.getElementById('bekerDatum').value='';
     document.getElementById('bekerTijd').value='';
     document.getElementById('bekerRonde').value='';
-    document.getElementById('datumFilter').value=datum;
-    bouwDatumFilter(); document.getElementById('datumFilter').value=datum;
-    renderAll(); toast(`🏆 Bekerwedstrijd toegevoegd op ${fmtDatum(datum)}`,'orange');
+
+    if (informeer) {
+      document.getElementById('datumFilter').value=datum;
+      bouwDatumFilter(); document.getElementById('datumFilter').value=datum;
+    }
+    renderAll();
+
+    if (isNNB) {
+      toast(`🕓 Bekerwedstrijd ${thuis} vs ${uit} vastgelegd (NNB, geen mail verstuurd)`,'orange');
+      return;
+    }
+
+    toast(`🏆 Bekerwedstrijd toegevoegd op ${fmtDatum(datum)}`,'orange');
+
+    if (informeer) {
+      try {
+        const res = await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`, {
+          method:'POST', headers:HDR,
+          body: JSON.stringify({ type:'nieuwe_beker', wedstrijd_id:nieuw.id, gewijzigd_door:gewijzigdDoor||null })
+        });
+        if(!res.ok) throw new Error(await res.text());
+        toast('📧 Spelers geïnformeerd over nieuwe bekerwedstrijd','green');
+      } catch(mailErr) {
+        toast(`⚠ Wedstrijd toegevoegd, maar mail mislukt: ${mailErr.message}`,'red');
+      }
+    }
   } catch(e){toast(`Fout: ${e.message}`,'red');}
 }
 
