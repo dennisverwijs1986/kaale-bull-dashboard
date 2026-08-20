@@ -56,6 +56,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .board-schrijver{margin-bottom:8px;}
 .board-acts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto;}
 .board-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:0.75rem;gap:4px;border:2px dashed var(--border);border-radius:7px;padding:8px;text-align:center;}
+.dc-row{display:flex;align-items:center;gap:5px;margin-top:8px;}
+.dc-link{font-size:0.68rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:4px;cursor:pointer;background:none;border:none;font-family:inherit;padding:0;}
+.dc-link:hover{color:var(--text);}
+.dc-link.linked{color:var(--nnb);}
+.dc-inp-row{display:flex;gap:5px;margin-top:6px;}
+.dc-inp{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:5px 7px;font-size:0.72rem;font-family:monospace;width:100%;}
+.dc-inp:focus{outline:none;border-color:var(--nnb);}
+.dc-frame-wrap{margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid var(--border);position:relative;width:100%;background:#000;}
+.dc-frame-wrap iframe{position:absolute;top:0;left:0;width:1600px;height:1000px;border:none;transform-origin:0 0;}
+.dc-ctrl-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:4px;flex-wrap:wrap;}
+.dc-ctrl-group{display:flex;align-items:center;gap:4px;}
+.dc-ctrl-lbl{font-size:0.62rem;color:var(--muted);margin-right:2px;}
+.dc-ctrl-btn{background:var(--s2);border:1px solid var(--border);color:var(--muted);border-radius:4px;width:20px;height:20px;font-size:0.7rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.dc-ctrl-btn:hover{color:var(--text);border-color:var(--nnb);}
 
 /* ── MAIN AREA ── */
 .main-area{display:grid;grid-template-columns:340px 1fr;height:100%;overflow:hidden;}
@@ -600,6 +614,8 @@ let activeMatches = {1:null,2:null,3:null,4:null};
 let timers        = {1:null,2:null,3:null,4:null};
 let startTijden   = {1:null,2:null,3:null,4:null};
 let schrijvers    = {1:'',2:'',3:'',4:''};
+let dartCodes     = {1:'',2:'',3:'',4:''}; // DartConnect koppelcodes, wisselen wekelijks
+let dartCodesOpen = {1:false,2:false,3:false,4:false}; // invoerveld open/dicht per bord
 // Bijhouden wanneer speler voor het laatst een wedstrijd STARTTE (timestamp)
 let spelersLaatsteStart = {}; // naam → timestamp ms
 
@@ -639,11 +655,17 @@ function setSync(state, txt) {
 async function laadData() {
   setSync('loading','⏳ LADEN…');
   try {
-    [wedstrijden, spelers, wedstrijdleiders] = await Promise.all([
+    let dcRows;
+    [wedstrijden, spelers, wedstrijdleiders, dcRows] = await Promise.all([
       sbGet('wedstrijden','order=datum.asc,tijdstip.asc'),
       sbGet('spelers','order=naam.asc'),
-      sbGet('wedstrijdleiding','order=naam.asc&actief=eq.true')
+      sbGet('wedstrijdleiding','order=naam.asc&actief=eq.true'),
+      sbGet('instellingen','sleutel=like.dartconnect_bord_*')
     ]);
+    dcRows.forEach(r => {
+      const b = r.sleutel.replace('dartconnect_bord_','');
+      if (dartCodes.hasOwnProperty(b)) dartCodes[b] = r.waarde || '';
+    });
     setSync('ok','● VERBONDEN');
     bouwDatumFilter();
     vulBekerDropdowns();
@@ -932,6 +954,44 @@ function renderBoards() {
     card.className = `board-card ${id?'busy':''}`;
     card.setAttribute('data-bord', b);
 
+    const dcCode = dartCodes[b];
+    const dcCodeKort = dcCode ? dcCode.split('/')[0] : '';
+    const dcHtml = dartCodesOpen[b]
+      ? `<div class="dc-inp-row">
+           <input type="text" class="dc-inp" id="dcInp${b}" placeholder="koppelcode of volledige URL" value="${dcCode||''}" onkeydown="if(event.key==='Enter')zetDartCode(${b})">
+           <button class="btn btn-green btn-xs" onclick="zetDartCode(${b})">✓</button>
+           <button class="btn btn-ghost btn-xs" onclick="toggleDartCodeInput(${b})">✕</button>
+         </div>`
+      : `<div class="dc-row">
+           <button class="dc-link ${dcCode?'linked':''}" onclick="toggleDartCodeInput(${b})">📺 ${dcCode?`Gekoppeld: ${dcCodeKort}`:'DartConnect koppelen'}</button>
+         </div>`;
+    const dcFrame = (dcCode && !dartCodesOpen[b])
+      ? `<div class="dc-frame-wrap" id="dcWrap${b}" style="height:${dcHoogte(b)}px"><iframe src="https://tv.dartconnect.com/tvscoreboard/${dcCode}" loading="lazy"></iframe></div>
+         <div class="dc-ctrl-row">
+           <div class="dc-ctrl-group">
+             <span class="dc-ctrl-lbl">breedte</span>
+             <button class="dc-ctrl-btn" onclick="dcZetSchaal(${b},-0.02)">−</button>
+             <span class="dc-ctrl-lbl" id="dcSchaalPct${b}" style="min-width:30px;text-align:center;">${Math.round(dcSchaalWaarde(b)*100)}%</span>
+             <button class="dc-ctrl-btn" onclick="dcZetSchaal(${b},0.02)">+</button>
+           </div>
+           <div class="dc-ctrl-group">
+             <span class="dc-ctrl-lbl">hoogte</span>
+             <button class="dc-ctrl-btn" onclick="dcZetHoogte(${b},-20)">−</button>
+             <button class="dc-ctrl-btn" onclick="dcZetHoogte(${b},20)">+</button>
+           </div>
+         </div>
+         <div class="dc-ctrl-row">
+           <div class="dc-ctrl-group">
+             <span class="dc-ctrl-lbl">verschuif</span>
+             <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},0,-20)" title="omhoog">↑</button>
+             <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},0,20)" title="omlaag">↓</button>
+             <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},-20,0)" title="links">←</button>
+             <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},20,0)" title="rechts">→</button>
+           </div>
+           <button class="dc-ctrl-btn" style="width:auto;padding:0 6px;" onclick="dcReset(${b})" title="reset naar standaard">⟲ reset</button>
+         </div>`
+      : '';
+
     if (!id) {
       card.innerHTML = `
         <div class="board-hdr">
@@ -941,7 +1001,9 @@ function renderBoards() {
         <div class="board-empty">
           <span>⬇</span>
           <span>Sleep wedstrijd hierheen of gebruik ▶ knop</span>
-        </div>`;
+        </div>
+        ${dcHtml}
+        ${dcFrame}`;
       // Drag-over highlight
       card.addEventListener('dragover', e=>{ e.preventDefault(); card.classList.add('drag-over'); });
       card.addEventListener('dragleave', ()=>card.classList.remove('drag-over'));
@@ -968,12 +1030,15 @@ function renderBoards() {
         <div class="board-schrijver">
           <select class="sel" style="font-size:0.75rem;" onchange="wisselSchrijver(${b},this.value)">${schrijverOpts}</select>
         </div>
+        ${dcHtml}
+        ${dcFrame}
         <div class="board-acts">
           <button class="btn btn-red btn-sm btn-full" onclick="openUitslagModal(${b})">🏁 Klaar</button>
           <button class="btn btn-ghost btn-sm btn-full" onclick="herstelBaan(${b})">↩ Herstel</button>
         </div>`;
     }
     grid.appendChild(card);
+    if (dcCode && !dartCodesOpen[b]) dcInitSchaal(b);
   }
 }
 
@@ -993,6 +1058,96 @@ function formMs(ms) {
   return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
 function wisselSchrijver(b,naam) { schrijvers[b]=naam; renderQueue(); }
+
+// ── DARTCONNECT KOPPELCODE ──
+const dcObservers = {};
+
+function dcHoogte(b) {
+  const v = parseInt(localStorage.getItem(`dc_hoogte_${b}`)||'260',10);
+  return isNaN(v) ? 260 : v;
+}
+function dcSchaalWaarde(b) {
+  const v = parseFloat(localStorage.getItem(`dc_schaal_${b}`)||'0.3');
+  return isNaN(v) ? 0.3 : v;
+}
+function dcOffsetX(b) {
+  const v = parseInt(localStorage.getItem(`dc_offx_${b}`)||'0',10);
+  return isNaN(v) ? 0 : v;
+}
+function dcOffsetY(b) {
+  const v = parseInt(localStorage.getItem(`dc_offy_${b}`)||'0',10);
+  return isNaN(v) ? 0 : v;
+}
+function dcZetHoogte(b, delta) {
+  const h = Math.max(100, Math.min(700, dcHoogte(b)+delta));
+  localStorage.setItem(`dc_hoogte_${b}`, h);
+  dcPas(b);
+}
+function dcZetSchaal(b, delta) {
+  const s = Math.max(0.1, Math.min(2, Math.round((dcSchaalWaarde(b)+delta)*100)/100));
+  localStorage.setItem(`dc_schaal_${b}`, s);
+  dcPas(b);
+}
+function dcZetPositie(b, dx, dy) {
+  localStorage.setItem(`dc_offx_${b}`, dcOffsetX(b)+dx);
+  localStorage.setItem(`dc_offy_${b}`, dcOffsetY(b)+dy);
+  dcPas(b);
+}
+function dcReset(b) {
+  localStorage.removeItem(`dc_hoogte_${b}`);
+  localStorage.removeItem(`dc_schaal_${b}`);
+  localStorage.removeItem(`dc_offx_${b}`);
+  localStorage.removeItem(`dc_offy_${b}`);
+  dcPas(b);
+}
+function dcPas(b) {
+  const wrap = document.getElementById(`dcWrap${b}`);
+  if (!wrap) return;
+  const iframe = wrap.querySelector('iframe');
+  wrap.style.height = dcHoogte(b)+'px';
+  if (iframe) iframe.style.transform = `scale(${dcSchaalWaarde(b)}) translate(${-dcOffsetX(b)}px,${-dcOffsetY(b)}px)`;
+  const pct = document.getElementById(`dcSchaalPct${b}`);
+  if (pct) pct.textContent = Math.round(dcSchaalWaarde(b)*100)+'%';
+}
+function dcInitSchaal(b) { dcPas(b); }
+
+function toggleDartCodeInput(b) {
+  dartCodesOpen[b] = !dartCodesOpen[b];
+  renderBoards();
+}
+async function zetDartCode(b) {
+  const inp = document.getElementById(`dcInp${b}`);
+  let raw = (inp?.value||'').trim();
+  // Sta zowel een korte koppelcode (bv. "btjfn") als een volledige geplakte
+  // DartConnect-URL toe. Als het een volledige URL is, pakken we het pad
+  // ná /tvscoreboard/ (bv. "btjfn/M/kaalebullsingles"). Anders vullen we
+  // de standaard eventnaam aan.
+  let code = raw;
+  if (raw) {
+    const urlMatch = raw.match(/tvscoreboard\/([^?#]+)/i);
+    if (urlMatch) {
+      code = urlMatch[1].replace(/\/+$/,'');
+    } else if (!raw.includes('/')) {
+      code = `${raw}/M/kaalebullsingles`;
+    }
+  }
+  try {
+    const bestaand = await sbGet('instellingen', `sleutel=eq.dartconnect_bord_${b}`);
+    if (bestaand.length) {
+      await fetch(`${SB_URL}/rest/v1/instellingen?sleutel=eq.dartconnect_bord_${b}`, {
+        method:'PATCH', headers:HDR, body: JSON.stringify({waarde: code})
+      });
+    } else {
+      await sbPost('instellingen', {sleutel:`dartconnect_bord_${b}`, waarde: code});
+    }
+    dartCodes[b] = code;
+    dartCodesOpen[b] = false;
+    toast(code ? `📺 Koppelcode bord ${b} opgeslagen` : `🗑 Koppelcode bord ${b} verwijderd`, 'green');
+    renderBoards();
+  } catch(e) {
+    toast(`Fout bij opslaan koppelcode: ${e.message}`,'red');
+  }
+}
 function herstelBaan(b) {
   stopTimer(b); activeMatches[b]=null; schrijvers[b]='';
   renderBoards(); renderQueue();
@@ -1301,6 +1456,20 @@ async function slaVerzetOp(informeer) {
   // Bij NNB is er nog geen nieuwe datum: de datum-kolom (verplicht) blijft ongewijzigd
   // totdat er wél een datum wordt ingevuld; datum_nnb geeft aan dat dit een placeholder is.
   const nieuweDatum = isNNB ? (nieuweDatumInp || m?.datum || oudeDatum) : nieuweDatumInp;
+
+  // ── CAPACITEITSCHECK: max 34 wedstrijden per avond ──
+  if (!isNNB && nieuweDatum && nieuweDatum !== oudeDatum) {
+    const wedstrijdenOpNieuweDatum = wedstrijden.filter(w => 
+      w.datum === nieuweDatum && 
+      w.id !== verzetId &&  // tel huidige wedstrijd niet dubbel
+      !w.datum_nnb          // NNB-matches tellen niet mee voor capaciteit
+    );
+    const totaalNaVerzet = wedstrijdenOpNieuweDatum.length + 1;
+    if (totaalNaVerzet > 34) {
+      toast(`⚠ Max 34 wedstrijden per avond. ${fmtDatum(nieuweDatum)} heeft al ${wedstrijdenOpNieuweDatum.length}. Deze zou het totaal op ${totaalNaVerzet} brengen.`, 'red');
+      return;
+    }
+  }
 
   const informeerBtn = document.getElementById('verzetInformeerBtn');
   if (informeer && informeerBtn) { informeerBtn.disabled = true; informeerBtn.textContent = '📧 Bezig...'; }
