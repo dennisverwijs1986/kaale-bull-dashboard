@@ -1466,8 +1466,11 @@ async function slaVerzetOp(informeer) {
     );
     const totaalNaVerzet = wedstrijdenOpNieuweDatum.length + 1;
     if (totaalNaVerzet > 34) {
-      toast(`⚠ Max 34 wedstrijden per avond. ${fmtDatum(nieuweDatum)} heeft al ${wedstrijdenOpNieuweDatum.length}. Deze zou het totaal op ${totaalNaVerzet} brengen.`, 'red');
-      return;
+      const msg = `⚠ WAARSCHUWING\n\n${fmtDatum(nieuweDatum)} heeft al ${wedstrijdenOpNieuweDatum.length} wedstrijden.\nDeze zou het totaal op ${totaalNaVerzet} brengen (max 34).\n\nZeker doorgaan?`;
+      if (!confirm(msg)) {
+        toast('Verzet geannuleerd', 'orange');
+        return;
+      }
     }
   }
 
