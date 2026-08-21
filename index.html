@@ -395,12 +395,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
           ➕ Toevoegen
           <input type="file" id="csvToevoegen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'toevoegen')">
         </label>
-        <label class="csv-drop" for="csvVervangen" style="flex:1;padding:9px 6px;border-color:rgba(239,68,68,0.3);color:var(--red);">
-          🔄 Vervangen
-          <input type="file" id="csvVervangen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'vervangen')">
+        <label class="csv-drop" for="csvNieuwSeizoen" style="flex:1;padding:9px 6px;border-color:rgba(239,68,68,0.3);color:var(--red);">
+          🆕 Nieuw seizoen starten
+          <input type="file" id="csvNieuwSeizoen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'nieuw_seizoen')">
         </label>
       </div>
-      <p style="font-size:0.68rem;color:var(--muted);margin-top:5px;">Vervangen wist alleen <em>geplande</em> wedstrijden van de datums in de CSV.</p>
+      <p style="font-size:0.68rem;color:var(--muted);margin-top:5px;">"Nieuw seizoen starten" wist <strong>alle</strong> wedstrijden (ook gespeelde en bekerwedstrijden) en importeert daarna de gekozen CSV. Gebruik dit alleen bij de start van een nieuw seizoen.</p>
     </div>
 
     <!-- WERKLAST -->
@@ -759,7 +759,10 @@ function renderNNBBanner() {
         <strong>${m.thuis} vs ${m.uit}</strong>
         ${m.originele_datum ? `<span class="orig-datum">oorspr.: ${fmtDatum(m.originele_datum)}</span>` : ''}
       </div>
-      <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')">📅 Datum instellen</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')">📅 Datum instellen</button>
+        ${m.divisie?.toLowerCase().includes('beker') ? `<button class="btn btn-ghost btn-xs" onclick="verwijderBeker('${m.id}')" title="Verwijderen">🗑</button>` : ''}
+      </div>
     </div>`).join('');
 
   el.innerHTML = `
@@ -861,7 +864,7 @@ function renderWerklast() {
       const tegenstander = isSelf ? w.uit : w.thuis;
       const rol = isSelf ? 'Thuis' : 'Uit';
       return `<div class="speler-match-row div-${divKey} ${w.status==='gespeeld'?'speler-match-gespeeld':''}">
-        ${w.is_inhaal ? '' : `<span class="match-time normal" style="font-size:0.68rem;">${w.tijdstip||'--:--'}</span>`}
+        ${(w.is_inhaal || getDivKey(w)==='beker') ? '' : `<span class="match-time normal" style="font-size:0.68rem;">${w.tijdstip||'--:--'}</span>`}
         <span style="flex:1;font-weight:600;">${naam} <span style="color:var(--muted);font-weight:400;font-size:0.7rem;">(${rol})</span> vs ${tegenstander}</span>
         ${getDivChip(w)}
         ${w.status==='gespeeld'?'<span style="color:var(--green);font-size:0.7rem;">✓</span>':''}
@@ -1417,7 +1420,11 @@ function openVerzetModal(id) {
   document.getElementById('verzetLabel').textContent = `${m.thuis} vs ${m.uit}`;
   document.getElementById('verzetDatum').value = m.datum_nnb ? '' : (m.datum||'');
   document.getElementById('verzetDoor').value = '';
-  document.getElementById('verzetIsInhaal').checked = true;
+  // Standaard aangevinkt, BEHALVE als dit een bekerwedstrijd is die nog nooit eerder
+  // een echte datum heeft gehad (dus voor het eerst wordt ingepland vanuit NNB).
+  // Zo'n wedstrijd is geen "inhaalwedstrijd" en mag geen (zinloze) originele datum krijgen.
+  const eersteKeerBeker = m.divisie?.toLowerCase().includes('beker') && m.datum_nnb && !m.originele_datum && !m.is_inhaal;
+  document.getElementById('verzetIsInhaal').checked = !eersteKeerBeker;
   document.getElementById('verzetNNB').checked = !!m.datum_nnb;
   toggleVerzetNNB();
 
@@ -1452,7 +1459,10 @@ async function slaVerzetOp(informeer) {
 
   const m = wedstrijden.find(w=>w.id===verzetId);
   const oudeDatum = m?.datum || null;
-  const origDatum = m?.originele_datum || m?.datum; // bewaar origineel
+  // Alleen een 'originele datum' bijhouden als dit ook echt als inhaalwedstrijd geldt.
+  // Zonder dat vinkje is er niets "origineels" om te tonen (voorkomt bv. een zinloze
+  // placeholder-datum die als "oorspronkelijke datum" in de mail aan spelers verschijnt).
+  const origDatum = isInhaal ? (m?.originele_datum || m?.datum) : null;
   const idVoorMail = verzetId;
 
   // Bij NNB is er nog geen nieuwe datum: de datum-kolom (verplicht) blijft ongewijzigd
@@ -1651,6 +1661,16 @@ async function voegBekerToe(informeer) {
   // deze wordt nergens getoond zolang datum_nnb=true staat (matches staan los in de NNB-balk).
   const datum = datumInp || new Date().toISOString().slice(0,10);
 
+  // ── CAPACITEITSCHECK: max 34 wedstrijden per avond (bekerwedstrijden tellen nu ook mee) ──
+  if (!isNNB) {
+    const wedstrijdenOpDatum = wedstrijden.filter(w => w.datum === datum && !w.datum_nnb);
+    const totaalNaToevoegen = wedstrijdenOpDatum.length + 1;
+    if (totaalNaToevoegen > 34) {
+      const msg = `⚠ WAARSCHUWING\n\n${fmtDatum(datum)} heeft al ${wedstrijdenOpDatum.length} wedstrijden.\nDeze zou het totaal op ${totaalNaToevoegen} brengen (max 34).\n\nZeker doorgaan?`;
+      if (!confirm(msg)) { toast('Toevoegen geannuleerd','orange'); return; }
+    }
+  }
+
   try {
     const [nieuw]=await sbPost('wedstrijden',{
       datum, tijdstip:tijd||null, divisie:`Beker (${gekozenBO})`, thuis, uit,
@@ -1696,7 +1716,7 @@ async function verwijderBeker(id) {
   try {
     await sbDelete('wedstrijden',id);
     wedstrijden=wedstrijden.filter(w=>w.id!==id);
-    renderQueue(); toast('Bekerwedstrijd verwijderd','');
+    renderQueue(); renderNNBBanner(); toast('Bekerwedstrijd verwijderd','');
   } catch(e){toast(`Fout: ${e.message}`,'red');}
 }
 
@@ -1748,20 +1768,22 @@ function importeerCSV(input, modus='toevoegen') {
       if(!spelers.find(s=>s.naam===uit))   nieuweNamen.add(uit);
     }
     if(!rijen.length){toast('Geen geldige wedstrijden','red');return;}
+
+    if(modus==='nieuw_seizoen') {
+      const aantalHuidig = wedstrijden.length;
+      const waarschuwing = `⚠ NIEUW SEIZOEN STARTEN\n\nDit verwijdert ALLE ${aantalHuidig} huidige wedstrijden — ook gespeelde wedstrijden en bekerwedstrijden — en importeert daarna de ${rijen.length} wedstrijden uit deze CSV.\n\nDit kan niet ongedaan worden gemaakt.\n\nWil je doorgaan?`;
+      if (!confirm(waarschuwing)) { input.value=''; toast('Nieuw seizoen starten geannuleerd','orange'); return; }
+      const typBevestiging = prompt('Typ NIEUW SEIZOEN (hoofdletters) om te bevestigen dat je alle wedstrijden wil wissen:');
+      if (typBevestiging !== 'NIEUW SEIZOEN') { input.value=''; toast('Bevestiging klopte niet — niets verwijderd','orange'); return; }
+    }
+
     try {
-      if(modus==='vervangen') {
-        // Verwijder alleen GEPLANDE wedstrijden op de datums in de CSV (geen beker, geen gespeeld)
-        const datumLijst = [...csvDatums].join(',');
-        for(const datum of csvDatums) {
-          await fetch(`${SB_URL}/rest/v1/wedstrijden?datum=eq.${datum}&status=eq.gepland&divisie=not.ilike.*beker*`,{
-            method:'DELETE', headers:HDR
-          });
-        }
-        // Verwijder ook uit lokale state
-        wedstrijden = wedstrijden.filter(w =>
-          !csvDatums.has(w.datum) || w.status==='gespeeld' || w.divisie?.toLowerCase().includes('beker')
-        );
-        toast(`🔄 Vervangen: ${[...csvDatums].length} avond(en) gewist, opnieuw importeren…`,'orange');
+      if(modus==='nieuw_seizoen') {
+        // Volledige reset: alle wedstrijden weg (gespeeld, gepland, NNB, beker — alles),
+        // ongeacht datum. Spelerslijst en wijziging_log/logboek blijven intact.
+        await fetch(`${SB_URL}/rest/v1/wedstrijden?id=not.is.null`,{ method:'DELETE', headers:HDR });
+        wedstrijden = [];
+        toast(`🆕 Alle oude wedstrijden gewist, nieuw seizoen wordt geïmporteerd…`,'orange');
       }
       const nieuws=await sbPost('wedstrijden',rijen);
       wedstrijden.push(...nieuws);
@@ -1775,7 +1797,7 @@ function importeerCSV(input, modus='toevoegen') {
         if(Array.isArray(ns)) { spelers.push(...ns); spelers.sort((a,b)=>a.naam.localeCompare(b.naam)); }
       }
       bouwDatumFilter(); vulBekerDropdowns(); renderBoards(); renderAll();
-      toast(`✓ ${rijen.length} wedstrijden ${modus==='vervangen'?'vervangen':'toegevoegd'}`,'green');
+      toast(`✓ ${rijen.length} wedstrijden ${modus==='nieuw_seizoen'?'geïmporteerd voor het nieuwe seizoen':'toegevoegd'}`,'green');
     } catch(e){toast(`Import fout: ${e.message}`,'red');}
     input.value='';
   };
@@ -2565,7 +2587,7 @@ setInterval(laadData, 120000); // auto-refresh 2 min
     <div style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">Controleer de wedstrijden die worden opgeslagen. BYE's worden overgeslagen.</div>
     <div id="dbPreviewContent" style="margin-bottom:16px;background:var(--s2);border-radius:7px;overflow:hidden;max-height:300px;overflow-y:auto;"></div>
     <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:9px 12px;font-size:0.78rem;color:#ff8080;margin-bottom:14px;">
-      ⚠ Let op: bestaande <em>geplande</em> wedstrijden worden niet automatisch verwijderd. Gebruik eerst "🔄 Vervangen" in het wedstrijdleiding-tabblad als je een bestaande planning wil overschrijven.
+      ⚠ Let op: bestaande wedstrijden worden niet automatisch verwijderd. Gebruik "🆕 Nieuw seizoen starten" in het wedstrijdleiding-tabblad als je bij de start van een nieuw seizoen alles wil vervangen.
     </div>
     <div class="modal-acts">
       <button class="btn btn-ghost" onclick="sluitModal('dbPreviewModal')">Annuleren</button>
