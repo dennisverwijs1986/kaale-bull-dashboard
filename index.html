@@ -222,10 +222,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 @media(max-width:900px){
   .boards-bar{display:none;}
+  body{height:auto;min-height:100vh;overflow-y:auto;overflow-x:hidden;}
+  .view-container{flex:none;height:auto;overflow:visible;}
+  .dashboard-view{height:auto;}
   .main-area{grid-template-columns:1fr;height:auto;overflow:visible;}
+  .panel-left,.panel-right{overflow:visible;height:auto;}
   .panel-right{order:1;}
   .panel-left{order:2;}
-  body{overflow:auto;}
 }
 
 /* ── QUEUE COLUMNS ── */
@@ -794,9 +797,9 @@ function renderAvondBanner() {
   eindTijd.setMinutes(eindTijd.getMinutes() + minTotaal);
   const eindStr  = `${String(eindTijd.getHours()).padStart(2,'0')}:${String(eindTijd.getMinutes()).padStart(2,'0')}`;
 
-  // Spelers met 3+ nog te spelen wedstrijden (gespeelde wedstrijden tellen niet meer mee)
+  // Spelers met 3+ wedstrijden
   const telling = {};
-  open.forEach(w=>{
+  [...open,...gespeeld].forEach(w=>{
     telling[w.thuis] = (telling[w.thuis]||0)+1;
     telling[w.uit]   = (telling[w.uit]  ||0)+1;
   });
