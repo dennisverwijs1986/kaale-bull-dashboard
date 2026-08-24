@@ -794,9 +794,9 @@ function renderAvondBanner() {
   eindTijd.setMinutes(eindTijd.getMinutes() + minTotaal);
   const eindStr  = `${String(eindTijd.getHours()).padStart(2,'0')}:${String(eindTijd.getMinutes()).padStart(2,'0')}`;
 
-  // Spelers met 3+ wedstrijden
+  // Spelers met 3+ nog te spelen wedstrijden (gespeelde wedstrijden tellen niet meer mee)
   const telling = {};
-  [...open,...gespeeld].forEach(w=>{
+  open.forEach(w=>{
     telling[w.thuis] = (telling[w.thuis]||0)+1;
     telling[w.uit]   = (telling[w.uit]  ||0)+1;
   });
