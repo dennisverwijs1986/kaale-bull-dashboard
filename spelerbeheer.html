@@ -218,6 +218,31 @@
     padding: 40px 0;
   }
   .loading { text-align: center; color: var(--muted); padding: 40px 0; }
+
+  .bulk-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .bulk-row .bulk-name {
+    flex: 1;
+    font-size: 0.92rem;
+  }
+  .bulk-row select {
+    padding: 7px 9px;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 0.88rem;
+    min-width: 160px;
+  }
+  .bulk-row select.changed { border-color: var(--orange); }
 </style>
 </head>
 <body>
@@ -269,7 +294,13 @@
     </div>
 
     <div class="toolbar">
-      <input type="text" id="search-input" placeholder="Zoek op naam..." oninput="renderPlayers()">
+      <input type="text" id="search-input" placeholder="Zoek op naam..." oninput="bulkMode ? renderBulkList() : renderPlayers()">
+      <button onclick="toggleBulkMode()" id="bulk-toggle-btn">📋 Bulk divisie bewerken</button>
+    </div>
+
+    <div id="bulk-view" style="display:none;">
+      <div id="bulk-list"></div>
+      <button class="btn" style="width:auto; padding: 10px 20px; margin-top: 10px;" onclick="saveBulkDivisies()">Alles opslaan</button>
     </div>
 
     <div id="players-list" class="loading">Spelers laden...</div>
@@ -422,6 +453,73 @@
 
   function toggleCard(id) {
     document.getElementById('card-' + id).classList.toggle('open');
+  }
+
+  let bulkMode = false;
+
+  function toggleBulkMode() {
+    bulkMode = !bulkMode;
+    document.getElementById('bulk-view').style.display = bulkMode ? 'block' : 'none';
+    document.getElementById('players-list').style.display = bulkMode ? 'none' : 'block';
+    document.getElementById('bulk-toggle-btn').textContent = bulkMode ? '✖ Sluit bulkweergave' : '📋 Bulk divisie bewerken';
+    if (bulkMode) renderBulkList();
+  }
+
+  function renderBulkList() {
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const listEl = document.getElementById('bulk-list');
+    const filtered = allPlayers.filter(p => p.naam.toLowerCase().includes(search));
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">Geen spelers gevonden</div>';
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(p => `
+      <div class="bulk-row">
+        <div class="bulk-name">${escapeHtml(p.naam)}</div>
+        <select id="bulk-divisie-${p.id}" data-original="${escapeAttr(p.divisie || '')}" onchange="markChanged('${p.id}')">
+          <option value="" ${!p.divisie ? 'selected' : ''}>— geen —</option>
+          <option value="Eredivisie" ${p.divisie === 'Eredivisie' ? 'selected' : ''}>Eredivisie</option>
+          <option value="Eerste Divisie" ${p.divisie === 'Eerste Divisie' ? 'selected' : ''}>Eerste Divisie</option>
+        </select>
+      </div>
+    `).join('');
+  }
+
+  function markChanged(id) {
+    const sel = document.getElementById(`bulk-divisie-${id}`);
+    sel.classList.toggle('changed', sel.value !== sel.dataset.original);
+  }
+
+  async function saveBulkDivisies() {
+    const changes = allPlayers
+      .map(p => {
+        const sel = document.getElementById(`bulk-divisie-${p.id}`);
+        if (!sel) return null;
+        const newVal = sel.value || null;
+        return newVal !== (p.divisie || null) ? { id: p.id, naam: p.naam, divisie: newVal } : null;
+      })
+      .filter(Boolean);
+
+    if (changes.length === 0) {
+      showStatus('Geen wijzigingen om op te slaan.', true);
+      return;
+    }
+
+    const results = await Promise.all(
+      changes.map(c => supabaseClient.from('spelers').update({ divisie: c.divisie }).eq('id', c.id))
+    );
+
+    const failed = results.filter(r => r.error);
+    if (failed.length > 0) {
+      showStatus(`${failed.length} van ${changes.length} wijzigingen mislukt: ${failed[0].error.message}`, false);
+    } else {
+      showStatus(`${changes.length} speler(s) bijgewerkt.`, true);
+    }
+
+    await loadPlayers();
+    renderBulkList();
   }
 
   async function savePlayer(id) {
