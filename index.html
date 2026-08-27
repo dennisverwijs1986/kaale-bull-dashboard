@@ -2230,7 +2230,22 @@ function ptVerdeel() {
     for (let i=0; i<eersteP4Plaats; i++) { const r=pakVolgend(queues.eersteP4,datum); if(r) eersteLijst.push(r); else acc.eersteP4++; }
 
     // Verdeel over tijdslots: afwisselend ere/eerste
-    let ereIdx=0, eersteIdx=0;
+    // BELANGRIJK: spelersPerDag (in pakVolgend) voorkomt alleen dat iemand >2x per AVOND
+    // speelt. Zonder extra check hierbeneden kunnen die 2 wedstrijden alsnog toevallig
+    // in hetzelfde tijdslot vallen (zelfde speler, 2 tegenstanders, tegelijkertijd).
+    // spelersPerSlot houdt daarom per tijdstip bij wie er al speelt, en pakNietConflicterend
+    // zoekt in de resterende lijst de eerstvolgende wedstrijd die geen van beide spelers
+    // al op dat tijdstip heeft — in plaats van blind de lijst op volgorde af te werken.
+    const spelersPerSlot = {};
+    function pakNietConflicterend(lijst, tijd) {
+      const bezet = spelersPerSlot[tijd] || (spelersPerSlot[tijd] = new Set());
+      const idx = lijst.findIndex(r => !bezet.has(r[thuisKol]) && !bezet.has(r[uitKol]));
+      if (idx === -1) return null;
+      const r = lijst.splice(idx,1)[0];
+      bezet.add(r[thuisKol]); bezet.add(r[uitKol]);
+      return r;
+    }
+
     for (let si=0; si<PT_SLOTS.length; si++) {
       const cap  = slotCaps[si];
       const tijd = PT_SLOTS[si].tijd;
@@ -2238,18 +2253,24 @@ function ptVerdeel() {
       const ereSlot    = parity===0 ? Math.ceil(cap/2) : Math.floor(cap/2);
       const eersteSlot = cap - ereSlot;
       parity = parity===0?1:0;
-      for (let j=0; j<ereSlot;    j++) { if(ereIdx    < ereLijst.length)    plaatsRij(ereLijst[ereIdx++],       datum, tijd); }
-      for (let j=0; j<eersteSlot; j++) { if(eersteIdx < eersteLijst.length) plaatsRij(eersteLijst[eersteIdx++], datum, tijd); }
+      for (let j=0; j<ereSlot;    j++) { const r=pakNietConflicterend(ereLijst, tijd);    if(r) plaatsRij(r, datum, tijd); }
+      for (let j=0; j<eersteSlot; j++) { const r=pakNietConflicterend(eersteLijst, tijd); if(r) plaatsRij(r, datum, tijd); }
     }
+
+    // Zeer zeldzaam randgeval: een wedstrijd paste op geen enkel tijdslot deze avond
+    // zonder conflict (alle sloten al bezet door een van de twee spelers). Deze
+    // wedstrijden schuiven door naar de eerstvolgende avond in plaats van te verdwijnen.
+    if (ereLijst.length)    { queues.ereH1.unshift(...ereLijst);    acc.ereH1    += ereLijst.length; }
+    if (eersteLijst.length) { queues.eersteP1.unshift(...eersteLijst); acc.eersteP1 += eersteLijst.length; }
   }
 
-  // Resterende niet-geplaatste wedstrijden (door spelersbelasting)
+  // Resterende niet-geplaatste wedstrijden (door spelersbelasting of tijdslot-conflict)
   const resterend = [
     ...queues.ereH1,...queues.ereH2,
     ...queues.eersteP1,...queues.eersteP2,...queues.eersteP3,...queues.eersteP4
   ];
   if (resterend.length > 0) {
-    ptMsg('ptError',`⚠ ${resterend.length} wedstrijden niet ingepland door spelersbelasting — staan zonder datum in CSV.`,'err');
+    ptMsg('ptError',`⚠ ${resterend.length} wedstrijden niet ingepland door spelersbelasting of tijdslot-conflict — staan zonder datum in CSV.`,'err');
     resterend.forEach(r => ptVerdeeld.push({...r}));
   } else {
     document.getElementById('ptError').innerHTML='';
