@@ -490,6 +490,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <div class="pt-lbl">UITGESLOTEN DATUMS (dd-mm-yyyy, komma gescheiden)</div>
       <input type="text" class="inp" id="ptUitgesloten" value="24-12-2026, 31-12-2026, 07-01-2027, 25-02-2027">
     </div>
+    <div class="pt-grid2" style="margin-bottom:12px;">
+      <div class="pt-ig">
+        <div class="pt-lbl">TOTAAL AANTAL SPEELAVONDEN SEIZOEN <span style="font-weight:400;color:var(--muted);">(leeg = gelijk aan avonden hierboven)</span></div>
+        <input type="number" class="inp" id="ptTotaalAvonden" placeholder="alleen invullen bij deel-import" min="1">
+      </div>
+      <div class="pt-ig">
+        <div class="pt-lbl">STARTAVOND-NUMMER <span style="font-weight:400;color:var(--muted);">(leeg = 1)</span></div>
+        <input type="number" class="inp" id="ptStartAvond" placeholder="1" min="1">
+      </div>
+    </div>
     <div class="pt-lbl" style="margin-bottom:6px;">TIJDSLOTS — wedstrijden per slot</div>
     <div class="pt-slots-grid" id="ptSlotsGrid"></div>
     <div style="margin-top:12px;">
@@ -2038,6 +2048,9 @@ function ptVerdeel() {
   const N        = actief.length;
   if (!N) { ptMsg('ptError','Geen actieve avonden gevonden.','err'); return null; }
 
+  const totaalAvonden = (totaalAvondenInput && totaalAvondenInput > 0) ? totaalAvondenInput : N;
+  const startAvond    = (startAvondInput && startAvondInput > 0) ? startAvondInput : 1;
+
   const fi       = (...n) => ptHeaders.find(h => n.some(x => h.toLowerCase().includes(x)));
   const datumKol = fi('datum','date');
   const tijdKol  = fi('tijdstip','tijd','time');
@@ -2045,6 +2058,13 @@ function ptVerdeel() {
   const thuisKol = fi('thuis','home');
   const uitKol   = fi('uit','away','gast');
   const srKol    = fi('speelronde','ronde');
+
+  // Bij deel-import (bv. alleen resterende speelrondes na een handmatige conflict-fix)
+  // representeert N niet het hele seizoen. totaalAvonden/startAvond corrigeren de
+  // periode-deadline-berekening dan zodat die relatief blijft t.o.v. het VOLLEDIGE
+  // seizoen i.p.v. alleen het geïmporteerde deel. Standaard (leeg) = huidig gedrag.
+  const totaalAvondenInput = parseInt(document.getElementById('ptTotaalAvonden')?.value);
+  const startAvondInput    = parseInt(document.getElementById('ptStartAvond')?.value);
 
   const isBye    = r => /[-–]\s*bye\s*[-–]/i.test(r[thuisKol]||'')||/[-–]\s*bye\s*[-–]/i.test(r[uitKol]||'');
   const isEre    = r => { const d=(r[divKol]||'').toLowerCase(); return d.includes('ere')&&!d.includes('eerst'); };
@@ -2055,15 +2075,18 @@ function ptVerdeel() {
   const ereRijen    = ptRijen.filter(r => !isBye(r) && isEre(r)).sort((a,b)=>getSR(a)-getSR(b));
   const eersteRijen = ptRijen.filter(r => !isBye(r) && isEerste(r)).sort((a,b)=>getSR(a)-getSR(b));
 
-  // ── PERIODES met deadline-avonden (dynamisch op N) ──
+  // ── PERIODES met deadline-avonden (dynamisch op totaalAvonden i.p.v. N) ──
+  // Bij een volledige import is totaalAvonden === N, dus ongewijzigd gedrag.
+  // Bij een deel-import (alleen resterende speelrondes) representeert totaalAvonden
+  // het hele seizoen, zodat periode-deadlines niet scheeftrekken.
   // Ere: 2 helften
-  const ereH1deadline = Math.round(N / 2);
-  const ereH2deadline = N;
+  const ereH1deadline = Math.round(totaalAvonden / 2);
+  const ereH2deadline = totaalAvonden;
   // 1e: 4 periodes
-  const eersteP1deadline = Math.round(N / 4);
-  const eersteP2deadline = Math.round(N / 2);
-  const eersteP3deadline = Math.round(N * 3 / 4);
-  const eersteP4deadline = N;
+  const eersteP1deadline = Math.round(totaalAvonden / 4);
+  const eersteP2deadline = Math.round(totaalAvonden / 2);
+  const eersteP3deadline = Math.round(totaalAvonden * 3 / 4);
+  const eersteP4deadline = totaalAvonden;
 
   // Splits in gesorteerde wachtrijen per periode
   const ereH1    = ereRijen.filter(r => getSR(r)>=1  && getSR(r)<=20);
@@ -2074,16 +2097,21 @@ function ptVerdeel() {
   const eersteP4 = eersteRijen.filter(r => getSR(r)>=31 && getSR(r)<=40);
 
   // ── BEREKEN GEMIDDELD PER AVOND PER PERIODE ──
-  // Ere H1: verdeeld over avonden 1 t/m ereH1deadline
-  // Ere H2: verdeeld over avonden ereH1deadline+1 t/m N
-  // 1e P1: verdeeld over avonden 1 t/m eersteP1deadline
-  // etc.
-  const ereH1AvondenCount    = ereH1deadline;
-  const ereH2AvondenCount    = N - ereH1deadline;
-  const eersteP1AvondenCount = eersteP1deadline;
-  const eersteP2AvondenCount = eersteP2deadline - eersteP1deadline;
-  const eersteP3AvondenCount = eersteP3deadline - eersteP2deadline;
-  const eersteP4AvondenCount = N - eersteP3deadline;
+  // Deadlines zijn absolute seizoensavond-nummers (1..totaalAvonden). Dit import
+  // bevat alleen de lokale avonden [startAvond .. startAvond+N-1]; per periode
+  // tellen we dus alleen het deel van de deadline-range dat binnen dit venster valt.
+  // Bij een volledige import (startAvond=1, totaalAvonden=N) is dit exact gelijk
+  // aan de oude berekening.
+  const lastAvond = startAvond + N - 1;
+  const inVenster = (vanExclusief, totEnMet) =>
+    Math.max(0, Math.min(totEnMet, lastAvond) - Math.max(vanExclusief, startAvond - 1));
+
+  const ereH1AvondenCount    = inVenster(0, ereH1deadline);
+  const ereH2AvondenCount    = inVenster(ereH1deadline, ereH2deadline);
+  const eersteP1AvondenCount = inVenster(0, eersteP1deadline);
+  const eersteP2AvondenCount = inVenster(eersteP1deadline, eersteP2deadline);
+  const eersteP3AvondenCount = inVenster(eersteP2deadline, eersteP3deadline);
+  const eersteP4AvondenCount = inVenster(eersteP3deadline, eersteP4deadline);
 
   // Gemiddeld per avond (floating point, budget bijhouden met accumulator)
   const ereH1PerAvond    = ereH1.length    / Math.max(1, ereH1AvondenCount);
@@ -2189,7 +2217,7 @@ function ptVerdeel() {
 
   for (let ai = 0; ai < N; ai++) {
     const datum   = actief[ai].datum;
-    const avondNr = ai + 1;
+    const avondNr = startAvond + ai; // absoluut seizoensavond-nummer (bij volledige import: ai+1, ongewijzigd)
 
     // Accumuleer budget voor deze avond (alleen actieve periodes)
     if (avondNr <= ereH1deadline)                                          acc.ereH1    += ereH1PerAvond;
