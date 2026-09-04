@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaale Bull — TV weergave</title>
+<style>
+:root {
+  --bg:      #0f1520;
+  --s1:      #161f30;
+  --s2:      #1e2a40;
+  --s3:      #243350;
+  --border:  #2a3a56;
+  --text:    #f1f5f9;
+  --muted:   #94a3b8;
+  --green:   #10b981;
+  --red:     #ef4444;
+  --orange:  #f59e0b;
+  --blue:    #3b82f6;
+  --purple:  #a855f7;
+  --ere:     #a855f7;
+  --eerste:  #3b82f6;
+  --beker:   #f59e0b;
+  --inhaal:  #ef4444;
+  --nnb:     #06b6d4;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  font-family:'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);
+  height:100vh;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+
+/* ── TOPBAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px;background:var(--s1);border-bottom:1px solid var(--border);
+  flex:0 0 auto;
+}
+.topbar-logo{font-size:1.15rem;font-weight:800;display:flex;align-items:center;gap:8px;}
+.topbar-logo .sub{color:var(--muted);font-size:0.8rem;font-weight:400;}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.clock{font-family:monospace;font-size:1.5rem;color:var(--orange);font-weight:bold;}
+.datum-lbl{color:var(--muted);font-size:0.85rem;}
+.sync-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block;}
+.sync-dot.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
+.sync-dot.error{background:var(--red);}
+.fs-btn{
+  background:var(--s2);border:1px solid var(--border);color:var(--text);
+  border-radius:6px;padding:6px 12px;font-size:0.8rem;cursor:pointer;
+  display:flex;align-items:center;gap:6px;font-family:inherit;
+}
+.fs-btn:hover{background:var(--s3);}
+
+/* ── MAIN LAYOUT ── */
+.main{flex:1 1 auto;display:flex;min-height:0;}
+
+/* Boards 2x2 grid */
+.boards-wrap{flex:1 1 auto;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:8px;min-width:0;min-height:0;}
+.board-tile{
+  position:relative;background:#000;border-radius:8px;overflow:hidden;
+  border:1px solid var(--border);min-width:0;min-height:0;
+}
+.board-tile-hdr{
+  position:absolute;top:0;left:0;right:0;z-index:5;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 10px;background:linear-gradient(to bottom, rgba(0,0,0,0.75), rgba(0,0,0,0));
+  pointer-events:none;
+}
+.board-tile-hdr .num{font-weight:800;font-family:monospace;font-size:0.85rem;letter-spacing:1px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.8);}
+.board-tile-ctrl{display:flex;gap:4px;opacity:0;transition:opacity 0.2s;pointer-events:auto;}
+.board-tile:hover .board-tile-ctrl{opacity:1;}
+.tile-btn{
+  background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.15);color:#fff;
+  width:22px;height:22px;border-radius:4px;font-size:0.75rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;line-height:1;
+}
+.tile-btn:hover{background:rgba(0,0,0,0.8);}
+.dc-viewport{position:absolute;inset:0;overflow:hidden;}
+.dc-viewport iframe{
+  position:absolute;top:0;left:0;width:100%;height:100%;border:none;
+  transform-origin:top left;
+}
+.board-empty{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;color:var(--muted);
+}
+.board-empty .icon{font-size:2rem;opacity:0.5;}
+.board-empty .txt{font-size:0.85rem;}
+.calib-panel{
+  position:absolute;bottom:8px;left:8px;right:8px;z-index:6;
+  background:rgba(15,21,32,0.92);border:1px solid var(--border);border-radius:8px;
+  padding:8px 10px;display:none;gap:10px;flex-wrap:wrap;font-size:0.7rem;
+}
+.calib-panel.open{display:flex;}
+.calib-grp{display:flex;align-items:center;gap:4px;}
+.calib-grp span{color:var(--muted);margin-right:2px;}
+.calib-btn{
+  background:var(--s2);border:1px solid var(--border);color:var(--text);
+  width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:0.8rem;
+}
+.calib-reset{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.7rem;text-decoration:underline;}
+
+/* Sidebar coming up */
+.sidebar{
+  flex:0 0 380px;background:var(--s1);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;min-height:0;
+}
+.sidebar-hdr{
+  padding:14px 18px 10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;flex:0 0 auto;
+}
+.sidebar-hdr h2{margin:0;font-size:1rem;letter-spacing:0.3px;}
+.sidebar-body{flex:1 1 auto;overflow-y:auto;padding:10px 14px 18px;}
+.slot-block{margin-bottom:16px;}
+.slot-hdr{
+  display:flex;align-items:baseline;gap:8px;margin:4px 4px 8px;
+}
+.slot-hdr .tijd{font-family:monospace;font-size:1.3rem;font-weight:800;color:var(--orange);}
+.slot-hdr .tag{
+  font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+  padding:2px 7px;border-radius:4px;background:rgba(16,185,129,0.15);color:var(--green);
+}
+.slot-hdr .tag.straks{background:rgba(59,130,246,0.15);color:var(--blue);}
+.match-row{
+  background:var(--s2);border:1px solid var(--border);border-radius:8px;
+  padding:9px 12px;margin-bottom:7px;
+}
+.match-row .top-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;}
+.div-chip{font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:0.3px;}
+.div-chip.ere{background:rgba(168,85,247,0.2);color:var(--ere);}
+.div-chip.eerste{background:rgba(59,130,246,0.2);color:var(--eerste);}
+.div-chip.beker{background:rgba(245,158,11,0.2);color:var(--beker);}
+.div-chip.inhaal{background:rgba(239,68,68,0.2);color:var(--inhaal);}
+.div-chip.general{background:rgba(148,163,184,0.12);color:var(--muted);}
+.ronde-lbl{font-size:0.62rem;color:var(--muted);}
+.match-row .teams{font-size:0.92rem;font-weight:600;line-height:1.35;}
+.match-row .teams .vs{color:var(--muted);font-weight:400;font-size:0.78rem;margin:0 4px;}
+.empty-msg{color:var(--muted);font-size:0.85rem;text-align:center;padding:30px 10px;}
+.empty-msg .icon{font-size:1.8rem;display:block;margin-bottom:8px;opacity:0.5;}
+
+@media (max-width: 1100px){
+  .sidebar{flex-basis:300px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">🎯 Kaale Bull <span class="sub">TV weergave</span></div>
+  <div class="topbar-right">
+    <span class="datum-lbl" id="datumLbl"></span>
+    <span class="sync-dot" id="syncDot" title="verbindingsstatus"></span>
+    <div class="clock" id="clock">00:00</div>
+    <button class="fs-btn" id="fsBtn" onclick="toggleFullscreen()">⤢ Fullscreen</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="boards-wrap" id="boardsWrap"></div>
+  <div class="sidebar">
+    <div class="sidebar-hdr"><h2>📋 Komende wedstrijden</h2></div>
+    <div class="sidebar-body" id="sidebarBody"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}` };
+const sbGet = async (t,q='') => { const r = await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+
+const MATCH_REFRESH_MS = 20000;   // wedstrijden + tijdsloten
+const CODE_REFRESH_MS  = 120000;  // dartconnect koppelcodes
+
+let dartCodes = {1:'',2:'',3:'',4:''};
+
+// ══════════════════════════════════════════
+//  KLOK + DATUM
+// ══════════════════════════════════════════
+function updateClock(){
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}
+setInterval(updateClock, 1000); updateClock();
+
+function vandaagStr(){ return new Date().toISOString().slice(0,10); }
+(function zetDatum(){
+  const d = new Date();
+  const dagen = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+  document.getElementById('datumLbl').textContent =
+    `${dagen[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+})();
+
+// ══════════════════════════════════════════
+//  FULLSCREEN
+// ══════════════════════════════════════════
+function toggleFullscreen(){
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen();
+  }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  document.getElementById('fsBtn').style.display = document.fullscreenElement ? 'none' : 'flex';
+});
+
+// ══════════════════════════════════════════
+//  DARTCONNECT BORDEN (2x2 grid, links)
+// ══════════════════════════════════════════
+function calGet(key, def){ const v = parseFloat(localStorage.getItem(key)); return isNaN(v) ? def : v; }
+function calSchaal(b){ return calGet(`tv_dc_schaal_${b}`, 1); }
+function calOffX(b){ return calGet(`tv_dc_offx_${b}`, 0); }
+function calOffY(b){ return calGet(`tv_dc_offy_${b}`, 0); }
+
+function renderBoards(){
+  const wrap = document.getElementById('boardsWrap');
+  wrap.innerHTML = '';
+  for (let b=1; b<=4; b++){
+    const code = dartCodes[b];
+    const tile = document.createElement('div');
+    tile.className = 'board-tile';
+    tile.innerHTML = `
+      <div class="board-tile-hdr">
+        <span class="num">🎯 BORD ${b}</span>
+        <div class="board-tile-ctrl">
+          ${code ? `<button class="tile-btn" title="kalibreren" onclick="toggleCalib(${b})">⚙</button>
+          <button class="tile-btn" title="herladen" onclick="herladenBord(${b})">↻</button>` : ''}
+        </div>
+      </div>
+      ${code
+        ? `<div class="dc-viewport" id="dcView${b}">
+             <iframe id="dcFrame${b}" src="https://tv.dartconnect.com/tvscoreboard/${code}" loading="lazy"></iframe>
+           </div>
+           <div class="calib-panel" id="calib${b}">
+             <div class="calib-grp"><span>zoom</span>
+               <button class="calib-btn" onclick="calZet(${b},'schaal',-0.05)">−</button>
+               <button class="calib-btn" onclick="calZet(${b},'schaal',0.05)">+</button>
+             </div>
+             <div class="calib-grp"><span>positie</span>
+               <button class="calib-btn" onclick="calZet(${b},'offy',-20)">↑</button>
+               <button class="calib-btn" onclick="calZet(${b},'offy',20)">↓</button>
+               <button class="calib-btn" onclick="calZet(${b},'offx',-20)">←</button>
+               <button class="calib-btn" onclick="calZet(${b},'offx',20)">→</button>
+             </div>
+             <button class="calib-reset" onclick="calReset(${b})">reset</button>
+           </div>`
+        : `<div class="board-empty"><span class="icon">📴</span><span class="txt">Bord ${b} niet gekoppeld</span></div>`
+      }`;
+    wrap.appendChild(tile);
+    if (code) toepassenCalib(b);
+  }
+}
+
+function toepassenCalib(b){
+  const iframe = document.getElementById(`dcFrame${b}`);
+  if (!iframe) return;
+  iframe.style.transform = `scale(${calSchaal(b)}) translate(${-calOffX(b)}px,${-calOffY(b)}px)`;
+}
+function calZet(b, wat, delta){
+  const map = {schaal:`tv_dc_schaal_${b}`, offx:`tv_dc_offx_${b}`, offy:`tv_dc_offy_${b}`};
+  const key = map[wat];
+  let v = wat==='schaal' ? calSchaal(b) : (wat==='offx' ? calOffX(b) : calOffY(b));
+  v = Math.round((v+delta)*100)/100;
+  if (wat==='schaal') v = Math.max(0.2, Math.min(3, v));
+  localStorage.setItem(key, v);
+  toepassenCalib(b);
+}
+function calReset(b){
+  localStorage.removeItem(`tv_dc_schaal_${b}`);
+  localStorage.removeItem(`tv_dc_offx_${b}`);
+  localStorage.removeItem(`tv_dc_offy_${b}`);
+  toepassenCalib(b);
+}
+function toggleCalib(b){
+  document.getElementById(`calib${b}`).classList.toggle('open');
+}
+function herladenBord(b){
+  const f = document.getElementById(`dcFrame${b}`);
+  if (f) f.src = f.src;
+}
+
+async function laadDartCodes(){
+  try{
+    const rows = await sbGet('instellingen','sleutel=like.dartconnect_bord_*');
+    const nieuw = {1:'',2:'',3:'',4:''};
+    rows.forEach(r=>{
+      const b = r.sleutel.replace('dartconnect_bord_','');
+      if (nieuw.hasOwnProperty(b)) nieuw[b] = r.waarde || '';
+    });
+    const gewijzigd = JSON.stringify(nieuw) !== JSON.stringify(dartCodes);
+    dartCodes = nieuw;
+    if (gewijzigd) renderBoards();
+    setSync(true);
+  }catch(e){ setSync(false); }
+}
+
+function setSync(ok){
+  document.getElementById('syncDot').className = 'sync-dot ' + (ok ? 'ok' : 'error');
+}
+
+// ══════════════════════════════════════════
+//  KOMENDE WEDSTRIJDEN (rechts, 2 tijdsloten)
+// ══════════════════════════════════════════
+function getDivKey(m){
+  const d=(m.divisie||'').toLowerCase();
+  if(m.is_inhaal) return 'inhaal';
+  if(d.includes('ere')) return 'ere';
+  if(d.includes('eerste')||d.includes('1e')) return 'eerste';
+  if(d.includes('beker')) return 'beker';
+  return 'general';
+}
+function divChip(m){
+  const k=getDivKey(m);
+  const labels={ere:'Ere',eerste:'1e Div',beker:'Beker',inhaal:'Inhaal',general:'Div'};
+  return `<span class="div-chip ${k}">${labels[k]||m.divisie||''}</span>`;
+}
+
+async function laadKomendeWedstrijden(){
+  try{
+    const vandaag = vandaagStr();
+    const rows = await sbGet('wedstrijden',
+      `datum=eq.${vandaag}&status=neq.gespeeld&tijdstip=not.is.null&order=tijdstip.asc`);
+    renderSidebar(rows);
+    setSync(true);
+  }catch(e){
+    setSync(false);
+  }
+}
+
+function renderSidebar(rows){
+  const body = document.getElementById('sidebarBody');
+  if (!rows.length){
+    body.innerHTML = `<div class="empty-msg"><span class="icon">🌙</span>Geen openstaande wedstrijden voor vandaag.</div>`;
+    return;
+  }
+  // Groepeer op tijdstip, pak de eerstvolgende 2 unieke tijdsloten
+  const perTijd = {};
+  rows.forEach(w=>{
+    const t = w.tijdstip || '--:--';
+    (perTijd[t] = perTijd[t] || []).push(w);
+  });
+  const tijden = Object.keys(perTijd).sort();
+  const eerste2 = tijden.slice(0,2);
+
+  body.innerHTML = eerste2.map((t, idx)=>{
+    const matches = perTijd[t];
+    const tag = idx===0 ? '<span class="tag">nu</span>' : '<span class="tag straks">straks</span>';
+    const rijen = matches.map(w=>`
+      <div class="match-row">
+        <div class="top-line">
+          ${divChip(w)}
+          ${w.speelronde ? `<span class="ronde-lbl">Rd ${w.speelronde}</span>` : ''}
+        </div>
+        <div class="teams">${w.thuis||'?'}<span class="vs">vs</span>${w.uit||'?'}</div>
+      </div>`).join('');
+    return `<div class="slot-block">
+        <div class="slot-hdr"><span class="tijd">${t}</span>${tag}</div>
+        ${rijen}
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+async function initAll(){
+  await laadDartCodes();
+  await laadKomendeWedstrijden();
+}
+initAll();
+setInterval(laadDartCodes, CODE_REFRESH_MS);
+setInterval(laadKomendeWedstrijden, MATCH_REFRESH_MS);
+</script>
+</body>
+</html>
