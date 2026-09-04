@@ -160,6 +160,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .match-card.div-inhaal{border-left-color:var(--inhaal);}
 .match-card.blocked{opacity:0.45;}
 .match-card.warn-rust{background:rgba(249,115,22,0.06);border-left-color:var(--warn) !important;}
+.match-card.swap-target{border-color:var(--blue) !important;background:rgba(59,130,246,0.10);box-shadow:inset 0 0 0 1px var(--blue);}
 .match-nr{font-weight:700;color:var(--green);min-width:20px;font-size:0.95rem;flex-shrink:0;}
 .match-time{font-family:monospace;font-size:0.72rem;padding:2px 6px;border-radius:4px;flex-shrink:0;white-space:nowrap;font-weight:600;}
 .match-time.normal{background:rgba(245,158,11,0.12);color:var(--orange);}
@@ -271,6 +272,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 /* ── NAV TABS ── */
 .nav-tabs{background:#080d16;border-bottom:1px solid var(--border);display:flex;gap:0;padding:0 20px;flex-shrink:0;}
 .nav-tab{padding:10px 18px;font-size:0.78rem;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;user-select:none;letter-spacing:0.5px;}
+a.nav-tab{text-decoration:none;display:inline-block;}
 .nav-tab:hover{color:var(--text);}
 .nav-tab.active{color:var(--green);border-bottom-color:var(--green);}
 .nav-tab.planning.active{color:var(--orange);border-bottom-color:var(--orange);}
@@ -330,6 +332,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <div class="nav-tab" id="navStats" onclick="switchNav('stats')">📊 Stats</div>
   <div class="nav-tab" id="navSpelers" onclick="switchNav('spelers')">🧑‍🤝‍🧑 Spelerbeheer</div>
   <div class="nav-tab" id="navLogboek" onclick="switchNav('logboek')">📝 Logboek</div>
+  <a class="nav-tab" href="tv.html" target="_blank" rel="noopener">📺 TV</a>
 </div>
 
 <!-- ── BOARDS BAR (altijd zichtbaar, ook bij Planning Tool / Stats) ── -->
@@ -565,9 +568,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div class="modal-title">📅 Wedstrijd verzetten</div>
     <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text);" id="verzetLabel"></div>
     <div id="verzetOrigDatum"></div>
-    <div style="margin-bottom:12px;">
-      <div class="ig"><div class="lbl">NIEUWE DATUM</div><input type="date" class="inp" id="verzetDatum"></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <div class="ig" style="flex:1;"><div class="lbl">NIEUWE DATUM</div><input type="date" class="inp" id="verzetDatum"></div>
+      <div class="ig" style="width:110px;"><div class="lbl">TIJDSTIP</div><input type="text" class="inp" id="verzetTijd" placeholder="19:30"></div>
     </div>
+    <div id="verzetRustHint" style="font-size:0.68rem;color:var(--muted);margin:-6px 0 12px;">Min. 40 min rust tussen wedstrijden op dezelfde avond voor dezelfde speler.</div>
     <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--nnb);cursor:pointer;margin-bottom:12px;">
       <input type="checkbox" id="verzetNNB" onchange="toggleVerzetNNB()"> 🕓 Datum nog niet bekend (NNB)
     </label>
@@ -1273,6 +1278,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   const isInhaal   = m.is_inhaal;
   const isBeker    = m.divisie?.toLowerCase().includes('beker');
   const divKey     = getDivKey(m);
+  const toonTijd   = !isBeker && !isInhaal;
 
   // Rusttijd check
   const nuMs = Date.now();
@@ -1288,8 +1294,20 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   card.draggable = !isBlocked;
   card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); });
 
+  // Sleep-wissel: sleep een andere kaart hierop om tijden te ruilen (alleen bij
+  // normale wedstrijden met een echt tijdstip; beker/inhaal hebben geen vast slot).
+  if (toonTijd && !isBlocked) {
+    card.addEventListener('dragover', e=>{ e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect='move'; card.classList.add('swap-target'); });
+    card.addEventListener('dragleave', ()=>card.classList.remove('swap-target'));
+    card.addEventListener('drop', e=>{
+      e.preventDefault(); e.stopPropagation();
+      card.classList.remove('swap-target');
+      const brondId = e.dataTransfer.getData('matchId');
+      if (brondId && brondId !== m.id) wisselTijden(brondId, m.id);
+    });
+  }
+
   const tijdCls = isBeker?'beker':isInhaal?'inhaal':'normal';
-  const toonTijd = !isBeker && !isInhaal;
 
   // Badges
   const chip = getDivChip(m);
@@ -1434,6 +1452,7 @@ function openVerzetModal(id) {
   const m = wedstrijden.find(w=>w.id===id); if (!m) return;
   document.getElementById('verzetLabel').textContent = `${m.thuis} vs ${m.uit}`;
   document.getElementById('verzetDatum').value = m.datum_nnb ? '' : (m.datum||'');
+  document.getElementById('verzetTijd').value = m.tijdstip || '';
   document.getElementById('verzetDoor').value = '';
   // Standaard aangevinkt, BEHALVE als dit een bekerwedstrijd is die nog nooit eerder
   // een echte datum heeft gehad (dus voor het eerst wordt ingepland vanuit NNB).
@@ -1459,21 +1478,29 @@ function openVerzetModal(id) {
 function toggleVerzetNNB() {
   const nnb = document.getElementById('verzetNNB').checked;
   const datumInp = document.getElementById('verzetDatum');
+  const tijdInp   = document.getElementById('verzetTijd');
   datumInp.disabled = nnb;
-  if (nnb) datumInp.value = '';
+  tijdInp.disabled = nnb;
+  if (nnb) { datumInp.value = ''; tijdInp.value = ''; }
 }
 
 async function slaVerzetOp(informeer) {
   if (!verzetId) return;
   const isNNB          = document.getElementById('verzetNNB').checked;
   const nieuweDatumInp  = document.getElementById('verzetDatum').value;
+  const nieuweTijdInp   = document.getElementById('verzetTijd').value.trim();
   const isInhaal        = document.getElementById('verzetIsInhaal').checked;
   const gewijzigdDoor   = document.getElementById('verzetDoor').value;
   if (!isNNB && !nieuweDatumInp) { toast('Kies een datum (of vink NNB aan)','red'); return; }
   if (!gewijzigdDoor) { toast('Kies wie de wijziging doet','red'); return; }
+  if (nieuweTijdInp && !/^([01]\d|2[0-3]):[0-5]\d$/.test(nieuweTijdInp)) {
+    toast('Tijdstip moet in de vorm UU:MM (bv. 19:30)','red'); return;
+  }
 
   const m = wedstrijden.find(w=>w.id===verzetId);
   const oudeDatum = m?.datum || null;
+  const oudeTijd  = m?.tijdstip || null;
+  const nieuweTijd = isNNB ? null : (nieuweTijdInp || null);
   // Alleen een 'originele datum' bijhouden als dit ook echt als inhaalwedstrijd geldt.
   // Zonder dat vinkje is er niets "origineels" om te tonen (voorkomt bv. een zinloze
   // placeholder-datum die als "oorspronkelijke datum" in de mail aan spelers verschijnt).
@@ -1501,21 +1528,46 @@ async function slaVerzetOp(informeer) {
     }
   }
 
+  // ── RUSTCHECK: min. 40 minuten tussen wedstrijden van dezelfde speler, zelfde avond ──
+  if (!isNNB && nieuweTijd) {
+    const MIN_RUST_MIN = 40;
+    const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
+    const nieuwMin = naarMin(nieuweTijd);
+    const conflicten = wedstrijden.filter(w => {
+      if (w.id === verzetId || w.datum !== nieuweDatum || w.datum_nnb || !w.tijdstip) return false;
+      const wMin = naarMin(w.tijdstip);
+      if (wMin === null) return false;
+      const spelerRaakt = w.thuis === m.thuis || w.uit === m.thuis || w.thuis === m.uit || w.uit === m.uit;
+      return spelerRaakt && Math.abs(wMin - nieuwMin) < MIN_RUST_MIN;
+    });
+    if (conflicten.length) {
+      const namen = [...new Set(conflicten.flatMap(w => [w.thuis, w.uit]).filter(n => n === m.thuis || n === m.uit))];
+      const msg = `⚠ WAARSCHUWING\n\n${namen.join(' en ')} ${namen.length>1?'hebben':'heeft'} op ${fmtDatum(nieuweDatum)} al een wedstrijd binnen ${MIN_RUST_MIN} minuten van ${nieuweTijd}.\n\nZeker doorgaan?`;
+      if (!confirm(msg)) {
+        toast('Verzet geannuleerd', 'orange');
+        return;
+      }
+    }
+  }
+
   const informeerBtn = document.getElementById('verzetInformeerBtn');
   if (informeer && informeerBtn) { informeerBtn.disabled = true; informeerBtn.textContent = '📧 Bezig...'; }
 
   try {
     await sbPatch('wedstrijden',verzetId,{
       datum: nieuweDatum,
+      tijdstip: nieuweTijd,
       datum_nnb: isNNB,
       is_inhaal: isInhaal,
       originele_datum: origDatum,
       status: 'gepland'
     });
-    if (m) { m.datum=nieuweDatum; m.datum_nnb=isNNB; m.is_inhaal=isInhaal; m.originele_datum=origDatum; }
+    if (m) { m.datum=nieuweDatum; m.tijdstip=nieuweTijd; m.datum_nnb=isNNB; m.is_inhaal=isInhaal; m.originele_datum=origDatum; }
     sluitModal('verzetModal'); verzetId=null;
     bouwDatumFilter(); renderAll();
-    toast(isNNB ? '🕓 Gemarkeerd als NNB — nieuwe datum nog niet bekend' : `📅 Verzet naar ${fmtDatum(nieuweDatum)}`,'orange');
+    const tijdWasGewijzigd = !isNNB && nieuweTijd && nieuweTijd !== oudeTijd;
+    toast(isNNB ? '🕓 Gemarkeerd als NNB — nieuwe datum nog niet bekend'
+      : `📅 Verzet naar ${fmtDatum(nieuweDatum)}${tijdWasGewijzigd ? ` om ${nieuweTijd}` : ''}`,'orange');
 
     // Log de wijziging, ongeacht of we ook informeren
     let logId = null;
@@ -1528,6 +1580,8 @@ async function slaVerzetOp(informeer) {
         actie: 'verzet',
         oude_datum: oudeDatum,
         nieuwe_datum: isNNB ? null : nieuweDatum,
+        oude_tijdstip: oudeTijd,
+        nieuwe_tijdstip: nieuweTijd,
         gewijzigd_door: gewijzigdDoor,
         notitie: isNNB ? 'Nog niet bekend (NNB)' : null,
         mail_verstuurd: false
@@ -1542,7 +1596,7 @@ async function slaVerzetOp(informeer) {
         const res = await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`, {
           method: 'POST',
           headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${SB_KEY}`, 'apikey':SB_KEY },
-          body: JSON.stringify({ type:'verzet', wedstrijd_id: idVoorMail, gewijzigd_door: gewijzigdDoor, wijziging_log_id: logId })
+          body: JSON.stringify({ type:'verzet', wedstrijd_id: idVoorMail, gewijzigd_door: gewijzigdDoor, wijziging_log_id: logId, oude_tijdstip: oudeTijd, nieuwe_tijdstip: nieuweTijd })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Onbekende fout');
@@ -1565,6 +1619,67 @@ async function herstelOrigDatum(id) {
     sluitModal('verzetModal');
     bouwDatumFilter(); renderAll();
     toast(`↩ Teruggezet naar ${fmtDatum(m.datum)}`,'green');
+  } catch(e) { toast(`Fout: ${e.message}`,'red'); }
+}
+
+// ══════════════════════════════════════════
+//  SLEEP-WISSEL: tijden ruilen tussen 2 wedstrijden (live queue)
+// ══════════════════════════════════════════
+async function wisselTijden(id1, id2) {
+  const m1 = wedstrijden.find(w=>w.id===id1);
+  const m2 = wedstrijden.find(w=>w.id===id2);
+  if (!m1 || !m2) return;
+  const isBeker = w => w.divisie?.toLowerCase().includes('beker');
+  if (isBeker(m1) || isBeker(m2) || m1.is_inhaal || m2.is_inhaal) {
+    toast('Kan geen tijd wisselen voor beker-/inhaalwedstrijden','red'); return;
+  }
+  if (m1.datum !== m2.datum) {
+    toast('Kan alleen tijden wisselen binnen dezelfde avond','red'); return;
+  }
+  const t1 = m1.tijdstip, t2 = m2.tijdstip;
+  if (!t1 || !t2) { toast('Beide wedstrijden hebben een tijdstip nodig','red'); return; }
+  if (t1 === t2) { toast('Zelfde tijdstip, niets te wisselen','orange'); return; }
+
+  // Rustcheck: min. 40 min tussen wedstrijden van dezelfde speler op dezelfde avond,
+  // gecontroleerd op de tijden zoals ze NA de wissel zouden zijn.
+  const MIN_RUST_MIN = 40;
+  const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
+  const vindConflicten = (wed, nieuweTijd) => {
+    const nieuwMin = naarMin(nieuweTijd);
+    return wedstrijden.filter(w => {
+      if (w.id===id1 || w.id===id2 || w.datum!==wed.datum || w.datum_nnb || !w.tijdstip) return false;
+      const wMin = naarMin(w.tijdstip); if (wMin===null) return false;
+      const raakt = w.thuis===wed.thuis || w.uit===wed.thuis || w.thuis===wed.uit || w.uit===wed.uit;
+      return raakt && Math.abs(wMin-nieuwMin) < MIN_RUST_MIN;
+    });
+  };
+  const conflicten = [...vindConflicten(m1,t2), ...vindConflicten(m2,t1)];
+  if (conflicten.length) {
+    if (!confirm(`⚠ WAARSCHUWING\n\nNa het wisselen ontstaat voor minstens één speler een rustconflict (<${MIN_RUST_MIN} min tussen wedstrijden).\n\nZeker doorgaan?`)) {
+      toast('Wissel geannuleerd','orange'); return;
+    }
+  }
+
+  try {
+    await sbPatch('wedstrijden', id1, { tijdstip: t2 });
+    await sbPatch('wedstrijden', id2, { tijdstip: t1 });
+    m1.tijdstip = t2; m2.tijdstip = t1;
+    renderAll();
+    toast(`🔁 Tijden gewisseld: ${m1.thuis} vs ${m1.uit} (${t2}) ↔ ${m2.thuis} vs ${m2.uit} (${t1})`,'green');
+
+    // Loggen voor audit-trail in logboek.html; geen mail — dit is een live-avond wissel.
+    try {
+      await sbPost('wijziging_log', {
+        wedstrijd_id: id1, thuis: m1.thuis, uit: m1.uit, divisie: m1.divisie,
+        actie: 'tijd_wissel', oude_tijdstip: t1, nieuwe_tijdstip: t2,
+        gewijzigd_door: 'Wedstrijdleiding (sleep-wissel)', mail_verstuurd: false
+      });
+      await sbPost('wijziging_log', {
+        wedstrijd_id: id2, thuis: m2.thuis, uit: m2.uit, divisie: m2.divisie,
+        actie: 'tijd_wissel', oude_tijdstip: t2, nieuwe_tijdstip: t1,
+        gewijzigd_door: 'Wedstrijdleiding (sleep-wissel)', mail_verstuurd: false
+      });
+    } catch(logErr) { console.error('Kon tijdwissel niet loggen:', logErr); }
   } catch(e) { toast(`Fout: ${e.message}`,'red'); }
 }
 
