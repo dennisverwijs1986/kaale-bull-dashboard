@@ -217,7 +217,7 @@ document.addEventListener('fullscreenchange', ()=>{
 //  DARTCONNECT BORDEN (2x2 grid, links)
 // ══════════════════════════════════════════
 function calGet(key, def){ const v = parseFloat(localStorage.getItem(key)); return isNaN(v) ? def : v; }
-function calSchaal(b){ return calGet(`tv_dc_schaal_${b}`, 1); }
+function calSchaal(b){ return calGet(`tv_dc_schaal_${b}`, 1.3); }
 function calOffX(b){ return calGet(`tv_dc_offx_${b}`, 0); }
 function calOffY(b){ return calGet(`tv_dc_offy_${b}`, 0); }
 
