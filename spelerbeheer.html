@@ -449,7 +449,10 @@
                 <input type="text" id="telefoon-${p.id}" value="${escapeAttr(contact.telefoon || '')}">
               </div>
             </div>
-            <button class="save-btn" onclick="savePlayer('${p.id}')">Opslaan</button>
+            <div style="display:flex;gap:8px;">
+              <button class="save-btn" onclick="savePlayer('${p.id}')" style="flex:1;">Opslaan</button>
+              <button class="save-btn delete-btn" onclick="deletePlayer('${p.id}','${escapeAttr(p.naam)}')" style="flex:0 0 auto;background:var(--red);">Verwijderen</button>
+            </div>
           </div>
         </div>
       `;
@@ -596,6 +599,35 @@
     document.getElementById('new-telefoon').value = '';
 
     showStatus('Speler toegevoegd: ' + naam, true);
+    await loadPlayers();
+  }
+
+  async function deletePlayer(id, naam) {
+    if (!confirm(`Weet je zeker dat je "${naam}" wilt verwijderen?\n\nDit kan niet ongedaan gemaakt worden. Gebruik dit alleen als deze speler nog niet in de wedstrijdplanning voorkomt (nog geen wedstrijden gespeeld/opgeslagen).`)) {
+      return;
+    }
+
+    const { error: contactErr } = await supabaseClient
+      .from('spelers_contact')
+      .delete()
+      .eq('speler_id', id);
+
+    if (contactErr) {
+      showStatus('Fout bij verwijderen contactgegevens: ' + contactErr.message, false);
+      return;
+    }
+
+    const { error: spelerErr } = await supabaseClient
+      .from('spelers')
+      .delete()
+      .eq('id', id);
+
+    if (spelerErr) {
+      showStatus('Fout bij verwijderen speler: ' + spelerErr.message, false);
+      return;
+    }
+
+    showStatus('Speler verwijderd: ' + naam, true);
     await loadPlayers();
   }
 
