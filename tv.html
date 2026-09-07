@@ -373,11 +373,18 @@ function renderSidebar(rows){
     (perTijd[t] = perTijd[t] || []).push(w);
   });
   const tijden = Object.keys(perTijd).sort();
-  const eerste2 = tijden.slice(0,2);
+  // Het eerste tijdslot staat al (live) op de borden — sla dat over.
+  // Toon de twee tijdsloten die daarna komen.
+  const eerste2 = tijden.slice(1, 3);
+
+  if (!eerste2.length){
+    body.innerHTML = `<div class="empty-msg"><span class="icon">🌙</span>Geen wedstrijden meer na de huidige ronde.</div>`;
+    return;
+  }
 
   const blokken = eerste2.map((t, idx)=>{
     const matches = perTijd[t];
-    const tag = idx===0 ? '<span class="tag">nu</span>' : '<span class="tag straks">straks</span>';
+    const tag = idx===0 ? '<span class="tag">eerstvolgend</span>' : '<span class="tag straks">daarna</span>';
     const rijen = matches.map(w=>`
       <div class="match-row">
         <div class="top-line">
