@@ -58,7 +58,7 @@ body{
 .main{flex:1 1 auto;display:flex;min-height:0;}
 
 /* Boards: 1 kolom, 4 rijen, halve schermbreedte */
-.boards-wrap{flex:0 0 66.666%;display:grid;grid-template-columns:1fr;grid-template-rows:repeat(4,1fr);gap:8px;padding:8px;min-width:0;min-height:0;}
+.boards-wrap{flex:0 0 75%;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:8px;min-width:0;min-height:0;}
 .board-tile{
   position:relative;background:#000;border-radius:8px;overflow:hidden;
   border:1px solid var(--border);min-width:0;min-height:0;
@@ -80,7 +80,8 @@ body{
 .tile-btn:hover{background:rgba(0,0,0,0.8);}
 .dc-viewport{position:absolute;inset:0;overflow:hidden;}
 .dc-viewport iframe{
-  position:absolute;top:0;left:0;width:100%;height:100%;border:none;
+  position:absolute;top:0;left:0;border:none;
+  width:1600px;height:900px;
   transform-origin:top left;
 }
 .board-empty{
@@ -105,42 +106,42 @@ body{
 
 /* Sidebar coming up — halve schermbreedte */
 .sidebar{
-  flex:1 1 33.333%;background:var(--s1);border-left:1px solid var(--border);
+  flex:1 1 25%;background:var(--s1);border-left:1px solid var(--border);
   display:flex;flex-direction:column;min-height:0;min-width:0;
 }
 .sidebar-hdr{
   padding:16px 24px 12px;border-bottom:1px solid var(--border);
   display:flex;align-items:center;gap:8px;flex:0 0 auto;
 }
-.sidebar-hdr h2{margin:0;font-size:1.35rem;letter-spacing:0.3px;}
-.sidebar-body{flex:1 1 auto;overflow-y:auto;padding:16px 24px 24px;}
-.slot-columns{display:flex;gap:22px;align-items:flex-start;height:100%;}
-.slot-block{flex:1 1 0;min-width:0;}
+.sidebar-hdr h2{margin:0;font-size:1.1rem;letter-spacing:0.3px;}
+.sidebar-body{flex:1 1 auto;overflow-y:auto;padding:14px 18px 20px;}
+.slot-columns{display:flex;flex-direction:column;gap:0;}
+.slot-block{margin-bottom:18px;}
 .slot-hdr{
-  display:flex;align-items:baseline;gap:10px;margin:4px 4px 14px;
+  display:flex;align-items:baseline;gap:9px;margin:4px 4px 10px;
 }
-.slot-hdr .tijd{font-family:monospace;font-size:2.1rem;font-weight:800;color:var(--orange);}
+.slot-hdr .tijd{font-family:monospace;font-size:1.6rem;font-weight:800;color:var(--orange);}
 .slot-hdr .tag{
-  font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
-  padding:3px 10px;border-radius:5px;background:rgba(16,185,129,0.15);color:var(--green);
+  font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+  padding:2px 8px;border-radius:5px;background:rgba(16,185,129,0.15);color:var(--green);
 }
 .slot-hdr .tag.straks{background:rgba(59,130,246,0.15);color:var(--blue);}
 .match-row{
-  background:var(--s2);border:1px solid var(--border);border-radius:10px;
-  padding:14px 16px;margin-bottom:12px;
+  background:var(--s2);border:1px solid var(--border);border-radius:9px;
+  padding:11px 13px;margin-bottom:8px;
 }
-.match-row .top-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-.div-chip{font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px;}
+.match-row .top-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.div-chip{font-size:0.64rem;font-weight:700;padding:1px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px;}
 .div-chip.ere{background:rgba(168,85,247,0.2);color:var(--ere);}
 .div-chip.eerste{background:rgba(59,130,246,0.2);color:var(--eerste);}
 .div-chip.beker{background:rgba(245,158,11,0.2);color:var(--beker);}
 .div-chip.inhaal{background:rgba(239,68,68,0.2);color:var(--inhaal);}
 .div-chip.general{background:rgba(148,163,184,0.12);color:var(--muted);}
-.ronde-lbl{font-size:0.72rem;color:var(--muted);}
-.match-row .teams{font-size:1.2rem;font-weight:600;line-height:1.4;}
-.match-row .teams .vs{color:var(--muted);font-weight:400;font-size:0.9rem;margin:0 6px;}
-.empty-msg{color:var(--muted);font-size:1rem;text-align:center;padding:30px 10px;}
-.empty-msg .icon{font-size:2.2rem;display:block;margin-bottom:8px;opacity:0.5;}
+.ronde-lbl{font-size:0.66rem;color:var(--muted);}
+.match-row .teams{font-size:1.02rem;font-weight:600;line-height:1.35;}
+.match-row .teams .vs{color:var(--muted);font-weight:400;font-size:0.82rem;margin:0 5px;}
+.empty-msg{color:var(--muted);font-size:0.9rem;text-align:center;padding:30px 10px;}
+.empty-msg .icon{font-size:2rem;display:block;margin-bottom:8px;opacity:0.5;}
 
 @media (max-width: 1100px){
   .slot-columns{flex-direction:column;gap:0;}
@@ -181,6 +182,11 @@ const CODE_REFRESH_MS  = 120000;  // dartconnect koppelcodes
 
 let dartCodes = {1:'',2:'',3:'',4:''};
 
+// Vaste 'binnenmaat' waarop DartConnect altijd rendert (ruim genoeg zodat het nooit intern hoeft te scrollen).
+// Wordt daarna automatisch teruggeschaald ('cover') naar de werkelijke tegelgrootte.
+const NATIVE_W = 1600, NATIVE_H = 900;
+let baseScale = {1:1,2:1,3:1,4:1};
+
 // ══════════════════════════════════════════
 //  KLOK + DATUM
 // ══════════════════════════════════════════
@@ -217,7 +223,7 @@ document.addEventListener('fullscreenchange', ()=>{
 //  DARTCONNECT BORDEN (2x2 grid, links)
 // ══════════════════════════════════════════
 function calGet(key, def){ const v = parseFloat(localStorage.getItem(key)); return isNaN(v) ? def : v; }
-function calSchaal(b){ return calGet(`tv_dc_schaal_${b}`, 1.3); }
+function calSchaal(b){ return calGet(`tv_dc_schaal_${b}`, 1); }
 function calOffX(b){ return calGet(`tv_dc_offx_${b}`, 0); }
 function calOffY(b){ return calGet(`tv_dc_offy_${b}`, 0); }
 
@@ -237,7 +243,7 @@ function renderBoards(){
         </div>
       </div>
       ${code
-        ? `<div class="dc-viewport" id="dcView${b}">
+        ? `<div class="dc-viewport" id="dcView${b}" data-bord="${b}">
              <iframe id="dcFrame${b}" src="https://tv.dartconnect.com/tvscoreboard/${code}" loading="lazy"></iframe>
            </div>
            <div class="calib-panel" id="calib${b}">
@@ -256,14 +262,32 @@ function renderBoards(){
         : `<div class="board-empty"><span class="icon">📴</span><span class="txt">Bord ${b} niet gekoppeld</span></div>`
       }`;
     wrap.appendChild(tile);
-    if (code) toepassenCalib(b);
+    if (code) {
+      const viewport = document.getElementById(`dcView${b}`);
+      if (viewport) boardResizeObserver.observe(viewport);
+      toepassenCalib(b);
+    }
   }
 }
+
+// Meet elke bord-tegel en bereken de 'cover'-schaal zodat het native 1600x900-canvas
+// altijd de hele tegel vult (zonder DartConnect intern te laten scrollen).
+const boardResizeObserver = new ResizeObserver(entries=>{
+  for (const entry of entries){
+    const b = entry.target.dataset.bord;
+    const { width, height } = entry.contentRect;
+    if (width > 0 && height > 0){
+      baseScale[b] = Math.max(width / NATIVE_W, height / NATIVE_H);
+      toepassenCalib(b);
+    }
+  }
+});
 
 function toepassenCalib(b){
   const iframe = document.getElementById(`dcFrame${b}`);
   if (!iframe) return;
-  iframe.style.transform = `scale(${calSchaal(b)}) translate(${-calOffX(b)}px,${-calOffY(b)}px)`;
+  const totaalSchaal = (baseScale[b]||1) * calSchaal(b);
+  iframe.style.transform = `scale(${totaalSchaal}) translate(${-calOffX(b)}px,${-calOffY(b)}px)`;
 }
 function calZet(b, wat, delta){
   const map = {schaal:`tv_dc_schaal_${b}`, offx:`tv_dc_offx_${b}`, offy:`tv_dc_offy_${b}`};
