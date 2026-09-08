@@ -216,6 +216,15 @@
   }
   #add-player-card h3 { margin-top: 0; font-size: 0.95rem; color: var(--text); }
 
+  #swap-player-card {
+    background: var(--s1);
+    border: 2px dashed var(--orange);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  #swap-player-card h3 { margin-top: 0; font-size: 0.95rem; color: var(--text); }
+
   .empty-state {
     text-align: center;
     color: var(--muted);
@@ -298,6 +307,33 @@
       <button class="btn" style="width:auto; padding: 9px 18px;" onclick="addPlayer()">Speler toevoegen</button>
     </div>
 
+    <div id="swap-player-card">
+      <h3>🔁 Speler vervangen in planning</h3>
+      <div style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Vervangt een naam rechtstreeks in álle geplande wedstrijden in de database — geen CSV nodig. Datum, tijdstip, speelronde en al het andere blijven exact staan.</div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Speler die vervangen wordt</label>
+          <select id="swap-oud"></select>
+        </div>
+        <div class="field-group">
+          <label>Vervangen door</label>
+          <select id="swap-type" onchange="toggleSwapType()">
+            <option value="speler">Andere speler</option>
+            <option value="bye">BYE (vrije ronde)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row" id="swap-nieuw-row">
+        <div class="field-group">
+          <label>Nieuwe naam</label>
+          <input type="text" id="swap-nieuw" placeholder="bv. Michael van Beek" list="swap-suggesties">
+          <datalist id="swap-suggesties"></datalist>
+        </div>
+      </div>
+      <button class="btn" style="width:auto; padding: 9px 18px;" onclick="swapPlayerInPlanning()">Vervangen in planning</button>
+      <div id="swap-log" style="margin-top:10px;font-size:0.85rem;"></div>
+    </div>
+
     <div class="toolbar">
       <input type="text" id="search-input" placeholder="Zoek op naam..." oninput="bulkMode ? renderBulkList() : renderPlayers()">
       <button onclick="toggleBulkMode()" id="bulk-toggle-btn">📋 Bulk divisie bewerken</button>
@@ -347,6 +383,7 @@
       document.getElementById('app').style.display = 'block';
       sessionStorage.setItem('spelerbeheer_ok', '1');
       loadPlayers();
+      loadSwapNamenlijst();
     } else {
       errEl.textContent = 'Onjuist wachtwoord.';
     }
@@ -361,6 +398,7 @@
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadPlayers();
+    loadSwapNamenlijst();
   }
 
   function showStatus(msg, ok) {
@@ -629,6 +667,87 @@
 
     showStatus('Speler verwijderd: ' + naam, true);
     await loadPlayers();
+  }
+
+  // ── SPELER VERVANGEN IN PLANNING (rechtstreeks op de database, geen CSV) ──
+  async function loadSwapNamenlijst() {
+    const { data, error } = await supabaseClient
+      .from('wedstrijden')
+      .select('thuis, uit');
+
+    if (error) {
+      showStatus('Kon spelerslijst voor vervangen niet laden: ' + error.message, false);
+      return;
+    }
+
+    const isBye = v => /[-–]\s*bye\s*[-–]/i.test(v || '');
+    const namen = new Set();
+    (data || []).forEach(r => {
+      if (!isBye(r.thuis)) namen.add(r.thuis);
+      if (!isBye(r.uit)) namen.add(r.uit);
+    });
+    const sorted = [...namen].filter(Boolean).sort((a, b) => a.localeCompare(b));
+
+    document.getElementById('swap-oud').innerHTML =
+      sorted.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
+    document.getElementById('swap-suggesties').innerHTML =
+      sorted.map(n => `<option value="${escapeAttr(n)}">`).join('');
+  }
+
+  function toggleSwapType() {
+    const isSpeler = document.getElementById('swap-type').value === 'speler';
+    document.getElementById('swap-nieuw-row').style.display = isSpeler ? 'flex' : 'none';
+  }
+
+  async function swapPlayerInPlanning() {
+    const oud = document.getElementById('swap-oud').value;
+    const type = document.getElementById('swap-type').value;
+    const logEl = document.getElementById('swap-log');
+    let nieuw;
+
+    if (type === 'bye') {
+      nieuw = '- BYE -';
+    } else {
+      nieuw = document.getElementById('swap-nieuw').value.trim();
+      if (!nieuw) {
+        logEl.innerHTML = '<span style="color:var(--red);">Vul een naam in voor de vervangende speler.</span>';
+        return;
+      }
+    }
+    if (!oud) return;
+
+    if (!confirm(`"${oud}" vervangen door "${nieuw}" in álle geplande wedstrijden?\n\nDit wijzigt de database direct. Datum, tijdstip en speelronde blijven ongewijzigd.`)) {
+      return;
+    }
+
+    const { data: thuisRows, error: thuisErr } = await supabaseClient
+      .from('wedstrijden')
+      .update({ thuis: nieuw })
+      .eq('thuis', oud)
+      .eq('status', 'gepland')
+      .select('id');
+
+    if (thuisErr) {
+      logEl.innerHTML = '<span style="color:var(--red);">Fout bij thuiswedstrijden: ' + thuisErr.message + '</span>';
+      return;
+    }
+
+    const { data: uitRows, error: uitErr } = await supabaseClient
+      .from('wedstrijden')
+      .update({ uit: nieuw })
+      .eq('uit', oud)
+      .eq('status', 'gepland')
+      .select('id');
+
+    if (uitErr) {
+      logEl.innerHTML = '<span style="color:var(--red);">Fout bij uitwedstrijden: ' + uitErr.message + '</span>';
+      return;
+    }
+
+    const totaal = (thuisRows ? thuisRows.length : 0) + (uitRows ? uitRows.length : 0);
+    logEl.innerHTML = `<span style="color:var(--green);">✓ "${escapeHtml(oud)}" vervangen door "${escapeHtml(type === 'bye' ? 'BYE' : nieuw)}" in ${totaal} wedstrijd${totaal === 1 ? '' : 'en'}.</span>`;
+    document.getElementById('swap-nieuw').value = '';
+    await loadSwapNamenlijst();
   }
 
   function escapeHtml(str) {
