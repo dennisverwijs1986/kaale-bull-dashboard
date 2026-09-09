@@ -1215,10 +1215,10 @@ function renderQueue() {
     renderHistory(); return;
   }
 
-  // Sorteer: inhaal ALTIJD bovenaan, dan op tijdstip
+  // Sorteer op tijdstip, zodat een verzette (inhaal)wedstrijd meteen op zijn juiste
+  // plek in de avond terechtkomt in plaats van altijd bovenaan te blijven staan.
+  // Wedstrijden zonder tijdstip (bv. nog niet ingedeeld) komen achteraan.
   const sorteer = (a,b) => {
-    if (a.is_inhaal && !b.is_inhaal) return -1;
-    if (!a.is_inhaal && b.is_inhaal) return 1;
     const tA = a.tijdstip||'', tB = b.tijdstip||'';
     if (!tA && !tB) return 0;
     if (!tA) return 1;
