@@ -55,10 +55,10 @@ body{
 .fs-btn:hover{background:var(--s3);}
 
 /* ── MAIN LAYOUT ── */
-.main{flex:1 1 auto;display:flex;min-height:0;}
+.main{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;}
 
 /* Boards: 1 kolom, 4 rijen, halve schermbreedte */
-.boards-wrap{flex:0 0 75%;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:8px;min-width:0;min-height:0;}
+.boards-wrap{flex:0 0 66%;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:8px;min-width:0;min-height:0;}
 .board-tile{
   position:relative;background:#000;border-radius:8px;overflow:hidden;
   border:1px solid var(--border);min-width:0;min-height:0;
@@ -104,47 +104,58 @@ body{
 }
 .calib-reset{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.7rem;text-decoration:underline;}
 
-/* Sidebar coming up — halve schermbreedte */
-.sidebar{
-  flex:1 1 25%;background:var(--s1);border-left:1px solid var(--border);
-  display:flex;flex-direction:column;min-height:0;min-width:0;
+/* Onderstrook: komende wedstrijden (horizontaal) + sponsorbalk */
+.bottom-bar{
+  flex:1 1 auto;background:var(--s1);border-top:1px solid var(--border);
+  display:flex;flex-direction:column;min-height:0;
 }
-.sidebar-hdr{
-  padding:16px 24px 12px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:8px;flex:0 0 auto;
+.upcoming-panel{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:10px 24px;}
+.upcoming-hdr{flex:0 0 auto;font-size:1rem;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.upcoming-body{flex:1 1 auto;overflow-y:auto;}
+.slot-columns{display:flex;flex-direction:column;gap:8px;height:100%;justify-content:center;}
+.slot-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.slot-row .tijd{font-family:monospace;font-size:1.3rem;font-weight:800;color:var(--orange);min-width:66px;flex:0 0 auto;}
+.slot-row .tag{
+  font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+  padding:2px 8px;border-radius:5px;background:rgba(16,185,129,0.15);color:var(--green);flex:0 0 auto;
 }
-.sidebar-hdr h2{margin:0;font-size:1.1rem;letter-spacing:0.3px;}
-.sidebar-body{flex:1 1 auto;overflow-y:auto;padding:14px 18px 20px;}
-.slot-columns{display:flex;flex-direction:column;gap:0;}
-.slot-block{margin-bottom:18px;}
-.slot-hdr{
-  display:flex;align-items:baseline;gap:9px;margin:4px 4px 10px;
+.slot-row .tag.straks{background:rgba(59,130,246,0.15);color:var(--blue);}
+.match-pill{
+  background:var(--s2);border:1px solid var(--border);border-radius:8px;
+  padding:6px 13px;display:flex;align-items:center;gap:7px;white-space:nowrap;
 }
-.slot-hdr .tijd{font-family:monospace;font-size:1.6rem;font-weight:800;color:var(--orange);}
-.slot-hdr .tag{
-  font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
-  padding:2px 8px;border-radius:5px;background:rgba(16,185,129,0.15);color:var(--green);
-}
-.slot-hdr .tag.straks{background:rgba(59,130,246,0.15);color:var(--blue);}
-.match-row{
-  background:var(--s2);border:1px solid var(--border);border-radius:9px;
-  padding:11px 13px;margin-bottom:8px;
-}
-.match-row .top-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-.div-chip{font-size:0.64rem;font-weight:700;padding:1px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px;}
+.div-chip{font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px;}
 .div-chip.ere{background:rgba(168,85,247,0.2);color:var(--ere);}
 .div-chip.eerste{background:rgba(59,130,246,0.2);color:var(--eerste);}
 .div-chip.beker{background:rgba(245,158,11,0.2);color:var(--beker);}
 .div-chip.inhaal{background:rgba(239,68,68,0.2);color:var(--inhaal);}
 .div-chip.general{background:rgba(148,163,184,0.12);color:var(--muted);}
-.ronde-lbl{font-size:0.66rem;color:var(--muted);}
-.match-row .teams{font-size:1.02rem;font-weight:600;line-height:1.35;}
-.match-row .teams .vs{color:var(--muted);font-weight:400;font-size:0.82rem;margin:0 5px;}
-.empty-msg{color:var(--muted);font-size:0.9rem;text-align:center;padding:30px 10px;}
-.empty-msg .icon{font-size:2rem;display:block;margin-bottom:8px;opacity:0.5;}
+.match-pill .teams{font-size:0.92rem;font-weight:600;}
+.match-pill .teams .vs{color:var(--muted);font-weight:400;font-size:0.78rem;margin:0 5px;}
+.empty-msg{color:var(--muted);font-size:0.9rem;text-align:center;padding:14px 10px;}
+.empty-msg .icon{font-size:1.6rem;display:block;margin-bottom:6px;opacity:0.5;}
 
-@media (max-width: 1100px){
-  .slot-columns{flex-direction:column;gap:0;}
+.sponsor-panel{
+  flex:0 0 84px;border-top:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0;color:var(--muted);font-size:0.75rem;
+  overflow:hidden;position:relative;white-space:nowrap;
+}
+.sponsor-track{
+  display:inline-flex;align-items:center;gap:70px;
+  animation:sponsorScroll 30s linear infinite;
+  will-change:transform;
+  --scroll-dist:0px;
+}
+@keyframes sponsorScroll{
+  from{ transform:translateX(0); }
+  to{ transform:translateX(calc(-1 * var(--scroll-dist))); }
+}
+.sponsor-item{display:inline-flex;align-items:center;flex:0 0 auto;}
+.sponsor-item img{max-height:52px;max-width:220px;object-fit:contain;filter:grayscale(0.1);}
+.sponsor-item.sponsor-naam{
+  font-size:1.05rem;font-weight:700;color:var(--muted);letter-spacing:0.4px;
+  text-transform:uppercase;opacity:0.75;
 }
 </style>
 </head>
@@ -162,9 +173,14 @@ body{
 
 <div class="main">
   <div class="boards-wrap" id="boardsWrap"></div>
-  <div class="sidebar">
-    <div class="sidebar-hdr"><h2>📋 Komende wedstrijden</h2></div>
-    <div class="sidebar-body" id="sidebarBody"></div>
+  <div class="bottom-bar">
+    <div class="upcoming-panel">
+      <div class="upcoming-hdr">📋 Komende wedstrijden</div>
+      <div class="upcoming-body" id="sidebarBody"></div>
+    </div>
+    <div class="sponsor-panel" id="sponsorPanel">
+      <div class="sponsor-track" id="sponsorTrack"></div>
+    </div>
   </div>
 </div>
 
@@ -178,6 +194,20 @@ const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}` };
 const sbGet = async (t,q='') => { const r = await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 
 const MATCH_REFRESH_MS = 20000;   // wedstrijden + tijdsloten
+
+// ══════════════════════════════════════════
+//  SPONSORS
+//  Vul hier de sponsors in — naam verplicht, logo optioneel.
+//  Met logo: zet het plaatje ergens online (bijv. in dit GitHub-repo, map "sponsors/")
+//  en verwijs naar het pad, bijv. logo:"sponsors/kaalebull-slager.png"
+//  Zonder logo (logo:'') wordt gewoon de naam getoond.
+// ══════════════════════════════════════════
+const SPONSORS = [
+  { naam:'Café De Kaale Bull', logo:'' },
+  { naam:'Sponsor 2',          logo:'' },
+  { naam:'Sponsor 3',          logo:'' },
+];
+const SPONSOR_SNELHEID_PX_PER_SEC = 90; // hoger = sneller scrollen
 const CODE_REFRESH_MS  = 120000;  // dartconnect koppelcodes
 
 let dartCodes = {1:'',2:'',3:'',4:''};
@@ -385,26 +415,58 @@ function renderSidebar(rows){
   const blokken = eerste2.map((t, idx)=>{
     const matches = perTijd[t];
     const tag = idx===0 ? '<span class="tag">eerstvolgend</span>' : '<span class="tag straks">daarna</span>';
-    const rijen = matches.map(w=>`
-      <div class="match-row">
-        <div class="top-line">
-          ${divChip(w)}
-          ${w.speelronde ? `<span class="ronde-lbl">Rd ${w.speelronde}</span>` : ''}
-        </div>
-        <div class="teams">${w.thuis||'?'}<span class="vs">vs</span>${w.uit||'?'}</div>
+    const pills = matches.map(w=>`
+      <div class="match-pill">
+        ${divChip(w)}
+        <span class="teams">${w.thuis||'?'}<span class="vs">vs</span>${w.uit||'?'}</span>
       </div>`).join('');
-    return `<div class="slot-block">
-        <div class="slot-hdr"><span class="tijd">${t}</span>${tag}</div>
-        ${rijen}
+    return `<div class="slot-row">
+        <span class="tijd">${t}</span>${tag}
+        ${pills}
       </div>`;
   }).join('');
   body.innerHTML = `<div class="slot-columns">${blokken}</div>`;
 }
 
 // ══════════════════════════════════════════
+//  SPONSORBAND (doorlopend, naadloos)
+// ══════════════════════════════════════════
+function renderSponsors(){
+  const panel = document.getElementById('sponsorPanel');
+  const track = document.getElementById('sponsorTrack');
+  if (!SPONSORS.length){ panel.style.display = 'none'; return; }
+
+  const itemHtml = s => s.logo
+    ? `<span class="sponsor-item"><img src="${s.logo}" alt="${s.naam||''}"></span>`
+    : `<span class="sponsor-item sponsor-naam">${s.naam}</span>`;
+
+  const eenmaal = SPONSORS.map(itemHtml).join('');
+  // Inhoud dubbel plaatsen zodat de scroll naadloos kan lussen (kopie 2 staat exact 1x
+  // de breedte van kopie 1 verderop, en na het scrollen van precies die afstand
+  // ziet het er weer identiek uit aan het begin — geen zichtbare sprong).
+  track.innerHTML = eenmaal + eenmaal;
+
+  requestAnimationFrame(()=>{
+    // Meet de breedte van precies 1 kopie (= gap + breedte van alle sponsor-items samen)
+    const gap = 70; // moet gelijk zijn aan de 'gap' in .sponsor-track CSS
+    const kinderen = Array.from(track.children);
+    const helft = kinderen.length / 2;
+    let eenKopieBreedte = 0;
+    for (let i = 0; i < helft; i++){
+      eenKopieBreedte += kinderen[i].getBoundingClientRect().width + gap;
+    }
+    track.style.setProperty('--scroll-dist', `${eenKopieBreedte}px`);
+
+    const duur = Math.max(8, eenKopieBreedte / SPONSOR_SNELHEID_PX_PER_SEC);
+    track.style.animationDuration = `${duur}s`;
+  });
+}
+
+// ══════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════
 async function initAll(){
+  renderSponsors();
   await laadDartCodes();
   await laadKomendeWedstrijden();
 }
