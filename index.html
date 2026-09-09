@@ -568,11 +568,17 @@ a.nav-tab{text-decoration:none;display:inline-block;}
     <div class="modal-title">📅 Wedstrijd verzetten</div>
     <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text);" id="verzetLabel"></div>
     <div id="verzetOrigDatum"></div>
-    <div style="display:flex;gap:10px;margin-bottom:12px;">
-      <div class="ig" style="flex:1;"><div class="lbl">NIEUWE DATUM</div><input type="date" class="inp" id="verzetDatum"></div>
-      <div class="ig" style="width:110px;"><div class="lbl">TIJDSTIP</div><input type="text" class="inp" id="verzetTijd" placeholder="19:30"></div>
+    <div class="ig" style="margin-bottom:12px;"><div class="lbl">NIEUWE DATUM</div><input type="date" class="inp" id="verzetDatum" onchange="renderVerzetSloten()"></div>
+    <div id="verzetSlotenWrap" style="margin-bottom:8px;">
+      <div class="lbl" style="margin-bottom:6px;">TIJDSTIP <span style="font-weight:400;color:var(--muted);">— kies een vrij tijdslot</span></div>
+      <div id="verzetSlotenGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;"></div>
+      <input type="hidden" id="verzetTijd">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--muted);cursor:pointer;margin-top:8px;">
+        <input type="checkbox" id="verzetHandmatig" onchange="toggleVerzetHandmatig()"> ✏ Ander tijdstip handmatig invoeren
+      </label>
+      <input type="text" class="inp" id="verzetTijdHandmatig" placeholder="19:30" style="display:none;margin-top:6px;" oninput="kiesVerzetSlot(this.value.trim(), true)">
     </div>
-    <div id="verzetRustHint" style="font-size:0.68rem;color:var(--muted);margin:-6px 0 12px;">Min. 40 min rust tussen wedstrijden op dezelfde avond voor dezelfde speler.</div>
+    <div id="verzetSlotenMsg" style="font-size:0.68rem;color:var(--muted);margin:-2px 0 12px;">Min. 40 min rust tussen wedstrijden op dezelfde avond voor dezelfde speler.</div>
     <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--nnb);cursor:pointer;margin-bottom:12px;">
       <input type="checkbox" id="verzetNNB" onchange="toggleVerzetNNB()"> 🕓 Datum nog niet bekend (NNB)
     </label>
@@ -1460,7 +1466,15 @@ function openVerzetModal(id) {
   const eersteKeerBeker = m.divisie?.toLowerCase().includes('beker') && m.datum_nnb && !m.originele_datum && !m.is_inhaal;
   document.getElementById('verzetIsInhaal').checked = !eersteKeerBeker;
   document.getElementById('verzetNNB').checked = !!m.datum_nnb;
+
+  // Als het huidige tijdstip geen standaard tijdslot is (bv. bekerwedstrijd op afwijkende tijd),
+  // start dan meteen in handmatige modus zodat we die tijd niet overschrijven.
+  const isStandaardSlot = !m.tijdstip || PT_SLOTS.some(s => s.tijd === m.tijdstip);
+  document.getElementById('verzetHandmatig').checked = !isStandaardSlot;
+  document.getElementById('verzetTijdHandmatig').value = !isStandaardSlot ? (m.tijdstip||'') : '';
+  toggleVerzetHandmatig();
   toggleVerzetNNB();
+  renderVerzetSloten();
 
   // Toon originele datum en/of NNB-status als die er al is
   const origEl = document.getElementById('verzetOrigDatum');
@@ -1481,7 +1495,93 @@ function toggleVerzetNNB() {
   const tijdInp   = document.getElementById('verzetTijd');
   datumInp.disabled = nnb;
   tijdInp.disabled = nnb;
-  if (nnb) { datumInp.value = ''; tijdInp.value = ''; }
+  document.getElementById('verzetSlotenWrap').style.opacity = nnb ? '0.4' : '1';
+  document.getElementById('verzetSlotenWrap').style.pointerEvents = nnb ? 'none' : 'auto';
+  if (nnb) { datumInp.value = ''; tijdInp.value = ''; document.getElementById('verzetSlotenGrid').innerHTML=''; }
+  else renderVerzetSloten();
+}
+
+// ══════════════════════════════════════════
+//  VERZET: dynamische tijdslot-indeling (40-minutenregel + capaciteit)
+//  Gebruikt dezelfde vaste tijdsloten (PT_SLOTS) als de Planning Tool.
+// ══════════════════════════════════════════
+function verzetSlotStatus(datum, tijd, m) {
+  const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
+  const nieuwMin = naarMin(tijd);
+  const MIN_RUST_MIN = 40;
+
+  const slotDef = PT_SLOTS.find(s => s.tijd === tijd);
+  const cap = slotDef ? slotDef.cap : 4;
+  const bezet = wedstrijden.filter(w => w.datum === datum && w.tijdstip === tijd && w.id !== verzetId && !w.datum_nnb).length;
+  const vol = bezet >= cap;
+
+  const conflict = wedstrijden.some(w => {
+    if (w.id === verzetId || w.datum !== datum || w.datum_nnb || !w.tijdstip) return false;
+    const wMin = naarMin(w.tijdstip); if (wMin === null) return false;
+    const raakt = w.thuis === m.thuis || w.uit === m.thuis || w.thuis === m.uit || w.uit === m.uit;
+    return raakt && Math.abs(wMin - nieuwMin) < MIN_RUST_MIN;
+  });
+
+  return { bezet, cap, vol, conflict };
+}
+
+function renderVerzetSloten() {
+  const grid = document.getElementById('verzetSlotenGrid');
+  const msg  = document.getElementById('verzetSlotenMsg');
+  if (!grid) return;
+  const datum = document.getElementById('verzetDatum').value;
+  const m = wedstrijden.find(w => w.id === verzetId);
+  grid.innerHTML = '';
+  if (!datum || !m) { msg.textContent = 'Kies eerst een datum om de vrije tijdsloten te zien.'; return; }
+
+  const huidigeTijd = document.getElementById('verzetTijd').value;
+  let eersteVrije = null;
+  let alleGeblokkeerd = true;
+
+  PT_SLOTS.forEach(s => {
+    const st = verzetSlotStatus(datum, s.tijd, m);
+    let rand = 'var(--green)', label = `${st.bezet}/${st.cap}`, bg = 'rgba(16,185,129,0.08)';
+    if (st.conflict) { rand = '#ef4444'; label += ' · ⚠ rust'; bg = 'rgba(239,68,68,0.10)'; }
+    else if (st.vol)  { rand = 'var(--muted)'; label += ' · vol'; bg = 'rgba(148,163,184,0.10)'; }
+    else { alleGeblokkeerd = false; if (eersteVrije === null) eersteVrije = s.tijd; }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.style.cssText = `padding:6px 4px;border-radius:6px;border:1px solid ${rand};background:${bg};color:var(--text);cursor:pointer;text-align:center;font-family:inherit;`;
+    if (s.tijd === huidigeTijd) btn.style.outline = '2px solid var(--green)';
+    btn.innerHTML = `<div style="font-weight:700;font-size:0.85rem;">${s.tijd}</div><div style="font-size:0.6rem;opacity:0.85;">${label}</div>`;
+    btn.onclick = () => kiesVerzetSlot(s.tijd);
+    grid.appendChild(btn);
+  });
+
+  const handmatigAan = document.getElementById('verzetHandmatig').checked;
+  if (!handmatigAan && !huidigeTijd && eersteVrije) { kiesVerzetSlot(eersteVrije, true); return; }
+  msg.textContent = alleGeblokkeerd
+    ? '⚠ Geen enkel standaard tijdslot is vrij op deze avond voor deze spelers — kies handmatig of een andere datum.'
+    : 'Groen = vrij · rood = <40 min rust-conflict · grijs = slot vol. Klik om te kiezen.';
+}
+
+function kiesVerzetSlot(tijd, stil) {
+  if (tijd === undefined || tijd === null) return;
+  document.getElementById('verzetTijd').value = tijd;
+  if (!stil) {
+    // Klik op een slot-knop uit het grid: schakel evt. handmatige modus weer uit.
+    document.getElementById('verzetHandmatig').checked = false;
+    document.getElementById('verzetSlotenGrid').style.display = 'grid';
+    document.getElementById('verzetTijdHandmatig').style.display = 'none';
+  }
+  renderVerzetSloten();
+}
+
+function toggleVerzetHandmatig() {
+  const aan = document.getElementById('verzetHandmatig').checked;
+  document.getElementById('verzetSlotenGrid').style.display = aan ? 'none' : 'grid';
+  document.getElementById('verzetTijdHandmatig').style.display = aan ? 'block' : 'none';
+  if (aan) {
+    document.getElementById('verzetTijdHandmatig').value = document.getElementById('verzetTijd').value || '';
+  } else if (document.getElementById('verzetTijdHandmatig').value) {
+    document.getElementById('verzetTijd').value = document.getElementById('verzetTijdHandmatig').value;
+  }
 }
 
 async function slaVerzetOp(informeer) {
