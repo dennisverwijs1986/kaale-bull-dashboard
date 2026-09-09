@@ -890,7 +890,7 @@ function renderWerklast() {
       const tegenstander = isSelf ? w.uit : w.thuis;
       const rol = isSelf ? 'Thuis' : 'Uit';
       return `<div class="speler-match-row div-${divKey} ${w.status==='gespeeld'?'speler-match-gespeeld':''}">
-        ${(w.is_inhaal || getDivKey(w)==='beker') ? '' : `<span class="match-time normal" style="font-size:0.68rem;">${w.tijdstip||'--:--'}</span>`}
+        ${getDivKey(w)==='beker' || !w.tijdstip ? '' : `<span class="match-time ${w.is_inhaal?'inhaal':'normal'}" style="font-size:0.68rem;">${w.tijdstip}</span>`}
         <span style="flex:1;font-weight:600;">${naam} <span style="color:var(--muted);font-weight:400;font-size:0.7rem;">(${rol})</span> vs ${tegenstander}</span>
         ${getDivChip(w)}
         ${w.status==='gespeeld'?'<span style="color:var(--green);font-size:0.7rem;">✓</span>':''}
@@ -1284,7 +1284,12 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   const isInhaal   = m.is_inhaal;
   const isBeker    = m.divisie?.toLowerCase().includes('beker');
   const divKey     = getDivKey(m);
-  const toonTijd   = !isBeker && !isInhaal;
+  // Toon het tijdstip zodra het bekend is — ook bij inhaalwedstrijden (die sinds de
+  // dynamische tijdslot-indeling ook een echt tijdslot krijgen). Bekerwedstrijden
+  // hebben geen vast rooster en tonen daarom nooit een tijd op de kaart.
+  const toonTijd   = !isBeker && !!m.tijdstip;
+  // Sleep-wissel blijft beperkt tot normale wedstrijden met een vast slot.
+  const kanWisselen = toonTijd && !isInhaal;
 
   // Rusttijd check
   const nuMs = Date.now();
@@ -1302,7 +1307,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
 
   // Sleep-wissel: sleep een andere kaart hierop om tijden te ruilen (alleen bij
   // normale wedstrijden met een echt tijdstip; beker/inhaal hebben geen vast slot).
-  if (toonTijd && !isBlocked) {
+  if (kanWisselen && !isBlocked) {
     card.addEventListener('dragover', e=>{ e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect='move'; card.classList.add('swap-target'); });
     card.addEventListener('dragleave', ()=>card.classList.remove('swap-target'));
     card.addEventListener('drop', e=>{
