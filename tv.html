@@ -109,31 +109,31 @@ body{
   flex:1 1 auto;background:var(--s1);border-top:1px solid var(--border);
   display:flex;flex-direction:column;min-height:0;
 }
-.upcoming-panel{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:10px 24px;}
-.upcoming-hdr{flex:0 0 auto;font-size:1rem;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.upcoming-panel{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:14px 28px;}
+.upcoming-hdr{flex:0 0 auto;font-size:1.3rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
 .upcoming-body{flex:1 1 auto;overflow-y:auto;}
 .slot-columns{display:flex;flex-direction:column;gap:8px;height:100%;justify-content:center;}
-.slot-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.slot-row .tijd{font-family:monospace;font-size:1.3rem;font-weight:800;color:var(--orange);min-width:66px;flex:0 0 auto;}
+.slot-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.slot-row .tijd{font-family:monospace;font-size:2.6rem;font-weight:800;color:var(--orange);min-width:132px;flex:0 0 auto;}
 .slot-row .tag{
-  font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
-  padding:2px 8px;border-radius:5px;background:rgba(16,185,129,0.15);color:var(--green);flex:0 0 auto;
+  font-size:0.95rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+  padding:5px 14px;border-radius:7px;background:rgba(16,185,129,0.15);color:var(--green);flex:0 0 auto;
 }
 .slot-row .tag.straks{background:rgba(59,130,246,0.15);color:var(--blue);}
 .match-pill{
-  background:var(--s2);border:1px solid var(--border);border-radius:8px;
-  padding:6px 13px;display:flex;align-items:center;gap:7px;white-space:nowrap;
+  background:var(--s2);border:1px solid var(--border);border-radius:12px;
+  padding:12px 24px;display:flex;align-items:center;gap:12px;white-space:nowrap;
 }
-.div-chip{font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px;}
+.div-chip{font-size:0.9rem;font-weight:700;padding:3px 10px;border-radius:6px;text-transform:uppercase;letter-spacing:0.3px;}
 .div-chip.ere{background:rgba(168,85,247,0.2);color:var(--ere);}
 .div-chip.eerste{background:rgba(59,130,246,0.2);color:var(--eerste);}
 .div-chip.beker{background:rgba(245,158,11,0.2);color:var(--beker);}
 .div-chip.inhaal{background:rgba(239,68,68,0.2);color:var(--inhaal);}
 .div-chip.general{background:rgba(148,163,184,0.12);color:var(--muted);}
-.match-pill .teams{font-size:0.92rem;font-weight:600;}
-.match-pill .teams .vs{color:var(--muted);font-weight:400;font-size:0.78rem;margin:0 5px;}
-.empty-msg{color:var(--muted);font-size:0.9rem;text-align:center;padding:14px 10px;}
-.empty-msg .icon{font-size:1.6rem;display:block;margin-bottom:6px;opacity:0.5;}
+.match-pill .teams{font-size:1.85rem;font-weight:600;}
+.match-pill .teams .vs{color:var(--muted);font-weight:400;font-size:1.5rem;margin:0 10px;}
+.empty-msg{color:var(--muted);font-size:1.3rem;text-align:center;padding:20px 10px;}
+.empty-msg .icon{font-size:2.4rem;display:block;margin-bottom:8px;opacity:0.5;}
 
 .sponsor-panel{
   flex:0 0 84px;border-top:1px solid var(--border);
@@ -203,15 +203,15 @@ const MATCH_REFRESH_MS = 20000;   // wedstrijden + tijdsloten
 //  Zonder logo (logo:'') wordt gewoon de naam getoond.
 // ══════════════════════════════════════════
 const SPONSORS = [
-  { naam:'Sportcafé Duyf', logo:'' },
-  { naam:'Jonas Tweewielers Maasdam', logo:'' },
-  { naam:'Bouwer Installatie', logo:'' },
-  { naam:'Ademar', logo:'' },
-  { naam:'Scents', logo:'' },
-  { naam:'Boerboom', logo:'' },
-  { naam:'Magic Darts', logo:'' },
-  { naam:'Nonstop Printing', logo:'' },
-  { naam:'Corvers & Van Veldhoven', logo:'' },,
+  { naam:'Sportcafé Duyf',              logo:'' },
+  { naam:'Jonas Tweewielers Maasdam',   logo:'' },
+  { naam:'Bouwer Installatie',         logo:'' },
+  { naam:'Ademar',                      logo:'' },
+  { naam:'Scents',                      logo:'' },
+  { naam:'Boerboom',                    logo:'' },
+  { naam:'Magic Darts',                 logo:'' },
+  { naam:'Nonstop Printing',            logo:'' },
+  { naam:'Corvers & Van Veldhoven',     logo:'' },
 ];
 const SPONSOR_SNELHEID_PX_PER_SEC = 90; // hoger = sneller scrollen
 const CODE_REFRESH_MS  = 120000;  // dartconnect koppelcodes
