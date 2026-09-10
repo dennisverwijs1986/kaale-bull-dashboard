@@ -203,16 +203,9 @@ const MATCH_REFRESH_MS = 20000;   // wedstrijden + tijdsloten
 //  Zonder logo (logo:'') wordt gewoon de naam getoond.
 // ══════════════════════════════════════════
 const SPONSORS = [
-  { naam:'Sportcafé Duyf', logo:'' },
-  { naam:'Jonas Tweewielers Maasdam', logo:'' },
-  { naam:'Bouwer Installatie', logo:'' },
-  { naam:'Ademar', logo:'' },
-  { naam:'Scents', logo:'' },
-  { naam:'Boerboom', logo:'' },
-  { naam:'Magic Darts', logo:'' },
-  { naam:'Nonstop Printing', logo:'' },
-  { naam:'Corvers & Van Veldhoven', logo:'' },
-  
+  { naam:'Café De Kaale Bull', logo:'' },
+  { naam:'Sponsor 2',          logo:'' },
+  { naam:'Sponsor 3',          logo:'' },
 ];
 const SPONSOR_SNELHEID_PX_PER_SEC = 90; // hoger = sneller scrollen
 const CODE_REFRESH_MS  = 120000;  // dartconnect koppelcodes
@@ -388,8 +381,10 @@ function divChip(m){
 async function laadKomendeWedstrijden(){
   try{
     const vandaag = vandaagStr();
+    // Alleen wedstrijden die nog NIET op een bord staan (bord is null) — zodra iemand
+    // een wedstrijd in het dashboard op een bord zet, verdwijnt 'ie hier direct uit de lijst.
     const rows = await sbGet('wedstrijden',
-      `datum=eq.${vandaag}&status=neq.gespeeld&tijdstip=not.is.null&order=tijdstip.asc`);
+      `datum=eq.${vandaag}&status=neq.gespeeld&bord=is.null&tijdstip=not.is.null&order=tijdstip.asc`);
     renderSidebar(rows);
     setSync(true);
   }catch(e){
@@ -410,25 +405,24 @@ function renderSidebar(rows){
     (perTijd[t] = perTijd[t] || []).push(w);
   });
   const tijden = Object.keys(perTijd).sort();
-  // Het eerste tijdslot staat al (live) op de borden — sla dat over.
-  // Toon de twee tijdsloten die daarna komen.
-  const eerste2 = tijden.slice(1, 3);
+  // Wedstrijden die al op een bord staan zijn al uit 'rows' gefilterd (zie laadKomendeWedstrijden).
+  // Toon simpelweg het eerstvolgende tijdstip van wat er nog open staat.
+  const volgende = tijden.slice(0, 1);
 
-  if (!eerste2.length){
+  if (!volgende.length){
     body.innerHTML = `<div class="empty-msg"><span class="icon">🌙</span>Geen wedstrijden meer na de huidige ronde.</div>`;
     return;
   }
 
-  const blokken = eerste2.map((t, idx)=>{
+  const blokken = volgende.map((t)=>{
     const matches = perTijd[t];
-    const tag = idx===0 ? '<span class="tag">eerstvolgend</span>' : '<span class="tag straks">daarna</span>';
     const pills = matches.map(w=>`
       <div class="match-pill">
         ${divChip(w)}
         <span class="teams">${w.thuis||'?'}<span class="vs">vs</span>${w.uit||'?'}</span>
       </div>`).join('');
     return `<div class="slot-row">
-        <span class="tijd">${t}</span>${tag}
+        <span class="tijd">${t}</span><span class="tag">eerstvolgend</span>
         ${pills}
       </div>`;
   }).join('');
