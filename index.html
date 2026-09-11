@@ -285,6 +285,14 @@ a.nav-tab{text-decoration:none;display:inline-block;}
 .nav-tab:hover{color:var(--text);}
 .nav-tab.active{color:var(--green);border-bottom-color:var(--green);}
 .nav-tab.planning.active{color:var(--orange);border-bottom-color:var(--orange);}
+.nav-dropdown{position:relative;}
+.nav-dropdown-btn{display:flex;align-items:center;gap:4px;}
+.nav-dropdown-menu{display:none;position:absolute;top:100%;left:0;background:#0c1220;border:1px solid var(--border);border-radius:0 0 8px 8px;min-width:190px;box-shadow:0 8px 20px rgba(0,0,0,0.4);z-index:50;flex-direction:column;}
+.nav-dropdown-menu.open{display:flex;}
+.nav-dropdown-item{padding:11px 16px;font-size:0.78rem;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none;letter-spacing:0.3px;border-bottom:1px solid var(--border);}
+.nav-dropdown-item:last-child{border-bottom:none;}
+.nav-dropdown-item:hover{color:var(--text);background:var(--s2);}
+.nav-dropdown-item.active{color:var(--green);background:var(--s2);}
 /* ── VIEW CONTAINER (blijft onder topbar/nav/boards-bar, die altijd zichtbaar blijven) ── */
 .view-container{flex:1;min-height:0;position:relative;overflow:hidden;}
 .dashboard-view{display:block;height:100%;}
@@ -337,10 +345,16 @@ a.nav-tab{text-decoration:none;display:inline-block;}
 <!-- ── NAV TABS ── -->
 <div class="nav-tabs">
   <div class="nav-tab active" id="navDashboard" onclick="switchNav('dashboard')">📋 Wedstrijdleiding</div>
-  <div class="nav-tab planning" id="navPlanning" onclick="switchNav('planning')">🗓 Planning Tool</div>
-  <div class="nav-tab" id="navStats" onclick="switchNav('stats')">📊 Stats</div>
-  <div class="nav-tab" id="navSpelers" onclick="switchNav('spelers')">🧑‍🤝‍🧑 Spelerbeheer</div>
-  <div class="nav-tab" id="navLogboek" onclick="switchNav('logboek')">📝 Logboek</div>
+  <div class="nav-dropdown" id="navAdminDropdown">
+    <div class="nav-tab nav-dropdown-btn" id="navAdminBtn" onclick="toggleAdminDropdown(event)">⚙️ Admin ▾</div>
+    <div class="nav-dropdown-menu" id="navAdminMenu">
+      <div class="nav-dropdown-item" id="navPlanning" onclick="switchNav('planning'); closeAdminDropdown();">🗓 Planning Tool</div>
+      <div class="nav-dropdown-item" id="navStats" onclick="switchNav('stats'); closeAdminDropdown();">📊 Stats</div>
+      <div class="nav-dropdown-item" id="navSpelers" onclick="switchNav('spelers'); closeAdminDropdown();">🧑‍🤝‍🧑 Spelerbeheer</div>
+      <div class="nav-dropdown-item" id="navLogboek" onclick="switchNav('logboek'); closeAdminDropdown();">📝 Logboek</div>
+      <div class="nav-dropdown-item" id="navPeriodestand" onclick="switchNav('periodestand'); closeAdminDropdown();">🏆 Periodestand</div>
+    </div>
+  </div>
   <a class="nav-tab" href="tv.html" target="_blank" rel="noopener">📺 TV</a>
 </div>
 
@@ -550,6 +564,11 @@ a.nav-tab{text-decoration:none;display:inline-block;}
 <!-- ── LOGBOEK VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
 <div class="external-view" id="logboekView">
   <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/logboek.html" title="Logboek"></iframe>
+</div>
+
+<!-- ── PERIODESTAND VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
+<div class="external-view" id="periodestandView">
+  <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/periodestand.html" title="Periodestand"></iframe>
 </div>
 
 </div><!-- end view-container -->
@@ -2149,18 +2168,34 @@ function toggleHistory() {
 //  NAVIGATIE
 // ══════════════════════════════════════════
 function switchNav(view) {
+  const adminViews = ['planning','stats','spelers','logboek','periodestand'];
   document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
   document.getElementById('planningView').classList.toggle('active', view === 'planning');
   document.getElementById('statsView').classList.toggle('active', view === 'stats');
   document.getElementById('spelersView').classList.toggle('active', view === 'spelers');
   document.getElementById('logboekView').classList.toggle('active', view === 'logboek');
+  document.getElementById('periodestandView').classList.toggle('active', view === 'periodestand');
   document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
   document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
-  document.getElementById('navPlanning').classList.toggle('planning', view === 'planning');
   document.getElementById('navStats').classList.toggle('active', view === 'stats');
   document.getElementById('navSpelers').classList.toggle('active', view === 'spelers');
   document.getElementById('navLogboek').classList.toggle('active', view === 'logboek');
+  document.getElementById('navPeriodestand').classList.toggle('active', view === 'periodestand');
+  document.getElementById('navAdminBtn').classList.toggle('active', adminViews.includes(view));
+  document.getElementById('navAdminBtn').classList.toggle('planning', view === 'planning');
 }
+
+function toggleAdminDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('navAdminMenu').classList.toggle('open');
+}
+function closeAdminDropdown() {
+  document.getElementById('navAdminMenu').classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('navAdminDropdown');
+  if (dd && !dd.contains(e.target)) closeAdminDropdown();
+});
 
 // ══════════════════════════════════════════
 //  PLANNING TOOL
