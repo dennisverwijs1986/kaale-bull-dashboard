@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Periodestand - De Kaale Bull</title>
+<style>
+  :root {
+    --bg:      #0f1520;
+    --s1:      #161f30;
+    --s2:      #1e2a40;
+    --s3:      #243350;
+    --border:  #2a3a56;
+    --text:    #f1f5f9;
+    --muted:   #94a3b8;
+    --green:   #10b981;
+    --red:     #ef4444;
+    --orange:  #f59e0b;
+    --blue:    #3b82f6;
+    --gold:    #f5c518;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+    color: var(--text);
+  }
+  header {
+    background: #080d16;
+    color: var(--text);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--border);
+  }
+  header h1 { font-size: 1.15rem; margin: 0; font-weight: 800; letter-spacing: 0.5px; }
+  header .accent { color: var(--orange); }
+  main { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+  /* Login scherm */
+  #login-screen {
+    max-width: 360px; margin: 80px auto; background: var(--s1);
+    border: 1px solid var(--border); border-radius: 10px; padding: 30px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.35); text-align: center;
+  }
+  #login-screen h2 { margin-top: 0; color: var(--text); }
+  #login-screen input {
+    width: 100%; padding: 12px; font-size: 1rem; background: var(--s2);
+    border: 1px solid var(--border); color: var(--text); border-radius: 6px; margin: 12px 0;
+  }
+  #login-screen button, .btn {
+    padding: 12px; font-size: 1rem; background: var(--green); color: #000;
+    border: none; border-radius: 6px; cursor: pointer; font-weight: 700;
+  }
+  #login-screen button { width: 100%; }
+  #login-screen button:hover, .btn:hover { background: #059669; }
+  #login-error { color: var(--red); font-size: 0.9rem; min-height: 20px; }
+
+  #app { display: none; }
+
+  #status-msg {
+    padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 0.9rem; display: none;
+  }
+  #status-msg.ok { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.3); display: block; }
+  #status-msg.err { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.3); display: block; }
+  #status-msg.warn { background: rgba(245,158,11,0.12); color: var(--orange); border: 1px solid rgba(245,158,11,0.3); display: block; }
+
+  .card {
+    background: var(--s1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; margin-bottom: 20px;
+  }
+  .card h3 { margin-top: 0; font-size: 0.95rem; }
+  .import-card { border: 2px dashed var(--border); }
+  .import-card .hint { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+
+  input[type="file"] {
+    display: block; width: 100%; padding: 10px; background: var(--s2);
+    border: 1px solid var(--border); color: var(--text); border-radius: 6px; margin-bottom: 10px;
+  }
+  textarea {
+    width: 100%; min-height: 90px; padding: 10px; background: var(--s2);
+    border: 1px solid var(--border); color: var(--text); border-radius: 6px;
+    font-family: monospace; font-size: 0.8rem; margin-bottom: 10px;
+  }
+  details.paste-toggle { margin-bottom: 10px; }
+  details.paste-toggle summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+
+  #import-log { margin-top: 12px; font-size: 0.85rem; }
+  #import-log .log-line { padding: 4px 0; border-bottom: 1px solid rgba(42,58,86,0.4); }
+  #import-log .log-ok { color: var(--green); }
+  #import-log .log-err { color: var(--red); }
+  #import-log .log-summary { font-weight: 700; margin-bottom: 6px; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab-btn {
+    padding: 9px 16px; background: var(--s2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.88rem;
+  }
+  .tab-btn.active { background: var(--s3); color: var(--text); border-color: var(--blue); }
+  .tab-btn .sub { display:block; font-weight:400; font-size:0.68rem; color: var(--muted); }
+
+  table.stand { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  table.stand th {
+    text-align: left; padding: 8px 10px; background: var(--s2); color: var(--muted);
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border);
+  }
+  table.stand td { padding: 8px 10px; border-bottom: 1px solid rgba(42,58,86,0.5); }
+  table.stand tr.leader td { background: rgba(245,197,24,0.08); color: var(--gold); font-weight: 700; }
+  table.stand td.pos { width: 34px; color: var(--muted); }
+  table.stand td.num { text-align: right; width: 70px; }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 30px 0; }
+  .loading { text-align: center; color: var(--muted); padding: 30px 0; }
+  .info-note { font-size: 0.82rem; color: var(--muted); margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎯 Kaale Bull <span class="accent">— Periodestand Eerste Divisie</span></h1>
+</header>
+
+<main>
+
+  <div id="login-screen">
+    <h2>Inloggen</h2>
+    <p style="color:#777; font-size:0.9rem;">Alleen voor wedstrijdleiding</p>
+    <input type="password" id="password-input" placeholder="Wachtwoord" autocomplete="off">
+    <button onclick="tryLogin()">Inloggen</button>
+    <div id="login-error"></div>
+  </div>
+
+  <div id="app">
+    <div id="status-msg"></div>
+
+    <p class="info-note">
+      4 periodes van 10 speelrondes. De periodekampioen (nr. 1) + de hoogst geplaatste speler zonder
+      periodetitel gaan door naar de play-offs. Punten = gewonnen legs per wedstrijd (bv. 3-1 → 3 punten
+      winnaar, 1 punt verliezer). Vrije Ronde (bye) telt niet mee.
+    </p>
+
+    <div class="card import-card">
+      <h3>📥 Matchlog importeren</h3>
+      <div class="hint">
+        Exporteer de matchlog (CSV) uit DartConnect en upload 'm hier. De tool herkent automatisch welke
+        Eerste Divisie-wedstrijden erin staan, koppelt ze aan de planning (op naam + datum) en slaat de
+        legscores op. Mag herhaald / met overlap geüpload worden — bestaande scores worden gewoon overschreven.
+      </div>
+      <input type="file" id="csv-file" accept=".csv" onchange="handleFile(this)">
+      <details class="paste-toggle">
+        <summary>Of plak de CSV-inhoud hier</summary>
+        <textarea id="csv-paste" placeholder="Plak hier de ruwe CSV-tekst..."></textarea>
+        <button class="btn" style="width:auto;padding:9px 18px;" onclick="processCsvText(document.getElementById('csv-paste').value)">Verwerken</button>
+      </details>
+      <div id="import-log"></div>
+    </div>
+
+    <div class="card">
+      <h3>🏆 Periodestand</h3>
+      <div class="tabs" id="tabs"></div>
+      <div id="stand-container"><div class="loading">Standen laden...</div></div>
+    </div>
+
+  </div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const DIVISIE = 'Eerste Divisie';
+  const PERIODE_LABELS = {
+    1: 'Ronde 1–10',
+    2: 'Ronde 11–20',
+    3: 'Ronde 21–30',
+    4: 'Ronde 31–40'
+  };
+  let activePeriode = 1;
+  let abbrevMap = {}; // "Voornaam L" -> "Volledige Naam"
+
+  // ── LOGIN (zelfde patroon als spelerbeheer.html) ──
+  async function tryLogin() {
+    const input = document.getElementById('password-input').value;
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+    if (!input) return;
+
+    const { data, error } = await supabaseClient
+      .from('instellingen').select('waarde').eq('sleutel', 'spelerbeheer_wachtwoord').single();
+
+    if (error || !data) { errEl.textContent = 'Kon niet inloggen, probeer opnieuw.'; return; }
+
+    if (input === data.waarde) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      sessionStorage.setItem('spelerbeheer_ok', '1');
+      init();
+    } else {
+      errEl.textContent = 'Onjuist wachtwoord.';
+    }
+  }
+  document.getElementById('password-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
+  if (sessionStorage.getItem('spelerbeheer_ok') === '1') {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    init();
+  }
+
+  function showStatus(msg, type) {
+    const el = document.getElementById('status-msg');
+    el.textContent = msg;
+    el.className = type;
+    setTimeout(() => { el.className = ''; el.textContent = ''; }, 5000);
+  }
+
+  async function init() {
+    await buildAbbrevMap();
+    renderTabs();
+    loadStand();
+  }
+
+  // ── NAAM-AFKORTING MAPPING ──
+  // DartConnect toont spelers als "Voornaam L" (L = 1e letter van het 1e woord van de achternaam,
+  // met behoud van hoofdletter/kleine letter zoals in de volledige naam, bv. "van der Waal" -> "v").
+  async function buildAbbrevMap() {
+    const { data: spelers, error } = await supabaseClient
+      .from('spelers').select('naam').eq('divisie', DIVISIE);
+    if (error || !spelers) { showStatus('Kon spelerslijst niet laden: ' + (error ? error.message : ''), 'err'); return; }
+
+    abbrevMap = {};
+    const collisions = {};
+    spelers.forEach(s => {
+      const parts = s.naam.trim().split(/\s+/);
+      if (parts.length < 2) return;
+      const abbr = parts[0] + ' ' + parts[1][0];
+      if (abbrevMap[abbr] && abbrevMap[abbr] !== s.naam) {
+        collisions[abbr] = collisions[abbr] || [abbrevMap[abbr]];
+        collisions[abbr].push(s.naam);
+      } else {
+        abbrevMap[abbr] = s.naam;
+      }
+    });
+    if (Object.keys(collisions).length) {
+      showStatus('Let op: meerdere spelers matchen dezelfde afkorting: ' +
+        Object.entries(collisions).map(([k,v]) => `"${k}" → ${v.join(' / ')}`).join(', ') +
+        '. Los dit handmatig op in de code (abbrevMap).', 'warn');
+    }
+  }
+
+  // ── CSV IMPORT ──
+  function handleFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => processCsvText(ev.target.result);
+    reader.readAsText(file);
+  }
+
+  function parseCsvLine(line) {
+    // Eenvoudige CSV-split; DartConnect-export bevat geen quoted commas in de gebruikte kolommen.
+    return line.split(',').map(c => c.trim());
+  }
+
+  function parseDartConnectDate(d) {
+    // Formaat M/D/YYYY
+    const [m, day, y] = d.trim().split('/');
+    return `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  }
+
+  async function processCsvText(text) {
+    const logEl = document.getElementById('import-log');
+    logEl.innerHTML = '<div class="loading">Verwerken...</div>';
+
+    if (!text || !text.trim()) { logEl.innerHTML = '<div class="log-line log-err">Geen CSV-inhoud gevonden.</div>'; return; }
+
+    const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+    const headers = parseCsvLine(lines[0]);
+    const idx = {
+      division: headers.indexOf('Division'),
+      date: headers.indexOf('Date'),
+      matchup: headers.indexOf('Away/Guest @ Home/Host'),
+      legs: headers.indexOf('Legs Score')
+    };
+    if (Object.values(idx).some(i => i === -1)) {
+      logEl.innerHTML = '<div class="log-line log-err">Onverwacht CSV-formaat: verwachte kolommen niet gevonden.</div>';
+      return;
+    }
+
+    const parsed = [];
+    const problems = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i]);
+      if (cols[idx.division] !== DIVISIE) continue;
+
+      const [awayAbbr, homeAbbr] = cols[idx.matchup].split('@').map(s => s.trim());
+      const legsParts = cols[idx.legs].split('@').map(s => parseInt(s.trim(), 10));
+      const [awayLegs, homeLegs] = legsParts;
+      const homeFull = abbrevMap[homeAbbr];
+      const awayFull = abbrevMap[awayAbbr];
+
+      if (!homeFull || !awayFull) {
+        problems.push(`Onbekende speler-afkorting: "${!homeFull ? homeAbbr : awayAbbr}" (rij: ${cols[idx.matchup]})`);
+        continue;
+      }
+      if (Number.isNaN(homeLegs) || Number.isNaN(awayLegs)) {
+        problems.push(`Kon legscore niet lezen voor ${homeFull} vs ${awayFull}`);
+        continue;
+      }
+
+      parsed.push({
+        datum: parseDartConnectDate(cols[idx.date]),
+        thuis: homeFull, uit: awayFull,
+        legs_thuis: homeLegs, legs_uit: awayLegs
+      });
+    }
+
+    if (!parsed.length && !problems.length) {
+      logEl.innerHTML = '<div class="log-line">Geen Eerste Divisie-wedstrijden gevonden in dit bestand.</div>';
+      return;
+    }
+
+    // Haal bestaande planning op om op (datum, thuis, uit) te matchen
+    const { data: wedstrijden, error } = await supabaseClient
+      .from('wedstrijden').select('id, datum, thuis, uit').eq('divisie', DIVISIE);
+    if (error) { logEl.innerHTML = '<div class="log-line log-err">Kon planning niet laden: ' + error.message + '</div>'; return; }
+
+    const lookup = {};
+    wedstrijden.forEach(w => { lookup[`${w.datum}|${w.thuis}|${w.uit}`] = w.id; });
+
+    let matched = 0, unmatched = [];
+    const updates = [];
+    parsed.forEach(row => {
+      const key = `${row.datum}|${row.thuis}|${row.uit}`;
+      const id = lookup[key];
+      if (!id) { unmatched.push(`${row.datum}: ${row.thuis} vs ${row.uit}`); return; }
+      matched++;
+      updates.push({ id, legs_thuis: row.legs_thuis, legs_uit: row.legs_uit });
+    });
+
+    const results = await Promise.all(updates.map(u =>
+      supabaseClient.from('wedstrijden').update({ legs_thuis: u.legs_thuis, legs_uit: u.legs_uit }).eq('id', u.id)
+    ));
+    const failed = results.filter(r => r.error);
+
+    let html = `<div class="log-summary">${matched} wedstrijd(en) gekoppeld en bijgewerkt.</div>`;
+    if (failed.length) html += `<div class="log-line log-err">${failed.length} update(s) mislukt.</div>`;
+    if (unmatched.length) {
+      html += `<div class="log-line log-err">${unmatched.length} rij(en) niet gevonden in de planning (mogelijk datum/naam-verschil):</div>`;
+      unmatched.forEach(u => html += `<div class="log-line log-err">– ${u}</div>`);
+    }
+    if (problems.length) {
+      problems.forEach(p => html += `<div class="log-line log-err">– ${p}</div>`);
+    }
+    if (!unmatched.length && !problems.length && !failed.length) {
+      html += `<div class="log-line log-ok">Alles gekoppeld, geen problemen.</div>`;
+    }
+    logEl.innerHTML = html;
+
+    loadStand();
+  }
+
+  // ── PERIODESTAND ──
+  function renderTabs() {
+    const tabsEl = document.getElementById('tabs');
+    tabsEl.innerHTML = '';
+    [1,2,3,4].forEach(p => {
+      const btn = document.createElement('div');
+      btn.className = 'tab-btn' + (p === activePeriode ? ' active' : '');
+      btn.innerHTML = `Periode ${p}<span class="sub">${PERIODE_LABELS[p]}</span>`;
+      btn.onclick = () => { activePeriode = p; renderTabs(); loadStand(); };
+      tabsEl.appendChild(btn);
+    });
+  }
+
+  async function loadStand() {
+    const container = document.getElementById('stand-container');
+    container.innerHTML = '<div class="loading">Standen laden...</div>';
+
+    const { data, error } = await supabaseClient
+      .from('periodestand_eerste_divisie')
+      .select('*')
+      .eq('periode', activePeriode)
+      .order('positie', { ascending: true });
+
+    if (error) { container.innerHTML = '<div class="empty-state">Fout bij laden: ' + error.message + '</div>'; return; }
+    if (!data || !data.length) { container.innerHTML = '<div class="empty-state">Nog geen gespeelde wedstrijden in deze periode.</div>'; return; }
+
+    let html = '<table class="stand"><thead><tr>' +
+      '<th></th><th>Speler</th><th style="text-align:right;">Wedstr.</th><th style="text-align:right;">Winst</th><th style="text-align:right;">Punten</th>' +
+      '</tr></thead><tbody>';
+    data.forEach(row => {
+      const isLeader = row.positie === 1;
+      html += `<tr class="${isLeader ? 'leader' : ''}">` +
+        `<td class="pos">${isLeader ? '🏆' : row.positie}</td>` +
+        `<td>${row.speler}</td>` +
+        `<td class="num">${row.wedstrijden_gespeeld}</td>` +
+        `<td class="num">${row.gewonnen}</td>` +
+        `<td class="num">${row.periodepunten}</td>` +
+        `</tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+</script>
+</body>
+</html>
