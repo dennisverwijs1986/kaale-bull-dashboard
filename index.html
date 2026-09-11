@@ -40,10 +40,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .sync-badge.error{background:rgba(239,68,68,0.15);color:var(--red);}
 
 /* ── BOARDS BAR ── */
-.boards-bar{background:var(--s1);border-bottom:2px solid var(--border);padding:12px 20px;flex-shrink:0;}
-.boards-bar-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.boards-bar{background:var(--s1);border-bottom:2px solid var(--border);padding:9px 20px;flex-shrink:0;}
+.boards-bar-title{font-size:0.65rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
 .boards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-.board-card{background:var(--s2);border-radius:10px;padding:12px 14px;border:1px solid var(--border);border-top:3px solid var(--green);transition:all 0.2s;min-height:140px;display:flex;flex-direction:column;}
+.boards-bar.collapsed .boards-grid{display:none;}
+.boards-bar.collapsed .boards-bar-title{margin-bottom:0;}
+#boardsBarChevron{color:var(--muted);font-size:0.9rem;transition:transform 0.15s;}
+.boards-bar.collapsed #boardsBarChevron{transform:rotate(-90deg);}
+.board-card{background:var(--s2);border-radius:10px;padding:9px 12px;border:1px solid var(--border);border-top:3px solid var(--green);transition:all 0.2s;min-height:110px;display:flex;flex-direction:column;}
 .board-card.busy{border-top-color:var(--red);}
 .board-card.drag-over{border-color:var(--green);background:rgba(16,185,129,0.07);}
 .board-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
@@ -51,12 +55,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .board-tag{font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;}
 .board-tag.free{background:rgba(16,185,129,0.15);color:var(--green);}
 .board-tag.busy{background:rgba(239,68,68,0.15);color:var(--red);}
-.board-match{font-size:0.9rem;font-weight:700;margin-bottom:4px;line-height:1.3;}
+.board-match{display:flex;align-items:baseline;flex-wrap:wrap;column-gap:6px;row-gap:0;font-size:0.84rem;font-weight:700;margin-bottom:6px;line-height:1.25;}
+.board-match .bm-vs{color:var(--muted);font-weight:400;font-size:0.7rem;}
 /* timer hidden */
-.board-schrijver{margin-bottom:8px;}
+.board-schrijver{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.board-schrijver select{flex:1;}
+.board-schrijver.gezet select{border-color:var(--orange);background:rgba(245,158,11,0.1);color:var(--orange);font-weight:600;}
+.board-schrijver-ico{font-size:0.8rem;flex-shrink:0;}
 .board-acts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto;}
 .board-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:0.75rem;gap:4px;border:2px dashed var(--border);border-radius:7px;padding:8px;text-align:center;}
-.dc-row{display:flex;align-items:center;gap:5px;margin-top:8px;}
+.dc-row{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:8px;}
+.dc-eye-btn{background:none;border:none;color:var(--muted);font-size:0.85rem;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;}
+.dc-eye-btn:hover{color:var(--text);}
 .dc-link{font-size:0.68rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:4px;cursor:pointer;background:none;border:none;font-family:inherit;padding:0;}
 .dc-link:hover{color:var(--text);}
 .dc-link.linked{color:var(--nnb);}
@@ -267,7 +277,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .winner-btn.selected-winnaar { border-color: var(--green); background: rgba(16,185,129,0.12); color: var(--green); }
 
 /* ── SCHRIJVER OP BORD ── */
-.board-schrijver-alert { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; color: var(--orange); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
 .dashboard-view.hidden{display:none !important;}
 /* ── NAV TABS ── */
 .nav-tabs{background:#080d16;border-bottom:1px solid var(--border);display:flex;gap:0;padding:0 20px;flex-shrink:0;}
@@ -336,8 +345,11 @@ a.nav-tab{text-decoration:none;display:inline-block;}
 </div>
 
 <!-- ── BOARDS BAR (altijd zichtbaar, ook bij Planning Tool / Stats) ── -->
-<div class="boards-bar">
-  <div class="boards-bar-title">🟢 Live Banen</div>
+<div class="boards-bar" id="boardsBar">
+  <div class="boards-bar-title" onclick="toggleBoardsBar()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+    <span>🟢 Live Banen</span>
+    <span id="boardsBarChevron">▾</span>
+  </div>
   <div class="boards-grid" id="boardsGrid"></div>
 </div>
 
@@ -644,6 +656,12 @@ let startTijden   = {1:null,2:null,3:null,4:null};
 let schrijvers    = {1:'',2:'',3:'',4:''};
 let dartCodes     = {1:'',2:'',3:'',4:''}; // DartConnect koppelcodes, wisselen wekelijks
 let dartCodesOpen = {1:false,2:false,3:false,4:false}; // invoerveld open/dicht per bord
+let dcPreviewOpen = {
+  1: localStorage.getItem('dc_preview_open_1')==='1',
+  2: localStorage.getItem('dc_preview_open_2')==='1',
+  3: localStorage.getItem('dc_preview_open_3')==='1',
+  4: localStorage.getItem('dc_preview_open_4')==='1'
+}; // live scorebord-voorbeeld standaard ingeklapt, per bord onthouden
 // Bijhouden wanneer speler voor het laatst een wedstrijd STARTTE (timestamp)
 let spelersLaatsteStart = {}; // naam → timestamp ms
 
@@ -995,8 +1013,9 @@ function renderBoards() {
          </div>`
       : `<div class="dc-row">
            <button class="dc-link ${dcCode?'linked':''}" onclick="toggleDartCodeInput(${b})">📺 ${dcCode?`Gekoppeld: ${dcCodeKort}`:'DartConnect koppelen'}</button>
+           ${dcCode ? `<button class="dc-eye-btn" onclick="toggleDcPreview(${b})" title="${dcPreviewOpen[b]?'Verberg voorbeeld':'Toon voorbeeld'}">${dcPreviewOpen[b]?'🙈':'👁'}</button>` : ''}
          </div>`;
-    const dcFrame = (dcCode && !dartCodesOpen[b])
+    const dcFrame = (dcCode && !dartCodesOpen[b] && dcPreviewOpen[b])
       ? `<div class="dc-frame-wrap" id="dcWrap${b}" style="height:${dcHoogte(b)}px"><iframe src="https://tv.dartconnect.com/tvscoreboard/${dcCode}" loading="lazy"></iframe></div>
          <div class="dc-ctrl-row">
            <div class="dc-ctrl-group">
@@ -1047,8 +1066,7 @@ function renderBoards() {
       const m = wedstrijden.find(w=>w.id===id);
       if (!m) { activeMatches[b]=null; renderBoards(); return; }
       const badge = getDivChip(m);
-      const schrijverAlert = schrijvers[b]
-        ? `<div class="board-schrijver-alert">✍️ Schrijver: ${schrijvers[b]}</div>` : '';
+      const schrijverGezet = !!schrijvers[b];
       let schrijverOpts = '<option value="">-- schrijver --</option>' +
         spelers.map(s=>`<option value="${s.naam}" ${schrijvers[b]===s.naam?'selected':''}>${s.naam}</option>`).join('');
       card.innerHTML = `
@@ -1056,9 +1074,9 @@ function renderBoards() {
           <span class="board-num">🎯 BORD ${b} ${badge}</span>
           <span class="board-tag busy">Bezig</span>
         </div>
-        <div class="board-match">${m.thuis}<br><small style="color:var(--muted);font-weight:400;">vs</small><br>${m.uit}</div>
-        ${schrijverAlert}
-        <div class="board-schrijver">
+        <div class="board-match"><span class="bm-naam">${m.thuis}</span><span class="bm-vs">vs</span><span class="bm-naam">${m.uit}</span></div>
+        <div class="board-schrijver ${schrijverGezet?'gezet':''}">
+          <span class="board-schrijver-ico">✍️</span>
           <select class="sel" style="font-size:0.75rem;" onchange="wisselSchrijver(${b},this.value)">${schrijverOpts}</select>
         </div>
         ${dcHtml}
@@ -1069,7 +1087,7 @@ function renderBoards() {
         </div>`;
     }
     grid.appendChild(card);
-    if (dcCode && !dartCodesOpen[b]) dcInitSchaal(b);
+    if (dcCode && !dartCodesOpen[b] && dcPreviewOpen[b]) dcInitSchaal(b);
   }
 }
 
@@ -1089,6 +1107,25 @@ function formMs(ms) {
   return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
 function wisselSchrijver(b,naam) { schrijvers[b]=naam; renderQueue(); }
+function toggleDcPreview(b) {
+  dcPreviewOpen[b] = !dcPreviewOpen[b];
+  localStorage.setItem(`dc_preview_open_${b}`, dcPreviewOpen[b]?'1':'0');
+  renderBoards();
+}
+function toggleBoardsBar() {
+  const bar = document.getElementById('boardsBar');
+  const nowCollapsed = !bar.classList.contains('collapsed');
+  bar.classList.toggle('collapsed', nowCollapsed);
+  localStorage.setItem('boards_bar_collapsed', nowCollapsed?'1':'0');
+}
+(function initBoardsBar(){
+  if (localStorage.getItem('boards_bar_collapsed')==='1') {
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const bar = document.getElementById('boardsBar');
+      if (bar) bar.classList.add('collapsed');
+    });
+  }
+})();
 
 // ── DARTCONNECT KOPPELCODE ──
 const dcObservers = {};
@@ -1193,12 +1230,17 @@ async function startOpBord(matchId, bord) {
   if (activeMatches[bord]!==null) { toast(`Bord ${bord} is bezet!`,'red'); return; }
   activeMatches[bord] = matchId;
   // schrijver NIET wissen — blijft zichtbaar van vorige partij
+  // Als dit bord al een DartConnect-koppeling had: invoerveld meteen openen
+  // (i.p.v. een aparte klik) zodat de nieuwe koppelcode direct geplakt kan worden,
+  // en de oude/verlopen preview meteen verdwijnt.
+  const wasGekoppeld = !!dartCodes[bord];
+  if (wasGekoppeld) { dartCodesOpen[bord] = true; dcPreviewOpen[bord] = false; }
   // Bijhouden rusttijd
   const m = wedstrijden.find(w=>w.id===matchId);
   if (m) { spelersLaatsteStart[m.thuis]=Date.now(); spelersLaatsteStart[m.uit]=Date.now(); }
   startTimer(bord);
   renderBoards(); renderQueue();
-  toast(`▶ Gestart op bord ${bord}`,'green');
+  toast(wasGekoppeld ? `▶ Gestart op bord ${bord} — koppel de nieuwe DartConnect-code` : `▶ Gestart op bord ${bord}`,'green');
   try { await sbPatch('wedstrijden', matchId, {bord}); }
   catch(e) { console.error('Kon bord niet opslaan in Supabase:', e); }
 }
