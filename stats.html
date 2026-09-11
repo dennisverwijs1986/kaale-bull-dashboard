@@ -152,7 +152,7 @@ function medalOrNum(i) {
 function handleFile(file) {
   if (!file) return;
   Papa.parse(file, {
-    header: true, delimiter: ';', dynamicTyping: true, skipEmptyLines: true,
+    header: true, delimiter: '', dynamicTyping: true, skipEmptyLines: true,
     complete: r => render(r.data, file.name),
     error: err => output.innerHTML = `<p style="color:#f66;padding:1rem">Fout: ${err.message}</p>`
   });
