@@ -159,8 +159,11 @@
     </div>
 
     <div class="card">
-      <h3>🏆 Periodestand</h3>
-      <div class="tabs" id="tabs"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <h3 style="margin:0;">🏆 Periodestand</h3>
+        <button class="btn" style="width:auto;padding:9px 16px;background:var(--s2);color:var(--text);border:1px solid var(--border);" onclick="exportStandPDF(event)">🖨 PDF exporteren</button>
+      </div>
+      <div class="tabs" id="tabs" style="margin-top:14px;"></div>
       <div id="stand-container"><div class="loading">Standen laden...</div></div>
     </div>
 
@@ -407,6 +410,94 @@
     });
     html += '</tbody></table>';
     container.innerHTML = html;
+  }
+
+  // ── PDF EXPORT (zelfde print-methode als de Planning Tool op index.html) ──
+  async function exportStandPDF(evt) {
+    const btn = evt && evt.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Bezig...'; }
+
+    const { data, error } = await supabaseClient
+      .from('periodestand_eerste_divisie')
+      .select('*')
+      .order('periode', { ascending: true })
+      .order('positie', { ascending: true });
+
+    if (btn) { btn.disabled = false; btn.textContent = '🖨 PDF exporteren'; }
+    if (error) { showStatus('Kon standen niet laden voor export: ' + error.message, 'err'); return; }
+
+    const perPeriode = { 1: [], 2: [], 3: [], 4: [] };
+    (data || []).forEach(r => { if (perPeriode[r.periode]) perPeriode[r.periode].push(r); });
+
+    const vandaag = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    let paginaHtml = '';
+    [1, 2, 3, 4].forEach((p, i) => {
+      const rijen = perPeriode[p];
+      let tabelHtml;
+      if (!rijen.length) {
+        tabelHtml = `<div class="empty-pdf">Nog geen gespeelde wedstrijden in deze periode.</div>`;
+      } else {
+        tabelHtml = `<table class="pdf-table"><thead><tr>
+          <th class="pdf-pos">#</th><th>Speler</th><th class="pdf-num">Wedstr.</th><th class="pdf-num">Winst</th><th class="pdf-num">Punten</th>
+        </tr></thead><tbody>` +
+        rijen.map(r => `<tr class="${r.positie === 1 ? 'pdf-leader' : ''}">
+          <td class="pdf-pos">${r.positie === 1 ? '🏆' : r.positie}</td>
+          <td>${r.speler}</td>
+          <td class="pdf-num">${r.wedstrijden_gespeeld}</td>
+          <td class="pdf-num">${r.gewonnen}</td>
+          <td class="pdf-num">${r.periodepunten}</td>
+        </tr>`).join('') +
+        `</tbody></table>`;
+      }
+
+      paginaHtml += `
+        <div class="pdf-pagina ${i > 0 ? 'pdf-break' : ''}">
+          <div class="pdf-header">
+            <div class="pdf-logo">🎯 Kaale Bull</div>
+            <div class="pdf-titel">Periode ${p} <span class="pdf-sub">— ${PERIODE_LABELS[p]}</span></div>
+            <div class="pdf-datum">${vandaag}</div>
+          </div>
+          ${tabelHtml}
+        </div>`;
+    });
+
+    const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+<title>Kaale Bull — Periodestand Eerste Divisie</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',Arial,sans-serif;color:#1a1a2e;background:#fff;}
+  .pdf-pagina{padding:20px 24px;page-break-inside:avoid;}
+  .pdf-break{page-break-before:always;padding-top:20px;}
+  .pdf-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;padding-bottom:10px;border-bottom:3px solid #1a1a2e;}
+  .pdf-logo{font-size:15px;font-weight:800;letter-spacing:1px;}
+  .pdf-titel{font-size:18px;font-weight:800;flex:1;text-align:center;}
+  .pdf-sub{font-size:12px;font-weight:400;color:#666;}
+  .pdf-datum{font-size:10px;color:#666;}
+  .pdf-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .pdf-table th{background:#1a1a2e;color:#fff;padding:7px 10px;text-align:left;font-size:10px;letter-spacing:0.5px;text-transform:uppercase;}
+  .pdf-table td{padding:7px 10px;border-bottom:1px solid #eee;}
+  .pdf-table tbody tr:nth-child(even) td{background:#fafbff;}
+  .pdf-leader td{background:#fffbeb !important;color:#92400e;font-weight:700;}
+  .pdf-pos{width:32px;text-align:center;color:#999;}
+  .pdf-num{text-align:right;width:70px;}
+  .empty-pdf{color:#999;font-size:13px;padding:20px 0;text-align:center;}
+  @media print{
+    @page{margin:1.2cm;size:A4 portrait;}
+    .pdf-break{page-break-before:always;}
+    .pdf-pagina{page-break-inside:avoid;}
+  }
+</style>
+</head><body>${paginaHtml}</body></html>`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:9999;';
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => iframe.remove(), 1200); }, 400);
+    };
+    iframe.srcdoc = html;
   }
 </script>
 </body>
