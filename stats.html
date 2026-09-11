@@ -191,6 +191,7 @@ function render(rows, filename) {
     const rangRows = ranglijst.map((p,i) => `<tr>
       <td class="rank">${medalOrNum(i)}</td>
       <td>${p.naam}</td>
+      <td class="num">${p.matches}</td>
       <td class="num green">${p.s180}</td>
       <td class="num">${p.hvPlus}</td>
       <td class="num">${p.hPlus}</td>
@@ -235,13 +236,14 @@ function render(rows, filename) {
         <table>
           <thead><tr>
             <th></th><th>Speler</th>
+            <th class="num">Wedstrijden</th>
             <th class="num">180</th>
             <th class="num">140+</th>
             <th class="num">100+</th>
             <th class="num">3DA</th>
             <th class="num">Beste leg</th>
           </tr></thead>
-          <tbody>${rangRows || '<tr><td colspan="7" style="color:var(--text-dim);padding:10px 12px">Geen data</td></tr>'}</tbody>
+          <tbody>${rangRows || '<tr><td colspan="8" style="color:var(--text-dim);padding:10px 12px">Geen data</td></tr>'}</tbody>
         </table>
       </div>
 
