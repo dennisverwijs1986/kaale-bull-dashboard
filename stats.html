@@ -172,7 +172,14 @@ function render(rows, filename) {
     bestLeg: n(r['Best Leg']) || 0,
   })).filter(p => p.naam && p.matches > 0);
 
-  const divisions = [...new Set(players.map(p => p.div))].sort();
+  const divOrder = ['Eredivisie', 'Eerste Divisie'];
+  const divisions = [...new Set(players.map(p => p.div))].sort((a, b) => {
+    const ia = divOrder.indexOf(a), ib = divOrder.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
   const season = filename.replace('.csv','').replace('Leaderboard_export_','').replace(/_/g,'-');
 
   // Tabs HTML
