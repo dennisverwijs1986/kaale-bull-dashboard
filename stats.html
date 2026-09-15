@@ -80,6 +80,8 @@
   }
 
   /* Print */
+  .pdf-links { display: none; }
+
   @media print {
     :root {
       --bg: #fff; --bg2: #fff; --bg3: #f0f0f0;
@@ -107,6 +109,15 @@
     .card-head { background: #f0f0f0 !important; color: #333 !important; padding: 4px 8px !important; font-size: 9px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     td, th { padding: 2.5px 6px !important; font-size: 9px !important; border-color: #eee !important; }
     .grid-3 { display: flex !important; flex-direction: column !important; gap: 8px !important; }
+
+    /* Linkknoppen: alleen zichtbaar in de afdruk/PDF, niet op het scherm */
+    .pdf-links { display: flex !important; gap: 8px !important; margin-bottom: 8px !important; }
+    .pdf-link-btn {
+      display: inline-flex !important; align-items: center; gap: 5px;
+      background: #007a5e !important; color: #fff !important; text-decoration: none;
+      padding: 4px 11px !important; border-radius: 5px; font-size: 9px !important; font-weight: 600;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
   }
 </style>
 </head>
@@ -235,6 +246,11 @@ function render(rows, filename) {
       : '<tr><td colspan="3" style="color:var(--text-dim);padding:10px 12px">Geen legs onder 18 darts</td></tr>';
 
     return `<div class="division ${di===0?'active':''}" data-div="${di}">
+
+      <div class="pdf-links">
+        <a class="pdf-link-btn" href="https://tv.dartconnect.com/league/KaalBHC/22804/standings" target="_blank" rel="noopener">📊 Bekijk ranglijst</a>
+        <a class="pdf-link-btn" href="https://leaderboard.dartconnect.com/leaderboard?x=1789469694786#l-t2ww_22804_all-all_01-all-all-all-all-all" target="_blank" rel="noopener">🏆 Bekijk leaderboard</a>
+      </div>
 
       <div class="print-layout"><div>
       <div class="section-label">📋 Ranglijst — 180's</div>
