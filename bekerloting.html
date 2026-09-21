@@ -892,9 +892,9 @@
       var isBye = !m.away;
       li.innerHTML =
         '<span class="num">' + (idx + 1) + '</span>' +
-        '<span class="home">' + m.home + '</span>' +
+        '<span class="home">' + escapeHtml(m.home) + '</span>' +
         '<span class="vs">' + (isBye ? "bye" : "vs") + '</span>' +
-        '<span class="away">' + (isBye ? "&mdash;" : m.away) + '</span>' +
+        '<span class="away">' + (isBye ? "&mdash;" : escapeHtml(m.away)) + '</span>' +
         badgeHtml(m, idx);
       matchesList.appendChild(li);
     });
@@ -932,7 +932,7 @@
       statusLine.style.display = "block";
       spinBtn.disabled = false;
       if(state.pending){
-        statusLine.innerHTML = "<strong>" + state.pending + "</strong> is getrokken &mdash; wacht op de tegenstander.";
+        statusLine.innerHTML = "<strong>" + escapeHtml(state.pending) + "</strong> is getrokken &mdash; wacht op de tegenstander.";
       } else if(state.remaining.length === 1){
         statusLine.innerHTML = "Nog <strong>1</strong> naam over &mdash; deze krijgt een bye.";
       } else {
