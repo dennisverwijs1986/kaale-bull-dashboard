@@ -211,6 +211,15 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}` };
 const sbGet = async (t,q='') => { const r = await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 
+// Escaped invoegen van tekst uit de database in innerHTML — voorkomt dat een
+// speler- of teamnaam met HTML/JS erin als script wordt uitgevoerd.
+function escapeHtml(str){
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+
 const MATCH_REFRESH_MS = 20000;   // wedstrijden + tijdsloten
 const MDD_REFRESH_MS   = 30000;   // mededeling bovenaan
 
@@ -400,7 +409,7 @@ function getDivKey(m){
 function divChip(m){
   const k=getDivKey(m);
   const labels={ere:'Ere',eerste:'1e Div',beker:'Beker',inhaal:'Inhaal',general:'Div'};
-  return `<span class="div-chip ${k}">${labels[k]||m.divisie||''}</span>`;
+  return `<span class="div-chip ${k}">${escapeHtml(labels[k]||m.divisie||'')}</span>`;
 }
 
 async function laadKomendeWedstrijden(){
@@ -444,7 +453,7 @@ function renderSidebar(rows){
     const pills = matches.map(w=>`
       <div class="match-pill">
         ${divChip(w)}
-        <span class="teams">${w.thuis||'?'}<span class="vs">vs</span>${w.uit||'?'}</span>
+        <span class="teams">${escapeHtml(w.thuis||'?')}<span class="vs">vs</span>${escapeHtml(w.uit||'?')}</span>
       </div>`).join('');
     return `<div class="slot-block">
         <div class="slot-hdr"><span class="tijd">${t}</span><span class="tag">eerstvolgend</span></div>
