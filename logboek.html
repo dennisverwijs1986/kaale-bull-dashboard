@@ -162,6 +162,15 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // Escaped invoegen van tekst uit de database in innerHTML — voorkomt dat een
+  // speler- of teamnaam met HTML/JS erin als script wordt uitgevoerd.
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+  }
+
   let allLog = [];
   let allWL  = [];
 
@@ -293,10 +302,10 @@
         <div class="log-card">
           <div class="log-top">
             <div>
-              <div class="log-match">${l.thuis||'?'} vs ${l.uit||'?'} <span class="badge badge-actie">${actieLabel}</span></div>
-              <div class="log-meta">${datumWijziging} ${l.divisie?('· '+l.divisie):''}</div>
-              <div class="log-meta">Door: <strong>${l.gewijzigd_door||'-'}</strong> ${mailBadge}</div>
-              ${l.mail_error ? `<div class="log-error">${l.mail_error}</div>` : ''}
+              <div class="log-match">${escapeHtml(l.thuis||'?')} vs ${escapeHtml(l.uit||'?')} <span class="badge badge-actie">${actieLabel}</span></div>
+              <div class="log-meta">${datumWijziging} ${l.divisie?('· '+escapeHtml(l.divisie)):''}</div>
+              <div class="log-meta">Door: <strong>${escapeHtml(l.gewijzigd_door||'-')}</strong> ${mailBadge}</div>
+              ${l.mail_error ? `<div class="log-error">${escapeHtml(l.mail_error)}</div>` : ''}
             </div>
             <div class="log-datum">${fmtDatetime(l.created_at)}</div>
           </div>
@@ -310,7 +319,7 @@
     if (allWL.length === 0) { el.innerHTML = '<div class="empty-state">Nog geen namen toegevoegd.</div>'; return; }
     el.innerHTML = allWL.map(w => `
       <div class="wl-row">
-        <div class="wl-naam ${w.actief ? '' : 'wl-inactief'}">${w.naam}</div>
+        <div class="wl-naam ${w.actief ? '' : 'wl-inactief'}">${escapeHtml(w.naam)}</div>
         <button class="small-btn" onclick="toggleWL('${w.id}', ${!w.actief})">${w.actief ? 'Deactiveren' : 'Activeren'}</button>
         <button class="small-btn danger" onclick="verwijderWL('${w.id}')">Verwijderen</button>
       </div>
