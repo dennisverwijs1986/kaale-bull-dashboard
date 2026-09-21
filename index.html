@@ -880,7 +880,7 @@ async function opslaanMdd() {
   const tekst = document.getElementById('mddTekst').value.trim();
   const actief = document.getElementById('mddActief').checked;
   try {
-    await fetch(`${SB_URL}/rest/v1/instellingen`, {
+    const res = await fetch(`${SB_URL}/rest/v1/instellingen`, {
       method:'POST',
       headers: { ...HDR, 'Prefer':'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify([
@@ -888,6 +888,7 @@ async function opslaanMdd() {
         { sleutel:'tv_mededeling_actief', waarde: actief ? 'true' : 'false' }
       ])
     });
+    if (!res.ok) throw new Error(await res.text());
     mddPreviewUpdate();
     toast(actief && tekst ? '📢 Mededeling staat live op TV' : '📢 Mededeling opgeslagen (uit)', actief && tekst ? 'green' : '');
   } catch(e) {
