@@ -692,6 +692,19 @@ const sbPost   = async (t,b)       => { const r=await fetch(`${SB_URL}/rest/v1/$
 const sbPatch  = async (t,id,b)    => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 const sbDelete = async (t,id)      => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:HDR}); if(!r.ok) throw new Error(await r.text()); };
 
+// Escaped invoegen van tekst uit de database in innerHTML — voorkomt dat een
+// speler- of teamnaam met HTML/JS erin als script wordt uitgevoerd.
+function escapeHtml(str){
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+// Veilig een waarde als argument in een inline onclick="fn(...)" zetten:
+// JSON.stringify maakt er een correct gequote JS-stringliteral van, escapeHtml
+// zorgt dat het niet uit het HTML-attribuut breekt.
+function jsAttr(v){ return escapeHtml(JSON.stringify(v === undefined ? null : v)); }
+
 // ══════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════
@@ -916,7 +929,7 @@ function renderNNBBanner() {
       <div class="nnb-item-info">
         <span class="nnb-chip">NNB</span>
         ${getDivChip(m)}
-        <strong>${m.thuis} vs ${m.uit}</strong>
+        <strong>${escapeHtml(m.thuis)} vs ${escapeHtml(m.uit)}</strong>
         ${m.originele_datum ? `<span class="orig-datum">oorspr.: ${fmtDatum(m.originele_datum)}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px;">
@@ -965,7 +978,7 @@ function renderAvondBanner() {
 
   let warnHtml = '';
   if (druk.length) {
-    warnHtml = `<div class="avond-warning">⚠ Druk schema: ${druk.map(([n,c])=>`<strong>${n}</strong> (${c}×)`).join(', ')}</div>`;
+    warnHtml = `<div class="avond-warning">⚠ Druk schema: ${druk.map(([n,c])=>`<strong>${escapeHtml(n)}</strong> (${c}×)`).join(', ')}</div>`;
   }
 
   document.getElementById('avondBanner').innerHTML = `
@@ -1006,7 +1019,7 @@ function renderWerklast() {
   const sel = document.getElementById('spelersFilter');
   const huidig = sel.value;
   sel.innerHTML = '<option value="">— Alle spelers —</option>' +
-    gesorteerd.map(([naam])=>`<option value="${naam}" ${naam===huidig?'selected':''}>${naam}</option>`).join('');
+    gesorteerd.map(([naam])=>`<option value="${escapeHtml(naam)}" ${naam===huidig?'selected':''}>${escapeHtml(naam)}</option>`).join('');
 
   const max = gesorteerd[0][1];
   document.getElementById('werklastSec').style.display = 'block';
@@ -1027,15 +1040,15 @@ function renderWerklast() {
       const tegenstander = isSelf ? w.uit : w.thuis;
       const rol = isSelf ? 'Thuis' : 'Uit';
       return `<div class="speler-match-row div-${divKey} ${w.status==='gespeeld'?'speler-match-gespeeld':''}">
-        ${getDivKey(w)==='beker' || !w.tijdstip ? '' : `<span class="match-time ${w.is_inhaal?'inhaal':'normal'}" style="font-size:0.68rem;">${w.tijdstip}</span>`}
-        <span style="flex:1;font-weight:600;">${naam} <span style="color:var(--muted);font-weight:400;font-size:0.7rem;">(${rol})</span> vs ${tegenstander}</span>
+        ${getDivKey(w)==='beker' || !w.tijdstip ? '' : `<span class="match-time ${w.is_inhaal?'inhaal':'normal'}" style="font-size:0.68rem;">${escapeHtml(w.tijdstip)}</span>`}
+        <span style="flex:1;font-weight:600;">${escapeHtml(naam)} <span style="color:var(--muted);font-weight:400;font-size:0.7rem;">(${rol})</span> vs ${escapeHtml(tegenstander)}</span>
         ${getDivChip(w)}
         ${w.status==='gespeeld'?'<span style="color:var(--green);font-size:0.7rem;">✓</span>':''}
       </div>`;
     }).join('');
 
-    return `<div class="werklast-row ${isSelected?'selected':''}" onclick="filterOpSpeler('${naam}')">
-      <span class="werklast-naam">${naam}</span>
+    return `<div class="werklast-row ${isSelected?'selected':''}" onclick="filterOpSpeler(${jsAttr(naam)})">
+      <span class="werklast-naam">${escapeHtml(naam)}</span>
       <div class="werklast-bar-wrap"><div class="werklast-bar ${high?'high':''}" style="width:${pct}%"></div></div>
       <span class="werklast-count ${high?'high':''}">${cnt}×</span>
     </div>
@@ -1055,7 +1068,7 @@ function filterOpSpeler(naam) {
     container.innerHTML = '';
 
     if (!gefilterd.length) {
-      container.innerHTML = `<div class="empty">Geen wedstrijden gevonden voor ${naam}</div>`;
+      container.innerHTML = `<div class="empty">Geen wedstrijden gevonden voor ${escapeHtml(naam)}</div>`;
     } else {
       const bezetteIds     = new Set(Object.values(activeMatches).filter(Boolean));
       const bezetteSpelers = getBezetteSpelers();
@@ -1065,7 +1078,7 @@ function filterOpSpeler(naam) {
       // Header
       const hdr = document.createElement('div');
       hdr.style.cssText = 'font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);padding:6px 2px;margin-bottom:6px;border-bottom:1px solid var(--border);';
-      hdr.textContent = `🔍 Wedstrijden van ${naam} (${gefilterd.length})`;
+      hdr.textContent = `🔍 Wedstrijden van ${naam} (${gefilterd.length})`; // textContent is al veilig, geen escaping nodig
       container.appendChild(hdr);
 
       gefilterd.forEach(m => {
@@ -1503,7 +1516,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
     <span class="match-nr">${nr}</span>
     ${toonTijd ? `<span class="match-time ${tijdCls}">🕒 ${m.tijdstip||'--:--'}</span>` : ''}
     <div class="match-info">
-      <div class="match-players">${m.thuis} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${m.uit}</div>
+      <div class="match-players">${escapeHtml(m.thuis)} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${escapeHtml(m.uit)}</div>
       <div class="match-sub">
         ${chip}
         ${m.speelronde?`<span>SR ${m.speelronde}</span>`:''}
@@ -1533,7 +1546,7 @@ function openUitslagModal(bord) {
   gekozenSpeler = null;
 
   document.getElementById('uitslagTitle').textContent = `Wedstrijd afsluiten — Bord ${bord}`;
-  document.getElementById('uitslagSub').textContent   = `${m.thuis} vs ${m.uit}`;
+  document.getElementById('uitslagSub').textContent   = `${m.thuis} vs ${m.uit}`; // textContent, geen HTML-parsing
   document.getElementById('uitslagNotitie').value     = m.notitie||'';
   document.getElementById('uitslagOpslaanBtn').disabled = true;
   document.getElementById('schrijverAankondiging').style.display = 'none';
@@ -1547,11 +1560,11 @@ function openUitslagModal(bord) {
   // Knoppen: klik = die speler is winnaar of verliezer
   const actie = isVerliezer ? 'verliezer' : 'winnaar';
   document.getElementById('winnerBtns').innerHTML = `
-    <button class="winner-btn" id="wbtn-${m.thuis}" onclick="kiesSpeler('${m.thuis}','${m.uit}')">
-      ${m.thuis}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7;">Klik als ${actie}</span>
+    <button class="winner-btn" id="wbtn-${escapeHtml(m.thuis)}" onclick="kiesSpeler(${jsAttr(m.thuis)},${jsAttr(m.uit)})">
+      ${escapeHtml(m.thuis)}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7;">Klik als ${actie}</span>
     </button>
-    <button class="winner-btn" id="wbtn-${m.uit}" onclick="kiesSpeler('${m.uit}','${m.thuis}')">
-      ${m.uit}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7;">Klik als ${actie}</span>
+    <button class="winner-btn" id="wbtn-${escapeHtml(m.uit)}" onclick="kiesSpeler(${jsAttr(m.uit)},${jsAttr(m.thuis)})">
+      ${escapeHtml(m.uit)}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7;">Klik als ${actie}</span>
     </button>`;
 
   document.getElementById('uitslagModal').classList.add('open');
@@ -1619,7 +1632,7 @@ function vulVerzetDoorDropdown() {
   const sel = document.getElementById('verzetDoor'); if (!sel) return;
   const huidige = sel.value;
   sel.innerHTML = '<option value="">-- kies --</option>' +
-    wedstrijdleiders.map(w=>`<option value="${w.naam}">${w.naam}</option>`).join('');
+    wedstrijdleiders.map(w=>`<option value="${escapeHtml(w.naam)}">${escapeHtml(w.naam)}</option>`).join('');
   sel.value = huidige || '';
 }
 
@@ -1650,7 +1663,7 @@ function openVerzetModal(id) {
   const origEl = document.getElementById('verzetOrigDatum');
   let origHtml = '';
   if (m.originele_datum) {
-    origHtml += `<div class="orig-datum-info">📌 Originele datum: <strong>${fmtDatum(m.originele_datum)}</strong> — <a href="#" onclick="herstelOrigDatum('${id}');return false;" style="color:var(--orange);">Terugzetten</a></div>`;
+    origHtml += `<div class="orig-datum-info">📌 Originele datum: <strong>${fmtDatum(m.originele_datum)}</strong> — <a href="#" onclick="herstelOrigDatum(${jsAttr(id)});return false;" style="color:var(--orange);">Terugzetten</a></div>`;
   }
   if (m.datum_nnb) {
     origHtml += `<div class="orig-datum-info" style="color:var(--nnb);border-color:rgba(6,182,212,0.3);background:rgba(6,182,212,0.08);">🕓 Huidige status: datum nog niet bekend (NNB)</div>`;
@@ -1991,13 +2004,13 @@ function renderHistory() {
     card.className='history-card';
     card.innerHTML=`
       <div class="history-info">
-        <div class="history-players">✅ ${m.thuis} vs ${m.uit}</div>
-        <div class="history-sub">${m.divisie||''}${m.speelronde?' · SR '+m.speelronde:''}</div>
-        ${m.notitie?`<div class="history-sub" style="color:var(--blue);">📝 ${m.notitie}</div>`:''}
+        <div class="history-players">✅ ${escapeHtml(m.thuis)} vs ${escapeHtml(m.uit)}</div>
+        <div class="history-sub">${escapeHtml(m.divisie||'')}${m.speelronde?' · SR '+escapeHtml(m.speelronde):''}</div>
+        ${m.notitie?`<div class="history-sub" style="color:var(--blue);">📝 ${escapeHtml(m.notitie)}</div>`:''}
       </div>
       <div class="history-right">
-        ${m.uitslag?`<span class="history-score">${m.uitslag}</span>`:''}
-        <button class="btn btn-ghost btn-xs" onclick="herstelWedstrijd('${m.id}')">↩</button>
+        ${m.uitslag?`<span class="history-score">${escapeHtml(m.uitslag)}</span>`:''}
+        <button class="btn btn-ghost btn-xs" onclick="herstelWedstrijd(${jsAttr(m.id)})">↩</button>
       </div>`;
     container.appendChild(card);
   });
@@ -2030,14 +2043,14 @@ function selectBO(w) {
 
 function vulBekerDropdowns() {
   const opts='<option value="">-- kies --</option>'+
-    spelers.map(s=>`<option value="${s.naam}">${s.naam}</option>`).join('');
+    spelers.map(s=>`<option value="${escapeHtml(s.naam)}">${escapeHtml(s.naam)}</option>`).join('');
   document.getElementById('bekerThuis').innerHTML=opts;
   document.getElementById('bekerUit').innerHTML=opts;
   const doorSel=document.getElementById('bekerDoor');
   if (doorSel) {
     const huidige=doorSel.value;
     doorSel.innerHTML='<option value="">-- kies --</option>'+
-      wedstrijdleiders.map(w=>`<option value="${w.naam}">${w.naam}</option>`).join('');
+      wedstrijdleiders.map(w=>`<option value="${escapeHtml(w.naam)}">${escapeHtml(w.naam)}</option>`).join('');
     doorSel.value=huidige||'';
   }
 }
