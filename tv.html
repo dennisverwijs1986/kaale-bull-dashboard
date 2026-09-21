@@ -54,6 +54,18 @@ body{
 }
 .fs-btn:hover{background:var(--s3);}
 
+/* ── MEDEDELING BANNER (bovenaan, alleen zichtbaar als actief) ── */
+.mdd-banner{
+  display:none;align-items:center;gap:14px;
+  padding:10px 24px;flex:0 0 auto;
+  background:linear-gradient(90deg, rgba(245,158,11,0.24), rgba(245,158,11,0.08));
+  border-bottom:2px solid var(--orange);color:var(--text);
+}
+.mdd-banner.show{display:flex;}
+.mdd-banner .icon{font-size:1.4rem;flex:0 0 auto;animation:mddPulse 1.8s ease-in-out infinite;}
+@keyframes mddPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.18);}}
+.mdd-banner .txt{flex:1 1 auto;font-size:1.15rem;font-weight:700;letter-spacing:0.2px;}
+
 /* ── MAIN LAYOUT ── */
 .main{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;}
 
@@ -162,6 +174,11 @@ body{
 </head>
 <body>
 
+<div class="mdd-banner" id="mddBanner">
+  <span class="icon">📢</span>
+  <span class="txt" id="mddTxt"></span>
+</div>
+
 <div class="topbar">
   <div class="topbar-logo">🎯 Kaale Bull <span class="sub">TV weergave</span></div>
   <div class="topbar-right">
@@ -195,6 +212,7 @@ const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}` };
 const sbGet = async (t,q='') => { const r = await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 
 const MATCH_REFRESH_MS = 20000;   // wedstrijden + tijdsloten
+const MDD_REFRESH_MS   = 30000;   // mededeling bovenaan
 
 // ══════════════════════════════════════════
 //  SPONSORS
@@ -437,6 +455,24 @@ function renderSidebar(rows){
 }
 
 // ══════════════════════════════════════════
+//  MEDEDELING (bovenaan, ingesteld vanuit index.html)
+// ══════════════════════════════════════════
+async function laadMededeling(){
+  try{
+    const rows = await sbGet('instellingen','sleutel=in.(tv_mededeling_tekst,tv_mededeling_actief)');
+    const tekst = rows.find(r=>r.sleutel==='tv_mededeling_tekst')?.waarde || '';
+    const actief = rows.find(r=>r.sleutel==='tv_mededeling_actief')?.waarde === 'true';
+    const banner = document.getElementById('mddBanner');
+    if (actief && tekst){
+      document.getElementById('mddTxt').textContent = tekst;
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+  }catch(e){ /* stille fout — sync-dot toont algemene verbindingsstatus al */ }
+}
+
+// ══════════════════════════════════════════
 //  SPONSORBAND (doorlopend, naadloos)
 // ══════════════════════════════════════════
 function renderSponsors(){
@@ -477,10 +513,12 @@ async function initAll(){
   renderSponsors();
   await laadDartCodes();
   await laadKomendeWedstrijden();
+  await laadMededeling();
 }
 initAll();
 setInterval(laadDartCodes, CODE_REFRESH_MS);
 setInterval(laadKomendeWedstrijden, MATCH_REFRESH_MS);
+setInterval(laadMededeling, MDD_REFRESH_MS);
 </script>
 </body>
 </html>
