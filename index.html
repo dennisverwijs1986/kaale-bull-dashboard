@@ -252,9 +252,28 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .beker-balk-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--beker); margin-bottom: 6px; }
 .beker-balk-cards { display: flex; flex-wrap: wrap; gap: 6px; }
 .beker-balk-cards .match-card { flex: 1; min-width: 240px; }
+.mdd-wrap{border:1px solid rgba(59,130,246,0.25);border-radius:8px;overflow:hidden;background:linear-gradient(135deg,var(--s2),var(--s1));margin-bottom:14px;}
+.mdd-hdr{padding:10px 13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;background:rgba(59,130,246,0.05);border-bottom:1px solid rgba(59,130,246,0.15);}
+.mdd-hdr:hover{background:rgba(59,130,246,0.1);}
+.mdd-hdr-title{font-size:0.75rem;font-weight:700;letter-spacing:1px;color:var(--blue);text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+.mdd-status{font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:0.4px;}
+.mdd-status.live{background:rgba(16,185,129,0.18);color:var(--green);}
+.mdd-status.uit{background:rgba(148,163,184,0.15);color:var(--muted);}
+.mdd-body{padding:13px;display:none;}
+.mdd-body.open{display:block;}
+.mdd-body textarea{width:100%;min-height:70px;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:9px 11px;font-family:inherit;font-size:0.85rem;resize:vertical;}
+.mdd-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.mdd-toggle{display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text);cursor:pointer;}
+.mdd-toggle input{width:16px;height:16px;accent-color:var(--blue);cursor:pointer;}
+.mdd-preview{margin-top:10px;padding:8px 12px;border-radius:7px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);color:var(--text);font-size:0.82rem;display:none;}
+.mdd-preview.show{display:block;}
+
 .nnb-banner{background:linear-gradient(90deg,rgba(6,182,212,0.12),rgba(6,182,212,0.05));border:1px solid rgba(6,182,212,0.3);border-radius:8px;padding:10px 12px;margin-bottom:14px;}
-.nnb-banner-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--nnb);margin-bottom:8px;}
-.nnb-list{display:flex;flex-direction:column;gap:6px;}
+.nnb-banner-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--nnb);margin-bottom:0;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.nnb-banner-title:hover{opacity:0.85;}
+.nnb-banner-arrow{font-size:0.7rem;transition:transform 0.15s;}
+.nnb-list{display:none;flex-direction:column;gap:6px;margin-top:8px;max-height:340px;overflow-y:auto;}
+.nnb-list.open{display:flex;}
 .nnb-item{background:var(--s1);border:1px solid var(--border);border-left:4px solid var(--nnb);border-radius:7px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
 .nnb-item-info{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:0.8rem;}
 .nnb-item-info .orig-datum{font-size:0.68rem;}
@@ -469,6 +488,24 @@ a.nav-tab{text-decoration:none;display:inline-block;}
     </div>
 
     <div class="queue-wrap">
+      <!-- MEDEDELING VOOR TV: korte boodschap bovenaan tv.html (bekerloting, geen darten deze week, etc.) -->
+      <div class="mdd-wrap">
+        <div class="mdd-hdr" onclick="toggleMdd()">
+          <span class="mdd-hdr-title">📢 Mededeling voor TV <span class="mdd-status uit" id="mddStatus">uit</span></span>
+          <span id="mddArrow" style="color:var(--blue);">►</span>
+        </div>
+        <div class="mdd-body" id="mddBody">
+          <textarea id="mddTekst" maxlength="140" placeholder="Bijv. 'Volgende week wordt de bekerloting gedaan!' of 'Let op: deze week geen darten.'" oninput="mddPreviewUpdate()"></textarea>
+          <div class="mdd-row">
+            <label class="mdd-toggle">
+              <input type="checkbox" id="mddActief" onchange="mddPreviewUpdate()"> Tonen op TV
+            </label>
+            <button class="btn btn-orange btn-sm" onclick="opslaanMdd()">💾 Opslaan</button>
+          </div>
+          <div class="mdd-preview" id="mddPreview"></div>
+        </div>
+      </div>
+
       <!-- NNB: wedstrijden zonder bekende (inhaal)datum, altijd zichtbaar ongeacht avondfilter -->
       <div id="nnbBanner"></div>
 
@@ -726,12 +763,17 @@ async function laadData() {
       sbGet('wedstrijden','order=datum.asc,tijdstip.asc'),
       sbGet('spelers','order=naam.asc'),
       sbGet('wedstrijdleiding','order=naam.asc&actief=eq.true'),
-      sbGet('instellingen','sleutel=like.dartconnect_bord_*')
+      sbGet('instellingen','or=(sleutel.like.dartconnect_bord_*,sleutel.like.tv_mededeling_*)')
     ]);
     dcRows.forEach(r => {
       const b = r.sleutel.replace('dartconnect_bord_','');
       if (dartCodes.hasOwnProperty(b)) dartCodes[b] = r.waarde || '';
     });
+    const mddTekstRow = dcRows.find(r=>r.sleutel==='tv_mededeling_tekst');
+    const mddActiefRow = dcRows.find(r=>r.sleutel==='tv_mededeling_actief');
+    document.getElementById('mddTekst').value = mddTekstRow?.waarde || '';
+    document.getElementById('mddActief').checked = mddActiefRow?.waarde === 'true';
+    mddPreviewUpdate();
     setSync('ok','● VERBONDEN');
     bouwDatumFilter();
     vulBekerDropdowns();
@@ -809,6 +851,59 @@ function renderAll() {
 // ══════════════════════════════════════════
 //  NNB (datum nog niet bekend) — altijd zichtbaar, los van avondfilter
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+//  MEDEDELING VOOR TV
+// ══════════════════════════════════════════
+let mddOpen = false;
+function toggleMdd() {
+  mddOpen = !mddOpen;
+  document.getElementById('mddBody').classList.toggle('open', mddOpen);
+  document.getElementById('mddArrow').textContent = mddOpen ? '▼' : '►';
+}
+
+function mddPreviewUpdate() {
+  const tekst = document.getElementById('mddTekst').value.trim();
+  const actief = document.getElementById('mddActief').checked;
+  const statusEl = document.getElementById('mddStatus');
+  statusEl.textContent = actief && tekst ? 'live' : 'uit';
+  statusEl.className = 'mdd-status ' + (actief && tekst ? 'live' : 'uit');
+  const preview = document.getElementById('mddPreview');
+  if (tekst) {
+    preview.textContent = `📢 ${tekst}`;
+    preview.classList.add('show');
+  } else {
+    preview.classList.remove('show');
+  }
+}
+
+async function opslaanMdd() {
+  const tekst = document.getElementById('mddTekst').value.trim();
+  const actief = document.getElementById('mddActief').checked;
+  try {
+    await fetch(`${SB_URL}/rest/v1/instellingen`, {
+      method:'POST',
+      headers: { ...HDR, 'Prefer':'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify([
+        { sleutel:'tv_mededeling_tekst', waarde: tekst },
+        { sleutel:'tv_mededeling_actief', waarde: actief ? 'true' : 'false' }
+      ])
+    });
+    mddPreviewUpdate();
+    toast(actief && tekst ? '📢 Mededeling staat live op TV' : '📢 Mededeling opgeslagen (uit)', actief && tekst ? 'green' : '');
+  } catch(e) {
+    toast(`Fout bij opslaan mededeling: ${e.message}`,'red');
+  }
+}
+
+let nnbOpen = false;
+function toggleNNB() {
+  nnbOpen = !nnbOpen;
+  const list = document.getElementById('nnbList');
+  const arrow = document.getElementById('nnbArrow');
+  if (list) list.classList.toggle('open', nnbOpen);
+  if (arrow) arrow.textContent = nnbOpen ? '▼' : '►';
+}
+
 function renderNNBBanner() {
   const el = document.getElementById('nnbBanner');
   if (!el) return;
@@ -831,8 +926,11 @@ function renderNNBBanner() {
 
   el.innerHTML = `
     <div class="nnb-banner">
-      <div class="nnb-banner-title">🕓 Nog niet bekend — nieuwe datum ontbreekt (${lijst.length})</div>
-      <div class="nnb-list">${items}</div>
+      <div class="nnb-banner-title" onclick="toggleNNB()">
+        <span>🕓 Nog niet bekend — nieuwe datum ontbreekt (${lijst.length})</span>
+        <span class="nnb-banner-arrow" id="nnbArrow">${nnbOpen ? '▼' : '►'}</span>
+      </div>
+      <div class="nnb-list${nnbOpen ? ' open' : ''}" id="nnbList">${items}</div>
     </div>`;
 }
 
