@@ -832,14 +832,17 @@
       svg.appendChild(path);
 
       var midA = startA + seg / 2;
-      var textR = n > 24 ? r * 0.62 : r * 0.68;
-      var tp = polar(cx, cy, textR, midA);
+      // Anker altijd vlak bij de rand; tekst loopt naar binnen maar mag nooit
+      // voorbij de binnenrand (rond de naaf) komen — zie compressie hieronder.
+      var outerTextR = r * 0.93;
+      var innerBoundR = 44;
+      var tp = polar(cx, cy, outerTextR, midA);
       var text = document.createElementNS(ns, "text");
       text.setAttribute("x", tp.x.toFixed(2));
       text.setAttribute("y", tp.y.toFixed(2));
       text.setAttribute("fill", i % 2 === 0 ? "var(--wedge-text-a)" : "var(--wedge-text-b)");
       text.setAttribute("font-family", "Oswald, sans-serif");
-      text.setAttribute("font-size", n > 30 ? "9.5" : (n > 18 ? "11" : "13"));
+      text.setAttribute("font-size", n > 30 ? "10.5" : (n > 18 ? "12" : "14"));
       text.setAttribute("font-weight", "500");
       text.setAttribute("text-anchor", "end");
       text.setAttribute("dominant-baseline", "middle");
@@ -847,6 +850,17 @@
       text.setAttribute("transform", "rotate(" + rot.toFixed(2) + " " + tp.x.toFixed(2) + " " + tp.y.toFixed(2) + ")");
       text.textContent = state.remaining[i];
       svg.appendChild(text);
+
+      // Namen die te lang zijn voor hun partje comprimeren we horizontaal zodat
+      // het einde van de tekst nooit voorbij de naaf in het midden terechtkomt.
+      var beschikbaar = outerTextR - innerBoundR;
+      try{
+        var natuurlijkeLengte = text.getComputedTextLength();
+        if(natuurlijkeLengte > beschikbaar){
+          text.setAttribute("textLength", beschikbaar.toFixed(1));
+          text.setAttribute("lengthAdjust", "spacingAndGlyphs");
+        }
+      }catch(e){ /* getComputedTextLength niet beschikbaar, tekst blijft ongewijzigd */ }
     }
   }
 
