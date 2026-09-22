@@ -80,7 +80,7 @@
   }
 
   /* Print */
-  .pdf-links { display: none; }
+  .pdf-links { visibility: hidden; height: 0; overflow: hidden; margin: 0; }
 
   @media print {
     :root {
@@ -111,7 +111,7 @@
     .grid-3 { display: flex !important; flex-direction: column !important; gap: 8px !important; }
 
     /* Linkknoppen: alleen zichtbaar in de afdruk/PDF, niet op het scherm */
-    .pdf-links { display: flex !important; gap: 8px !important; margin-bottom: 8px !important; }
+    .pdf-links { visibility: visible !important; height: auto !important; overflow: visible !important; display: flex !important; gap: 8px !important; margin-bottom: 8px !important; }
     .pdf-link-btn {
       display: inline-flex !important; align-items: center; gap: 5px;
       background: #007a5e !important; color: #fff !important; text-decoration: none;
