@@ -308,10 +308,13 @@ a.nav-tab{text-decoration:none;display:inline-block;}
 .nav-dropdown-btn{display:flex;align-items:center;gap:4px;}
 .nav-dropdown-menu{display:none;position:absolute;top:100%;left:0;background:#0c1220;border:1px solid var(--border);border-radius:0 0 8px 8px;min-width:190px;box-shadow:0 8px 20px rgba(0,0,0,0.4);z-index:50;flex-direction:column;}
 .nav-dropdown-menu.open{display:flex;}
+.nav-dropdown-menu.align-right{left:auto;right:0;border-radius:8px 0 8px 8px;}
 .nav-dropdown-item{padding:11px 16px;font-size:0.78rem;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none;letter-spacing:0.3px;border-bottom:1px solid var(--border);}
 .nav-dropdown-item:last-child{border-bottom:none;}
 .nav-dropdown-item:hover{color:var(--text);background:var(--s2);}
 .nav-dropdown-item.active{color:var(--green);background:var(--s2);}
+a.nav-dropdown-item{text-decoration:none;display:block;}
+.nav-right{margin-left:auto;display:flex;align-items:center;}
 /* ── VIEW CONTAINER (blijft onder topbar/nav/boards-bar, die altijd zichtbaar blijven) ── */
 .view-container{flex:1;min-height:0;position:relative;overflow:hidden;}
 .dashboard-view{display:block;height:100%;}
@@ -364,18 +367,26 @@ a.nav-tab{text-decoration:none;display:inline-block;}
 <!-- ── NAV TABS ── -->
 <div class="nav-tabs">
   <div class="nav-tab active" id="navDashboard" onclick="switchNav('dashboard')">📋 Wedstrijdleiding</div>
-  <div class="nav-dropdown" id="navAdminDropdown">
-    <div class="nav-tab nav-dropdown-btn" id="navAdminBtn" onclick="toggleAdminDropdown(event)">⚙️ Admin ▾</div>
-    <div class="nav-dropdown-menu" id="navAdminMenu">
-      <div class="nav-dropdown-item" id="navPlanning" onclick="switchNav('planning'); closeAdminDropdown();">🗓 Planning Tool</div>
-      <div class="nav-dropdown-item" id="navStats" onclick="switchNav('stats'); closeAdminDropdown();">📊 Stats</div>
-      <div class="nav-dropdown-item" id="navSpelers" onclick="switchNav('spelers'); closeAdminDropdown();">🧑‍🤝‍🧑 Spelerbeheer</div>
-      <div class="nav-dropdown-item" id="navLogboek" onclick="switchNav('logboek'); closeAdminDropdown();">📝 Logboek</div>
-      <div class="nav-dropdown-item" id="navPeriodestand" onclick="switchNav('periodestand'); closeAdminDropdown();">🏆 Periodestand</div>
+  <a class="nav-tab" href="tv.html" target="_blank" rel="noopener">📺 TV</a>
+  <div class="nav-dropdown" id="navBekerDropdown">
+    <div class="nav-tab nav-dropdown-btn" id="navBekerBtn" onclick="toggleBekerDropdown(event)">🏆 Beker ▾</div>
+    <div class="nav-dropdown-menu" id="navBekerMenu">
+      <a class="nav-dropdown-item" href="bekerloting.html" target="_blank" rel="noopener">🎡 Bekerloting</a>
+      <a class="nav-dropdown-item" href="bekertoernooi.html" target="_blank" rel="noopener">🏆 Bekertoernooi</a>
     </div>
   </div>
-  <a class="nav-tab" href="tv.html" target="_blank" rel="noopener">📺 TV</a>
-  <a class="nav-tab" href="bekerloting.html" target="_blank" rel="noopener">🎡 Bekerloting</a>
+  <div class="nav-right">
+    <div class="nav-dropdown" id="navAdminDropdown">
+      <div class="nav-tab nav-dropdown-btn" id="navAdminBtn" onclick="toggleAdminDropdown(event)">⚙️ Admin ▾</div>
+      <div class="nav-dropdown-menu align-right" id="navAdminMenu">
+        <div class="nav-dropdown-item" id="navPlanning" onclick="switchNav('planning'); closeAdminDropdown();">🗓 Planning Tool</div>
+        <div class="nav-dropdown-item" id="navStats" onclick="switchNav('stats'); closeAdminDropdown();">📊 Stats</div>
+        <div class="nav-dropdown-item" id="navSpelers" onclick="switchNav('spelers'); closeAdminDropdown();">🧑‍🤝‍🧑 Spelerbeheer</div>
+        <div class="nav-dropdown-item" id="navLogboek" onclick="switchNav('logboek'); closeAdminDropdown();">📝 Logboek</div>
+        <div class="nav-dropdown-item" id="navPeriodestand" onclick="switchNav('periodestand'); closeAdminDropdown();">🏆 Periodestand</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ── BOARDS BAR (altijd zichtbaar, ook bij Planning Tool / Stats) ── -->
@@ -2300,14 +2311,25 @@ function switchNav(view) {
 
 function toggleAdminDropdown(e) {
   e.stopPropagation();
+  closeBekerDropdown();
   document.getElementById('navAdminMenu').classList.toggle('open');
 }
 function closeAdminDropdown() {
   document.getElementById('navAdminMenu').classList.remove('open');
 }
+function toggleBekerDropdown(e) {
+  e.stopPropagation();
+  closeAdminDropdown();
+  document.getElementById('navBekerMenu').classList.toggle('open');
+}
+function closeBekerDropdown() {
+  document.getElementById('navBekerMenu').classList.remove('open');
+}
 document.addEventListener('click', (e) => {
   const dd = document.getElementById('navAdminDropdown');
   if (dd && !dd.contains(e.target)) closeAdminDropdown();
+  const bd = document.getElementById('navBekerDropdown');
+  if (bd && !bd.contains(e.target)) closeBekerDropdown();
 });
 
 // ══════════════════════════════════════════
