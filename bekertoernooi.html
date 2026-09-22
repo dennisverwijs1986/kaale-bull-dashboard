@@ -297,13 +297,18 @@ function openPdfView(){
 }
 
 async function resetToernooi(){
-  if(!window.confirm('Weet je zeker dat je het hele bekertoernooi wilt resetten? Alle geloot wedstrijden, ingevoerde scores en de voortgang gaan verloren. De loting moet dan opnieuw via het rad.')) return;
+  if(!window.confirm('Weet je zeker dat je het hele bekertoernooi wilt resetten? Alle geloot wedstrijden, ingevoerde scores en de voortgang gaan verloren — inclusief eventuele bekerwedstrijden die al in de planning staan. De loting moet dan opnieuw via het rad.')) return;
   try{
     await fetch(`${SB_URL}/rest/v1/beker_toernooi?id=eq.${encodeURIComponent(SEIZOEN)}`, { method:'DELETE', headers:HDR });
   }catch(e){ toast('Kon toernooi niet resetten: '+e.message,'red'); return; }
+  try{
+    // Ruim ook alle bekerwedstrijden op die eventueel al (via de sync-optie) in de
+    // planning terecht zijn gekomen, zodat een reset ook echt een schone lei geeft.
+    await fetch(`${SB_URL}/rest/v1/wedstrijden?divisie=ilike.Beker*`, { method:'DELETE', headers:HDR });
+  }catch(e){ toast('Toernooi is gereset, maar bekerwedstrijden in de planning konden niet worden opgeruimd: '+e.message,'red'); }
   state = null;
   document.getElementById('syncToggle').checked = false;
-  toast('Toernooi gereset — start een nieuwe loting via het rad.');
+  toast('Toernooi volledig gereset — start een nieuwe loting via het rad.');
   render();
 }
 
