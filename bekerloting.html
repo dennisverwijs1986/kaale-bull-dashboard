@@ -99,6 +99,49 @@
     .board{ grid-template-columns: 1fr; }
   }
 
+  .board.is-done{ grid-template-columns: minmax(240px, 0.55fr) minmax(0, 1.45fr); }
+
+  .done-panel{
+    background: linear-gradient(180deg, var(--surface), var(--bg-deep));
+    border: 1px solid var(--gold);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 3vh 1.6vw;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap: 1.4vh;
+    min-height:0;
+  }
+  .done-badge{
+    width: clamp(48px, 4.4vw, 68px);
+    height: clamp(48px, 4.4vw, 68px);
+    border-radius:50%;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: var(--bg-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: clamp(20px, 1.9vw, 30px);
+    font-weight:700;
+  }
+  .done-panel h2{
+    font-family:"Oswald", sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color: var(--gold-bright);
+    font-size: clamp(17px, 1.5vw, 25px);
+    margin:0;
+  }
+  .done-panel p{
+    color: var(--ink-dim);
+    font-size: clamp(12px, 0.95vw, 16px);
+    margin:0;
+    max-width: 34ch;
+  }
+
   .wheel-panel{
     position:relative;
     background: linear-gradient(180deg, var(--surface), var(--bg-deep));
@@ -247,6 +290,9 @@
 
   .matches-card{ flex: 1 1 auto; }
   .remaining-card{ flex: 0 0 auto; max-height: 22vh; }
+  .bye-card{ flex: 0 0 auto; max-height: 22vh; }
+  .wr2-prep-card{ flex: 0 0 auto; max-height: 34vh; margin-top: 1.6vh; }
+  #naarToernooiBtn:hover{ filter: brightness(1.08); }
 
   .card h2{
     font-family:"Oswald", sans-serif;
@@ -465,29 +511,6 @@
     flex:0 0 auto;
     cursor:pointer;
   }
-  .bo-row{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    margin-bottom:4px;
-  }
-  .bo-opt{
-    font-family:"Work Sans";
-    font-size:12px;
-    font-weight:600;
-    color: var(--gold);
-    background: rgba(217,171,63,0.08);
-    border: 1px solid rgba(217,171,63,0.3);
-    border-radius:6px;
-    padding: 5px 10px;
-    cursor:pointer;
-  }
-  .bo-opt:hover{ background: rgba(217,171,63,0.16); }
-  .bo-opt.active{
-    background: var(--gold);
-    color: #241a04;
-    border-color: var(--gold);
-  }
   details.editor textarea{
     width:100%;
     min-height:200px;
@@ -650,12 +673,7 @@
         <span>Elke geloot wedstrijd meteen als bekerwedstrijd (NNB) in Supabase zetten</span>
       </label>
 
-      <div class="bo-row" id="boRow">
-        <span class="panel-sublabel">Format</span>
-        <button class="bo-opt active" data-bo="Best of 5" type="button">Bo5</button>
-        <button class="bo-opt" data-bo="Best of 7" type="button">Bo7</button>
-        <button class="bo-opt" data-bo="Best of 9" type="button">Bo9</button>
-      </div>
+      <p class="panel-sublabel">Ronde 1 is altijd Best of 5.</p>
 
       <hr class="panel-divider">
 
@@ -675,8 +693,8 @@
     <h1>Bekerloting</h1>
   </header>
 
-  <div class="board">
-    <section class="wheel-panel">
+  <div class="board" id="board">
+    <section class="wheel-panel" id="wheelPanel">
       <div class="wheel-stage">
         <div class="pointer" aria-hidden="true"></div>
         <div class="hub-ring" aria-hidden="true"></div>
@@ -690,11 +708,23 @@
       <button class="ghost-btn" id="resetBtn" type="button">Opnieuw beginnen</button>
     </section>
 
+    <section class="done-panel" id="donePanel" style="display:none;">
+      <div class="done-badge" aria-hidden="true">&#10003;</div>
+      <h2>Loting compleet</h2>
+      <p>Alle ronde-1-wedstrijden en de bye-verdeling staan vast. Hiernaast het volledige overzicht.</p>
+      <button class="ghost-btn" id="resetBtn2" type="button">Opnieuw beginnen</button>
+    </section>
+
     <aside class="side">
       <div class="card matches-card">
-        <h2>Geloot <span class="count-pill" id="matchCountPill">0 wedstrijden</span></h2>
+        <h2>Ronde 1 <span class="count-pill" id="matchCountPill">0 wedstrijden</span></h2>
         <ul class="matches" id="matchesList"></ul>
         <p class="empty-note" id="emptyNote">Nog geen wedstrijden geloot. Draai het rad om te beginnen.</p>
+      </div>
+
+      <div class="card bye-card" id="byeCard" style="display:none;">
+        <h2>Bye — direct naar ronde 2 <span class="count-pill" id="byeCountPill">0</span></h2>
+        <div class="remaining-list" id="byeList"></div>
       </div>
 
       <div class="card remaining-card">
@@ -702,6 +732,13 @@
         <div class="remaining-list" id="remainingList"></div>
       </div>
     </aside>
+  </div>
+
+  <div class="card wr2-prep-card" id="wr2PrepCard" style="display:none;">
+    <h2>Voorbereiding ronde 2 — winnaarsronde</h2>
+    <p class="empty-note" style="margin-bottom:1vh;">Deze bye-spelers spelen straks tegen elkaar of tegen de winnaar van een ronde-1-wedstrijd — zo kan geen twee ronde-1-winnaars elkaar in ronde 2 treffen.</p>
+    <ul class="matches" id="wr2PrepList"></ul>
+    <a class="apply-btn" id="naarToernooiBtn" href="bekertoernooi.html" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;margin-top:1.4vh;text-align:center;">🏆 Naar het bekertoernooi &rarr;</a>
   </div>
 </div>
 
@@ -732,16 +769,19 @@
   var SB_URL = "https://ctxurzqtglckairgbjno.supabase.co";
   var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ";
   var SB_HDR = { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json", "Prefer": "return=representation" };
+  // Zelfde seizoen-sleutel als bekertoernooi.html gebruikt voor de rij in beker_toernooi.
+  var SEIZOEN = "2026-2027";
 
-  async function schrijfBekerwedstrijd(thuis, uit, bestOf){
+  async function postWedstrijd(thuis, uit, divisie){
     var body = [{
       datum: new Date().toISOString().slice(0, 10),
       tijdstip: null,
-      divisie: "Beker (" + bestOf + ")",
+      divisie: divisie,
       thuis: thuis,
       uit: uit,
       speelronde: null,
       status: "gepland",
+      uitslag: null,
       is_inhaal: false,
       datum_nnb: true
     }];
@@ -749,10 +789,45 @@
     if(!res.ok) throw new Error(await res.text());
     return res.json();
   }
+  function schrijfBekerwedstrijd(thuis, uit){
+    return postWedstrijd(thuis, uit, "Beker ronde 1 (Bo5)");
+  }
+  function schrijfWinnaarsrondeWedstrijd(thuis, uit){
+    return postWedstrijd(thuis, uit, "Beker winnaarsronde (Bo5)");
+  }
+
+  function shuffle(arr){
+    var a = arr.slice();
+    for(var i = a.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function powerOf2LE(n){ var p = 1; while(p * 2 <= n) p *= 2; return p; }
+  function pairUp(namen){
+    var s = shuffle(namen);
+    var matches = [];
+    for(var i = 0; i < s.length; i += 2) matches.push({ a: s[i], b: s[i + 1], winnaar: null, sync: null });
+    return matches;
+  }
+  // Berekent hoeveel bye-spelers en ronde1-wedstrijden er horen bij het aantal
+  // deelnemers (bv. 42 spelers -> 22 bye's, 10 wedstrijden).
+  function computeTargets(){
+    var totaal = state.baseNames.length;
+    var target = powerOf2LE(totaal);
+    var matchesTarget = totaal - target;
+    var byeTarget = totaal - matchesTarget * 2;
+    return { matchesTarget: matchesTarget, byeTarget: byeTarget };
+  }
 
   var svg = document.getElementById("wheelSvg");
   var spinBtn = document.getElementById("spinBtn");
   var resetBtn = document.getElementById("resetBtn");
+  var resetBtn2 = document.getElementById("resetBtn2");
+  var boardEl = document.getElementById("board");
+  var wheelPanel = document.getElementById("wheelPanel");
+  var donePanel = document.getElementById("donePanel");
   var statusLine = document.getElementById("statusLine");
   var remainingCountEl = document.getElementById("remainingCount");
   var remainingPill = document.getElementById("remainingPill");
@@ -768,33 +843,45 @@
   var revealOverlay = document.getElementById("revealOverlay");
   var revealInner = document.getElementById("revealInner");
   var syncToggle = document.getElementById("syncToggle");
-  var boRow = document.getElementById("boRow");
+  var byeCard = document.getElementById("byeCard");
+  var byeList = document.getElementById("byeList");
+  var byeCountPill = document.getElementById("byeCountPill");
+  var wr2PrepCard = document.getElementById("wr2PrepCard");
+  var wr2PrepList = document.getElementById("wr2PrepList");
 
   var state = {
     baseNames: DEFAULT_NAMES.slice(),
     remaining: DEFAULT_NAMES.slice(),
     pending: null,
     matches: [],
+    bye: [],
     rotation: 0,
     syncEnabled: false,
-    bestOf: "Best of 5"
+    afgerond: false,
+    wr2Prep: null
   };
 
+  // Geeft true terug als er al een lopende/afgeronde loting in localStorage stond
+  // (dan wordt er verder gegaan i.p.v. de live spelerslijst opnieuw op te halen).
   function loadState(){
     try{
       var raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return;
+      if(!raw) return false;
       var saved = JSON.parse(raw);
       if(saved && Array.isArray(saved.baseNames) && saved.baseNames.length){
         state.baseNames = saved.baseNames;
         state.remaining = Array.isArray(saved.remaining) ? saved.remaining : saved.baseNames.slice();
         state.pending = saved.pending || null;
         state.matches = Array.isArray(saved.matches) ? saved.matches : [];
+        state.bye = Array.isArray(saved.bye) ? saved.bye : [];
         state.rotation = typeof saved.rotation === "number" ? saved.rotation : 0;
         state.syncEnabled = !!saved.syncEnabled;
-        state.bestOf = saved.bestOf || "Best of 5";
+        state.afgerond = !!saved.afgerond;
+        state.wr2Prep = saved.wr2Prep || null;
+        return true;
       }
     }catch(e){ /* localStorage unavailable, use defaults */ }
+    return false;
   }
 
   function saveState(){
@@ -875,6 +962,48 @@
     });
   }
 
+  function renderBye(){
+    byeCountPill.textContent = state.bye.length;
+    byeList.innerHTML = "";
+    state.bye.forEach(function(name){
+      var s = document.createElement("span");
+      s.textContent = name;
+      byeList.appendChild(s);
+    });
+    byeCard.style.display = state.bye.length > 0 ? "flex" : "none";
+  }
+
+  function renderWr2Prep(){
+    if(!state.wr2Prep){
+      wr2PrepCard.style.display = "none";
+      return;
+    }
+    wr2PrepList.innerHTML = "";
+    state.wr2Prep.byeMatches.forEach(function(m, idx){
+      var li = document.createElement("li");
+      li.innerHTML =
+        '<span class="num">' + (idx + 1) + '</span>' +
+        '<span class="home">' + escapeHtml(m.a) + '</span>' +
+        '<span class="vs">vs</span>' +
+        '<span class="away">' + escapeHtml(m.b) + '</span>' +
+        '<span class="sync-badge off"></span>';
+      wr2PrepList.appendChild(li);
+    });
+    state.wr2Prep.slots.forEach(function(slot){
+      var ronde1Match = state.matches[slot.winnaarVanWedstrijd - 1];
+      var vsText = ronde1Match ? (escapeHtml(ronde1Match.home) + " vs " + escapeHtml(ronde1Match.away)) : "";
+      var li = document.createElement("li");
+      li.innerHTML =
+        '<span class="num">&mdash;</span>' +
+        '<span class="home">' + escapeHtml(slot.byeSpeler) + '</span>' +
+        '<span class="vs">wacht op</span>' +
+        '<span class="away">winnaar wedstrijd ' + slot.winnaarVanWedstrijd + (vsText ? " (" + vsText + ")" : "") + '</span>' +
+        '<span class="sync-badge off"></span>';
+      wr2PrepList.appendChild(li);
+    });
+    wr2PrepCard.style.display = "block";
+  }
+
   function badgeHtml(m, idx){
     if(!m.away) return '<span class="sync-badge off"></span>'; // bye wordt niet weggeschreven
     if(!state.syncEnabled && !m.sync) return '<span class="sync-badge off"></span>';
@@ -913,8 +1042,9 @@
     m.sync = "pending";
     renderMatches();
     try{
-      await schrijfBekerwedstrijd(m.home, m.away, state.bestOf);
+      var rows = await schrijfBekerwedstrijd(m.home, m.away);
       m.sync = "ok";
+      if(rows && rows[0]) m._wedstrijdId = rows[0].id;
     }catch(e){
       m.sync = "error";
     }
@@ -923,21 +1053,32 @@
   }
 
   function updateStatus(){
-    if(state.remaining.length === 0 && !state.pending){
+    var targets = computeTargets();
+    var byeDone = state.bye.length >= targets.byeTarget;
+    var matchesDone = state.remaining.length === 0 && !state.pending && state.matches.length === targets.matchesTarget;
+
+    var done = state.afgerond || (byeDone && matchesDone);
+    boardEl.classList.toggle("is-done", done);
+    wheelPanel.style.display = done ? "none" : "flex";
+    donePanel.style.display = done ? "flex" : "none";
+
+    if(done){
       completeBanner.classList.add("show");
       statusLine.style.display = "none";
       spinBtn.disabled = true;
+      return;
+    }
+
+    completeBanner.classList.remove("show");
+    statusLine.style.display = "block";
+    spinBtn.disabled = state.remaining.length === 0;
+
+    if(!byeDone){
+      statusLine.innerHTML = "Trek een bye-speler &mdash; nog <strong>" + (targets.byeTarget - state.bye.length) + "</strong> te gaan.";
+    } else if(state.pending){
+      statusLine.innerHTML = "<strong>" + escapeHtml(state.pending) + "</strong> is getrokken &mdash; wacht op de tegenstander.";
     } else {
-      completeBanner.classList.remove("show");
-      statusLine.style.display = "block";
-      spinBtn.disabled = false;
-      if(state.pending){
-        statusLine.innerHTML = "<strong>" + escapeHtml(state.pending) + "</strong> is getrokken &mdash; wacht op de tegenstander.";
-      } else if(state.remaining.length === 1){
-        statusLine.innerHTML = "Nog <strong>1</strong> naam over &mdash; deze krijgt een bye.";
-      } else {
-        statusLine.innerHTML = "Klaar om te loten &mdash; <strong>" + state.remaining.length + "</strong> namen op het rad.";
-      }
+      statusLine.innerHTML = "Trek een wedstrijd &mdash; <strong>" + state.remaining.length + "</strong> namen op het rad.";
     }
   }
 
@@ -945,6 +1086,8 @@
     buildWheel();
     renderRemaining();
     renderMatches();
+    renderBye();
+    renderWr2Prep();
     updateStatus();
   }
 
@@ -973,17 +1116,6 @@
       '<p class="reveal-name gold">' + escapeHtml(name) + '</p>'
     );
     await sleep(1900);
-    hideReveal();
-    await sleep(300);
-  }
-
-  async function revealBye(name){
-    showReveal(
-      '<p class="reveal-eyebrow">Laatste naam</p>' +
-      '<p class="reveal-name gold">' + escapeHtml(name) + '</p>' +
-      '<p class="reveal-match-label">bye naar de volgende ronde</p>'
-    );
-    await sleep(2400);
     hideReveal();
     await sleep(300);
   }
@@ -1030,44 +1162,135 @@
       svg.removeEventListener("transitionend", onDone);
 
       // Naam meteen van het rad halen en het rad zelf laten bijwerken,
-      // maar de wedstrijdenlijst rechts pas na de onthulling aanpassen.
+      // maar de lijsten rechts pas na de onthulling aanpassen.
       state.remaining.splice(winnerIndex, 1);
       renderRemaining();
       buildWheel();
 
-      var wasPending = state.pending;
-      await revealSingleName(winnerName, wasPending ? "Tegenstander" : "Getrokken");
+      var targets = computeTargets();
+      var inByePhase = state.bye.length < targets.byeTarget;
 
-      var newMatchIndex = -1;
-      if(wasPending){
-        var matchNumber = state.matches.length + 1;
-        await revealMatch(matchNumber, wasPending, winnerName);
-        state.pending = null;
-        state.matches.push({ home: wasPending, away: winnerName, sync: state.syncEnabled ? "pending" : null });
-        newMatchIndex = state.matches.length - 1;
-      } else if(state.remaining.length === 0){
-        await revealBye(winnerName);
-        state.matches.push({ home: winnerName, away: null });
+      if(inByePhase){
+        // Fase 1: elke trekking is één bye-speler die rechtstreeks naar ronde 2 gaat.
+        await revealSingleName(winnerName, "Bye — naar ronde 2");
+        state.bye.push(winnerName);
+        saveState();
+        renderBye();
       } else {
-        state.pending = winnerName;
+        // Fase 2: de resterende namen worden per twee getrokken tot ronde-1-wedstrijden.
+        var wasPending = state.pending;
+        await revealSingleName(winnerName, wasPending ? "Tegenstander" : "Getrokken");
+
+        var newMatchIndex = -1;
+        if(wasPending){
+          var matchNumber = state.matches.length + 1;
+          await revealMatch(matchNumber, wasPending, winnerName);
+          state.pending = null;
+          state.matches.push({ home: wasPending, away: winnerName, sync: state.syncEnabled ? "pending" : null });
+          newMatchIndex = state.matches.length - 1;
+        } else {
+          state.pending = winnerName;
+        }
+
+        saveState();
+        renderMatches();
+
+        if(newMatchIndex >= 0 && state.syncEnabled){
+          syncMatch(state.matches[newMatchIndex], newMatchIndex);
+        }
       }
 
-      saveState();
-      renderMatches();
       updateStatus();
-      spinBtn.disabled = state.remaining.length === 0;
 
-      if(newMatchIndex >= 0 && state.syncEnabled){
-        syncMatch(state.matches[newMatchIndex], newMatchIndex);
+      var doneTargets = computeTargets();
+      if(!state.afgerond && state.bye.length === doneTargets.byeTarget && state.remaining.length === 0 &&
+         !state.pending && state.matches.length === doneTargets.matchesTarget){
+        await voltooiRonde1();
       }
     }
     svg.addEventListener("transitionend", onDone);
+  }
+
+  // Wordt automatisch aangeroepen zodra alle bye's én alle ronde-1-wedstrijden
+  // geloot zijn. Bepaalt de voorbereiding voor ronde 2 (winnaarsronde) en
+  // schrijft de volledige toernooi-staat weg naar beker_toernooi, in exact het
+  // format dat bekertoernooi.html's genereerRonde1() ook produceert.
+  async function voltooiRonde1(){
+    if(state.afgerond) return;
+    var targets = computeTargets();
+    if(!(state.bye.length === targets.byeTarget && state.remaining.length === 0 &&
+         !state.pending && state.matches.length === targets.matchesTarget)) return;
+
+    var byeShuffled = shuffle(state.bye);
+    var preSeed = byeShuffled.slice(0, targets.matchesTarget);
+    var directBye = byeShuffled.slice(targets.matchesTarget);
+    var wr2ByeMatches = pairUp(directBye);
+
+    if(state.syncEnabled){
+      for(var i = 0; i < wr2ByeMatches.length; i++){
+        try{
+          var rows = await schrijfWinnaarsrondeWedstrijd(wr2ByeMatches[i].a, wr2ByeMatches[i].b);
+          wr2ByeMatches[i].sync = "ok";
+          if(rows && rows[0]) wr2ByeMatches[i]._wedstrijdId = rows[0].id;
+        }catch(e){
+          wr2ByeMatches[i].sync = "error";
+        }
+      }
+    }
+
+    var slots = preSeed.map(function(naam, i){
+      return { byeSpeler: naam, winnaarVanWedstrijd: i + 1 };
+    });
+
+    state.wr2Prep = { byeMatches: wr2ByeMatches, slots: slots };
+    renderWr2Prep();
+
+    var ronde1Matches = state.matches.map(function(m, i){
+      var obj = { a: m.home, b: m.away, winnaar: null, nr: i + 1, sync: m.sync || null };
+      if(m._wedstrijdId !== undefined) obj._wedstrijdId = m._wedstrijdId;
+      return obj;
+    });
+
+    var wr2VoorbereidingByeMatches = wr2ByeMatches.map(function(m){
+      var obj = { a: m.a, b: m.b, winnaar: null, sync: m.sync || null };
+      if(m._wedstrijdId !== undefined) obj._wedstrijdId = m._wedstrijdId;
+      return obj;
+    });
+
+    var toernooiState = {
+      spelers: state.baseNames,
+      syncEnabled: state.syncEnabled,
+      kampioenWR: null,
+      kampioenVR: null,
+      fases: {
+        ronde1: { matches: ronde1Matches, bye: state.bye, afgerond: false }
+      },
+      wr2Voorbereiding: { byeMatches: wr2VoorbereidingByeMatches, slots: slots }
+    };
+
+    try{
+      var hdr = {};
+      for(var k in SB_HDR){ hdr[k] = SB_HDR[k]; }
+      hdr["Prefer"] = "resolution=merge-duplicates,return=representation";
+      await fetch(SB_URL + "/rest/v1/beker_toernooi", {
+        method: "POST",
+        headers: hdr,
+        body: JSON.stringify([{ id: SEIZOEN, seizoen: SEIZOEN, staat: toernooiState }])
+      });
+    }catch(e){ /* blijft lokaal afgerond staan; kan later handmatig opnieuw geprobeerd worden */ }
+
+    state.afgerond = true;
+    saveState();
+    updateStatus();
   }
 
   function resetDraw(keepNames){
     state.remaining = state.baseNames.slice();
     state.pending = null;
     state.matches = [];
+    state.bye = [];
+    state.afgerond = false;
+    state.wr2Prep = null;
     state.rotation = 0;
     svg.style.transition = "none";
     svg.style.transform = "rotate(0deg)";
@@ -1078,12 +1301,14 @@
   }
 
   spinBtn.addEventListener("click", spin);
-  resetBtn.addEventListener("click", function(){
-    if(state.matches.length > 0 || state.pending){
+  function confirmReset(){
+    if(state.matches.length > 0 || state.pending || state.bye.length > 0){
       if(!window.confirm("Weet je zeker dat je de loting opnieuw wilt starten? Alle geloot wedstrijden gaan verloren.")) return;
     }
     resetDraw();
-  });
+  }
+  resetBtn.addEventListener("click", confirmReset);
+  resetBtn2.addEventListener("click", confirmReset);
 
   applyNamesBtn.addEventListener("click", function(){
     var lines = namesTextarea.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
@@ -1106,23 +1331,31 @@
     saveState();
   });
 
-  boRow.addEventListener("click", function(ev){
-    var btn = ev.target.closest(".bo-opt");
-    if(!btn) return;
-    state.bestOf = btn.getAttribute("data-bo");
-    Array.prototype.forEach.call(boRow.querySelectorAll(".bo-opt"), function(b){
-      b.classList.toggle("active", b === btn);
-    });
-    saveState();
-  });
+  // Bij het opstarten: als er al een loting bezig/afgerond is (localStorage),
+  // daarmee verdergaan. Anders de live spelerslijst uit Supabase ophalen zodat
+  // de loting altijd met de actuele ledenlijst start i.p.v. de hardcoded lijst.
+  async function boot(){
+    var hadSaved = loadState();
+    if(!hadSaved){
+      try{
+        var res = await fetch(SB_URL + "/rest/v1/spelers?select=naam&order=naam.asc", { headers: SB_HDR });
+        if(!res.ok) throw new Error(await res.text());
+        var rows = await res.json();
+        var namen = rows.map(function(r){ return r.naam; }).filter(function(n){
+          return n && n.trim().toLowerCase() !== "vrijwillige schrijver";
+        });
+        if(namen.length >= 2){
+          state.baseNames = namen;
+          state.remaining = namen.slice();
+        }
+      }catch(e){ /* val terug op de standaardlijst als de spelerslijst niet geladen kan worden */ }
+    }
+    namesTextarea.value = state.baseNames.join("\n");
+    syncToggle.checked = state.syncEnabled;
+    renderAll();
+  }
 
-  loadState();
-  namesTextarea.value = state.baseNames.join("\n");
-  syncToggle.checked = state.syncEnabled;
-  Array.prototype.forEach.call(boRow.querySelectorAll(".bo-opt"), function(b){
-    b.classList.toggle("active", b.getAttribute("data-bo") === state.bestOf);
-  });
-  renderAll();
+  boot();
 })();
 
 // ══════════════════════════════════════════
