@@ -97,6 +97,36 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   .match{flex-wrap:wrap;}
   .match .sync{display:none;}
 }
+
+/* ── PDF/print-weergave ──
+   #printView wordt alleen gevuld en getoond op het moment dat er geprint/als
+   PDF opgeslagen wordt; in de normale schermweergave staat hij verborgen. */
+#printView{display:none;}
+.print-hdr{margin-bottom:14px;}
+.print-hdr h1{font-size:1.3rem;font-weight:800;}
+.print-hdr .sub{font-size:0.8rem;color:#555;margin-top:2px;}
+.print-champs{margin:10px 0 18px;font-size:0.9rem;}
+.print-champs div{margin-bottom:2px;}
+.print-fase{margin-bottom:14px;}
+.print-fase h2{font-size:0.85rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #999;padding-bottom:3px;margin-bottom:6px;}
+.print-match{display:flex;align-items:baseline;gap:6px;font-size:0.85rem;padding:2px 0;}
+.print-match .pm-nr{width:20px;flex:0 0 auto;color:#666;}
+.print-match .pm-naam{flex:1;}
+.print-match .pm-naam.pm-winner{font-weight:800;}
+.print-match .pm-score{flex:0 0 auto;font-weight:700;min-width:46px;text-align:center;}
+.print-match .pm-open{flex:0 0 auto;color:#777;font-style:italic;font-size:0.78rem;}
+.print-bye{font-size:0.8rem;color:#555;font-style:italic;margin-top:2px;}
+
+@media print{
+  body *{ visibility:hidden; }
+  #printView, #printView *{ visibility:visible; }
+  #printView{
+    display:block;
+    position:absolute; top:0; left:0; width:100%;
+    background:#fff; color:#111; padding:0;
+  }
+  @page{ margin:14mm; }
+}
 </style>
 </head>
 <body>
@@ -105,6 +135,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <h1>🏆 Bekertoernooi <span class="sub" id="seizoenLbl"></span></h1>
   <div class="topbar-actions">
     <label class="toggle-row"><input type="checkbox" id="syncToggle"> Wedstrijden wegschrijven naar planning</label>
+    <button type="button" class="link-btn" id="pdfBtn" style="display:none;">📄 PDF / delen</button>
     <button type="button" class="link-btn" id="resetToernooiBtn" style="display:none;">↺ Toernooi resetten</button>
   </div>
 </div>
@@ -116,6 +147,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Alleen zichtbaar bij het printen/PDF opslaan (zie @media print hierboven) -->
+<div id="printView"></div>
 
 <script>
 // ══════════════════════════════════════════
@@ -200,7 +234,66 @@ async function init(){
     bewaarState();
   });
   document.getElementById('resetToernooiBtn').addEventListener('click', resetToernooi);
+  document.getElementById('pdfBtn').addEventListener('click', openPdfView);
   render();
+}
+
+// ══════════════════════════════════════════
+//  PDF / DELEN (via de print-dialoog van de browser: "Opslaan als PDF")
+// ══════════════════════════════════════════
+function pdfMatchRow(m){
+  const isBye = !m.a || !m.b;
+  if(isBye){
+    const naam = m.a || m.b || '';
+    return `<div class="print-match"><span class="pm-nr">${m.nr||''}</span><span class="pm-naam">${escapeHtml(naam)}</span><span class="pm-open">bye</span></div>`;
+  }
+  const aWin = m.winnaar && m.winnaar===m.a;
+  const bWin = m.winnaar && m.winnaar===m.b;
+  const scoreTxt = m.winnaar ? `${m.scoreA}–${m.scoreB}` : '';
+  return `<div class="print-match">
+    <span class="pm-nr">${m.nr||''}</span>
+    <span class="pm-naam${aWin?' pm-winner':''}">${escapeHtml(m.a)}</span>
+    ${m.winnaar ? `<span class="pm-score">${scoreTxt}</span>` : `<span class="pm-open">nog te spelen</span>`}
+    <span class="pm-naam${bWin?' pm-winner':''}">${escapeHtml(m.b)}</span>
+  </div>`;
+}
+
+function openPdfView(){
+  if(!state){ toast('Nog geen toernooi om te delen.','red'); return; }
+  const view = document.getElementById('printView');
+  const datumTxt = new Date().toLocaleDateString('nl-NL', { day:'numeric', month:'long', year:'numeric' });
+
+  let html = `<div class="print-hdr">
+    <h1>🏆 Bekertoernooi — De Kaale Bull</h1>
+    <div class="sub">Seizoen ${escapeHtml(SEIZOEN)} · stand op ${datumTxt}</div>
+  </div>`;
+
+  if(state.kampioenWR || state.kampioenVR){
+    html += '<div class="print-champs">';
+    if(state.kampioenWR) html += `<div>🏆 <strong>Bekerwinnaar:</strong> ${escapeHtml(state.kampioenWR)}</div>`;
+    if(state.kampioenVR) html += `<div>🥈 <strong>Winnaar verliezersronde:</strong> ${escapeHtml(state.kampioenVR)}</div>`;
+    html += '</div>';
+  }
+
+  FASE_VOLGORDE.forEach(faseId=>{
+    const fase = state.fases[faseId];
+    if(!fase) return;
+    const meta = FASES[faseId];
+    const statusTxt = fase.afgerond ? 'afgerond' : 'bezig';
+    html += `<div class="print-fase"><h2>${escapeHtml(meta.label)} — ${statusTxt}</h2>`;
+    if(fase.matches.length){
+      html += fase.matches.map(pdfMatchRow).join('');
+    } else {
+      html += '<div class="print-bye">Alle spelers hadden een bye deze ronde.</div>';
+    }
+    if(fase.bye && fase.bye.length){
+      html += `<div class="print-bye">➕ Bye door naar de volgende fase: ${fase.bye.map(escapeHtml).join(', ')}</div>`;
+    }
+    html += '</div>';
+  });
+
+  view.innerHTML = html;
+  window.print();
 }
 
 async function resetToernooi(){
@@ -339,13 +432,10 @@ function berekenVolgendeFases(){
     state.fases.wr2 = { matches, afgerond:false };
   }
 
-  // VR2: de 10 (of x) verliezers van ronde1 spelen meteen onderling
-  if(state.fases.ronde1 && state.fases.ronde1.afgerond && !state.fases.vr2){
-    const verliezers = state.fases.ronde1.matches.map(m => m.winnaar===m.a ? m.b : m.a);
-    const matches = pairUp(verliezers);
-    matches.forEach((m,i)=>{ m.nr=i+1; m._tak='verliezersronde'; });
-    state.fases.vr2 = { matches, afgerond:false };
-  }
+  // VR2, vr3_tussen (x>0), vr3, wr3 en de generieke halvering worden niet meer
+  // hier automatisch gegenereerd — die lotingen gebeuren nu via het rad in
+  // bekerloting.html. Zie bepaalTeLoten() hieronder, die detecteert wanneer een
+  // volgende fase klaar is om geloot te worden.
 
   // Onthoud wie er in ronde1 heeft gewonnen (nodig om te bepalen wie bij
   // verlies in WR2 nog naar de verliezersronde mag — alleen wie nog geen
@@ -364,47 +454,9 @@ function berekenVolgendeFases(){
     const x = pool.length - doel;
     if(x === 0){
       state.fases.vr3_tussen = { matches:[], bye:pool, afgerond:true, doorgestroomd:pool };
-    } else {
-      const shuffled = shuffle(pool);
-      const spelen = shuffled.slice(0, x*2);
-      const bye = shuffled.slice(x*2);
-      const matches = pairUp(spelen);
-      matches.forEach((m,i)=>{ m.nr=i+1; m._tak='verliezersronde'; });
-      state.fases.vr3_tussen = { matches, bye, afgerond: x===0 };
     }
+    // x > 0: geen auto-generatie meer — dit wordt een loting via het rad.
   }
-
-  // VR3: klaar zodra de tussenronde afgerond is
-  if(state.fases.vr3_tussen && state.fases.vr3_tussen.afgerond && !state.fases.vr3){
-    const tussenWinnaars = state.fases.vr3_tussen.matches.map(m=>m.winnaar);
-    const pool = [...tussenWinnaars, ...state.fases.vr3_tussen.bye];
-    const matches = pairUp(pool);
-    matches.forEach((m,i)=>{ m.nr=i+1; m._tak='verliezersronde'; });
-    state.fases.vr3 = { matches, afgerond:false };
-  }
-
-  // WR3: klaar zodra WR2 afgerond is (altijd precies 16 winnaars, geen tussenronde nodig)
-  if(state.fases.wr2 && state.fases.wr2.afgerond && !state.fases.wr3){
-    const winnaars = state.fases.wr2.matches.map(m=>m.winnaar);
-    const matches = pairUp(winnaars);
-    matches.forEach((m,i)=>{ m.nr=i+1; m._tak='winnaarsronde'; });
-    state.fases.wr3 = { matches, afgerond:false };
-  }
-
-  // Generieke halvering voor alle overige fases (kwart, halve finale, finale — beide takken)
-  const generiek = [
-    ['wr3','wr_kwart','winnaarsronde'], ['vr3','vr_kwart','verliezersronde'],
-    ['wr_kwart','wr_halve','winnaarsronde'], ['vr_kwart','vr_halve','verliezersronde'],
-    ['wr_halve','wr_finale','winnaarsronde'], ['vr_halve','vr_finale','verliezersronde'],
-  ];
-  generiek.forEach(([van,naar,tak])=>{
-    if(state.fases[van] && state.fases[van].afgerond && !state.fases[naar]){
-      const winnaars = state.fases[van].matches.map(m=>m.winnaar);
-      const matches = pairUp(winnaars);
-      matches.forEach((m,i)=>{ m.nr=i+1; m._tak=tak; });
-      state.fases[naar] = { matches, afgerond:false };
-    }
-  });
 
   // Kampioenen
   if(state.fases.wr_finale && state.fases.wr_finale.afgerond && !state.kampioenWR){
@@ -413,6 +465,61 @@ function berekenVolgendeFases(){
   if(state.fases.vr_finale && state.fases.vr_finale.afgerond && !state.kampioenVR){
     state.kampioenVR = state.fases.vr_finale.matches[0].winnaar;
   }
+}
+
+// Bepaalt welke fase nu klaar is om geloot te worden via het rad (bekerloting.html),
+// of null als er op dit moment niets te loten valt. Spiegelt exact dezelfde
+// afhankelijkheids-checks die vroeger in berekenVolgendeFases() automatisch
+// genereerden — maar geeft nu alleen een beschrijving terug i.p.v. te genereren.
+function bepaalTeLoten(state){
+  if(!state || !state.fases || !state.fases.ronde1){
+    return { type:'ronde1' };
+  }
+  const fases = state.fases;
+  const ronde1Winnaars = new Set(fases.ronde1.matches.map(m=>m.winnaar));
+
+  if(fases.ronde1.afgerond && !fases.vr2){
+    const verliezers = fases.ronde1.matches.map(m => m.winnaar===m.a ? m.b : m.a);
+    return { type:'fase', faseId:'vr2', pool:verliezers };
+  }
+
+  if(fases.wr2 && fases.wr2.afgerond && fases.vr2 && fases.vr2.afgerond && !fases.vr3_tussen){
+    const vr2Winnaars = fases.vr2.matches.map(m=>m.winnaar);
+    const wr2Doorstromers = fases.wr2.matches
+      .map(m => m.winnaar===m.a ? m.b : m.a)
+      .filter(verliezer => !ronde1Winnaars.has(verliezer));
+    const pool = [...vr2Winnaars, ...wr2Doorstromers];
+    const doel = powerOf2LE(pool.length);
+    const x = pool.length - doel;
+    if(x > 0){
+      return { type:'tussenronde', faseId:'vr3_tussen', pool, x };
+    }
+    // x === 0: geen loting nodig, bekertoernooi.html vult dit automatisch
+  }
+
+  if(fases.vr3_tussen && fases.vr3_tussen.afgerond && !fases.vr3){
+    const pool = [...fases.vr3_tussen.matches.map(m=>m.winnaar), ...(fases.vr3_tussen.bye||[])];
+    return { type:'fase', faseId:'vr3', pool };
+  }
+
+  if(fases.wr2 && fases.wr2.afgerond && !fases.wr3){
+    const pool = fases.wr2.matches.map(m=>m.winnaar);
+    return { type:'fase', faseId:'wr3', pool };
+  }
+
+  const generiek = [
+    ['wr3','wr_kwart'], ['vr3','vr_kwart'],
+    ['wr_kwart','wr_halve'], ['vr_kwart','vr_halve'],
+    ['wr_halve','wr_finale'], ['vr_halve','vr_finale'],
+  ];
+  for(const [van,naar] of generiek){
+    if(fases[van] && fases[van].afgerond && !fases[naar]){
+      const pool = fases[van].matches.map(m=>m.winnaar);
+      return { type:'fase', faseId:naar, pool };
+    }
+  }
+
+  return null; // niets te loten op dit moment
 }
 
 // ══════════════════════════════════════════
@@ -481,6 +588,7 @@ function roadmapHtml(){
 function render(){
   const app = document.getElementById('app');
   document.getElementById('resetToernooiBtn').style.display = state ? 'inline-block' : 'none';
+  document.getElementById('pdfBtn').style.display = state ? 'inline-block' : 'none';
   if(!state){
     app.innerHTML = `<div class="empty-state">
       <h2>🏆 Nog geen bekertoernooi gestart</h2>
@@ -497,6 +605,17 @@ function render(){
     if(state.kampioenWR) html += `<div class="icon">🏆</div><div class="lbl">Bekerwinnaar</div><div class="naam">${escapeHtml(state.kampioenWR)}</div>`;
     if(state.kampioenVR) html += `<div class="icon" style="margin-top:10px;">🥈</div><div class="lbl">Winnaar verliezersronde</div><div class="naam">${escapeHtml(state.kampioenVR)}</div>`;
     html += '</div>';
+  }
+
+  const teLoten = bepaalTeLoten(state);
+  if(teLoten){
+    const label = teLoten.type==='ronde1' ? FASES.ronde1.label : FASES[teLoten.faseId].label;
+    const aantal = teLoten.type==='ronde1' ? '' : ` (${teLoten.pool.length} spelers)`;
+    html += `<div class="card" style="border-color:var(--orange);">
+      <h2>🎡 Klaar om te loten: ${escapeHtml(label)}${aantal}</h2>
+      <div class="desc">Deze loting gebeurt via het rad van namen, niet automatisch hier.</div>
+      <a class="link-btn" href="bekerloting.html">🎡 Ga naar de bekerloting</a>
+    </div>`;
   }
 
   FASE_VOLGORDE.forEach(faseId=>{
