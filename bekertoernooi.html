@@ -72,7 +72,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
 .empty-state h2{color:var(--text);margin-bottom:10px;}
 .empty-state p{font-size:0.85rem;max-width:420px;margin:0 auto 20px;line-height:1.5;}
-.link-btn{display:inline-block;text-decoration:none;background:var(--orange);color:#241a04;border:none;border-radius:8px;padding:9px 16px;font-size:0.85rem;font-weight:700;}
+.link-btn{display:inline-block;text-decoration:none;background:var(--orange);color:#241a04;border:none;border-radius:8px;padding:9px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;}
+#resetToernooiBtn{background:var(--red);color:#fff0f0;}
+#resetToernooiBtn:hover{background:var(--red-bright,#c23a4e);}
 .link-btn:hover{background:var(--gold-bright);}
 
 .roadmap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;}
@@ -103,6 +105,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <h1>🏆 Bekertoernooi <span class="sub" id="seizoenLbl"></span></h1>
   <div class="topbar-actions">
     <label class="toggle-row"><input type="checkbox" id="syncToggle"> Wedstrijden wegschrijven naar planning</label>
+    <button type="button" class="link-btn" id="resetToernooiBtn" style="display:none;">↺ Toernooi resetten</button>
   </div>
 </div>
 
@@ -196,6 +199,18 @@ async function init(){
     state.syncEnabled = e.target.checked;
     bewaarState();
   });
+  document.getElementById('resetToernooiBtn').addEventListener('click', resetToernooi);
+  render();
+}
+
+async function resetToernooi(){
+  if(!window.confirm('Weet je zeker dat je het hele bekertoernooi wilt resetten? Alle geloot wedstrijden, ingevoerde scores en de voortgang gaan verloren. De loting moet dan opnieuw via het rad.')) return;
+  try{
+    await fetch(`${SB_URL}/rest/v1/beker_toernooi?id=eq.${encodeURIComponent(SEIZOEN)}`, { method:'DELETE', headers:HDR });
+  }catch(e){ toast('Kon toernooi niet resetten: '+e.message,'red'); return; }
+  state = null;
+  document.getElementById('syncToggle').checked = false;
+  toast('Toernooi gereset — start een nieuwe loting via het rad.');
   render();
 }
 
@@ -465,6 +480,7 @@ function roadmapHtml(){
 
 function render(){
   const app = document.getElementById('app');
+  document.getElementById('resetToernooiBtn').style.display = state ? 'inline-block' : 'none';
   if(!state){
     app.innerHTML = `<div class="empty-state">
       <h2>🏆 Nog geen bekertoernooi gestart</h2>
