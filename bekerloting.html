@@ -675,21 +675,23 @@
 
       <p class="panel-sublabel">Ronde 1 is altijd Best of 5.</p>
 
-      <hr class="panel-divider">
-
-      <p class="panel-label">Namen aanpassen</p>
-      <textarea id="namesTextarea" spellcheck="false"></textarea>
-      <div class="editor-actions">
-        <button class="apply-btn" id="applyNamesBtn" type="button">Toepassen &amp; opnieuw beginnen</button>
-        <button class="cancel-btn" id="cancelNamesBtn" type="button">Annuleren</button>
+      <div id="namesEditSection">
+        <hr class="panel-divider">
+        <p class="panel-label">Namen aanpassen</p>
+        <textarea id="namesTextarea" spellcheck="false"></textarea>
+        <div class="editor-actions">
+          <button class="apply-btn" id="applyNamesBtn" type="button">Toepassen &amp; opnieuw beginnen</button>
+          <button class="cancel-btn" id="cancelNamesBtn" type="button">Annuleren</button>
+        </div>
       </div>
+      <p class="panel-sublabel" id="namesLockedNote" style="display:none;">Bij deze loting ligt de spelerspool al vast op basis van de uitslagen — namen aanpassen kan alleen bij de ronde-1-loting.</p>
     </div>
   </details>
 </div>
 
 <div class="wrap">
   <header>
-    <p class="eyebrow">De Kaale Bull &middot; Bekercompetitie</p>
+    <p class="eyebrow" id="eyebrowText">De Kaale Bull &middot; Bekercompetitie</p>
     <h1>Bekerloting</h1>
   </header>
 
@@ -710,20 +712,21 @@
 
     <section class="done-panel" id="donePanel" style="display:none;">
       <div class="done-badge" aria-hidden="true">&#10003;</div>
-      <h2>Loting compleet</h2>
-      <p>Alle ronde-1-wedstrijden en de bye-verdeling staan vast. Hiernaast het volledige overzicht.</p>
+      <h2 id="donePanelHeading">Loting compleet</h2>
+      <p id="donePanelDesc">Alle ronde-1-wedstrijden en de bye-verdeling staan vast. Hiernaast het volledige overzicht.</p>
+      <a class="ghost-btn" id="donePanelCta" href="bekertoernooi.html" style="text-decoration:none;">🏆 Naar het bekertoernooi &rarr;</a>
       <button class="ghost-btn" id="resetBtn2" type="button">Opnieuw beginnen</button>
     </section>
 
     <aside class="side">
       <div class="card matches-card">
-        <h2>Ronde 1 <span class="count-pill" id="matchCountPill">0 wedstrijden</span></h2>
+        <h2><span id="matchesCardTitle">Ronde 1</span> <span class="count-pill" id="matchCountPill">0 wedstrijden</span></h2>
         <ul class="matches" id="matchesList"></ul>
         <p class="empty-note" id="emptyNote">Nog geen wedstrijden geloot. Draai het rad om te beginnen.</p>
       </div>
 
       <div class="card bye-card" id="byeCard" style="display:none;">
-        <h2>Bye — direct naar ronde 2 <span class="count-pill" id="byeCountPill">0</span></h2>
+        <h2><span id="byeCardTitle">Bye — direct naar ronde 2</span> <span class="count-pill" id="byeCountPill">0</span></h2>
         <div class="remaining-list" id="byeList"></div>
       </div>
 
@@ -740,6 +743,13 @@
     <ul class="matches" id="wr2PrepList"></ul>
     <a class="apply-btn" id="naarToernooiBtn" href="bekertoernooi.html" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;margin-top:1.4vh;text-align:center;">🏆 Naar het bekertoernooi &rarr;</a>
   </div>
+
+  <section class="done-panel" id="geenLotingPanel" style="display:none; max-width:640px; margin:4vh auto 0;">
+    <div class="done-badge" aria-hidden="true">&#9733;</div>
+    <h2 id="geenLotingHeading">Niets te loten op dit moment</h2>
+    <p id="geenLotingDesc"></p>
+    <a class="ghost-btn" href="bekertoernooi.html" style="text-decoration:none;">🏆 Naar het bekertoernooi &rarr;</a>
+  </section>
 </div>
 
 <div class="reveal-overlay" id="revealOverlay" aria-live="polite">
@@ -763,7 +773,7 @@
     "Winston van de Graaf"
   ];
 
-  var STORAGE_KEY = "kaalebull-bekerloting-v1";
+  var STORAGE_KEY_BASE = "kaalebull-bekerloting-v1";
 
   // ── Supabase (zelfde project/anon key als index.html) ──
   var SB_URL = "https://ctxurzqtglckairgbjno.supabase.co";
@@ -771,6 +781,79 @@
   var SB_HDR = { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json", "Prefer": "return=representation" };
   // Zelfde seizoen-sleutel als bekertoernooi.html gebruikt voor de rij in beker_toernooi.
   var SEIZOEN = "2026-2027";
+
+  // Vaste bracket-structuur — identiek aan bekertoernooi.html (byte-identiek object).
+  var FASES = {
+    ronde1:        { label:'Ronde 1',                tak:'gemengd',       bo:5 },
+    wr2:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
+    vr2:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['ronde1'] },
+    vr3_tussen:    { label:'Verliezersronde — tussenronde', tak:'verliezersronde', bo:5, dependsOn:['wr2','vr2'] },
+    vr3:           { label:'Verliezersronde 3',       tak:'verliezersronde',bo:5, dependsOn:['vr3_tussen'] },
+    wr3:           { label:'Winnaarsronde 3',         tak:'winnaarsronde', bo:5, dependsOn:['wr2'] },
+    wr_kwart:      { label:'Winnaarsronde — kwartfinale', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
+    vr_kwart:      { label:'Verliezersronde — kwartfinale', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
+    wr_halve:      { label:'Winnaarsronde — halve finale', tak:'winnaarsronde', bo:7, dependsOn:['wr_kwart'] },
+    vr_halve:      { label:'Verliezersronde — halve finale', tak:'verliezersronde', bo:7, dependsOn:['vr_kwart'] },
+    wr_finale:     { label:'Winnaarsronde — FINALE',  tak:'winnaarsronde', bo:9, dependsOn:['wr_halve'] },
+    vr_finale:     { label:'Verliezersronde — FINALE',tak:'verliezersronde',bo:9, dependsOn:['vr_halve'] },
+  };
+  var FASE_VOLGORDE = ['ronde1','wr2','vr2','vr3_tussen','vr3','wr3','wr_kwart','vr_kwart','wr_halve','vr_halve','wr_finale','vr_finale'];
+
+  // Bepaalt welke fase nu klaar is om geloot te worden, op basis van de laatst
+  // bekende toernooi-staat uit Supabase. Identiek aan bepaalTeLoten() in
+  // bekertoernooi.html.
+  function bepaalTeLoten(toernooiState){
+    if(!toernooiState || !toernooiState.fases || !toernooiState.fases.ronde1){
+      return { type:'ronde1' };
+    }
+    var fases = toernooiState.fases;
+    var ronde1Winnaars = {};
+    fases.ronde1.matches.forEach(function(m){ ronde1Winnaars[m.winnaar] = true; });
+
+    if(fases.ronde1.afgerond && !fases.vr2){
+      var verliezers = fases.ronde1.matches.map(function(m){ return m.winnaar===m.a ? m.b : m.a; });
+      return { type:'fase', faseId:'vr2', pool:verliezers };
+    }
+
+    if(fases.wr2 && fases.wr2.afgerond && fases.vr2 && fases.vr2.afgerond && !fases.vr3_tussen){
+      var vr2Winnaars = fases.vr2.matches.map(function(m){ return m.winnaar; });
+      var wr2Doorstromers = fases.wr2.matches
+        .map(function(m){ return m.winnaar===m.a ? m.b : m.a; })
+        .filter(function(verliezer){ return !ronde1Winnaars[verliezer]; });
+      var pool = vr2Winnaars.concat(wr2Doorstromers);
+      var doel = powerOf2LE(pool.length);
+      var x = pool.length - doel;
+      if(x > 0){
+        return { type:'tussenronde', faseId:'vr3_tussen', pool:pool, x:x };
+      }
+      // x === 0: geen loting nodig, bekertoernooi.html vult dit automatisch
+    }
+
+    if(fases.vr3_tussen && fases.vr3_tussen.afgerond && !fases.vr3){
+      var poolVr3 = fases.vr3_tussen.matches.map(function(m){ return m.winnaar; }).concat(fases.vr3_tussen.bye || []);
+      return { type:'fase', faseId:'vr3', pool:poolVr3 };
+    }
+
+    if(fases.wr2 && fases.wr2.afgerond && !fases.wr3){
+      var poolWr3 = fases.wr2.matches.map(function(m){ return m.winnaar; });
+      return { type:'fase', faseId:'wr3', pool:poolWr3 };
+    }
+
+    var generiek = [
+      ['wr3','wr_kwart'], ['vr3','vr_kwart'],
+      ['wr_kwart','wr_halve'], ['vr_kwart','vr_halve'],
+      ['wr_halve','wr_finale'], ['vr_halve','vr_finale'],
+    ];
+    for(var i = 0; i < generiek.length; i++){
+      var van = generiek[i][0], naar = generiek[i][1];
+      if(fases[van] && fases[van].afgerond && !fases[naar]){
+        var poolGeneriek = fases[van].matches.map(function(m){ return m.winnaar; });
+        return { type:'fase', faseId:naar, pool:poolGeneriek };
+      }
+    }
+
+    return null; // niets te loten op dit moment
+  }
 
   async function postWedstrijd(thuis, uit, divisie){
     var body = [{
@@ -811,14 +894,28 @@
     for(var i = 0; i < s.length; i += 2) matches.push({ a: s[i], b: s[i + 1], winnaar: null, sync: null });
     return matches;
   }
-  // Berekent hoeveel bye-spelers en ronde1-wedstrijden er horen bij het aantal
-  // deelnemers (bv. 42 spelers -> 22 bye's, 10 wedstrijden).
+  // De doelen (hoeveel bye's, hoeveel wedstrijden) worden bij het starten van
+  // een loting vastgelegd op state.byeTarget/state.matchesTarget — deze
+  // functie leest ze alleen terug, zodat elke plek die vroeger computeTargets()
+  // aanriep blijft werken, voor elk type loting (ronde1, fase, tussenronde).
   function computeTargets(){
-    var totaal = state.baseNames.length;
-    var target = powerOf2LE(totaal);
-    var matchesTarget = totaal - target;
-    var byeTarget = totaal - matchesTarget * 2;
-    return { matchesTarget: matchesTarget, byeTarget: byeTarget };
+    return { matchesTarget: state.matchesTarget, byeTarget: state.byeTarget };
+  }
+  // Berekent de doelen voor een gegeven namenpool en faseType. Voor 'ronde1'
+  // (en als generieke fallback bij het handmatig aanpassen van namen) wordt de
+  // powerOf2LE-methode gebruikt; voor 'fase' is er geen bye-fase (byeTarget 0);
+  // voor 'tussenronde' wordt x opnieuw afgeleid uit de poolgrootte.
+  function computeTargetsForFaseType(namen, faseType){
+    if(faseType === "fase"){
+      return { byeTarget: 0, matchesTarget: namen.length / 2 };
+    }
+    var doel = powerOf2LE(namen.length);
+    var x = namen.length - doel;
+    if(faseType === "tussenronde"){
+      return { byeTarget: namen.length - x * 2, matchesTarget: x };
+    }
+    // ronde1
+    return { byeTarget: namen.length - x * 2, matchesTarget: x };
   }
 
   var svg = document.getElementById("wheelSvg");
@@ -850,6 +947,8 @@
   var wr2PrepList = document.getElementById("wr2PrepList");
 
   var state = {
+    faseId: "ronde1",
+    faseType: "ronde1",
     baseNames: DEFAULT_NAMES.slice(),
     remaining: DEFAULT_NAMES.slice(),
     pending: null,
@@ -858,17 +957,27 @@
     rotation: 0,
     syncEnabled: false,
     afgerond: false,
-    wr2Prep: null
+    wr2Prep: null,
+    byeTarget: 0,
+    matchesTarget: 0
   };
 
+  function storageKeyFor(faseId){
+    return STORAGE_KEY_BASE + ":" + faseId;
+  }
+
   // Geeft true terug als er al een lopende/afgeronde loting in localStorage stond
-  // (dan wordt er verder gegaan i.p.v. de live spelerslijst opnieuw op te halen).
-  function loadState(){
+  // voor deze specifieke fase (dan wordt er verder gegaan i.p.v. een nieuwe pool
+  // op te halen). Elke fase heeft zijn eigen storage-sleutel zodat een lopende
+  // ronde1-loting en een lopende vr2-loting (weken later) elkaar nooit overschrijven.
+  function loadState(faseId){
     try{
-      var raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(storageKeyFor(faseId));
       if(!raw) return false;
       var saved = JSON.parse(raw);
       if(saved && Array.isArray(saved.baseNames) && saved.baseNames.length){
+        state.faseId = faseId;
+        state.faseType = saved.faseType || (faseId === "ronde1" ? "ronde1" : "fase");
         state.baseNames = saved.baseNames;
         state.remaining = Array.isArray(saved.remaining) ? saved.remaining : saved.baseNames.slice();
         state.pending = saved.pending || null;
@@ -878,6 +987,8 @@
         state.syncEnabled = !!saved.syncEnabled;
         state.afgerond = !!saved.afgerond;
         state.wr2Prep = saved.wr2Prep || null;
+        state.byeTarget = typeof saved.byeTarget === "number" ? saved.byeTarget : 0;
+        state.matchesTarget = typeof saved.matchesTarget === "number" ? saved.matchesTarget : 0;
         return true;
       }
     }catch(e){ /* localStorage unavailable, use defaults */ }
@@ -886,7 +997,7 @@
 
   function saveState(){
     try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(storageKeyFor(state.faseId), JSON.stringify(state));
     }catch(e){ /* ignore */ }
   }
 
@@ -1195,7 +1306,10 @@
         saveState();
         renderMatches();
 
-        if(newMatchIndex >= 0 && state.syncEnabled){
+        // Ronde 1 schrijft elke wedstrijd meteen individueel weg tijdens het
+        // trekken; andere fases synchroniseren pas in bulk zodra de hele
+        // loting van die fase klaar is (zie voltooiFaseLoting()).
+        if(newMatchIndex >= 0 && state.syncEnabled && state.faseId === "ronde1"){
           syncMatch(state.matches[newMatchIndex], newMatchIndex);
         }
       }
@@ -1205,7 +1319,11 @@
       var doneTargets = computeTargets();
       if(!state.afgerond && state.bye.length === doneTargets.byeTarget && state.remaining.length === 0 &&
          !state.pending && state.matches.length === doneTargets.matchesTarget){
-        await voltooiRonde1();
+        if(state.faseId === "ronde1"){
+          await voltooiRonde1();
+        } else {
+          await voltooiFaseLoting();
+        }
       }
     }
     svg.addEventListener("transitionend", onDone);
@@ -1284,7 +1402,72 @@
     updateStatus();
   }
 
-  function resetDraw(keepNames){
+  // Voltooit een loting voor elke fase NA ronde 1 (vr2, vr3_tussen, vr3, wr3,
+  // de kwart-/halve finales en de finales). Anders dan voltooiRonde1() is er
+  // hier geen WR2-voorbereiding — de getrokken paren zijn de complete fase.
+  // Bij een tussenronde (bv. vr3_tussen) worden de bye-spelers gewoon
+  // meegestuurd als state.fases[faseId].bye.
+  async function voltooiFaseLoting(){
+    if(state.afgerond) return;
+    var targets = computeTargets();
+    if(!(state.bye.length === targets.byeTarget && state.remaining.length === 0 &&
+         !state.pending && state.matches.length === targets.matchesTarget)) return;
+
+    var fase = FASES[state.faseId];
+    var divisie = "Beker " + fase.tak + " (Bo" + fase.bo + ")";
+
+    if(state.syncEnabled){
+      for(var i = 0; i < state.matches.length; i++){
+        var m = state.matches[i];
+        try{
+          var rows = await postWedstrijd(m.home, m.away, divisie);
+          m.sync = "ok";
+          if(rows && rows[0]) m._wedstrijdId = rows[0].id;
+        }catch(e){
+          m.sync = "error";
+        }
+      }
+      saveState();
+      renderMatches();
+    }
+
+    var toernooiMatches = state.matches.map(function(m, i){
+      var obj = { a: m.home, b: m.away, winnaar: null, nr: i + 1, sync: m.sync || null, _tak: fase.tak };
+      if(m._wedstrijdId !== undefined) obj._wedstrijdId = m._wedstrijdId;
+      return obj;
+    });
+
+    try{
+      var res = await fetch(SB_URL + "/rest/v1/beker_toernooi?id=eq." + encodeURIComponent(SEIZOEN), { headers: SB_HDR });
+      var rows2 = res.ok ? await res.json() : [];
+      var toernooiState = rows2.length ? rows2[0].staat : null;
+      if(!toernooiState){
+        toernooiState = { spelers: state.baseNames, syncEnabled: state.syncEnabled, kampioenWR: null, kampioenVR: null, fases: {} };
+      }
+      toernooiState.fases = toernooiState.fases || {};
+      var faseObj = { matches: toernooiMatches, afgerond: false };
+      if(state.faseType === "tussenronde") faseObj.bye = state.bye.slice();
+      toernooiState.fases[state.faseId] = faseObj;
+
+      var hdr = {};
+      for(var k in SB_HDR){ hdr[k] = SB_HDR[k]; }
+      hdr["Prefer"] = "resolution=merge-duplicates,return=representation";
+      await fetch(SB_URL + "/rest/v1/beker_toernooi", {
+        method: "POST",
+        headers: hdr,
+        body: JSON.stringify([{ id: SEIZOEN, seizoen: SEIZOEN, staat: toernooiState }])
+      });
+    }catch(e){ /* blijft lokaal afgerond staan; kan later handmatig opnieuw geprobeerd worden */ }
+
+    state.afgerond = true;
+    saveState();
+    updateStatus();
+  }
+
+  function resetDraw(){
+    var t = computeTargetsForFaseType(state.baseNames, state.faseType);
+    state.byeTarget = t.byeTarget;
+    state.matchesTarget = t.matchesTarget;
     state.remaining = state.baseNames.slice();
     state.pending = null;
     state.matches = [];
@@ -1339,27 +1522,128 @@
     saveState();
   });
 
-  // Bij het opstarten: als er al een loting bezig/afgerond is (localStorage),
-  // daarmee verdergaan. Anders de live spelerslijst uit Supabase ophalen zodat
-  // de loting altijd met de actuele ledenlijst start i.p.v. de hardcoded lijst.
-  async function boot(){
-    var hadSaved = loadState();
-    if(!hadSaved){
-      try{
-        var res = await fetch(SB_URL + "/rest/v1/spelers?select=naam&order=naam.asc", { headers: SB_HDR });
-        if(!res.ok) throw new Error(await res.text());
-        var rows = await res.json();
-        var namen = rows.map(function(r){ return r.naam; }).filter(function(n){
-          return n && n.trim().toLowerCase() !== "vrijwillige schrijver";
-        });
-        if(namen.length >= 2){
-          state.baseNames = namen;
-          state.remaining = namen.slice();
-        }
-      }catch(e){ /* val terug op de standaardlijst als de spelerslijst niet geladen kan worden */ }
+  // Zet de titel/kopjes op de pagina om zodat ze bij de fase passen die op dit
+  // moment geloot wordt (relevant voor alles na ronde 1).
+  function updateFaseUiLabels(){
+    var fase = FASES[state.faseId];
+    var eyebrowEl = document.getElementById("eyebrowText");
+    if(eyebrowEl){
+      eyebrowEl.textContent = state.faseId === "ronde1"
+        ? "De Kaale Bull · Bekercompetitie"
+        : "De Kaale Bull · Bekercompetitie — " + fase.label;
     }
+    var matchesTitleEl = document.getElementById("matchesCardTitle");
+    if(matchesTitleEl) matchesTitleEl.textContent = fase.label;
+    var byeTitleEl = document.getElementById("byeCardTitle");
+    if(byeTitleEl){
+      byeTitleEl.textContent = state.faseId === "ronde1"
+        ? "Bye — direct naar ronde 2"
+        : "Bye — automatisch door naar de volgende ronde";
+    }
+    var doneH2 = document.getElementById("donePanelHeading");
+    var doneP = document.getElementById("donePanelDesc");
+    if(doneH2) doneH2.textContent = "Loting compleet — " + fase.label;
+    if(doneP){
+      doneP.textContent = state.faseId === "ronde1"
+        ? "Alle ronde-1-wedstrijden en de bye-verdeling staan vast. Hiernaast het volledige overzicht."
+        : "Alle wedstrijden voor " + fase.label + " staan vast. Hiernaast het overzicht.";
+    }
+    // Namen handmatig aanpassen kan alleen bij de allereerste (ronde-1-)loting.
+    // Bij elke latere loting ligt de spelerspool al vast op basis van de
+    // daadwerkelijke uitslagen, dus dat bewerkveld zou daar alleen maar
+    // verwarring/foute data kunnen opleveren.
+    var namesSection = document.getElementById("namesEditSection");
+    var namesLockedNote = document.getElementById("namesLockedNote");
+    var isRonde1 = state.faseId === "ronde1";
+    if(namesSection) namesSection.style.display = isRonde1 ? "" : "none";
+    if(namesLockedNote) namesLockedNote.style.display = isRonde1 ? "none" : "block";
+  }
+
+  // Toont de "niets te doen"-toestand (geen wiel) wanneer bepaalTeLoten() null
+  // teruggeeft: ofwel is het hele toernooi afgerond, ofwel wacht alles nog op
+  // ingevoerde scores van de op dit moment openstaande fase.
+  function showGeenLotingState(toernooiState){
+    document.getElementById("board").style.display = "none";
+    var panel = document.getElementById("geenLotingPanel");
+    var heading = document.getElementById("geenLotingHeading");
+    var desc = document.getElementById("geenLotingDesc");
+    var afgerond = !!(toernooiState && toernooiState.kampioenWR && toernooiState.kampioenVR);
+    if(afgerond){
+      heading.textContent = "🏆 Het bekertoernooi is helemaal afgerond!";
+      desc.textContent = "Bekerwinnaar: " + toernooiState.kampioenWR + " · Winnaar verliezersronde: " + toernooiState.kampioenVR;
+    } else {
+      heading.textContent = "Niets te loten op dit moment";
+      desc.textContent = "Alle mogelijke lotingen zijn al gedaan — wacht tot de openstaande wedstrijden zijn ingevoerd op de bekertoernooi-pagina.";
+    }
+    panel.style.display = "flex";
+    spinBtn.disabled = true;
+  }
+
+  // Bij het opstarten: eerst ophalen welke fase (indien enige) nu klaar is om
+  // geloot te worden, op basis van de actuele beker_toernooi-staat. Voor
+  // ronde 1 blijft de bestaande flow (live spelerslijst ophalen, tenzij een
+  // loting al lokaal bezig is) volledig ongewijzigd. Voor elke andere fase
+  // wordt de pool die bepaalTeLoten() teruggeeft gebruikt als startpunt.
+  async function boot(){
+    var toernooiState = null;
+    try{
+      var tRes = await fetch(SB_URL + "/rest/v1/beker_toernooi?id=eq." + encodeURIComponent(SEIZOEN), { headers: SB_HDR });
+      if(tRes.ok){
+        var tRows = await tRes.json();
+        if(tRows.length) toernooiState = tRows[0].staat;
+      }
+    }catch(e){ /* geen toegang of nog geen rij: behandel als "nog niets" */ }
+
+    var teLoten = bepaalTeLoten(toernooiState);
+
+    if(teLoten === null){
+      showGeenLotingState(toernooiState);
+      return;
+    }
+
+    if(teLoten.type === "ronde1"){
+      state.faseId = "ronde1";
+      state.faseType = "ronde1";
+      var hadSaved = loadState("ronde1");
+      if(!hadSaved){
+        try{
+          var res = await fetch(SB_URL + "/rest/v1/spelers?select=naam&order=naam.asc", { headers: SB_HDR });
+          if(!res.ok) throw new Error(await res.text());
+          var rows = await res.json();
+          var namen = rows.map(function(r){ return r.naam; }).filter(function(n){
+            return n && n.trim().toLowerCase() !== "vrijwillige schrijver";
+          });
+          if(namen.length >= 2){
+            state.baseNames = namen;
+            state.remaining = namen.slice();
+          }
+        }catch(e){ /* val terug op de standaardlijst als de spelerslijst niet geladen kan worden */ }
+        var t1 = computeTargetsForFaseType(state.baseNames, "ronde1");
+        state.byeTarget = t1.byeTarget;
+        state.matchesTarget = t1.matchesTarget;
+      }
+    } else {
+      // 'fase' of 'tussenronde'
+      state.faseId = teLoten.faseId;
+      state.faseType = teLoten.type;
+      var hadSaved2 = loadState(teLoten.faseId);
+      if(!hadSaved2){
+        state.baseNames = teLoten.pool.slice();
+        state.remaining = teLoten.pool.slice();
+        if(teLoten.type === "fase"){
+          state.byeTarget = 0;
+          state.matchesTarget = teLoten.pool.length / 2;
+        } else {
+          // tussenronde
+          state.byeTarget = teLoten.pool.length - teLoten.x * 2;
+          state.matchesTarget = teLoten.x;
+        }
+      }
+    }
+
     namesTextarea.value = state.baseNames.join("\n");
     syncToggle.checked = state.syncEnabled;
+    updateFaseUiLabels();
     renderAll();
   }
 
