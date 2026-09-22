@@ -99,9 +99,63 @@
     .board{ grid-template-columns: 1fr; }
   }
 
-  .board.is-done{ grid-template-columns: minmax(220px, 0.4fr) minmax(0, 1.6fr); }
+  /* Eén regel wanneer een loting compleet is: geen aparte grote kaart meer
+     (die zorgde met de andere kant voor dubbele/overlappende knoppen), gewoon
+     een compacte statusregel boven de wedstrijden. */
+  .board.is-done{ grid-template-columns: 1fr; flex: 0 0 auto; }
+  .board.is-done .matches-card{ flex: 0 0 auto; }
+  .board.is-done .matches-card .matches{ flex: 0 0 auto; overflow-y: visible; }
+  body.is-done{ overflow: auto; }
+  .wrap.is-done{ height: auto; min-height: 100%; }
+  /* Met de hele pagina scrollbaar hoeft dit blok niet meer zijn eigen interne
+     scrollbalk te forceren — dat gaf een onnodige dubbele scroll-ervaring. */
+  .board.is-done ~ .wr2-prep-card{ max-height: none; }
 
+  .done-line{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:center;
+    gap: 0.5em 1em;
+    background: linear-gradient(180deg, var(--surface), var(--bg-deep));
+    border: 1px solid var(--gold);
+    border-radius: 999px;
+    padding: 1vh 1.6vw;
+    margin-bottom: 1.8vh;
+    font-family:"Oswald", sans-serif;
+    font-size: clamp(13px, 1.05vw, 19px);
+    color: var(--ink);
+    text-align:center;
+  }
+  .done-line-check{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width: 1.6em; height: 1.6em;
+    border-radius:50%;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: var(--bg-deep);
+    font-weight:700;
+    font-size: 0.8em;
+    flex: 0 0 auto;
+  }
+  .done-line-link{
+    background:transparent;
+    border: 1px solid var(--line);
+    color: var(--gold-bright);
+    font-family:"Work Sans", sans-serif;
+    font-size: 0.72em;
+    text-decoration:none;
+    border-radius: 999px;
+    padding: 0.5em 1.1em;
+    cursor:pointer;
+  }
+  .done-line-link:hover{ color: var(--ink); border-color: var(--gold); }
+
+  /* "Niets te loten"/"toernooi afgerond"-melding hergebruikt dit kaart-uiterlijk;
+     position:relative voorkomt dat de knop erin naar de hoek van het scherm springt. */
   .done-panel{
+    position:relative;
     background: linear-gradient(180deg, var(--surface), var(--bg-deep));
     border: 1px solid var(--gold);
     border-radius: var(--radius);
@@ -292,7 +346,6 @@
   .remaining-card{ flex: 0 0 auto; max-height: 22vh; }
   .bye-card{ flex: 0 0 auto; max-height: 22vh; }
   .wr2-prep-card{ flex: 0 0 auto; max-height: 34vh; margin-top: 1.6vh; }
-  #naarToernooiBtn:hover{ filter: brightness(1.08); }
 
   .card h2{
     font-family:"Oswald", sans-serif;
@@ -695,6 +748,13 @@
     <h1>Bekerloting</h1>
   </header>
 
+  <p class="done-line" id="doneLine" style="display:none;">
+    <span class="done-line-check" aria-hidden="true">&#10003;</span>
+    <span id="doneLineText">Loting compleet</span>
+    <a href="bekertoernooi.html" class="done-line-link" id="doneLineCta">🏆 Naar het bekertoernooi &rarr;</a>
+    <button type="button" class="done-line-link" id="resetBtnCompact">&#8630; Opnieuw beginnen</button>
+  </p>
+
   <div class="board" id="board">
     <section class="wheel-panel" id="wheelPanel">
       <div class="wheel-stage">
@@ -708,14 +768,6 @@
       <p class="status-line" id="statusLine">Klaar om te loten &mdash; <strong id="remainingCount">42</strong> namen op het rad.</p>
       <p class="complete-banner" id="completeBanner">Loting compleet! Alle wedstrijden zijn geloot.</p>
       <button class="ghost-btn" id="resetBtn" type="button">Opnieuw beginnen</button>
-    </section>
-
-    <section class="done-panel" id="donePanel" style="display:none;">
-      <div class="done-badge" aria-hidden="true">&#10003;</div>
-      <h2 id="donePanelHeading">Loting compleet</h2>
-      <p id="donePanelDesc">Alle ronde-1-wedstrijden en de bye-verdeling staan vast. Hiernaast het volledige overzicht.</p>
-      <a class="ghost-btn" id="donePanelCta" href="bekertoernooi.html" style="text-decoration:none;">🏆 Naar het bekertoernooi &rarr;</a>
-      <button class="ghost-btn" id="resetBtn2" type="button">Opnieuw beginnen</button>
     </section>
 
     <aside class="side">
@@ -741,7 +793,6 @@
     <h2>Voorbereiding ronde 2 — winnaarsronde</h2>
     <p class="empty-note" style="margin-bottom:1vh;">Deze bye-spelers spelen straks tegen elkaar of tegen de winnaar van een ronde-1-wedstrijd — zo kan geen twee ronde-1-winnaars elkaar in ronde 2 treffen.</p>
     <ul class="matches" id="wr2PrepList"></ul>
-    <a class="apply-btn" id="naarToernooiBtn" href="bekertoernooi.html" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;margin-top:1.4vh;text-align:center;">🏆 Naar het bekertoernooi &rarr;</a>
   </div>
 
   <section class="done-panel" id="geenLotingPanel" style="display:none; max-width:640px; margin:4vh auto 0;">
@@ -918,10 +969,12 @@
   var svg = document.getElementById("wheelSvg");
   var spinBtn = document.getElementById("spinBtn");
   var resetBtn = document.getElementById("resetBtn");
-  var resetBtn2 = document.getElementById("resetBtn2");
+  var resetBtnCompact = document.getElementById("resetBtnCompact");
   var boardEl = document.getElementById("board");
+  var wrapEl = document.querySelector(".wrap");
   var wheelPanel = document.getElementById("wheelPanel");
-  var donePanel = document.getElementById("donePanel");
+  var doneLine = document.getElementById("doneLine");
+  var doneLineText = document.getElementById("doneLineText");
   var statusLine = document.getElementById("statusLine");
   var remainingCountEl = document.getElementById("remainingCount");
   var remainingPill = document.getElementById("remainingPill");
@@ -1168,8 +1221,14 @@
 
     var done = state.afgerond || (byeDone && matchesDone);
     boardEl.classList.toggle("is-done", done);
+    document.body.classList.toggle("is-done", done);
+    if(wrapEl) wrapEl.classList.toggle("is-done", done);
     wheelPanel.style.display = done ? "none" : "flex";
-    donePanel.style.display = done ? "flex" : "none";
+    doneLine.style.display = done ? "flex" : "none";
+    if(done){
+      var faseVoorLabel = FASES[state.faseId];
+      if(faseVoorLabel && doneLineText) doneLineText.textContent = "Loting compleet — " + faseVoorLabel.label;
+    }
 
     // Zodra de loting compleet is, staan de bye-spelers al overzichtelijk
     // verwerkt in de ronde-2-voorbereiding hieronder (of zijn ze simpelweg klaar
@@ -1505,7 +1564,7 @@
     resetDraw();
   }
   resetBtn.addEventListener("click", confirmReset);
-  resetBtn2.addEventListener("click", confirmReset);
+  resetBtnCompact.addEventListener("click", confirmReset);
 
   applyNamesBtn.addEventListener("click", function(){
     var lines = namesTextarea.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
@@ -1546,14 +1605,8 @@
         ? "Bye — direct naar ronde 2"
         : "Bye — automatisch door naar de volgende ronde";
     }
-    var doneH2 = document.getElementById("donePanelHeading");
-    var doneP = document.getElementById("donePanelDesc");
-    if(doneH2) doneH2.textContent = "Loting compleet — " + fase.label;
-    if(doneP){
-      doneP.textContent = state.faseId === "ronde1"
-        ? "Alle ronde-1-wedstrijden en de bye-verdeling staan vast. Hiernaast het volledige overzicht."
-        : "Alle wedstrijden voor " + fase.label + " staan vast. Hiernaast het overzicht.";
-    }
+    // (De "Loting compleet"-tekst wordt gezet in updateStatus(), samen met het
+    // tonen van #doneLine, zodra de loting daadwerkelijk compleet is.)
     // Namen handmatig aanpassen kan alleen bij de allereerste (ronde-1-)loting.
     // Bij elke latere loting ligt de spelerspool al vast op basis van de
     // daadwerkelijke uitslagen, dus dat bewerkveld zou daar alleen maar
