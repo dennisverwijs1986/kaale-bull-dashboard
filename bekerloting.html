@@ -99,7 +99,7 @@
     .board{ grid-template-columns: 1fr; }
   }
 
-  .board.is-done{ grid-template-columns: minmax(240px, 0.55fr) minmax(0, 1.45fr); }
+  .board.is-done{ grid-template-columns: minmax(220px, 0.4fr) minmax(0, 1.6fr); }
 
   .done-panel{
     background: linear-gradient(180deg, var(--surface), var(--bg-deep));
@@ -730,7 +730,7 @@
         <div class="remaining-list" id="byeList"></div>
       </div>
 
-      <div class="card remaining-card">
+      <div class="card remaining-card" id="remainingCard">
         <h2>Nog op het rad <span class="count-pill" id="remainingPill">42</span></h2>
         <div class="remaining-list" id="remainingList"></div>
       </div>
@@ -929,6 +929,7 @@
   var remainingCountEl = document.getElementById("remainingCount");
   var remainingPill = document.getElementById("remainingPill");
   var remainingList = document.getElementById("remainingList");
+  var remainingCard = document.getElementById("remainingCard");
   var matchesList = document.getElementById("matchesList");
   var matchCountPill = document.getElementById("matchCountPill");
   var emptyNote = document.getElementById("emptyNote");
@@ -1172,6 +1173,14 @@
     boardEl.classList.toggle("is-done", done);
     wheelPanel.style.display = done ? "none" : "flex";
     donePanel.style.display = done ? "flex" : "none";
+
+    // Zodra de loting compleet is, staan de bye-spelers al overzichtelijk
+    // verwerkt in de ronde-2-voorbereiding hieronder (of zijn ze simpelweg klaar
+    // — "nog op het rad" is dan altijd 0). Beide kaarten nog los tonen zou de
+    // namen dubbel op het scherm zetten en gaat ten koste van de ruimte voor de
+    // daadwerkelijke ronde-1-wedstrijden, dus die verbergen we dan.
+    byeCard.style.display = done ? "none" : (state.bye.length > 0 ? "flex" : "none");
+    remainingCard.style.display = done ? "none" : "flex";
 
     if(done){
       completeBanner.classList.add("show");
