@@ -203,12 +203,17 @@ let state = null; // volledige toernooi-staat (uit Supabase)
 
 // Vaste bracket-structuur: elke fase weet hoeveel Bo, welke tak, en welke fase(s)
 // eraan vooraf moeten gaan voordat hij gegenereerd kan worden.
+// VR2 bestaat uit de 10 ronde1-verliezers ÉN de bye-spelers die hun eerste
+// wedstrijd (in WR2) verliezen (hun ene troostronde) — die pool is pas compleet
+// zodra WR2 helemaal is uitgespeeld, dus VR2 wordt pas dán geloot (niet meteen
+// na ronde1). Als die pool geen macht van 2 is, wordt binnen dezelfde VR2-loting
+// eerst een aantal bye's getrokken (net als bij ronde 1) en daarna de resterende
+// wedstrijden — dat verving de losse "tussenronde"-fase die hier eerder stond.
 const FASES = {
   ronde1:        { label:'Ronde 1',                tak:'gemengd',       bo:5 },
   wr2:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
-  vr2:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['ronde1'] },
-  vr3_tussen:    { label:'Verliezersronde — tussenronde', tak:'verliezersronde', bo:5, dependsOn:['wr2','vr2'] },
-  vr3:           { label:'Verliezersronde 3',       tak:'verliezersronde',bo:5, dependsOn:['vr3_tussen'] },
+  vr2:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
+  vr3:           { label:'Verliezersronde 3',       tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
   wr3:           { label:'Winnaarsronde 3',         tak:'winnaarsronde', bo:5, dependsOn:['wr2'] },
   wr_kwart:      { label:'Winnaarsronde — kwartfinale', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
   vr_kwart:      { label:'Verliezersronde — kwartfinale', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
@@ -217,7 +222,7 @@ const FASES = {
   wr_finale:     { label:'Winnaarsronde — FINALE',  tak:'winnaarsronde', bo:9, dependsOn:['wr_halve'] },
   vr_finale:     { label:'Verliezersronde — FINALE',tak:'verliezersronde',bo:9, dependsOn:['vr_halve'] },
 };
-const FASE_VOLGORDE = ['ronde1','wr2','vr2','vr3_tussen','vr3','wr3','wr_kwart','vr_kwart','wr_halve','vr_halve','wr_finale','vr_finale'];
+const FASE_VOLGORDE = ['ronde1','wr2','vr2','vr3','wr3','wr_kwart','vr_kwart','wr_halve','vr_halve','wr_finale','vr_finale'];
 
 async function init(){
   document.getElementById('seizoenLbl').textContent = '— seizoen ' + SEIZOEN;
@@ -437,28 +442,32 @@ function berekenVolgendeFases(){
     state.fases.wr2 = { matches, afgerond:false };
   }
 
-  // VR2, vr3_tussen (x>0), vr3, wr3 en de generieke halvering worden niet meer
-  // hier automatisch gegenereerd — die lotingen gebeuren nu via het rad in
-  // bekerloting.html. Zie bepaalTeLoten() hieronder, die detecteert wanneer een
-  // volgende fase klaar is om geloot te worden.
+  // VR2, vr3, wr3 en de generieke halvering worden niet meer hier automatisch
+  // gegenereerd — die lotingen gebeuren nu via het rad in bekerloting.html. Zie
+  // bepaalTeLoten() hieronder, die detecteert wanneer een volgende fase klaar
+  // is om geloot te worden.
 
   // Onthoud wie er in ronde1 heeft gewonnen (nodig om te bepalen wie bij
   // verlies in WR2 nog naar de verliezersronde mag — alleen wie nog geen
   // wedstrijd heeft gewonnen krijgt die herkansing).
   const ronde1Winnaars = state.fases.ronde1 ? new Set(state.fases.ronde1.matches.map(m=>m.winnaar)) : new Set();
 
-  // VR3-tussenronde: klaar zodra WR2 én VR2 beide afgerond zijn
-  if(state.fases.wr2 && state.fases.wr2.afgerond && state.fases.vr2 && state.fases.vr2.afgerond && !state.fases.vr3_tussen){
-    const vr2Winnaars = state.fases.vr2.matches.map(m=>m.winnaar);
-    // bye-speler die in WR2 verliest (dus geen ronde1-winnaar was) mag door
+  // VR2: klaar zodra WR2 helemaal afgerond is. De pool bestaat dan uit de 10
+  // ronde1-verliezers plus de bye-spelers die hun eerste wedstrijd (in WR2)
+  // verloren (hun ene troostronde) — pas als WR2 klaar is, is die pool compleet.
+  // Is de pool geen macht van 2, dan wordt dat automatisch afgehandeld: is x===0
+  // dan is er niets te loten (iedereen gaat automatisch door), anders wordt het
+  // een loting via het rad (zie bepaalTeLoten hieronder).
+  if(state.fases.wr2 && state.fases.wr2.afgerond && !state.fases.vr2){
+    const ronde1Verliezers = state.fases.ronde1.matches.map(m => m.winnaar===m.a ? m.b : m.a);
     const wr2Doorstromers = state.fases.wr2.matches
       .map(m => m.winnaar===m.a ? m.b : m.a)          // de verliezer
       .filter(verliezer => !ronde1Winnaars.has(verliezer)); // alleen als 'ie geen ronde1-winnaar was
-    const pool = [...vr2Winnaars, ...wr2Doorstromers];
+    const pool = [...ronde1Verliezers, ...wr2Doorstromers];
     const doel = powerOf2LE(pool.length);
     const x = pool.length - doel;
     if(x === 0){
-      state.fases.vr3_tussen = { matches:[], bye:pool, afgerond:true, doorgestroomd:pool };
+      state.fases.vr2 = { matches:[], bye:pool, afgerond:true, doorgestroomd:pool };
     }
     // x > 0: geen auto-generatie meer — dit wordt een loting via het rad.
   }
@@ -483,27 +492,22 @@ function bepaalTeLoten(state){
   const fases = state.fases;
   const ronde1Winnaars = new Set(fases.ronde1.matches.map(m=>m.winnaar));
 
-  if(fases.ronde1.afgerond && !fases.vr2){
-    const verliezers = fases.ronde1.matches.map(m => m.winnaar===m.a ? m.b : m.a);
-    return { type:'fase', faseId:'vr2', pool:verliezers };
-  }
-
-  if(fases.wr2 && fases.wr2.afgerond && fases.vr2 && fases.vr2.afgerond && !fases.vr3_tussen){
-    const vr2Winnaars = fases.vr2.matches.map(m=>m.winnaar);
+  if(fases.wr2 && fases.wr2.afgerond && !fases.vr2){
+    const ronde1Verliezers = fases.ronde1.matches.map(m => m.winnaar===m.a ? m.b : m.a);
     const wr2Doorstromers = fases.wr2.matches
       .map(m => m.winnaar===m.a ? m.b : m.a)
       .filter(verliezer => !ronde1Winnaars.has(verliezer));
-    const pool = [...vr2Winnaars, ...wr2Doorstromers];
+    const pool = [...ronde1Verliezers, ...wr2Doorstromers];
     const doel = powerOf2LE(pool.length);
     const x = pool.length - doel;
     if(x > 0){
-      return { type:'tussenronde', faseId:'vr3_tussen', pool, x };
+      return { type:'tussenronde', faseId:'vr2', pool, x };
     }
     // x === 0: geen loting nodig, bekertoernooi.html vult dit automatisch
   }
 
-  if(fases.vr3_tussen && fases.vr3_tussen.afgerond && !fases.vr3){
-    const pool = [...fases.vr3_tussen.matches.map(m=>m.winnaar), ...(fases.vr3_tussen.bye||[])];
+  if(fases.vr2 && fases.vr2.afgerond && !fases.vr3){
+    const pool = [...fases.vr2.matches.map(m=>m.winnaar), ...(fases.vr2.bye||[])];
     return { type:'fase', faseId:'vr3', pool };
   }
 
