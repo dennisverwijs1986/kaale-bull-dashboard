@@ -1301,6 +1301,14 @@
   }
 
   spinBtn.addEventListener("click", spin);
+  document.addEventListener("keydown", function(e){
+    if(e.key !== "Enter") return;
+    var tag = (e.target && e.target.tagName || "").toLowerCase();
+    if(tag === "textarea" || tag === "input" || tag === "select" || tag === "button" || tag === "a") return;
+    if(spinBtn.disabled || spinBtn.style.display === "none") return;
+    e.preventDefault();
+    spin();
+  });
   function confirmReset(){
     if(state.matches.length > 0 || state.pending || state.bye.length > 0){
       if(!window.confirm("Weet je zeker dat je de loting opnieuw wilt starten? Alle geloot wedstrijden gaan verloren.")) return;
