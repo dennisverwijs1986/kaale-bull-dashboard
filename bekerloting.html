@@ -783,12 +783,14 @@
   var SEIZOEN = "2026-2027";
 
   // Vaste bracket-structuur — identiek aan bekertoernooi.html (byte-identiek object).
+  // VR2 bestaat uit de 10 ronde1-verliezers ÉN de bye-spelers die hun eerste
+  // wedstrijd (in WR2) verliezen (hun ene troostronde) — die pool is pas
+  // compleet zodra WR2 helemaal is uitgespeeld, dus VR2 wordt pas dán geloot.
   var FASES = {
     ronde1:        { label:'Ronde 1',                tak:'gemengd',       bo:5 },
     wr2:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
-    vr2:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['ronde1'] },
-    vr3_tussen:    { label:'Verliezersronde — tussenronde', tak:'verliezersronde', bo:5, dependsOn:['wr2','vr2'] },
-    vr3:           { label:'Verliezersronde 3',       tak:'verliezersronde',bo:5, dependsOn:['vr3_tussen'] },
+    vr2:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
+    vr3:           { label:'Verliezersronde 3',       tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
     wr3:           { label:'Winnaarsronde 3',         tak:'winnaarsronde', bo:5, dependsOn:['wr2'] },
     wr_kwart:      { label:'Winnaarsronde — kwartfinale', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
     vr_kwart:      { label:'Verliezersronde — kwartfinale', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
@@ -797,7 +799,7 @@
     wr_finale:     { label:'Winnaarsronde — FINALE',  tak:'winnaarsronde', bo:9, dependsOn:['wr_halve'] },
     vr_finale:     { label:'Verliezersronde — FINALE',tak:'verliezersronde',bo:9, dependsOn:['vr_halve'] },
   };
-  var FASE_VOLGORDE = ['ronde1','wr2','vr2','vr3_tussen','vr3','wr3','wr_kwart','vr_kwart','wr_halve','vr_halve','wr_finale','vr_finale'];
+  var FASE_VOLGORDE = ['ronde1','wr2','vr2','vr3','wr3','wr_kwart','vr_kwart','wr_halve','vr_halve','wr_finale','vr_finale'];
 
   // Bepaalt welke fase nu klaar is om geloot te worden, op basis van de laatst
   // bekende toernooi-staat uit Supabase. Identiek aan bepaalTeLoten() in
@@ -810,27 +812,22 @@
     var ronde1Winnaars = {};
     fases.ronde1.matches.forEach(function(m){ ronde1Winnaars[m.winnaar] = true; });
 
-    if(fases.ronde1.afgerond && !fases.vr2){
-      var verliezers = fases.ronde1.matches.map(function(m){ return m.winnaar===m.a ? m.b : m.a; });
-      return { type:'fase', faseId:'vr2', pool:verliezers };
-    }
-
-    if(fases.wr2 && fases.wr2.afgerond && fases.vr2 && fases.vr2.afgerond && !fases.vr3_tussen){
-      var vr2Winnaars = fases.vr2.matches.map(function(m){ return m.winnaar; });
+    if(fases.wr2 && fases.wr2.afgerond && !fases.vr2){
+      var ronde1Verliezers = fases.ronde1.matches.map(function(m){ return m.winnaar===m.a ? m.b : m.a; });
       var wr2Doorstromers = fases.wr2.matches
         .map(function(m){ return m.winnaar===m.a ? m.b : m.a; })
         .filter(function(verliezer){ return !ronde1Winnaars[verliezer]; });
-      var pool = vr2Winnaars.concat(wr2Doorstromers);
+      var pool = ronde1Verliezers.concat(wr2Doorstromers);
       var doel = powerOf2LE(pool.length);
       var x = pool.length - doel;
       if(x > 0){
-        return { type:'tussenronde', faseId:'vr3_tussen', pool:pool, x:x };
+        return { type:'tussenronde', faseId:'vr2', pool:pool, x:x };
       }
       // x === 0: geen loting nodig, bekertoernooi.html vult dit automatisch
     }
 
-    if(fases.vr3_tussen && fases.vr3_tussen.afgerond && !fases.vr3){
-      var poolVr3 = fases.vr3_tussen.matches.map(function(m){ return m.winnaar; }).concat(fases.vr3_tussen.bye || []);
+    if(fases.vr2 && fases.vr2.afgerond && !fases.vr3){
+      var poolVr3 = fases.vr2.matches.map(function(m){ return m.winnaar; }).concat(fases.vr2.bye || []);
       return { type:'fase', faseId:'vr3', pool:poolVr3 };
     }
 
@@ -1411,11 +1408,11 @@
     updateStatus();
   }
 
-  // Voltooit een loting voor elke fase NA ronde 1 (vr2, vr3_tussen, vr3, wr3,
-  // de kwart-/halve finales en de finales). Anders dan voltooiRonde1() is er
-  // hier geen WR2-voorbereiding — de getrokken paren zijn de complete fase.
-  // Bij een tussenronde (bv. vr3_tussen) worden de bye-spelers gewoon
-  // meegestuurd als state.fases[faseId].bye.
+  // Voltooit een loting voor elke fase NA ronde 1 (vr2, vr3, wr3, de kwart-/
+  // halve finales en de finales). Anders dan voltooiRonde1() is er hier geen
+  // WR2-voorbereiding — de getrokken paren zijn de complete fase. Heeft de fase
+  // eerst een bye-trekking nodig (bv. VR2, als de pool geen macht van 2 is),
+  // dan worden die bye-spelers gewoon meegestuurd als state.fases[faseId].bye.
   async function voltooiFaseLoting(){
     if(state.afgerond) return;
     var targets = computeTargets();
