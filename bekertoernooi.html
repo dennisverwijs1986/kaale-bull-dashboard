@@ -6,23 +6,25 @@
 <title>Kaale Bull — Bekertoernooi</title>
 <style>
 :root {
-  --bg:      #0f1520;
-  --s1:      #161f30;
-  --s2:      #1e2a40;
-  --s3:      #243350;
-  --border:  #2a3a56;
-  --text:    #f1f5f9;
-  --muted:   #94a3b8;
-  --green:   #10b981;
-  --red:     #ef4444;
-  --orange:  #f59e0b;
-  --blue:    #3b82f6;
-  --purple:  #a855f7;
+  /* Dartbord-palet, zelfde tinten als bekerloting.html */
+  --bg:      #0d241b;
+  --s1:      #16352a;
+  --s2:      #1c4231;
+  --s3:      #22503c;
+  --border:  #2c5c46;
+  --text:    #f3ead6;
+  --muted:   #a9c2b4;
+  --green:   #4a9d6f;
+  --red:     #9c2b3b;
+  --orange:  #d9ab3f;
+  --blue:    #3b7a6b;
+  --purple:  #8a6d3b;
+  --gold-bright: #f0c25f;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 
-.topbar{background:#080d16;border-bottom:2px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:20;}
+.topbar{background:#081712;border-bottom:2px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:20;}
 .topbar h1{font-size:1.15rem;font-weight:800;display:flex;align-items:center;gap:8px;}
 .topbar .sub{font-size:0.75rem;color:var(--muted);}
 .topbar-actions{display:flex;gap:10px;align-items:center;}
@@ -33,36 +35,36 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .card h2{font-size:1rem;font-weight:700;display:flex;align-items:center;gap:10px;margin-bottom:4px;}
 .card .desc{font-size:0.8rem;color:var(--muted);margin-bottom:12px;}
 .badge{font-size:0.65rem;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:0.3px;}
-.badge.open{background:rgba(245,158,11,0.15);color:var(--orange);}
-.badge.done{background:rgba(16,185,129,0.15);color:var(--green);}
-.badge.wr{background:rgba(59,130,246,0.15);color:var(--blue);}
-.badge.vr{background:rgba(168,85,247,0.15);color:var(--purple);}
+.badge.open{background:rgba(217,171,63,0.15);color:var(--orange);}
+.badge.done{background:rgba(74,157,111,0.15);color:var(--green);}
+.badge.wr{background:rgba(59,122,107,0.2);color:var(--blue);}
+.badge.vr{background:rgba(138,109,59,0.22);color:var(--purple);}
 
 .btn{background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;}
-.btn:hover{background:#2c3e5c;}
+.btn:hover{background:#2c5c46;}
 .btn:disabled{opacity:0.4;cursor:not-allowed;}
-.btn-green{background:var(--green);color:#06251b;border-color:var(--green);}
-.btn-green:hover{background:#0ea371;}
-.btn-orange{background:var(--orange);color:#3a2400;border-color:var(--orange);}
+.btn-green{background:var(--green);color:#081712;border-color:var(--green);}
+.btn-green:hover{background:#5cb582;}
+.btn-orange{background:var(--orange);color:#241a04;border-color:var(--orange);}
 .btn-sm{padding:5px 10px;font-size:0.72rem;}
 
 .toggle-row{display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--muted);}
 .toggle-row input{width:16px;height:16px;}
 
 .matches{display:flex;flex-direction:column;gap:8px;}
-.match{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.85rem;}
+.match{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.85rem;flex-wrap:wrap;}
 .match .nr{width:22px;flex:0 0 auto;color:var(--muted);font-size:0.72rem;text-align:center;}
-.match .side{flex:1;padding:7px 10px;border-radius:6px;background:var(--s3);cursor:pointer;text-align:center;border:2px solid transparent;transition:.12s;}
-.match .side:hover{border-color:var(--blue);}
-.match .side.winner{background:rgba(16,185,129,0.18);border-color:var(--green);font-weight:700;}
-.match .side.loser{opacity:0.5;}
-.match .side.placeholder{font-style:italic;color:var(--muted);cursor:default;}
-.match .side.placeholder:hover{border-color:transparent;}
+.match .naam{flex:1;padding:7px 10px;border-radius:6px;background:var(--s3);text-align:center;border:2px solid transparent;transition:.12s;min-width:100px;}
+.match .naam.winner{background:rgba(74,157,111,0.22);border-color:var(--green);font-weight:700;}
+.match .naam.loser{opacity:0.55;}
+.match .score-in{width:38px;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:6px 2px;text-align:center;font-family:inherit;font-size:0.9rem;}
+.match .score-sep{color:var(--muted);flex:0 0 auto;}
 .match .vs{font-size:0.68rem;color:var(--muted);flex:0 0 auto;}
 .match.bye{opacity:0.75;}
-.match .side.bye-label{background:transparent;color:var(--muted);cursor:default;font-style:italic;}
-.match .sync{font-size:0.65rem;flex:0 0 auto;width:50px;text-align:center;}
+.match .side.bye-label{background:transparent;color:var(--muted);cursor:default;font-style:italic;flex:1;padding:7px 10px;}
+.match .sync{font-size:0.65rem;flex:0 0 auto;width:60px;text-align:center;}
 .sync.ok{color:var(--green);} .sync.pending{color:var(--orange);} .sync.error{color:var(--red);}
+.match .btn-sm{flex:0 0 auto;}
 
 .faseGroup{margin-bottom:22px;}
 .faseGroup-hdr{font-size:0.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
@@ -70,8 +72,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
 .empty-state h2{color:var(--text);margin-bottom:10px;}
 .empty-state p{font-size:0.85rem;max-width:420px;margin:0 auto 20px;line-height:1.5;}
+.link-btn{display:inline-block;text-decoration:none;background:var(--orange);color:#241a04;border:none;border-radius:8px;padding:9px 16px;font-size:0.85rem;font-weight:700;}
+.link-btn:hover{background:var(--gold-bright);}
 
-.champ-banner{background:linear-gradient(135deg, rgba(245,158,11,0.18), rgba(245,158,11,0.05));border:1px solid var(--orange);border-radius:10px;padding:16px 18px;margin-bottom:16px;text-align:center;}
+.roadmap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;}
+.roadmap .pill{font-size:0.68rem;font-weight:600;padding:5px 10px;border-radius:20px;border:1px solid var(--border);color:var(--muted);background:var(--s1);white-space:nowrap;}
+.roadmap .pill.voltooid{border-color:var(--green);color:var(--green);background:rgba(74,157,111,0.12);}
+.roadmap .pill.bezig{border-color:var(--orange);color:var(--orange);background:rgba(217,171,63,0.12);}
+.roadmap .pill.nog-niet{opacity:0.55;}
+
+.champ-banner{background:linear-gradient(135deg, rgba(217,171,63,0.22), rgba(217,171,63,0.05));border:1px solid var(--orange);border-radius:10px;padding:16px 18px;margin-bottom:16px;text-align:center;box-shadow:0 0 24px rgba(217,171,63,0.15);}
 .champ-banner .icon{font-size:1.6rem;}
 .champ-banner .naam{font-size:1.2rem;font-weight:800;color:var(--orange);}
 .champ-banner .lbl{font-size:0.72rem;color:var(--muted);}
@@ -113,6 +123,18 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation' };
 const sbGet   = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 const sbPost  = async (t,b)    => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:{...HDR,'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+const sbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+// Hoeveel legs een speler nodig heeft om een Bo5/Bo7/Bo9-wedstrijd te winnen.
+function legsNodig(bo){ return (bo+1)/2; }
+// Bepaalt op basis van de ingevoerde score wie er heeft gewonnen ('a'/'b'), of
+// null als de score nog geen geldige eindstand is (bv. nog niemand op het
+// vereiste aantal legs).
+function bepaalWinnaarUitScore(bo, scoreA, scoreB){
+  const nodig = legsNodig(bo);
+  if(scoreA===nodig && scoreB<nodig) return 'a';
+  if(scoreB===nodig && scoreA<nodig) return 'b';
+  return null;
+}
 
 function escapeHtml(str){
   if (str === null || str === undefined) return '';
@@ -195,15 +217,26 @@ async function schrijfWedstrijd(match, faseId){
   const tak = match._tak || fase.tak; // ronde1 heeft matches uit beide takken
   const bo  = match._bo  || fase.bo;
   const naamTak = tak === 'winnaarsronde' ? 'winnaarsronde' : 'verliezersronde';
+  const gespeeld = !!match.winnaar;
+  const payload = {
+    datum: new Date().toISOString().slice(0,10),
+    tijdstip: null,
+    divisie: `Beker ${naamTak} (Bo${bo})`,
+    thuis: match.a, uit: match.b,
+    speelronde: null,
+    status: gespeeld ? 'gespeeld' : 'gepland',
+    uitslag: gespeeld ? `${match.scoreA}-${match.scoreB}` : null,
+    is_inhaal:false, datum_nnb:true
+  };
   match.sync = 'pending'; render();
   try{
-    await sbPost('wedstrijden', [{
-      datum: new Date().toISOString().slice(0,10),
-      tijdstip: null,
-      divisie: `Beker ${naamTak} (Bo${bo})`,
-      thuis: match.a, uit: match.b,
-      speelronde: null, status:'gepland', is_inhaal:false, datum_nnb:true
-    }]);
+    if(match._wedstrijdId){
+      // Wedstrijd stond al in de planning (fixture) — bijwerken i.p.v. dupliceren.
+      await sbPatch('wedstrijden', match._wedstrijdId, { status:payload.status, uitslag:payload.uitslag });
+    } else {
+      const rows = await sbPost('wedstrijden', [payload]);
+      match._wedstrijdId = rows[0].id;
+    }
     match.sync = 'ok';
   }catch(e){ match.sync = 'error'; }
   await bewaarState(); render();
@@ -212,15 +245,11 @@ async function schrijfWedstrijd(match, faseId){
 // ══════════════════════════════════════════
 //  FASE-GENERATOREN
 // ══════════════════════════════════════════
-async function startToernooi(){
-  try{
-    const rows = await sbGet('spelers','select=naam&order=naam.asc');
-    const namen = rows.map(r=>r.naam).filter(n => n && n.trim().toLowerCase() !== 'vrijwillige schrijver');
-    if(namen.length < 4){ toast('Te weinig spelers gevonden in de spelerslijst.','red'); return; }
-    genereerRonde1(namen);
-  }catch(e){ toast('Kon spelerslijst niet laden: '+e.message,'red'); }
-}
-
+// De loting zelf gebeurt in bekerloting.html (het "rad van namen"). Die schrijft
+// de complete ronde-1-staat rechtstreeks naar beker_toernooi in exact het
+// format dat genereerRonde1() hieronder ook zou produceren — deze functie
+// blijft staan als referentie voor dat format, maar wordt vanuit deze pagina
+// niet meer aangeroepen.
 function genereerRonde1(spelers42){
   const shuffled = shuffle(spelers42);
   const totaal = shuffled.length;
@@ -257,14 +286,25 @@ function genereerRonde1(spelers42){
 
 function alleGespeeld(matches){ return matches.every(m => m.winnaar); }
 
-function zetWinnaar(faseId, matchIdx, winnaarKant){
-  const m = state.fases[faseId].matches[matchIdx];
+function slaScoreOp(faseId, matchIdx){
+  const fase = state.fases[faseId];
+  const m = fase.matches[matchIdx];
   if(!m.a || !m.b) return; // placeholder nog niet ingevuld
-  m.winnaar = winnaarKant === 'a' ? m.a : m.b;
-  state.fases[faseId].afgerond = alleGespeeld(state.fases[faseId].matches);
+  const bo = m._bo || FASES[faseId].bo;
+  const scoreAEl = document.getElementById(`scoreA-${faseId}-${matchIdx}`);
+  const scoreBEl = document.getElementById(`scoreB-${faseId}-${matchIdx}`);
+  const scoreA = parseInt(scoreAEl.value, 10);
+  const scoreB = parseInt(scoreBEl.value, 10);
+  if(Number.isNaN(scoreA) || Number.isNaN(scoreB)){ toast('Vul bij beide spelers een score in.','red'); return; }
+  const kant = bepaalWinnaarUitScore(bo, scoreA, scoreB);
+  if(!kant){ toast(`Bij Bo${bo} moet één speler op ${legsNodig(bo)} staan en de ander lager.`,'red'); return; }
+  m.scoreA = scoreA; m.scoreB = scoreB;
+  m.winnaar = kant === 'a' ? m.a : m.b;
+  fase.afgerond = alleGespeeld(fase.matches);
   bewaarState();
   berekenVolgendeFases();
   render();
+  if(state.syncEnabled) schrijfWedstrijd(m, faseId);
 }
 
 // Bepaalt welke fases nu gegenereerd kunnen worden en doet dat (idempotent).
@@ -365,31 +405,29 @@ function berekenVolgendeFases(){
 // ══════════════════════════════════════════
 function matchHtml(faseId, m, idx){
   const isBye = !m.a || !m.b;
-  const bo = FASES[faseId] ? FASES[faseId].bo : (m._bo||5);
+  const bo = m._bo || (FASES[faseId] ? FASES[faseId].bo : 5);
   if(isBye){
     const naam = m.a || m.b || '';
     return `<div class="match bye"><span class="nr">${m.nr||''}</span>
-      <div class="side bye-label" style="flex:1;">${escapeHtml(naam)} — bye (automatisch door)</div></div>`;
+      <div class="side bye-label">${escapeHtml(naam)} — bye (automatisch door)</div></div>`;
   }
   const aCls = m.winnaar ? (m.winnaar===m.a?'winner':'loser') : '';
   const bCls = m.winnaar ? (m.winnaar===m.b?'winner':'loser') : '';
-  const syncHtml = m.sync ? `<span class="sync ${m.sync}">${m.sync==='ok'?'✓ gepland':m.sync==='pending'?'…':'✗ fout'}</span>` : '<span class="sync"></span>';
+  const syncHtml = m.sync ? `<span class="sync ${m.sync}">${m.sync==='ok'?(m.winnaar?'✓ opgeslagen':'✓ gepland'):m.sync==='pending'?'…':'✗ fout'}</span>` : '<span class="sync"></span>';
+  const scoreAVal = m.scoreA===undefined||m.scoreA===null ? '' : m.scoreA;
+  const scoreBVal = m.scoreB===undefined||m.scoreB===null ? '' : m.scoreB;
   return `<div class="match">
     <span class="nr">${m.nr||''}</span>
-    <div class="side ${aCls}" onclick="kiesWinnaar('${faseId}',${idx},'a')">${escapeHtml(m.a)}</div>
-    <span class="vs">vs</span>
-    <div class="side ${bCls}" onclick="kiesWinnaar('${faseId}',${idx},'b')">${escapeHtml(m.b)}</div>
+    <div class="naam ${aCls}">${escapeHtml(m.a)}</div>
+    <input class="score-in" type="number" min="0" max="${legsNodig(bo)}" id="scoreA-${faseId}-${idx}" value="${scoreAVal}">
+    <span class="score-sep">–</span>
+    <input class="score-in" type="number" min="0" max="${legsNodig(bo)}" id="scoreB-${faseId}-${idx}" value="${scoreBVal}">
+    <div class="naam ${bCls}">${escapeHtml(m.b)}</div>
+    <button class="btn btn-sm ${m.winnaar?'':'btn-orange'}" onclick="slaScoreOp('${faseId}',${idx})">${m.winnaar?'Wijzig':'Opslaan'}</button>
     ${syncHtml}
   </div>`;
 }
-
-window.kiesWinnaar = function(faseId, idx, kant){
-  zetWinnaar(faseId, idx, kant);
-  const m = state.fases[faseId].matches[idx];
-  if(m.winnaar && state.syncEnabled && !m.sync && m.a && m.b){
-    schrijfWedstrijd(m, faseId);
-  }
-};
+window.slaScoreOp = slaScoreOp;
 
 function faseCardHtml(faseId){
   const fase = state.fases[faseId];
@@ -411,18 +449,32 @@ function faseCardHtml(faseId){
   </div>`;
 }
 
+function roadmapHtml(){
+  if(!state) return '';
+  const fases = state.fases || {};
+  const pills = FASE_VOLGORDE.map(faseId=>{
+    const meta = FASES[faseId];
+    const fase = fases[faseId];
+    let statusCls = 'nog-niet', statusLbl = 'nog niet begonnen';
+    if(fase && fase.afgerond){ statusCls = 'voltooid'; statusLbl = 'voltooid'; }
+    else if(fase){ statusCls = 'bezig'; statusLbl = 'bezig'; }
+    return `<span class="pill ${statusCls}" title="${escapeHtml(statusLbl)}">${escapeHtml(meta.label)}</span>`;
+  }).join('');
+  return `<div class="roadmap">${pills}</div>`;
+}
+
 function render(){
   const app = document.getElementById('app');
   if(!state){
     app.innerHTML = `<div class="empty-state">
       <h2>🏆 Nog geen bekertoernooi gestart</h2>
-      <p>Dit start de volledige boom: 22 bye-spelers worden geloot, de overige 20 spelers krijgen hun ronde-1 tegenstander, en de 10 bye-plekken voor ronde 2 (winnaarsronde) worden alvast gekoppeld aan "winnaar van wedstrijd X" zodat twee ronde-1-winnaars elkaar nooit kunnen treffen.</p>
-      <button class="btn btn-green" onclick="startToernooi()">🎲 Start de loting</button>
+      <p>De loting van ronde 1 (bye's en eerste wedstrijden) gebeurt via het rad van namen. Zodra die loting daar is afgerond, verschijnt het volledige schema hier automatisch.</p>
+      <a class="link-btn" href="bekerloting.html">🎡 Ga naar de bekerloting</a>
     </div>`;
     return;
   }
 
-  let html = '';
+  let html = roadmapHtml();
 
   if(state.kampioenWR || state.kampioenVR){
     html += '<div class="champ-banner">';
