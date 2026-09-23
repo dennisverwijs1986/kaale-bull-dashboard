@@ -1127,6 +1127,7 @@ function renderBoards() {
       : `<div class="dc-row">
            <button class="dc-link ${dcCode?'linked':''}" onclick="toggleDartCodeInput(${b})">📺 ${dcCode?`Gekoppeld: ${dcCodeKort}`:'DartConnect koppelen'}</button>
            ${dcCode ? `<button class="dc-eye-btn" onclick="toggleDcPreview(${b})" title="${dcPreviewOpen[b]?'Verberg voorbeeld':'Toon voorbeeld'}">${dcPreviewOpen[b]?'🙈':'👁'}</button>` : ''}
+           ${dcCode && dcPreviewOpen[b] ? `<button class="dc-eye-btn" onclick="dcVerversNaadloos(${b})" title="Scoreboard verversen">↻</button>` : ''}
          </div>`;
     const dcFrame = (dcCode && !dartCodesOpen[b] && dcPreviewOpen[b])
       ? `<div class="dc-frame-wrap" id="dcWrap${b}" style="height:${dcHoogte(b)}px"><iframe src="https://tv.dartconnect.com/tvscoreboard/${dcCode}" loading="lazy"></iframe></div>
@@ -1292,6 +1293,50 @@ function dcPas(b) {
 }
 function dcInitSchaal(b) { dcPas(b); }
 
+// ── DartConnect zelfherstel (zelfde aanpak als tv.html) ──
+// Het DC-scoreboard valt na een wedstrijdwissel om ("Something went wrong"); een verse load
+// met dezelfde code verhelpt dat. We laden een nieuwe iframe onzichtbaar achter de oude en
+// wisselen pas als hij klaar is, dus geen leeg/zwart vlak.
+const DC_WISSEL_DELAY_MS = 45000;      // na 'start op bord' wachten tot de tablet de nieuwe partij draait
+const DC_AUTO_RELOAD_MS  = 4 * 60000;  // vangnet: elk bord om de 4 minuten verversen
+const DC_SWAP_WACHT_MS   = 4000;       // na 'load' nog even wachten tot DC z'n data binnen heeft
+const dcBezig = {1:false,2:false,3:false,4:false};
+const dcWisselTimers = {};
+
+function dcPlanVerversing(b, na) {
+  clearTimeout(dcWisselTimers[b]);
+  dcWisselTimers[b] = setTimeout(()=>dcVerversNaadloos(b), na);
+}
+function dcVerversNaadloos(b) {
+  const wrap = document.getElementById(`dcWrap${b}`);
+  const oud = wrap ? wrap.querySelector('iframe') : null;
+  if (!wrap || !oud || !dartCodes[b] || dcBezig[b]) return;
+  dcBezig[b] = true;
+  const code = dartCodes[b];
+  const nieuw = document.createElement('iframe');
+  nieuw.src = `https://tv.dartconnect.com/tvscoreboard/${code}`;
+  nieuw.style.transform = oud.style.transform;
+  nieuw.style.opacity = '0';
+  nieuw.style.pointerEvents = 'none';
+  let klaar = false;
+  const wissel = ()=>{
+    if (klaar) return; klaar = true;
+    dcBezig[b] = false;
+    // Tegel intussen opnieuw opgebouwd of code gewijzigd? Dan deze nieuwe iframe weggooien.
+    if (!document.body.contains(oud) || dartCodes[b] !== code) { nieuw.remove(); return; }
+    oud.remove();
+    nieuw.style.opacity = '';
+    nieuw.style.pointerEvents = '';
+    dcPas(b);
+  };
+  nieuw.addEventListener('load', ()=> setTimeout(wissel, DC_SWAP_WACHT_MS));
+  setTimeout(wissel, 30000); // noodrem als 'load' nooit komt
+  wrap.appendChild(nieuw);
+}
+for (let b=1; b<=4; b++) {
+  setTimeout(()=> setInterval(()=>dcVerversNaadloos(b), DC_AUTO_RELOAD_MS), (b-1)*(DC_AUTO_RELOAD_MS/4));
+}
+
 function toggleDartCodeInput(b) {
   dartCodesOpen[b] = !dartCodesOpen[b];
   renderBoards();
@@ -1343,17 +1388,16 @@ async function startOpBord(matchId, bord) {
   if (activeMatches[bord]!==null) { toast(`Bord ${bord} is bezet!`,'red'); return; }
   activeMatches[bord] = matchId;
   // schrijver NIET wissen — blijft zichtbaar van vorige partij
-  // Als dit bord al een DartConnect-koppeling had: invoerveld meteen openen
-  // (i.p.v. een aparte klik) zodat de nieuwe koppelcode direct geplakt kan worden,
-  // en de oude/verlopen preview meteen verdwijnt.
-  const wasGekoppeld = !!dartCodes[bord];
-  if (wasGekoppeld) { dartCodesOpen[bord] = true; dcPreviewOpen[bord] = false; }
+  // De DartConnect-code blijft de hele avond gelijk; het scoreboard valt alleen om na een
+  // wedstrijdwissel. Daarom niet opnieuw laten koppelen, maar de preview kort na de start
+  // automatisch (naadloos) verversen. tv.html doet hetzelfde via de bord-kolom.
+  dcPlanVerversing(bord, DC_WISSEL_DELAY_MS);
   // Bijhouden rusttijd
   const m = wedstrijden.find(w=>w.id===matchId);
   if (m) { spelersLaatsteStart[m.thuis]=Date.now(); spelersLaatsteStart[m.uit]=Date.now(); }
   startTimer(bord);
   renderBoards(); renderQueue();
-  toast(wasGekoppeld ? `▶ Gestart op bord ${bord} — koppel de nieuwe DartConnect-code` : `▶ Gestart op bord ${bord}`,'green');
+  toast(`▶ Gestart op bord ${bord}`,'green');
   try { await sbPatch('wedstrijden', matchId, {bord}); }
   catch(e) { console.error('Kon bord niet opslaan in Supabase:', e); }
 }
