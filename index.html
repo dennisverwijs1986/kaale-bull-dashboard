@@ -442,30 +442,15 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
       </div>
     </div>
 
-    <!-- SPELER TOEVOEGEN -->
-    <div class="sec">
-      <div class="sec-title">👤 Speler toevoegen</div>
-      <div class="row">
-        <input type="text" class="inp" id="nieuweSpeler" placeholder="Naam" style="flex:1;">
-        <button class="btn btn-ghost btn-sm" onclick="voegSpelerToe()">+ Toevoegen</button>
-      </div>
-    </div>
-
     <!-- CSV IMPORT -->
     <div class="sec">
       <div class="sec-title">📥 CSV importeren</div>
       <p style="font-size:0.72rem;color:var(--muted);margin-bottom:8px;">Kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde</p>
-      <div style="display:flex;gap:6px;">
-        <label class="csv-drop" for="csvToevoegen" style="flex:1;padding:9px 6px;">
-          ➕ Toevoegen
-          <input type="file" id="csvToevoegen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'toevoegen')">
-        </label>
-        <label class="csv-drop" for="csvNieuwSeizoen" style="flex:1;padding:9px 6px;border-color:rgba(239,68,68,0.3);color:var(--red);">
-          🆕 Nieuw seizoen starten
-          <input type="file" id="csvNieuwSeizoen" accept=".csv" style="display:none;" onchange="importeerCSV(this,'nieuw_seizoen')">
-        </label>
-      </div>
-      <p style="font-size:0.68rem;color:var(--muted);margin-top:5px;">"Nieuw seizoen starten" wist <strong>alle</strong> wedstrijden (ook gespeelde en bekerwedstrijden) en importeert daarna de gekozen CSV. Gebruik dit alleen bij de start van een nieuw seizoen.</p>
+      <label class="csv-drop" for="csvToevoegen" style="display:block;padding:9px 6px;text-align:center;">
+        ➕ Toevoegen
+        <input type="file" id="csvToevoegen" accept=".csv" style="display:none;" onchange="importeerCSV(this)">
+      </label>
+      <p style="font-size:0.68rem;color:var(--muted);margin-top:5px;">Een heel seizoen opnieuw beginnen (alle wedstrijden wissen) kan via Spelerbeheer.</p>
     </div>
 
     <!-- WERKLAST -->
@@ -2145,25 +2130,9 @@ async function verwijderBeker(id) {
 }
 
 // ══════════════════════════════════════════
-//  SPELERS
-// ══════════════════════════════════════════
-async function voegSpelerToe() {
-  const naam=document.getElementById('nieuweSpeler').value.trim();
-  if(!naam){toast('Vul een naam in','red');return;}
-  if(spelers.find(s=>s.naam.toLowerCase()===naam.toLowerCase())){toast('Speler bestaat al','red');return;}
-  try {
-    const [nieuw]=await sbPost('spelers',{naam});
-    spelers.push(nieuw); spelers.sort((a,b)=>a.naam.localeCompare(b.naam));
-    document.getElementById('nieuweSpeler').value='';
-    vulBekerDropdowns(); renderBoards();
-    toast(`👤 ${naam} toegevoegd`,'green');
-  } catch(e){toast(`Fout: ${e.message}`,'red');}
-}
-
-// ══════════════════════════════════════════
 //  CSV IMPORT
 // ══════════════════════════════════════════
-function importeerCSV(input, modus='toevoegen') {
+function importeerCSV(input) {
   const file=input.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=async ev=>{
@@ -2178,7 +2147,6 @@ function importeerCSV(input, modus='toevoegen') {
 
     const rijen=[];
     const nieuweNamen=new Set();
-    const csvDatums=new Set();
     for(let i=1;i<regels.length;i++){
       const cols=regels[i].split(sep).map(x=>x.replace(/^"|"$/g,'').trim());
       const thuis=cols[iH]||'',uit=cols[iU]||'';
@@ -2186,29 +2154,13 @@ function importeerCSV(input, modus='toevoegen') {
       if(/[-–]\s*bye\s*[-–]/i.test(thuis)||/[-–]\s*bye\s*[-–]/i.test(uit)) continue;
       const datum=iD!==-1?(cols[iD]||''):''; if(!datum) continue;
       const normD=normDatum(datum);
-      csvDatums.add(normD);
       rijen.push({datum:normD,tijdstip:iT!==-1?(cols[iT]||null):null,divisie:iDiv!==-1?(cols[iDiv]||'Algemeen'):'Algemeen',thuis,uit,speelronde:iS!==-1?(cols[iS]||null):null,status:'gepland',is_inhaal:false});
       if(!spelers.find(s=>s.naam===thuis)) nieuweNamen.add(thuis);
       if(!spelers.find(s=>s.naam===uit))   nieuweNamen.add(uit);
     }
     if(!rijen.length){toast('Geen geldige wedstrijden','red');return;}
 
-    if(modus==='nieuw_seizoen') {
-      const aantalHuidig = wedstrijden.length;
-      const waarschuwing = `⚠ NIEUW SEIZOEN STARTEN\n\nDit verwijdert ALLE ${aantalHuidig} huidige wedstrijden — ook gespeelde wedstrijden en bekerwedstrijden — en importeert daarna de ${rijen.length} wedstrijden uit deze CSV.\n\nDit kan niet ongedaan worden gemaakt.\n\nWil je doorgaan?`;
-      if (!confirm(waarschuwing)) { input.value=''; toast('Nieuw seizoen starten geannuleerd','orange'); return; }
-      const typBevestiging = prompt('Typ NIEUW SEIZOEN (hoofdletters) om te bevestigen dat je alle wedstrijden wil wissen:');
-      if (typBevestiging !== 'NIEUW SEIZOEN') { input.value=''; toast('Bevestiging klopte niet — niets verwijderd','orange'); return; }
-    }
-
     try {
-      if(modus==='nieuw_seizoen') {
-        // Volledige reset: alle wedstrijden weg (gespeeld, gepland, NNB, beker — alles),
-        // ongeacht datum. Spelerslijst en wijziging_log/logboek blijven intact.
-        await fetch(`${SB_URL}/rest/v1/wedstrijden?id=not.is.null`,{ method:'DELETE', headers:HDR });
-        wedstrijden = [];
-        toast(`🆕 Alle oude wedstrijden gewist, nieuw seizoen wordt geïmporteerd…`,'orange');
-      }
       const nieuws=await sbPost('wedstrijden',rijen);
       wedstrijden.push(...nieuws);
       if(nieuweNamen.size){
@@ -2221,7 +2173,7 @@ function importeerCSV(input, modus='toevoegen') {
         if(Array.isArray(ns)) { spelers.push(...ns); spelers.sort((a,b)=>a.naam.localeCompare(b.naam)); }
       }
       bouwDatumFilter(); vulBekerDropdowns(); renderBoards(); renderAll();
-      toast(`✓ ${rijen.length} wedstrijden ${modus==='nieuw_seizoen'?'geïmporteerd voor het nieuwe seizoen':'toegevoegd'}`,'green');
+      toast(`✓ ${rijen.length} wedstrijden toegevoegd`,'green');
     } catch(e){toast(`Import fout: ${e.message}`,'red');}
     input.value='';
   };
