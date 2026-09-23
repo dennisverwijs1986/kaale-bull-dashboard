@@ -225,6 +225,15 @@
   }
   #swap-player-card h3 { margin-top: 0; font-size: 0.95rem; color: var(--text); }
 
+  #add-csv-card {
+    background: var(--s1);
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  #add-csv-card h3 { margin-top: 0; font-size: 0.95rem; color: var(--text); }
+
   #new-season-card {
     background: var(--s1);
     border: 2px dashed var(--red);
@@ -246,6 +255,8 @@
     font-size: 0.9rem;
   }
   .csv-drop:hover { border-color: var(--red); background: var(--s3); }
+  .csv-drop.csv-drop-neutral { border-color: var(--border); color: var(--text); }
+  .csv-drop.csv-drop-neutral:hover { border-color: var(--blue); background: var(--s3); }
 
   .empty-state {
     text-align: center;
@@ -354,6 +365,15 @@
       </div>
       <button class="btn" style="width:auto; padding: 9px 18px;" onclick="swapPlayerInPlanning()">Vervangen in planning</button>
       <div id="swap-log" style="margin-top:10px;font-size:0.85rem;"></div>
+    </div>
+
+    <div id="add-csv-card">
+      <h3>📥 CSV toevoegen</h3>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Voegt de wedstrijden uit een CSV toe aan de bestaande planning, zonder iets te verwijderen. Kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde.</p>
+      <label class="csv-drop csv-drop-neutral" for="csvToevoegen">
+        ➕ Kies CSV en voeg toe
+        <input type="file" id="csvToevoegen" accept=".csv" style="display:none;" onchange="voegCSVToe(this)">
+      </label>
     </div>
 
     <div id="new-season-card">
@@ -781,7 +801,7 @@
     await loadSwapNamenlijst();
   }
 
-  // ── NIEUW SEIZOEN STARTEN (wist alle wedstrijden en importeert een verse CSV) ──
+  // ── CSV TOEVOEGEN / NIEUW SEIZOEN STARTEN (gedeelde CSV-parsing) ──
   function normDatum(r) {
     let m;
     if ((m = r.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/))) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
@@ -789,18 +809,20 @@
     return r;
   }
 
-  async function startNieuwSeizoen(input) {
-    const file = input.files[0]; if (!file) return;
+  // Parseert een CSV-bestand naar rijen voor de `wedstrijden`-tabel. Geeft
+  // { rijen, nieuweNamen } terug via de callback, of niets als de CSV
+  // ongeldig is (dan is er al een showStatus-melding getoond).
+  function parseWedstrijdenCSV(file, callback) {
     const reader = new FileReader();
-    reader.onload = async ev => {
+    reader.onload = ev => {
       const regels = ev.target.result.trim().split(/\r?\n/).filter(r => r.trim());
-      if (regels.length < 2) { showStatus('CSV lijkt leeg.', false); input.value=''; return; }
+      if (regels.length < 2) { showStatus('CSV lijkt leeg.', false); return; }
       const sep = regels[0].includes(';') ? ';' : ',';
       const hdrs = regels[0].split(sep).map(h => h.replace(/"/g,'').trim().toLowerCase());
       const fi = (...n) => { for (const x of n) { const i = hdrs.findIndex(h => h.includes(x)); if (i !== -1) return i; } return -1; };
       const iD = fi('datum','date'), iT = fi('tijdstip','tijd','time'), iDiv = fi('divisie','div'),
             iH = fi('thuis','home'), iU = fi('uit','away','gast'), iS = fi('speelronde','ronde');
-      if (iH === -1 || iU === -1) { showStatus('Kolommen Thuis/Uit niet gevonden in de CSV.', false); input.value=''; return; }
+      if (iH === -1 || iU === -1) { showStatus('Kolommen Thuis/Uit niet gevonden in de CSV.', false); return; }
 
       const rijen = [];
       const nieuweNamen = new Set();
@@ -822,8 +844,39 @@
         if (!bestaandeNamen.has(thuis)) nieuweNamen.add(thuis);
         if (!bestaandeNamen.has(uit)) nieuweNamen.add(uit);
       }
-      if (!rijen.length) { showStatus('Geen geldige wedstrijden gevonden in de CSV.', false); input.value=''; return; }
+      if (!rijen.length) { showStatus('Geen geldige wedstrijden gevonden in de CSV.', false); return; }
+      callback(rijen, nieuweNamen);
+    };
+    reader.readAsText(file);
+  }
 
+  async function voegCSVToe(input) {
+    const file = input.files[0]; if (!file) return;
+    parseWedstrijdenCSV(file, async (rijen, nieuweNamen) => {
+      try {
+        const { error: insErr } = await supabaseClient.from('wedstrijden').insert(rijen);
+        if (insErr) throw insErr;
+
+        if (nieuweNamen.size) {
+          await supabaseClient.from('spelers').upsert(
+            [...nieuweNamen].map(naam => ({ naam })),
+            { onConflict: 'naam', ignoreDuplicates: true }
+          );
+        }
+
+        showStatus(`✓ ${rijen.length} wedstrijden toegevoegd.`, true);
+        await loadPlayers();
+        await loadSwapNamenlijst();
+      } catch (e) {
+        showStatus('Import fout: ' + e.message, false);
+      }
+      input.value = '';
+    });
+  }
+
+  async function startNieuwSeizoen(input) {
+    const file = input.files[0]; if (!file) return;
+    parseWedstrijdenCSV(file, async (rijen, nieuweNamen) => {
       const { count: aantalHuidig } = await supabaseClient
         .from('wedstrijden')
         .select('id', { count: 'exact', head: true });
@@ -856,8 +909,7 @@
         showStatus('Fout bij nieuw seizoen starten: ' + e.message, false);
       }
       input.value = '';
-    };
-    reader.readAsText(file);
+    });
   }
 
   function escapeHtml(str) {
