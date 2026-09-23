@@ -225,6 +225,28 @@
   }
   #swap-player-card h3 { margin-top: 0; font-size: 0.95rem; color: var(--text); }
 
+  #new-season-card {
+    background: var(--s1);
+    border: 2px dashed var(--red);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  #new-season-card h3 { margin-top: 0; font-size: 0.95rem; color: var(--text); }
+  .csv-drop {
+    display: block;
+    text-align: center;
+    padding: 10px 12px;
+    background: var(--s2);
+    border: 1px solid rgba(239,68,68,0.4);
+    color: var(--red);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .csv-drop:hover { border-color: var(--red); background: var(--s3); }
+
   .empty-state {
     text-align: center;
     color: var(--muted);
@@ -332,6 +354,15 @@
       </div>
       <button class="btn" style="width:auto; padding: 9px 18px;" onclick="swapPlayerInPlanning()">Vervangen in planning</button>
       <div id="swap-log" style="margin-top:10px;font-size:0.85rem;"></div>
+    </div>
+
+    <div id="new-season-card">
+      <h3>🆕 Nieuw seizoen starten</h3>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Wist <strong>alle</strong> wedstrijden in de planning (ook gespeelde en bekerwedstrijden) en importeert daarna een nieuwe CSV. Spelers en contactgegevens blijven staan. Kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde. Gebruik dit alleen bij de start van een nieuw seizoen — dit kan niet ongedaan worden gemaakt.</p>
+      <label class="csv-drop" for="csvNieuwSeizoen">
+        🆕 Kies CSV en start nieuw seizoen
+        <input type="file" id="csvNieuwSeizoen" accept=".csv" style="display:none;" onchange="startNieuwSeizoen(this)">
+      </label>
     </div>
 
     <div class="toolbar">
@@ -748,6 +779,85 @@
     logEl.innerHTML = `<span style="color:var(--green);">✓ "${escapeHtml(oud)}" vervangen door "${escapeHtml(type === 'bye' ? 'BYE' : nieuw)}" in ${totaal} wedstrijd${totaal === 1 ? '' : 'en'}.</span>`;
     document.getElementById('swap-nieuw').value = '';
     await loadSwapNamenlijst();
+  }
+
+  // ── NIEUW SEIZOEN STARTEN (wist alle wedstrijden en importeert een verse CSV) ──
+  function normDatum(r) {
+    let m;
+    if ((m = r.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/))) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    if ((m = r.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/))) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    return r;
+  }
+
+  async function startNieuwSeizoen(input) {
+    const file = input.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const regels = ev.target.result.trim().split(/\r?\n/).filter(r => r.trim());
+      if (regels.length < 2) { showStatus('CSV lijkt leeg.', false); input.value=''; return; }
+      const sep = regels[0].includes(';') ? ';' : ',';
+      const hdrs = regels[0].split(sep).map(h => h.replace(/"/g,'').trim().toLowerCase());
+      const fi = (...n) => { for (const x of n) { const i = hdrs.findIndex(h => h.includes(x)); if (i !== -1) return i; } return -1; };
+      const iD = fi('datum','date'), iT = fi('tijdstip','tijd','time'), iDiv = fi('divisie','div'),
+            iH = fi('thuis','home'), iU = fi('uit','away','gast'), iS = fi('speelronde','ronde');
+      if (iH === -1 || iU === -1) { showStatus('Kolommen Thuis/Uit niet gevonden in de CSV.', false); input.value=''; return; }
+
+      const rijen = [];
+      const nieuweNamen = new Set();
+      const bestaandeNamen = new Set(allPlayers.map(p => p.naam));
+      for (let i = 1; i < regels.length; i++) {
+        const cols = regels[i].split(sep).map(x => x.replace(/^"|"$/g,'').trim());
+        const thuis = cols[iH] || '', uit = cols[iU] || '';
+        if (!thuis || !uit) continue;
+        if (/[-–]\s*bye\s*[-–]/i.test(thuis) || /[-–]\s*bye\s*[-–]/i.test(uit)) continue;
+        const datum = iD !== -1 ? (cols[iD] || '') : ''; if (!datum) continue;
+        rijen.push({
+          datum: normDatum(datum),
+          tijdstip: iT !== -1 ? (cols[iT] || null) : null,
+          divisie: iDiv !== -1 ? (cols[iDiv] || 'Algemeen') : 'Algemeen',
+          thuis, uit,
+          speelronde: iS !== -1 ? (cols[iS] || null) : null,
+          status: 'gepland', is_inhaal: false
+        });
+        if (!bestaandeNamen.has(thuis)) nieuweNamen.add(thuis);
+        if (!bestaandeNamen.has(uit)) nieuweNamen.add(uit);
+      }
+      if (!rijen.length) { showStatus('Geen geldige wedstrijden gevonden in de CSV.', false); input.value=''; return; }
+
+      const { count: aantalHuidig } = await supabaseClient
+        .from('wedstrijden')
+        .select('id', { count: 'exact', head: true });
+
+      const waarschuwing = `⚠ NIEUW SEIZOEN STARTEN\n\nDit verwijdert ALLE ${aantalHuidig ?? '?'} huidige wedstrijden — ook gespeelde wedstrijden en bekerwedstrijden — en importeert daarna de ${rijen.length} wedstrijden uit deze CSV.\n\nDit kan niet ongedaan worden gemaakt.\n\nWil je doorgaan?`;
+      if (!confirm(waarschuwing)) { input.value=''; showStatus('Nieuw seizoen starten geannuleerd.', false); return; }
+      const typBevestiging = prompt('Typ NIEUW SEIZOEN (hoofdletters) om te bevestigen dat je alle wedstrijden wil wissen:');
+      if (typBevestiging !== 'NIEUW SEIZOEN') { input.value=''; showStatus('Bevestiging klopte niet — niets verwijderd.', false); return; }
+
+      try {
+        // Volledige reset: alle wedstrijden weg (gespeeld, gepland, NNB, beker — alles),
+        // ongeacht datum. Spelerslijst en contactgegevens blijven intact.
+        const { error: delErr } = await supabaseClient.from('wedstrijden').delete().not('id', 'is', null);
+        if (delErr) throw delErr;
+
+        const { error: insErr } = await supabaseClient.from('wedstrijden').insert(rijen);
+        if (insErr) throw insErr;
+
+        if (nieuweNamen.size) {
+          await supabaseClient.from('spelers').upsert(
+            [...nieuweNamen].map(naam => ({ naam })),
+            { onConflict: 'naam', ignoreDuplicates: true }
+          );
+        }
+
+        showStatus(`🆕 Nieuw seizoen gestart: ${rijen.length} wedstrijden geïmporteerd.`, true);
+        await loadPlayers();
+        await loadSwapNamenlijst();
+      } catch (e) {
+        showStatus('Fout bij nieuw seizoen starten: ' + e.message, false);
+      }
+      input.value = '';
+    };
+    reader.readAsText(file);
   }
 
   function escapeHtml(str) {
