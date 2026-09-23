@@ -244,6 +244,17 @@ const SPONSORS = [
 const SPONSOR_SNELHEID_PX_PER_SEC = 90; // hoger = sneller scrollen
 const CODE_REFRESH_MS  = 120000;  // dartconnect koppelcodes
 
+// ── DartConnect zelfherstel ──
+// Het DC-scoreboard volgt de tablet na een wedstrijd nog even naar de volgende partij en valt
+// daarna om ("Something went wrong"). De iframe is cross-origin, dus die fout kunnen we niet
+// uitlezen. In plaats daarvan verversen we het bord onzichtbaar (nieuwe iframe op de achtergrond laden,
+// pas daarna wisselen — dus geen zwart/leeg scherm):
+//  1) kort nadat er in het dashboard een andere wedstrijd op dat bord is gezet, en
+//  2) als vangnet periodiek, verspreid per bord.
+const DC_WISSEL_DELAY_MS  = 45000;       // wacht na bordwissel tot de tablet de nieuwe partij gestart heeft
+const DC_AUTO_RELOAD_MS   = 4 * 60000;   // vangnet: elk bord om de 4 minuten verversen
+const DC_SWAP_WACHT_MS    = 4000;        // na 'load' nog even wachten tot DC z'n data binnen heeft
+
 let dartCodes = {1:'',2:'',3:'',4:''};
 
 // Vaste 'binnenmaat' waarop DartConnect altijd rendert (ruim genoeg zodat het nooit intern hoeft te scrollen).
@@ -371,9 +382,66 @@ function calReset(b){
 function toggleCalib(b){
   document.getElementById(`calib${b}`).classList.toggle('open');
 }
-function herladenBord(b){
-  const f = document.getElementById(`dcFrame${b}`);
-  if (f) f.src = f.src;
+function herladenBord(b){ verversBordNaadloos(b); }
+
+// Laadt een verse iframe achter de huidige, en wisselt pas als die klaar is.
+const bordBezigMetVerversen = {1:false,2:false,3:false,4:false};
+function verversBordNaadloos(b){
+  const oud = document.getElementById(`dcFrame${b}`);
+  const viewport = document.getElementById(`dcView${b}`);
+  if (!oud || !viewport || !dartCodes[b] || bordBezigMetVerversen[b]) return;
+  bordBezigMetVerversen[b] = true;
+  const code = dartCodes[b];
+  const nieuw = document.createElement('iframe');
+  nieuw.src = `https://tv.dartconnect.com/tvscoreboard/${code}`;
+  nieuw.style.transform = oud.style.transform;
+  nieuw.style.opacity = '0';
+  nieuw.style.pointerEvents = 'none';
+  let klaar = false;
+  const wissel = ()=>{
+    if (klaar) return; klaar = true;
+    bordBezigMetVerversen[b] = false;
+    // Is de code intussen gewijzigd/gewist (renderBoards heeft de tegel vervangen)? Dan niets doen.
+    if (!document.body.contains(oud) || dartCodes[b] !== code){ nieuw.remove(); return; }
+    oud.remove();
+    nieuw.id = `dcFrame${b}`;
+    nieuw.style.opacity = '';
+    nieuw.style.pointerEvents = '';
+    toepassenCalib(b);
+  };
+  nieuw.addEventListener('load', ()=> setTimeout(wissel, DC_SWAP_WACHT_MS));
+  setTimeout(wissel, 30000); // noodrem als 'load' nooit komt
+  viewport.appendChild(nieuw);
+}
+
+// 1) Bordwissel-detectie: welke wedstrijd staat er (volgens het dashboard) op elk bord?
+let bordWedstrijd = null; // {1:id|null, ...}; null = nog niet eerder gemeten
+const wisselTimers = {};
+async function checkBordWissels(){
+  try{
+    const rows = await sbGet('wedstrijden', `datum=eq.${vandaagStr()}&bord=not.is.null&select=id,bord`);
+    const nu = {1:null,2:null,3:null,4:null};
+    rows.forEach(r=>{ if (nu.hasOwnProperty(r.bord)) nu[r.bord] = r.id; });
+    if (bordWedstrijd){
+      for (let b=1; b<=4; b++){
+        // Alleen als er een NIEUWE wedstrijd op het bord komt (niet bij vrijgeven)
+        if (nu[b] && nu[b] !== bordWedstrijd[b]){
+          clearTimeout(wisselTimers[b]);
+          wisselTimers[b] = setTimeout(()=>verversBordNaadloos(b), DC_WISSEL_DELAY_MS);
+        }
+      }
+    }
+    bordWedstrijd = nu;
+  }catch(e){ /* stil — sync-dot toont verbindingsstatus al */ }
+}
+
+// 2) Vangnet: elk bord periodiek verversen, verspreid zodat ze niet tegelijk wisselen.
+function startAutoVerversen(){
+  for (let b=1; b<=4; b++){
+    setTimeout(()=>{
+      setInterval(()=>verversBordNaadloos(b), DC_AUTO_RELOAD_MS);
+    }, (b-1) * (DC_AUTO_RELOAD_MS / 4));
+  }
 }
 
 async function laadDartCodes(){
@@ -523,8 +591,11 @@ async function initAll(){
   await laadDartCodes();
   await laadKomendeWedstrijden();
   await laadMededeling();
+  await checkBordWissels();
 }
 initAll();
+startAutoVerversen();
+setInterval(checkBordWissels, MATCH_REFRESH_MS);
 setInterval(laadDartCodes, CODE_REFRESH_MS);
 setInterval(laadKomendeWedstrijden, MATCH_REFRESH_MS);
 setInterval(laadMededeling, MDD_REFRESH_MS);
