@@ -209,12 +209,14 @@ let state = null; // volledige toernooi-staat (uit Supabase)
 // na ronde1). Als die pool geen macht van 2 is, wordt binnen dezelfde VR2-loting
 // eerst een aantal bye's getrokken (net als bij ronde 1) en daarna de resterende
 // wedstrijden — dat verving de losse "tussenronde"-fase die hier eerder stond.
+// "Ronde 3" is een nieuwe toernooifase: WR3 en VR3 worden pas geloot zodra
+// zowel WR2 als VR2 helemaal zijn uitgespeeld — WR3 wacht dus mee op VR2.
 const FASES = {
   ronde1:        { label:'Ronde 1',                tak:'gemengd',       bo:5 },
   wr2:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
   vr2:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
   vr3:           { label:'Verliezersronde 3',       tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
-  wr3:           { label:'Winnaarsronde 3',         tak:'winnaarsronde', bo:5, dependsOn:['wr2'] },
+  wr3:           { label:'Winnaarsronde 3',         tak:'winnaarsronde', bo:5, dependsOn:['wr2','vr2'] },
   wr_kwart:      { label:'Winnaarsronde — kwartfinale', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
   vr_kwart:      { label:'Verliezersronde — kwartfinale', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
   wr_halve:      { label:'Winnaarsronde — halve finale', tak:'winnaarsronde', bo:7, dependsOn:['wr_kwart'] },
@@ -511,7 +513,9 @@ function bepaalTeLoten(state){
     return { type:'fase', faseId:'vr3', pool };
   }
 
-  if(fases.wr2 && fases.wr2.afgerond && !fases.wr3){
+  // WR3 wacht — net als VR3 — tot VR2 helemaal is uitgespeeld, zodat "ronde 3"
+  // in zijn geheel als nieuwe fase klaarstaat.
+  if(fases.wr2 && fases.wr2.afgerond && fases.vr2 && fases.vr2.afgerond && !fases.wr3){
     const pool = fases.wr2.matches.map(m=>m.winnaar);
     return { type:'fase', faseId:'wr3', pool };
   }
