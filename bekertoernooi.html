@@ -67,6 +67,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .match .sync{font-size:0.65rem;flex:0 0 auto;width:60px;text-align:center;}
 .sync.ok{color:var(--green);} .sync.pending{color:var(--orange);} .sync.error{color:var(--red);}
 .match .btn-sm{flex:0 0 auto;}
+.match.dirty{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange) inset;}
+.match.fout{border-color:var(--red);box-shadow:0 0 0 1px var(--red) inset;}
+.match .score-in.dirty{border-color:var(--orange);background:rgba(217,171,63,0.14);}
+
+/* Eén opslaanbalk onderin, alleen zichtbaar als er iets is gewijzigd */
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#081712;border-top:2px solid var(--orange);padding:12px 16px;display:none;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
+.savebar.show{display:flex;}
+.savebar .info{font-size:0.85rem;color:var(--orange);font-weight:600;}
+.savebar .btn{padding:10px 20px;}
+body.heeft-savebar .toast{bottom:84px;}
 
 .faseGroup{margin-bottom:22px;}
 .faseGroup-hdr{font-size:0.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
@@ -146,6 +156,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <div class="empty-state" id="loadingState">
     <p>Laden…</p>
   </div>
+</div>
+
+<div class="savebar" id="saveBar">
+  <span class="info" id="saveBarInfo"></span>
+  <button type="button" class="btn" id="annuleerBtn">Wijzigingen ongedaan maken</button>
+  <button type="button" class="btn btn-orange" id="slaAllesOpBtn">💾 Alles opslaan</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -241,7 +257,7 @@ async function init(){
     // Zorg dat al bekende WR2-wedstrijden (de 6 directe bye-koppels, en elke
     // "wacht op winnaar wedstrijd X"-plek waarvan de voorronde-wedstrijd al
     // gescoord is) meteen zichtbaar zijn, ook als er deze sessie nog niets is
-    // opgeslagen via slaScoreOp().
+    // opgeslagen via slaAllesOp().
     berekenVolgendeFases();
     bewaarState();
     await syncNieuweWr2Wedstrijden();
@@ -435,26 +451,103 @@ function genereerRonde1(spelers42){
 
 function alleGespeeld(matches){ return matches.every(m => m.winnaar); }
 
-function slaScoreOp(faseId, matchIdx){
-  const fase = state.fases[faseId];
-  const m = fase.matches[matchIdx];
-  if(!m.a || !m.b) return; // placeholder nog niet ingevuld
-  const bo = m._bo || FASES[faseId].bo;
-  const scoreAEl = document.getElementById(`scoreA-${faseId}-${matchIdx}`);
-  const scoreBEl = document.getElementById(`scoreB-${faseId}-${matchIdx}`);
-  const scoreA = parseInt(scoreAEl.value, 10);
-  const scoreB = parseInt(scoreBEl.value, 10);
-  if(Number.isNaN(scoreA) || Number.isNaN(scoreB)){ toast('Vul bij beide spelers een score in.','red'); return; }
-  const kant = bepaalWinnaarUitScore(bo, scoreA, scoreB);
-  if(!kant){ toast(`Bij Bo${bo} moet één speler op ${legsNodig(bo)} staan en de ander lager.`,'red'); return; }
-  m.scoreA = scoreA; m.scoreB = scoreB;
-  m.winnaar = kant === 'a' ? m.a : m.b;
-  fase.afgerond = alleGespeeld(fase.matches);
-  bewaarState();
-  berekenVolgendeFases();
-  render();
-  if(state.syncEnabled) schrijfWedstrijd(m, faseId);
-  syncNieuweWr2Wedstrijden();
+// ══════════════════════════════════════════
+//  SCORES INVOEREN — één opslaanknop voor alles
+// ══════════════════════════════════════════
+// Scores worden eerst alleen in de invoervelden bijgehouden (oranje = gewijzigd,
+// nog niet opgeslagen). "Alles opslaan" valideert ze in één keer, slaat alle
+// geldige op, rekent de bracket één keer door en schrijft daarna pas naar de
+// planning. Ongeldige wedstrijden blijven rood staan met hun ingevulde waarden.
+
+function opgeslagenWaarde(v){ return (v===undefined||v===null) ? '' : String(v); }
+
+// Alle wedstrijdrijen met invoervelden, met hun huidige en opgeslagen waarden.
+function scoreRijen(){
+  return [...document.querySelectorAll('.match[data-fase]')].map(row=>{
+    const inA = row.querySelector('.score-in[data-kant="a"]');
+    const inB = row.querySelector('.score-in[data-kant="b"]');
+    return {
+      row, inA, inB,
+      faseId: row.dataset.fase, idx: parseInt(row.dataset.idx,10),
+      gewijzigd: inA.value.trim() !== inA.dataset.orig || inB.value.trim() !== inB.dataset.orig
+    };
+  });
+}
+
+function updateSaveBar(){
+  let aantal = 0;
+  scoreRijen().forEach(r=>{
+    r.row.classList.toggle('dirty', r.gewijzigd);
+    [r.inA, r.inB].forEach(inp => inp.classList.toggle('dirty', inp.value.trim() !== inp.dataset.orig));
+    if(r.gewijzigd) aantal++;
+    else r.row.classList.remove('fout');
+  });
+  document.getElementById('saveBar').classList.toggle('show', aantal > 0);
+  document.body.classList.toggle('heeft-savebar', aantal > 0);
+  document.getElementById('saveBarInfo').textContent =
+    `${aantal} wedstrijd${aantal===1?'':'en'} gewijzigd, nog niet opgeslagen`;
+}
+window.updateSaveBar = updateSaveBar;
+
+let bezigMetOpslaan = false;
+async function slaAllesOp(){
+  if(!state || bezigMetOpslaan) return;
+  const rijen = scoreRijen().filter(r=>r.gewijzigd);
+  if(!rijen.length) return;
+
+  const opgeslagen = [];   // [{m, faseId}]
+  const fouten = [];       // tekstjes voor de toast
+  rijen.forEach(r=>{
+    const fase = state.fases[r.faseId];
+    const m = fase && fase.matches[r.idx];
+    if(!m || !m.a || !m.b) return;
+    const bo = m._bo || FASES[r.faseId].bo;
+    const scoreA = parseInt(r.inA.value, 10);
+    const scoreB = parseInt(r.inB.value, 10);
+    let kant = null;
+    if(Number.isNaN(scoreA) || Number.isNaN(scoreB)){
+      fouten.push(`${m.a} – ${m.b}: vul bij beide spelers een score in`);
+    } else {
+      kant = bepaalWinnaarUitScore(bo, scoreA, scoreB);
+      if(!kant) fouten.push(`${m.a} – ${m.b}: bij Bo${bo} moet één speler op ${legsNodig(bo)} staan en de ander lager`);
+    }
+    if(!kant){ r.row.classList.add('fout'); return; }
+    m.scoreA = scoreA; m.scoreB = scoreB;
+    m.winnaar = kant === 'a' ? m.a : m.b;
+    fase.afgerond = alleGespeeld(fase.matches);
+    opgeslagen.push({ m, faseId:r.faseId });
+    // Markeer dit veld als "opgeslagen", zodat render() hem niet als gewijzigd terugzet.
+    r.inA.dataset.orig = String(scoreA); r.inB.dataset.orig = String(scoreB);
+  });
+
+  if(opgeslagen.length){
+    bezigMetOpslaan = true;
+    document.getElementById('slaAllesOpBtn').disabled = true;
+    berekenVolgendeFases();
+    await bewaarState();
+    render();
+    if(state.syncEnabled){
+      for(const {m, faseId} of opgeslagen) await schrijfWedstrijd(m, faseId);
+    }
+    await syncNieuweWr2Wedstrijden();
+    bezigMetOpslaan = false;
+    document.getElementById('slaAllesOpBtn').disabled = false;
+  }
+
+  if(fouten.length){
+    toast(`${opgeslagen.length} opgeslagen, ${fouten.length} niet: ${fouten[0]}${fouten.length>1?' (en meer, zie rood)':''}`,'red');
+  } else {
+    toast(`${opgeslagen.length} wedstrijd${opgeslagen.length===1?'':'en'} opgeslagen.`,'green');
+  }
+  updateSaveBar();
+}
+
+function annuleerWijzigingen(){
+  scoreRijen().forEach(r=>{
+    r.inA.value = r.inA.dataset.orig; r.inB.value = r.inB.dataset.orig;
+    r.row.classList.remove('fout');
+  });
+  updateSaveBar();
 }
 
 // Bepaalt welke fases nu gegenereerd kunnen worden en doet dat (idempotent).
@@ -602,18 +695,16 @@ function matchHtml(faseId, m, idx){
   const syncHtml = m.sync ? `<span class="sync ${m.sync}">${m.sync==='ok'?(m.winnaar?'✓ opgeslagen':'✓ gepland'):m.sync==='pending'?'…':'✗ fout'}</span>` : '<span class="sync"></span>';
   const scoreAVal = m.scoreA===undefined||m.scoreA===null ? '' : m.scoreA;
   const scoreBVal = m.scoreB===undefined||m.scoreB===null ? '' : m.scoreB;
-  return `<div class="match">
+  return `<div class="match" data-fase="${faseId}" data-idx="${idx}">
     <span class="nr">${m.nr||''}</span>
     <div class="naam ${aCls}">${escapeHtml(m.a)}</div>
-    <input class="score-in" type="number" min="0" max="${legsNodig(bo)}" id="scoreA-${faseId}-${idx}" value="${scoreAVal}">
+    <input class="score-in" type="number" inputmode="numeric" min="0" max="${legsNodig(bo)}" id="scoreA-${faseId}-${idx}" data-kant="a" data-orig="${scoreAVal}" value="${scoreAVal}" oninput="updateSaveBar()">
     <span class="score-sep">–</span>
-    <input class="score-in" type="number" min="0" max="${legsNodig(bo)}" id="scoreB-${faseId}-${idx}" value="${scoreBVal}">
+    <input class="score-in" type="number" inputmode="numeric" min="0" max="${legsNodig(bo)}" id="scoreB-${faseId}-${idx}" data-kant="b" data-orig="${scoreBVal}" value="${scoreBVal}" oninput="updateSaveBar()">
     <div class="naam ${bCls}">${escapeHtml(m.b)}</div>
-    <button class="btn btn-sm ${m.winnaar?'':'btn-orange'}" onclick="slaScoreOp('${faseId}',${idx})">${m.winnaar?'Wijzig':'Opslaan'}</button>
     ${syncHtml}
   </div>`;
 }
-window.slaScoreOp = slaScoreOp;
 
 function faseCardHtml(faseId){
   const fase = state.fases[faseId];
@@ -686,8 +777,39 @@ function render(){
     if(state.fases[faseId]) html += faseCardHtml(faseId);
   });
 
+  // Onthoud nog niet opgeslagen invoer, zodat een render (bv. tijdens het
+  // wegschrijven naar de planning) niets wist wat je al had ingetypt.
+  const nietOpgeslagen = {};
+  const foutRijen = new Set();
+  app.querySelectorAll('.score-in').forEach(inp=>{
+    if(inp.value.trim() !== inp.dataset.orig) nietOpgeslagen[inp.id] = inp.value;
+  });
+  app.querySelectorAll('.match.fout[data-fase]').forEach(r=>foutRijen.add(r.dataset.fase+'-'+r.dataset.idx));
+
   app.innerHTML = html || '<div class="empty-state"><p>Nog niets te tonen.</p></div>';
+
+  Object.entries(nietOpgeslagen).forEach(([id,val])=>{
+    const inp = document.getElementById(id);
+    if(inp) inp.value = val;
+  });
+  app.querySelectorAll('.match[data-fase]').forEach(r=>{
+    if(foutRijen.has(r.dataset.fase+'-'+r.dataset.idx)) r.classList.add('fout');
+  });
+  updateSaveBar();
 }
+
+// Enter in een scoreveld = alles opslaan
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.classList && e.target.classList.contains('score-in')){
+    e.preventDefault(); slaAllesOp();
+  }
+});
+document.getElementById('slaAllesOpBtn').addEventListener('click', slaAllesOp);
+document.getElementById('annuleerBtn').addEventListener('click', annuleerWijzigingen);
+// Waarschuwing als je de pagina verlaat met niet-opgeslagen scores
+window.addEventListener('beforeunload', e=>{
+  if(scoreRijen().some(r=>r.gewijzigd)){ e.preventDefault(); e.returnValue=''; }
+});
 
 init();
 </script>
