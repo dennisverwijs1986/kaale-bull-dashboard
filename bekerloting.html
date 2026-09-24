@@ -53,7 +53,7 @@
 
   header{
     text-align:center;
-    margin-bottom: 1.6vh;
+    margin-bottom: 0.6vh;
     flex: 0 0 auto;
   }
 
@@ -61,9 +61,9 @@
     font-family:"Oswald", sans-serif;
     text-transform:uppercase;
     letter-spacing:0.3em;
-    font-size: clamp(13px, 1.1vw, 22px);
+    font-size: clamp(11px, 0.8vw, 16px);
     color: var(--gold);
-    margin: 0 0 0.6vh;
+    margin: 0 0 0.2vh;
   }
 
   h1{
@@ -71,9 +71,9 @@
     font-weight:400;
     text-transform:uppercase;
     letter-spacing:0.02em;
-    font-size: clamp(38px, 5.4vw, 92px);
+    font-size: clamp(24px, 3vw, 46px);
     line-height:1;
-    margin: 0 0 0.8vh;
+    margin: 0;
     text-wrap: balance;
     color: var(--ink);
     text-shadow: 0 2px 0 rgba(0,0,0,0.3);
@@ -87,7 +87,7 @@
 
   .board{
     display:grid;
-    grid-template-columns: minmax(0,1.25fr) minmax(320px, 0.85fr);
+    grid-template-columns: minmax(0,1fr) minmax(380px, 1fr);
     gap: 2.6vw;
     flex: 1 1 auto;
     min-height:0;
@@ -342,9 +342,11 @@
     min-height:0;
   }
 
-  .matches-card{ flex: 1 1 auto; }
-  .remaining-card{ flex: 0 0 auto; max-height: 22vh; }
-  .bye-card{ flex: 0 0 auto; max-height: 22vh; }
+  /* De kolom "Nog op het rad" is vervallen (overbodig — het rad zelf en de
+     statusregel laten al zien hoeveel namen er nog te gaan zijn), dus de
+     wedstrijden- en bye-kaart delen nu samen de hele hoogte van de zijkolom. */
+  .matches-card{ flex: 1 1 0; min-height:0; }
+  .bye-card{ flex: 1 1 0; min-height:0; }
   .wr2-prep-card{ flex: 0 0 auto; max-height: 34vh; margin-top: 1.6vh; }
 
   .card h2{
@@ -374,9 +376,9 @@
     list-style:none;
     margin:0; padding:0 4px 4px 0;
     display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
     align-content:start;
-    gap: 0.9vh 0.9vw;
+    gap: 0.7vh 0.7vw;
     overflow-y:auto;
     flex: 1 1 auto;
     min-height:0;
@@ -386,12 +388,12 @@
     display:grid;
     grid-template-columns: auto 1fr auto 1fr auto;
     align-items:center;
-    gap: 0.5em;
+    gap: 0.35em;
     background: rgba(0,0,0,0.2);
     border: 1px solid var(--line);
     border-radius: 10px;
-    padding: 0.7em 0.8em;
-    font-size: clamp(13px, 1.05vw, 19px);
+    padding: 0.5em 0.6em;
+    font-size: clamp(11px, 0.85vw, 15px);
     animation: pop .35s ease;
   }
   @keyframes pop{ from{ opacity:0; transform: scale(0.92);} to{opacity:1; transform:scale(1);} }
@@ -781,11 +783,6 @@
         <h2><span id="byeCardTitle">Bye — direct naar ronde 2</span> <span class="count-pill" id="byeCountPill">0</span></h2>
         <div class="remaining-list" id="byeList"></div>
       </div>
-
-      <div class="card remaining-card" id="remainingCard">
-        <h2>Nog op het rad <span class="count-pill" id="remainingPill">42</span></h2>
-        <div class="remaining-list" id="remainingList"></div>
-      </div>
     </aside>
   </div>
 
@@ -977,9 +974,6 @@
   var doneLineText = document.getElementById("doneLineText");
   var statusLine = document.getElementById("statusLine");
   var remainingCountEl = document.getElementById("remainingCount");
-  var remainingPill = document.getElementById("remainingPill");
-  var remainingList = document.getElementById("remainingList");
-  var remainingCard = document.getElementById("remainingCard");
   var matchesList = document.getElementById("matchesList");
   var matchCountPill = document.getElementById("matchCountPill");
   var emptyNote = document.getElementById("emptyNote");
@@ -1114,14 +1108,11 @@
   }
 
   function renderRemaining(){
-    remainingCountEl.textContent = state.remaining.length;
-    remainingPill.textContent = state.remaining.length;
-    remainingList.innerHTML = "";
-    state.remaining.forEach(function(name){
-      var s = document.createElement("span");
-      s.textContent = name;
-      remainingList.appendChild(s);
-    });
+    // De losse "Nog op het rad"-kaart is vervallen (overbodig naast het rad
+    // zelf en de statusregel) — dit werkt alleen nog het aantal bij dat in de
+    // allereerste (statische) statusregel-tekst stond, voor het geval die nog
+    // zichtbaar is vóór de eerste updateStatus()-aanroep.
+    if(remainingCountEl) remainingCountEl.textContent = state.remaining.length;
   }
 
   function renderBye(){
@@ -1275,13 +1266,11 @@
       if(faseVoorLabel && doneLineText) doneLineText.textContent = "Loting compleet — " + faseVoorLabel.label;
     }
 
-    // Zodra de loting compleet is, staan de bye-spelers al overzichtelijk
-    // verwerkt in de ronde-2-voorbereiding hieronder (of zijn ze simpelweg klaar
-    // — "nog op het rad" is dan altijd 0). Beide kaarten nog los tonen zou de
-    // namen dubbel op het scherm zetten en gaat ten koste van de ruimte voor de
+    // Zodra de loting compleet is, staat alles al overzichtelijk verwerkt in de
+    // ronde-2-voorbereiding hieronder — de bye-kaart nog los tonen zou de namen
+    // dubbel op het scherm zetten en gaat ten koste van de ruimte voor de
     // daadwerkelijke ronde-1-wedstrijden, dus die verbergen we dan.
     byeCard.style.display = done ? "none" : (state.bye.length > 0 ? "flex" : "none");
-    remainingCard.style.display = done ? "none" : "flex";
 
     if(done){
       completeBanner.classList.add("show");
@@ -1352,7 +1341,7 @@
     await sleep(300);
   }
 
-  async function revealMatch(matchNumber, home, away, eyebrowOverride){
+  async function revealMatch(matchNumber, home, away, eyebrowOverride, bottomLabelOverride){
     showReveal(
       '<p class="reveal-eyebrow">' + escapeHtml(eyebrowOverride || ("Wedstrijd " + matchNumber)) + '</p>' +
       '<div class="reveal-vs-row">' +
@@ -1360,7 +1349,7 @@
         '<p class="reveal-vs-label">vs</p>' +
         '<p class="reveal-name">' + escapeHtml(away) + '</p>' +
       '</div>' +
-      '<p class="reveal-match-label">wordt toegevoegd aan het schema &darr;</p>'
+      '<p class="reveal-match-label">' + escapeHtml(bottomLabelOverride || "wordt toegevoegd aan het schema ↓") + '</p>'
     );
     await sleep(2600);
     hideReveal();
@@ -1446,7 +1435,10 @@
         var byeIdxBeforePush = state.bye.length;
         if(byeIdxBeforePush < targets.matchesTarget){
           var wedstrijdNr = byeIdxBeforePush + 1;
-          await revealSingleName(winnerName, "Tegenstander voor winnaar wedstrijd " + wedstrijdNr);
+          var ronde1Match = state.matches[wedstrijdNr - 1];
+          var winnaarLabel = "Winnaar wedstrijd " + wedstrijdNr;
+          var onderTekst = ronde1Match ? ("(" + ronde1Match.home + " vs " + ronde1Match.away + ")") : "wacht op de uitslag van wedstrijd " + wedstrijdNr;
+          await revealMatch(wedstrijdNr, winnerName, winnaarLabel, "Ronde 2 — tegenstander bekend", onderTekst);
         } else {
           var subIdx = byeIdxBeforePush - targets.matchesTarget;
           if(subIdx % 2 === 0){
