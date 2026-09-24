@@ -701,6 +701,27 @@
     animation: revealFadeUp .4s ease .5s forwards;
   }
 
+  /* Twee namen van een nog te spelen ronde-1-wedstrijd, op de plek waar
+     normaal één (bekende) tegenstandernaam zou staan — vervangt het label
+     "Winnaar wedstrijd N". */
+  .reveal-vs-row .reveal-name.reveal-name-pair{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: 0.15em;
+    font-size: clamp(22px, 3.6vw, 52px);
+    line-height:1.12;
+  }
+  .reveal-pair-sep{
+    font-family:"Oswald", sans-serif;
+    font-weight:600;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    font-size: clamp(11px, 1.3vw, 16px);
+    color: var(--ink-dim);
+    opacity:0.75;
+  }
+
   @keyframes revealPop{
     to{ transform: scale(1); opacity:1; }
   }
@@ -1356,6 +1377,30 @@
     await sleep(300);
   }
 
+  // Toont de zojuist getrokken bye-speler tegenover de twee spelers van de
+  // ronde-1-wedstrijd waarvan hij/zij de winnaar treft — met beide namen
+  // prominent in beeld in plaats van een "Winnaar wedstrijd N"-label.
+  async function revealTegenstander(wedstrijdNr, byeSpeler, ronde1Match){
+    var thuis = ronde1Match ? ronde1Match.home : null;
+    var uit = ronde1Match ? ronde1Match.away : null;
+    var awayHtml = (thuis && uit)
+      ? '<span class="reveal-pair-name">' + escapeHtml(thuis) + '</span>' +
+        '<span class="reveal-pair-sep">&amp;</span>' +
+        '<span class="reveal-pair-name">' + escapeHtml(uit) + '</span>'
+      : escapeHtml("wedstrijd " + wedstrijdNr);
+    showReveal(
+      '<p class="reveal-eyebrow">Ronde 2 — tegenstander bekend</p>' +
+      '<div class="reveal-vs-row">' +
+        '<p class="reveal-name gold">' + escapeHtml(byeSpeler) + '</p>' +
+        '<p class="reveal-vs-label">vs</p>' +
+        '<div class="reveal-name reveal-name-pair">' + awayHtml + '</div>' +
+      '</div>'
+    );
+    await sleep(2600);
+    hideReveal();
+    await sleep(300);
+  }
+
   function spin(){
     if(spinBtn.disabled || state.remaining.length === 0) return;
     spinBtn.disabled = true;
@@ -1436,9 +1481,7 @@
         if(byeIdxBeforePush < targets.matchesTarget){
           var wedstrijdNr = byeIdxBeforePush + 1;
           var ronde1Match = state.matches[wedstrijdNr - 1];
-          var winnaarLabel = "Winnaar wedstrijd " + wedstrijdNr;
-          var onderTekst = ronde1Match ? ("(" + ronde1Match.home + " vs " + ronde1Match.away + ")") : "wacht op de uitslag van wedstrijd " + wedstrijdNr;
-          await revealMatch(wedstrijdNr, winnerName, winnaarLabel, "Ronde 2 — tegenstander bekend", onderTekst);
+          await revealTegenstander(wedstrijdNr, winnerName, ronde1Match);
         } else {
           var subIdx = byeIdxBeforePush - targets.matchesTarget;
           if(subIdx % 2 === 0){
