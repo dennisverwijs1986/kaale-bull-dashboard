@@ -1127,11 +1127,56 @@
   function renderBye(){
     byeCountPill.textContent = state.bye.length;
     byeList.innerHTML = "";
-    state.bye.forEach(function(name){
-      var s = document.createElement("span");
-      s.textContent = name;
-      byeList.appendChild(s);
-    });
+
+    if(state.faseId === "ronde1"){
+      // Toon meteen de twee herkenbare groepen uit de trekking: eerst de
+      // tegenstanders voor de wedstrijdwinnaars, dan de directe ronde-2-koppels.
+      byeList.className = "";
+      var ul = document.createElement("ul");
+      ul.className = "matches";
+      var matchesTarget = state.matchesTarget || 0;
+
+      for(var i = 0; i < Math.min(matchesTarget, state.bye.length); i++){
+        var li = document.createElement("li");
+        li.innerHTML =
+          '<span class="num">&mdash;</span>' +
+          '<span class="home">' + escapeHtml(state.bye[i]) + '</span>' +
+          '<span class="vs">tegen winnaar</span>' +
+          '<span class="away">wedstrijd ' + (i + 1) + '</span>';
+        ul.appendChild(li);
+      }
+
+      for(var j = matchesTarget; j < state.bye.length; j += 2){
+        var eerste = state.bye[j];
+        var tweede = state.bye[j + 1];
+        var pairNr = Math.floor((j - matchesTarget) / 2) + 1;
+        var li2 = document.createElement("li");
+        if(tweede === undefined){
+          li2.innerHTML =
+            '<span class="num">' + pairNr + '</span>' +
+            '<span class="home">' + escapeHtml(eerste) + '</span>' +
+            '<span class="vs">wacht op&hellip;</span>' +
+            '<span class="away">&mdash;</span>';
+        } else {
+          li2.innerHTML =
+            '<span class="num">' + pairNr + '</span>' +
+            '<span class="home">' + escapeHtml(eerste) + '</span>' +
+            '<span class="vs">vs</span>' +
+            '<span class="away">' + escapeHtml(tweede) + '</span>';
+        }
+        ul.appendChild(li2);
+      }
+
+      byeList.appendChild(ul);
+    } else {
+      byeList.className = "remaining-list";
+      state.bye.forEach(function(name){
+        var s = document.createElement("span");
+        s.textContent = name;
+        byeList.appendChild(s);
+      });
+    }
+
     byeCard.style.display = state.bye.length > 0 ? "flex" : "none";
   }
 
@@ -1258,7 +1303,14 @@
         statusLine.innerHTML = "Trek een wedstrijd &mdash; <strong>" + state.remaining.length + "</strong> namen op het rad.";
       }
     } else if(!byeDone){
-      statusLine.innerHTML = "Trek een bye-speler &mdash; nog <strong>" + (targets.byeTarget - state.bye.length) + "</strong> te gaan.";
+      var resterendBye = targets.byeTarget - state.bye.length;
+      if(state.faseId === "ronde1" && state.bye.length < targets.matchesTarget){
+        statusLine.innerHTML = "Trek de tegenstander voor de winnaar van wedstrijd <strong>" + (state.bye.length + 1) + "</strong> &mdash; nog <strong>" + resterendBye + "</strong> bye-spelers te gaan.";
+      } else if(state.faseId === "ronde1"){
+        statusLine.innerHTML = "Trek de spelers voor de directe koppels in ronde 2 &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
+      } else {
+        statusLine.innerHTML = "Trek een bye-speler &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
+      }
     }
   }
 
@@ -1300,9 +1352,9 @@
     await sleep(300);
   }
 
-  async function revealMatch(matchNumber, home, away){
+  async function revealMatch(matchNumber, home, away, eyebrowOverride){
     showReveal(
-      '<p class="reveal-eyebrow">Wedstrijd ' + matchNumber + '</p>' +
+      '<p class="reveal-eyebrow">' + escapeHtml(eyebrowOverride || ("Wedstrijd " + matchNumber)) + '</p>' +
       '<div class="reveal-vs-row">' +
         '<p class="reveal-name">' + escapeHtml(home) + '</p>' +
         '<p class="reveal-vs-label">vs</p>' +
@@ -1382,13 +1434,37 @@
         if(newMatchIndex >= 0 && state.syncEnabled && state.faseId === "ronde1"){
           syncMatch(state.matches[newMatchIndex], newMatchIndex);
         }
+      } else if(state.faseId === "ronde1"){
+        // Fase 2 bij ronde 1 is opgeknipt in twee herkenbare stappen:
+        //  2a) eerst de tegenstanders voor de winnaars van wedstrijd 1 t/m x,
+        //      één voor één, elk direct gekoppeld aan "winnaar wedstrijd N";
+        //  2b) daarna de resterende bye-spelers, die in ronde 2 meteen tegen
+        //      elkaar spelen — die worden twee-aan-twee getrokken en als een
+        //      heuse wedstrijd onthuld, net als bij de wedstrijden hierboven.
+        // De trekkingsvolgorde (en dus state.bye) blijft ongewijzigd: eerst de
+        // x tegenstanders, dan de rest — voltooiRonde1() leest dat zo uit.
+        var byeIdxBeforePush = state.bye.length;
+        if(byeIdxBeforePush < targets.matchesTarget){
+          var wedstrijdNr = byeIdxBeforePush + 1;
+          await revealSingleName(winnerName, "Tegenstander voor winnaar wedstrijd " + wedstrijdNr);
+        } else {
+          var subIdx = byeIdxBeforePush - targets.matchesTarget;
+          if(subIdx % 2 === 0){
+            await revealSingleName(winnerName, "Getrokken — koppel ronde 2");
+          } else {
+            var eersteNaam = state.bye[state.bye.length - 1];
+            var pairNr = Math.floor(subIdx / 2) + 1;
+            await revealMatch(pairNr, eersteNaam, winnerName, "Ronde 2 — koppel " + pairNr);
+          }
+        }
+        state.bye.push(winnerName);
+        saveState();
+        renderBye();
       } else {
-        // Fase 2: elke trekking is nu één bye-speler die automatisch doorstroomt.
-        // Bij ronde 1 is dat altijd concreet "naar ronde 2"; bij elke latere
-        // loting (bv. de bye-trekking binnen VR2) weten we hier niet exact welke
-        // fase erna komt, dus dan een neutrale, altijd kloppende tekst.
-        var byeRevealLabel = state.faseId === "ronde1" ? "Bye — naar ronde 2" : "Bye — door naar de volgende ronde";
-        await revealSingleName(winnerName, byeRevealLabel);
+        // Elke latere loting (bv. de bye-trekking binnen VR2) heeft geen WR2-
+        // voorbereiding nodig — daar is elke bye gewoon automatisch door naar
+        // de volgende ronde, dus een neutrale, altijd kloppende tekst.
+        await revealSingleName(winnerName, "Bye — door naar de volgende ronde");
         state.bye.push(winnerName);
         saveState();
         renderBye();
