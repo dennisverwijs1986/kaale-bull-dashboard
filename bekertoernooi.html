@@ -62,6 +62,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .match .vs{font-size:0.68rem;color:var(--muted);flex:0 0 auto;}
 .match.bye{opacity:0.75;}
 .match .side.bye-label{background:transparent;color:var(--muted);cursor:default;font-style:italic;flex:1;padding:7px 10px;}
+.match.wacht{opacity:0.85;}
+.match.wacht .side{background:transparent;color:var(--orange);cursor:default;font-style:italic;flex:1;padding:7px 10px;}
 .match .sync{font-size:0.65rem;flex:0 0 auto;width:60px;text-align:center;}
 .sync.ok{color:var(--green);} .sync.pending{color:var(--orange);} .sync.error{color:var(--red);}
 .match .btn-sm{flex:0 0 auto;}
@@ -235,10 +237,20 @@ async function init(){
       document.getElementById('syncToggle').checked = !!state.syncEnabled;
     }
   }catch(e){ /* nog geen tabel-toegang of nog geen rij: gewoon starten met leeg */ }
+  if(state){
+    // Zorg dat al bekende WR2-wedstrijden (de 6 directe bye-koppels, en elke
+    // "wacht op winnaar wedstrijd X"-plek waarvan de voorronde-wedstrijd al
+    // gescoord is) meteen zichtbaar zijn, ook als er deze sessie nog niets is
+    // opgeslagen via slaScoreOp().
+    berekenVolgendeFases();
+    bewaarState();
+    await syncNieuweWr2Wedstrijden();
+  }
   document.getElementById('syncToggle').addEventListener('change', e=>{
     state = state || {};
     state.syncEnabled = e.target.checked;
     bewaarState();
+    if(state.syncEnabled) syncNieuweWr2Wedstrijden();
   });
   document.getElementById('resetToernooiBtn').addEventListener('click', resetToernooi);
   document.getElementById('pdfBtn').addEventListener('click', openPdfView);
@@ -362,6 +374,23 @@ async function schrijfWedstrijd(match, faseId){
   await bewaarState(); render();
 }
 
+// Schrijft elke WR2-wedstrijd waarvan de tegenstander inmiddels bekend is, maar
+// die nog niet is weggeschreven, alvast als NNB-wedstrijd (status "gepland",
+// nog geen datum) naar de planning — zodat hij daar al zichtbaar is, ook al
+// is er nog geen score ingevoerd. Dit geldt zowel voor de 6 directe
+// bye-koppels (die overigens meestal al bij de loting zelf gesynct worden)
+// als voor elke "wacht op winnaar wedstrijd X"-plek zodra die winnaar bekend
+// wordt. Idempotent en veilig om vaak aan te roepen — wedstrijden met sync
+// "ok"/"pending"/"error" worden overgeslagen.
+async function syncNieuweWr2Wedstrijden(){
+  if(!state || !state.syncEnabled || !state.fases.wr2) return;
+  for(const m of state.fases.wr2.matches){
+    if(m.a && m.b && !m.winnaar && !m.sync){
+      await schrijfWedstrijd(m, 'wr2');
+    }
+  }
+}
+
 // ══════════════════════════════════════════
 //  FASE-GENERATOREN
 // ══════════════════════════════════════════
@@ -425,6 +454,7 @@ function slaScoreOp(faseId, matchIdx){
   berekenVolgendeFases();
   render();
   if(state.syncEnabled) schrijfWedstrijd(m, faseId);
+  syncNieuweWr2Wedstrijden();
 }
 
 // Bepaalt welke fases nu gegenereerd kunnen worden en doet dat (idempotent).
@@ -432,16 +462,32 @@ function berekenVolgendeFases(){
   if(!state) return;
   state.fases = state.fases || {};
 
-  // WR2: klaar zodra ronde1 afgerond is
-  if(state.fases.ronde1 && state.fases.ronde1.afgerond && !state.fases.wr2){
+  // WR2: de 6 directe bye-vs-bye wedstrijden en de 10 "wacht op winnaar
+  // wedstrijd X"-plekken liggen al vast zodra ronde1 is geloot — dus WR2 wordt
+  // nu meteen aangemaakt (niet pas als ronde1 helemaal is afgerond), zodat die
+  // 6 wedstrijden meteen gespeeld kunnen worden, gelijktijdig met ronde1.
+  if(state.fases.ronde1 && state.wr2Voorbereiding && !state.fases.wr2){
     const { byeMatches, slots } = state.wr2Voorbereiding;
     const slotMatches = slots.map(s=>{
       const winnaarWedstrijd = state.fases.ronde1.matches.find(m=>m.nr===s.winnaarVanWedstrijd);
-      return { a: winnaarWedstrijd.winnaar, b: s.byeSpeler, winnaar:null, sync:null, _tak:'winnaarsronde' };
+      const winnaarNaam = winnaarWedstrijd && winnaarWedstrijd.winnaar ? winnaarWedstrijd.winnaar : null;
+      return { a: winnaarNaam, b: s.byeSpeler, winnaar:null, sync:null, _tak:'winnaarsronde', _wachtOpWedstrijd: s.winnaarVanWedstrijd };
     });
     const matches = [...byeMatches, ...slotMatches];
     matches.forEach((m,i)=>m.nr=i+1);
     state.fases.wr2 = { matches, afgerond:false };
+  }
+
+  // Vul elke nog openstaande "wacht op winnaar wedstrijd X"-plek in zodra die
+  // ronde1-wedstrijd een winnaar heeft — per wedstrijd, niet pas als alle 10
+  // voorronde-wedstrijden klaar zijn.
+  if(state.fases.wr2 && state.fases.ronde1){
+    state.fases.wr2.matches.forEach(m=>{
+      if(m._wachtOpWedstrijd && !m.a){
+        const rm = state.fases.ronde1.matches.find(x=>x.nr===m._wachtOpWedstrijd);
+        if(rm && rm.winnaar) m.a = rm.winnaar;
+      }
+    });
   }
 
   // VR2, vr3, wr3 en de generieke halvering worden niet meer hier automatisch
@@ -539,8 +585,13 @@ function bepaalTeLoten(state){
 //  RENDER
 // ══════════════════════════════════════════
 function matchHtml(faseId, m, idx){
+  const wachtOpRonde1 = m._wachtOpWedstrijd && !m.a;
   const isBye = !m.a || !m.b;
   const bo = m._bo || (FASES[faseId] ? FASES[faseId].bo : 5);
+  if(wachtOpRonde1){
+    return `<div class="match wacht"><span class="nr">${m.nr||''}</span>
+      <div class="side">${escapeHtml(m.b)} — wacht op winnaar wedstrijd ${m._wachtOpWedstrijd} (voorronde)</div></div>`;
+  }
   if(isBye){
     const naam = m.a || m.b || '';
     return `<div class="match bye"><span class="nr">${m.nr||''}</span>
