@@ -933,19 +933,13 @@
     return postWedstrijd(thuis, uit, "Beker winnaarsronde (Bo5)");
   }
 
-  function shuffle(arr){
-    var a = arr.slice();
-    for(var i = a.length - 1; i > 0; i--){
-      var j = Math.floor(Math.random() * (i + 1));
-      var t = a[i]; a[i] = a[j]; a[j] = t;
-    }
-    return a;
-  }
   function powerOf2LE(n){ var p = 1; while(p * 2 <= n) p *= 2; return p; }
-  function pairUp(namen){
-    var s = shuffle(namen);
+  // Paart namen twee aan twee, in de volgorde waarin ze worden meegegeven — voor
+  // als die volgorde al willekeurig is doordat hij rechtstreeks uit een trekking
+  // via het rad komt (bv. de WR2-bye's, in de volgorde waarin ze zijn getrokken).
+  function pairSequential(namen){
     var matches = [];
-    for(var i = 0; i < s.length; i += 2) matches.push({ a: s[i], b: s[i + 1], winnaar: null, sync: null });
+    for(var i = 0; i < namen.length; i += 2) matches.push({ a: namen[i], b: namen[i + 1], winnaar: null, sync: null });
     return matches;
   }
   // De doelen (hoeveel bye's, hoeveel wedstrijden) worden bij het starten van
@@ -1255,12 +1249,16 @@
     statusLine.style.display = "block";
     spinBtn.disabled = state.remaining.length === 0;
 
-    if(!byeDone){
+    // Eerst de wedstrijden (paren), dan pas de losse bye-namen — zie spin().
+    var matchenKlaarVoorStatus = state.matches.length >= targets.matchesTarget && !state.pending;
+    if(!matchenKlaarVoorStatus){
+      if(state.pending){
+        statusLine.innerHTML = "<strong>" + escapeHtml(state.pending) + "</strong> is getrokken &mdash; wacht op de tegenstander.";
+      } else {
+        statusLine.innerHTML = "Trek een wedstrijd &mdash; <strong>" + state.remaining.length + "</strong> namen op het rad.";
+      }
+    } else if(!byeDone){
       statusLine.innerHTML = "Trek een bye-speler &mdash; nog <strong>" + (targets.byeTarget - state.bye.length) + "</strong> te gaan.";
-    } else if(state.pending){
-      statusLine.innerHTML = "<strong>" + escapeHtml(state.pending) + "</strong> is getrokken &mdash; wacht op de tegenstander.";
-    } else {
-      statusLine.innerHTML = "Trek een wedstrijd &mdash; <strong>" + state.remaining.length + "</strong> namen op het rad.";
     }
   }
 
@@ -1350,20 +1348,17 @@
       buildWheel();
 
       var targets = computeTargets();
-      var inByePhase = state.bye.length < targets.byeTarget;
+      // Eerst worden de wedstrijden getrokken (paren), pas als die allemaal
+      // compleet zijn schakelt de trekking om naar losse bye-namen. Zo zijn
+      // de wedstrijden (en dus wie waar wint) altijd als eerste bekend, en
+      // bepaalt de trekkingsvolgorde van de bye's daarna direct (in
+      // voltooiRonde1/voltooiFaseLoting) wie tegen wie in de volgende ronde
+      // komt — geen aparte onzichtbare shuffle meer achteraf.
+      var matchenKlaar = state.matches.length >= targets.matchesTarget && !state.pending;
+      var inByePhase = matchenKlaar;
 
-      if(inByePhase){
-        // Fase 1: elke trekking is één bye-speler die automatisch doorstroomt.
-        // Bij ronde 1 is dat altijd concreet "naar ronde 2"; bij elke latere
-        // loting (bv. de bye-trekking binnen VR2) weten we hier niet exact welke
-        // fase erna komt, dus dan een neutrale, altijd kloppende tekst.
-        var byeRevealLabel = state.faseId === "ronde1" ? "Bye — naar ronde 2" : "Bye — door naar de volgende ronde";
-        await revealSingleName(winnerName, byeRevealLabel);
-        state.bye.push(winnerName);
-        saveState();
-        renderBye();
-      } else {
-        // Fase 2: de resterende namen worden per twee getrokken tot ronde-1-wedstrijden.
+      if(!inByePhase){
+        // Fase 1: de namen worden per twee getrokken tot wedstrijden.
         var wasPending = state.pending;
         await revealSingleName(winnerName, wasPending ? "Tegenstander" : "Getrokken");
 
@@ -1387,6 +1382,16 @@
         if(newMatchIndex >= 0 && state.syncEnabled && state.faseId === "ronde1"){
           syncMatch(state.matches[newMatchIndex], newMatchIndex);
         }
+      } else {
+        // Fase 2: elke trekking is nu één bye-speler die automatisch doorstroomt.
+        // Bij ronde 1 is dat altijd concreet "naar ronde 2"; bij elke latere
+        // loting (bv. de bye-trekking binnen VR2) weten we hier niet exact welke
+        // fase erna komt, dus dan een neutrale, altijd kloppende tekst.
+        var byeRevealLabel = state.faseId === "ronde1" ? "Bye — naar ronde 2" : "Bye — door naar de volgende ronde";
+        await revealSingleName(winnerName, byeRevealLabel);
+        state.bye.push(winnerName);
+        saveState();
+        renderBye();
       }
 
       updateStatus();
@@ -1414,10 +1419,15 @@
     if(!(state.bye.length === targets.byeTarget && state.remaining.length === 0 &&
          !state.pending && state.matches.length === targets.matchesTarget)) return;
 
-    var byeShuffled = shuffle(state.bye);
-    var preSeed = byeShuffled.slice(0, targets.matchesTarget);
-    var directBye = byeShuffled.slice(targets.matchesTarget);
-    var wr2ByeMatches = pairUp(directBye);
+    // state.bye staat al in de volgorde waarin de bye-spelers via het rad zijn
+    // getrokken (ná de 10 voorronde-wedstrijden) — die trekkingsvolgorde bepaalt
+    // nu rechtstreeks de WR2-koppeling, in plaats van een onzichtbare shuffle
+    // achteraf: de eerst-getrokken bye-spelers komen tegen een wedstrijdwinnaar
+    // te staan, de rest speelt (in trekkingsvolgorde, twee aan twee) meteen
+    // tegen elkaar in WR2.
+    var preSeed = state.bye.slice(0, targets.matchesTarget);
+    var directBye = state.bye.slice(targets.matchesTarget);
+    var wr2ByeMatches = pairSequential(directBye);
 
     if(state.syncEnabled){
       for(var i = 0; i < wr2ByeMatches.length; i++){
@@ -1480,8 +1490,8 @@
   // Voltooit een loting voor elke fase NA ronde 1 (vr2, vr3, wr3, de kwart-/
   // halve finales en de finales). Anders dan voltooiRonde1() is er hier geen
   // WR2-voorbereiding — de getrokken paren zijn de complete fase. Heeft de fase
-  // eerst een bye-trekking nodig (bv. VR2, als de pool geen macht van 2 is),
-  // dan worden die bye-spelers gewoon meegestuurd als state.fases[faseId].bye.
+  // ook een bye-trekking nodig (bv. VR2, als de pool geen macht van 2 is), dan
+  // worden die bye-spelers gewoon meegestuurd als state.fases[faseId].bye.
   async function voltooiFaseLoting(){
     if(state.afgerond) return;
     var targets = computeTargets();
