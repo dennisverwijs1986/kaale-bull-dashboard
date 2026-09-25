@@ -705,7 +705,20 @@ let activeMatches = {1:null,2:null,3:null,4:null};
 let timers        = {1:null,2:null,3:null,4:null};
 let startTijden   = {1:null,2:null,3:null,4:null};
 let schrijvers    = {1:'',2:'',3:'',4:''};
-let dartCodes     = {1:'',2:'',3:'',4:''}; // DartConnect koppelcodes, wisselen wekelijks
+let dartCodes     = {1:'',2:'',3:'',4:''}; // DartConnect-koppelingen per bord (live-link of wedstrijdcode)
+
+// Opgeslagen waarde → volledige DartConnect-URL.
+//  "live/5ypi9/L/KaalBHC/22804"  → bord-weergave (volgt de tablet, blijft de hele avond geldig)
+//  "BYPUA/M/kaalebullsingles"    → oud: TV-scoreboard van één wedstrijd
+function dcUrl(code){
+  if (!code) return '';
+  code = String(code).replace(/["'<>\s]/g,'');
+  return /^live\//i.test(code)
+    ? `https://tv.dartconnect.com/${code}`
+    : `https://tv.dartconnect.com/tvscoreboard/${code}`;
+}
+function dcIsLive(code){ return /^live\//i.test(code||''); }
+
 let dartCodesOpen = {1:false,2:false,3:false,4:false}; // invoerveld open/dicht per bord
 let dcPreviewOpen = {
   1: localStorage.getItem('dc_preview_open_1')==='1',
@@ -1107,9 +1120,13 @@ function getBesteBord() {
   return best;
 }
 
+// BELANGRIJK: het DartConnect-scoreboard volgt de tablet naar volgende wedstrijden zolang de iframe
+// NIET opnieuw geladen wordt; een herlaad met een oude code geeft "Something went wrong".
+// Daarom hergebruikt renderBoards de bestaande kaart + iframe als de code van dat bord gelijk is.
 function renderBoards() {
   const grid = document.getElementById('boardsGrid');
-  grid.innerHTML = '';
+  const oudeKaarten = {};
+  grid.querySelectorAll(':scope > .board-card').forEach(c => { oudeKaarten[c.dataset.bord] = c; });
   for (let b=1;b<=4;b++) {
     const id = activeMatches[b];
     const card = document.createElement('div');
@@ -1117,21 +1134,24 @@ function renderBoards() {
     card.setAttribute('data-bord', b);
 
     const dcCode = dartCodes[b];
-    const dcCodeKort = dcCode ? dcCode.split('/')[0] : '';
+    const dcCodeKort = dcCode ? (dcIsLive(dcCode) ? dcCode.split('/')[1]+' (bord)' : dcCode.split('/')[0]) : '';
     const dcHtml = dartCodesOpen[b]
       ? `<div class="dc-inp-row">
-           <input type="text" class="dc-inp" id="dcInp${b}" placeholder="koppelcode of volledige URL" value="${dcCode||''}" onkeydown="if(event.key==='Enter')zetDartCode(${b})">
+           <input type="text" class="dc-inp" id="dcInp${b}" placeholder="live-link van het bord (tv.dartconnect.com/live/…)" value="${dcCode||''}" onkeydown="if(event.key==='Enter')zetDartCode(${b})">
            <button class="btn btn-green btn-xs" onclick="zetDartCode(${b})">✓</button>
            <button class="btn btn-ghost btn-xs" onclick="toggleDartCodeInput(${b})">✕</button>
          </div>`
       : `<div class="dc-row">
            <button class="dc-link ${dcCode?'linked':''}" onclick="toggleDartCodeInput(${b})">📺 ${dcCode?`Gekoppeld: ${dcCodeKort}`:'DartConnect koppelen'}</button>
            ${dcCode ? `<button class="dc-eye-btn" onclick="toggleDcPreview(${b})" title="${dcPreviewOpen[b]?'Verberg voorbeeld':'Toon voorbeeld'}">${dcPreviewOpen[b]?'🙈':'👁'}</button>` : ''}
-           ${dcCode && dcPreviewOpen[b] ? `<button class="dc-eye-btn" onclick="dcVerversNaadloos(${b})" title="Scoreboard verversen">↻</button>` : ''}
          </div>`;
-    const dcFrame = (dcCode && !dartCodesOpen[b] && dcPreviewOpen[b])
-      ? `<div class="dc-frame-wrap" id="dcWrap${b}" style="height:${dcHoogte(b)}px"><iframe src="https://tv.dartconnect.com/tvscoreboard/${dcCode}" loading="lazy"></iframe></div>
-         <div class="dc-ctrl-row">
+    // De iframe blijft altijd bestaan zolang er een code is (verbergen = display:none, niet weghalen),
+    // want weghalen en terugzetten = herladen = "Something went wrong".
+    const dcZichtbaar = dcPreviewOpen[b] && !dartCodesOpen[b];
+    const dcVerberg = dcZichtbaar ? '' : 'display:none;';
+    const dcFrame = dcCode
+      ? `<div class="dc-frame-wrap" id="dcWrap${b}" style="${dcVerberg}height:${dcHoogte(b)}px"><iframe src="${dcUrl(dcCode)}"></iframe></div>
+         <div class="dc-ctrl-row" style="${dcVerberg}">
            <div class="dc-ctrl-group">
              <span class="dc-ctrl-lbl">breedte</span>
              <button class="dc-ctrl-btn" onclick="dcZetSchaal(${b},-0.02)">−</button>
@@ -1144,7 +1164,7 @@ function renderBoards() {
              <button class="dc-ctrl-btn" onclick="dcZetHoogte(${b},20)">+</button>
            </div>
          </div>
-         <div class="dc-ctrl-row">
+         <div class="dc-ctrl-row" style="${dcVerberg}">
            <div class="dc-ctrl-group">
              <span class="dc-ctrl-lbl">verschuif</span>
              <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},0,-20)" title="omhoog">↑</button>
@@ -1168,14 +1188,6 @@ function renderBoards() {
         </div>
         ${dcHtml}
         ${dcFrame}`;
-      // Drag-over highlight
-      card.addEventListener('dragover', e=>{ e.preventDefault(); card.classList.add('drag-over'); });
-      card.addEventListener('dragleave', ()=>card.classList.remove('drag-over'));
-      card.addEventListener('drop', e=>{
-        e.preventDefault(); card.classList.remove('drag-over');
-        const matchId = e.dataTransfer.getData('matchId');
-        if (matchId) startOpBord(matchId, b);
-      });
     } else {
       const m = wedstrijden.find(w=>w.id===id);
       if (!m) { activeMatches[b]=null; renderBoards(); return; }
@@ -1200,8 +1212,39 @@ function renderBoards() {
           <button class="btn btn-ghost btn-sm btn-full" onclick="herstelBaan(${b})">↩ Herstel</button>
         </div>`;
     }
-    grid.appendChild(card);
-    if (dcCode && !dartCodesOpen[b] && dcPreviewOpen[b]) dcInitSchaal(b);
+    const oud = oudeKaarten[b];
+    const oudWrap = oud ? oud.querySelector(':scope > .dc-frame-wrap') : null;
+    const nieuwWrap = card.querySelector(':scope > .dc-frame-wrap');
+    let el = card;
+    if (oud && oudWrap && nieuwWrap && oudWrap.dataset.code === (dcCode||'')) {
+      // Zelfde code: oude kaart hergebruiken; de iframe blijft staan (niet herladen!)
+      [...oud.childNodes].forEach(n => { if (n !== oudWrap) n.remove(); });
+      let voor = true;
+      [...card.childNodes].forEach(n => {
+        if (n === nieuwWrap) { voor = false; return; }
+        if (voor) oud.insertBefore(n, oudWrap); else oud.appendChild(n);
+      });
+      oud.className = card.className;
+      oudWrap.style.cssText = nieuwWrap.style.cssText;   // tonen/verbergen + hoogte bijwerken
+      el = oud;
+    } else {
+      if (nieuwWrap) nieuwWrap.dataset.code = dcCode || '';
+      if (oud) grid.replaceChild(card, oud); else grid.appendChild(card);
+    }
+    // Drag & drop eenmalig per kaart-element; controleert zelf of het bord vrij is
+    if (!el._dragInit) {
+      el._dragInit = true;
+      el.addEventListener('dragover', e=>{ if (activeMatches[b]!==null) return; e.preventDefault(); el.classList.add('drag-over'); });
+      el.addEventListener('dragleave', ()=>el.classList.remove('drag-over'));
+      el.addEventListener('drop', e=>{
+        el.classList.remove('drag-over');
+        if (activeMatches[b]!==null) return;
+        e.preventDefault();
+        const matchId = e.dataTransfer.getData('matchId');
+        if (matchId) startOpBord(matchId, b);
+      });
+    }
+    if (dcCode) dcInitSchaal(b);
   }
 }
 
@@ -1293,50 +1336,6 @@ function dcPas(b) {
 }
 function dcInitSchaal(b) { dcPas(b); }
 
-// ── DartConnect zelfherstel (zelfde aanpak als tv.html) ──
-// Het DC-scoreboard valt na een wedstrijdwissel om ("Something went wrong"); een verse load
-// met dezelfde code verhelpt dat. We laden een nieuwe iframe onzichtbaar achter de oude en
-// wisselen pas als hij klaar is, dus geen leeg/zwart vlak.
-const DC_WISSEL_DELAY_MS = 45000;      // na 'start op bord' wachten tot de tablet de nieuwe partij draait
-const DC_AUTO_RELOAD_MS  = 4 * 60000;  // vangnet: elk bord om de 4 minuten verversen
-const DC_SWAP_WACHT_MS   = 4000;       // na 'load' nog even wachten tot DC z'n data binnen heeft
-const dcBezig = {1:false,2:false,3:false,4:false};
-const dcWisselTimers = {};
-
-function dcPlanVerversing(b, na) {
-  clearTimeout(dcWisselTimers[b]);
-  dcWisselTimers[b] = setTimeout(()=>dcVerversNaadloos(b), na);
-}
-function dcVerversNaadloos(b) {
-  const wrap = document.getElementById(`dcWrap${b}`);
-  const oud = wrap ? wrap.querySelector('iframe') : null;
-  if (!wrap || !oud || !dartCodes[b] || dcBezig[b]) return;
-  dcBezig[b] = true;
-  const code = dartCodes[b];
-  const nieuw = document.createElement('iframe');
-  nieuw.src = `https://tv.dartconnect.com/tvscoreboard/${code}`;
-  nieuw.style.transform = oud.style.transform;
-  nieuw.style.opacity = '0';
-  nieuw.style.pointerEvents = 'none';
-  let klaar = false;
-  const wissel = ()=>{
-    if (klaar) return; klaar = true;
-    dcBezig[b] = false;
-    // Tegel intussen opnieuw opgebouwd of code gewijzigd? Dan deze nieuwe iframe weggooien.
-    if (!document.body.contains(oud) || dartCodes[b] !== code) { nieuw.remove(); return; }
-    oud.remove();
-    nieuw.style.opacity = '';
-    nieuw.style.pointerEvents = '';
-    dcPas(b);
-  };
-  nieuw.addEventListener('load', ()=> setTimeout(wissel, DC_SWAP_WACHT_MS));
-  setTimeout(wissel, 30000); // noodrem als 'load' nooit komt
-  wrap.appendChild(nieuw);
-}
-for (let b=1; b<=4; b++) {
-  setTimeout(()=> setInterval(()=>dcVerversNaadloos(b), DC_AUTO_RELOAD_MS), (b-1)*(DC_AUTO_RELOAD_MS/4));
-}
-
 function toggleDartCodeInput(b) {
   dartCodesOpen[b] = !dartCodesOpen[b];
   renderBoards();
@@ -1350,8 +1349,12 @@ async function zetDartCode(b) {
   // de standaard eventnaam aan.
   let code = raw;
   if (raw) {
-    const urlMatch = raw.match(/tvscoreboard\/([^?#]+)/i);
-    if (urlMatch) {
+    const liveMatch = raw.match(/(?:tv\.dartconnect\.com\/)?(live\/[^?#\s]+)/i);
+    const urlMatch  = raw.match(/tvscoreboard\/([^?#\s]+)/i);
+    if (liveMatch) {
+      // Gewone bord-weergave: volgt de tablet, blijft de hele avond geldig
+      code = liveMatch[1].replace(/\/+$/,'');
+    } else if (urlMatch) {
       code = urlMatch[1].replace(/\/+$/,'');
     } else if (!raw.includes('/')) {
       code = `${raw}/M/kaalebullsingles`;
@@ -1388,10 +1391,8 @@ async function startOpBord(matchId, bord) {
   if (activeMatches[bord]!==null) { toast(`Bord ${bord} is bezet!`,'red'); return; }
   activeMatches[bord] = matchId;
   // schrijver NIET wissen — blijft zichtbaar van vorige partij
-  // De DartConnect-code blijft de hele avond gelijk; het scoreboard valt alleen om na een
-  // wedstrijdwissel. Daarom niet opnieuw laten koppelen, maar de preview kort na de start
-  // automatisch (naadloos) verversen. tv.html doet hetzelfde via de bord-kolom.
-  dcPlanVerversing(bord, DC_WISSEL_DELAY_MS);
+  // DartConnect-koppeling NIET aanraken: het scoreboard volgt de tablet zelf naar de volgende
+  // wedstrijd, zolang de iframe niet herladen wordt (zie renderBoards).
   // Bijhouden rusttijd
   const m = wedstrijden.find(w=>w.id===matchId);
   if (m) { spelersLaatsteStart[m.thuis]=Date.now(); spelersLaatsteStart[m.uit]=Date.now(); }
