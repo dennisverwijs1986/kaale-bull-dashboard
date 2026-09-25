@@ -54,17 +54,17 @@ body{
 }
 .fs-btn:hover{background:var(--s3);}
 
-/* ── MEDEDELING BANNER (bovenaan, alleen zichtbaar als actief) ── */
+/* ── MEDEDELING BANNER (tussen borden en komende wedstrijden, alleen zichtbaar als actief) ── */
 .mdd-banner{
-  display:none;align-items:center;justify-content:center;gap:14px;
-  padding:10px 24px;flex:0 0 auto;
-  background:linear-gradient(90deg, rgba(245,158,11,0.24), rgba(245,158,11,0.08));
-  border-bottom:2px solid var(--orange);color:var(--text);
+  display:none;align-items:center;justify-content:center;gap:22px;
+  margin:0 8px 8px;padding:14px 28px;flex:0 0 auto;border-radius:10px;
+  background:var(--orange);color:#111;
+  box-shadow:0 0 0 3px rgba(245,158,11,0.35);
 }
 .mdd-banner.show{display:flex;}
-.mdd-banner .icon{font-size:1.4rem;flex:0 0 auto;animation:mddPulse 1.8s ease-in-out infinite;}
-@keyframes mddPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.18);}}
-.mdd-banner .txt{flex:0 1 auto;font-size:1.15rem;font-weight:700;letter-spacing:0.2px;text-align:center;}
+.mdd-banner .icon{font-size:2.4rem;flex:0 0 auto;animation:mddPulse 1.8s ease-in-out infinite;}
+@keyframes mddPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+.mdd-banner .txt{flex:0 1 auto;font-size:2.4rem;font-weight:900;letter-spacing:0.5px;text-align:center;text-transform:uppercase;line-height:1.15;}
 
 /* ── MAIN LAYOUT ── */
 .main{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;}
@@ -174,10 +174,6 @@ body{
 </head>
 <body>
 
-<div class="mdd-banner" id="mddBanner">
-  <span class="icon">📢</span>
-  <span class="txt" id="mddTxt"></span>
-</div>
 
 <div class="topbar">
   <div class="topbar-logo">🎯 Kaale Bull <span class="sub">TV weergave</span></div>
@@ -191,6 +187,11 @@ body{
 
 <div class="main">
   <div class="boards-wrap" id="boardsWrap"></div>
+  <div class="mdd-banner" id="mddBanner">
+    <span class="icon">📢</span>
+    <span class="txt" id="mddTxt"></span>
+    <span class="icon">📢</span>
+  </div>
   <div class="bottom-bar">
     <div class="upcoming-panel">
       <div class="upcoming-hdr">📋 Komende wedstrijden</div>
@@ -242,20 +243,23 @@ const SPONSORS = [
   { naam:'Corvers & Van Veldhoven',     logo:'' },
 ];
 const SPONSOR_SNELHEID_PX_PER_SEC = 90; // hoger = sneller scrollen
-const CODE_REFRESH_MS  = 120000;  // dartconnect koppelcodes
+const CODE_REFRESH_MS  = 10000;   // dartconnect koppelcodes (alleen een GEWIJZIGD bord wordt opnieuw geladen)
 
-// ── DartConnect zelfherstel ──
-// Het DC-scoreboard volgt de tablet na een wedstrijd nog even naar de volgende partij en valt
-// daarna om ("Something went wrong"). De iframe is cross-origin, dus die fout kunnen we niet
-// uitlezen. In plaats daarvan verversen we het bord onzichtbaar (nieuwe iframe op de achtergrond laden,
-// pas daarna wisselen — dus geen zwart/leeg scherm):
-//  1) kort nadat er in het dashboard een andere wedstrijd op dat bord is gezet, en
-//  2) als vangnet periodiek, verspreid per bord.
-const DC_WISSEL_DELAY_MS  = 45000;       // wacht na bordwissel tot de tablet de nieuwe partij gestart heeft
-const DC_AUTO_RELOAD_MS   = 4 * 60000;   // vangnet: elk bord om de 4 minuten verversen
-const DC_SWAP_WACHT_MS    = 4000;        // na 'load' nog even wachten tot DC z'n data binnen heeft
 
 let dartCodes = {1:'',2:'',3:'',4:''};
+
+// Opgeslagen waarde → volledige DartConnect-URL.
+//  "live/5ypi9/L/KaalBHC/22804"  → bord-weergave (volgt de tablet, blijft de hele avond geldig)
+//  "BYPUA/M/kaalebullsingles"    → oud: TV-scoreboard van één wedstrijd
+function dcUrl(code){
+  if (!code) return '';
+  code = String(code).replace(/["'<>\s]/g,'');
+  return /^live\//i.test(code)
+    ? `https://tv.dartconnect.com/${code}`
+    : `https://tv.dartconnect.com/tvscoreboard/${code}`;
+}
+function dcIsLive(code){ return /^live\//i.test(code||''); }
+
 
 // Vaste 'binnenmaat' waarop DartConnect altijd rendert (ruim genoeg zodat het nooit intern hoeft te scrollen).
 // Wordt daarna automatisch teruggeschaald ('cover') naar de werkelijke tegelgrootte.
@@ -302,24 +306,24 @@ function calSchaal(b){ return calGet(`tv_dc_schaal_${b}`, 1); }
 function calOffX(b){ return calGet(`tv_dc_offx_${b}`, 0); }
 function calOffY(b){ return calGet(`tv_dc_offy_${b}`, 0); }
 
-function renderBoards(){
-  const wrap = document.getElementById('boardsWrap');
-  wrap.innerHTML = '';
-  for (let b=1; b<=4; b++){
-    const code = dartCodes[b];
-    const tile = document.createElement('div');
-    tile.className = 'board-tile';
-    tile.innerHTML = `
+// BELANGRIJK: een DartConnect-scoreboard volgt de tablet naar volgende wedstrijden zolang de pagina
+// NIET opnieuw geladen wordt. Een herlaad met een oude code geeft "Something went wrong".
+// Daarom wordt een bordvak alleen opnieuw opgebouwd als de code van DAT bord verandert.
+function bouwTegel(b, code){
+  const tile = document.createElement('div');
+  tile.className = 'board-tile';
+  tile.dataset.bord = b;
+  tile.dataset.code = code || '';
+  tile.innerHTML = `
       <div class="board-tile-hdr">
         <span class="num">🎯 BORD ${b}</span>
         <div class="board-tile-ctrl">
-          ${code ? `<button class="tile-btn" title="kalibreren" onclick="toggleCalib(${b})">⚙</button>
-          <button class="tile-btn" title="herladen" onclick="herladenBord(${b})">↻</button>` : ''}
+          ${code ? `<button class="tile-btn" title="kalibreren" onclick="toggleCalib(${b})">⚙</button>` : ''}
         </div>
       </div>
       ${code
         ? `<div class="dc-viewport" id="dcView${b}" data-bord="${b}">
-             <iframe id="dcFrame${b}" src="https://tv.dartconnect.com/tvscoreboard/${code}" loading="lazy"></iframe>
+             <iframe id="dcFrame${b}" src="${dcUrl(code)}"></iframe>
            </div>
            <div class="calib-panel" id="calib${b}">
              <div class="calib-grp"><span>zoom</span>
@@ -334,9 +338,25 @@ function renderBoards(){
              </div>
              <button class="calib-reset" onclick="calReset(${b})">reset</button>
            </div>`
-        : `<div class="board-empty"><span class="icon">📴</span><span class="txt">Bord ${b} niet gekoppeld</span></div>`
+        : `<div class="board-empty"><span class="icon">📴</span><span class="txt">Bord ${b} — koppeling volgt</span></div>`
       }`;
-    wrap.appendChild(tile);
+  return tile;
+}
+function renderBoards(){
+  const wrap = document.getElementById('boardsWrap');
+  for (let b=1; b<=4; b++){
+    const code = dartCodes[b] || '';
+    const oud = wrap.querySelector(`.board-tile[data-bord="${b}"]`);
+    if (oud && oud.dataset.code === code) continue;          // ongewijzigd: NIET aanraken
+    const oudeView = oud && oud.querySelector('.dc-viewport');
+    if (oudeView) boardResizeObserver.unobserve(oudeView);
+    const tile = bouwTegel(b, code);
+    if (oud) wrap.replaceChild(tile, oud);
+    else {
+      // op de juiste plek (volgorde 1..4) invoegen
+      const volgende = [...wrap.children].find(t => +t.dataset.bord > b);
+      wrap.insertBefore(tile, volgende || null);
+    }
     if (code) {
       const viewport = document.getElementById(`dcView${b}`);
       if (viewport) boardResizeObserver.observe(viewport);
@@ -382,68 +402,6 @@ function calReset(b){
 function toggleCalib(b){
   document.getElementById(`calib${b}`).classList.toggle('open');
 }
-function herladenBord(b){ verversBordNaadloos(b); }
-
-// Laadt een verse iframe achter de huidige, en wisselt pas als die klaar is.
-const bordBezigMetVerversen = {1:false,2:false,3:false,4:false};
-function verversBordNaadloos(b){
-  const oud = document.getElementById(`dcFrame${b}`);
-  const viewport = document.getElementById(`dcView${b}`);
-  if (!oud || !viewport || !dartCodes[b] || bordBezigMetVerversen[b]) return;
-  bordBezigMetVerversen[b] = true;
-  const code = dartCodes[b];
-  const nieuw = document.createElement('iframe');
-  nieuw.src = `https://tv.dartconnect.com/tvscoreboard/${code}`;
-  nieuw.style.transform = oud.style.transform;
-  nieuw.style.opacity = '0';
-  nieuw.style.pointerEvents = 'none';
-  let klaar = false;
-  const wissel = ()=>{
-    if (klaar) return; klaar = true;
-    bordBezigMetVerversen[b] = false;
-    // Is de code intussen gewijzigd/gewist (renderBoards heeft de tegel vervangen)? Dan niets doen.
-    if (!document.body.contains(oud) || dartCodes[b] !== code){ nieuw.remove(); return; }
-    oud.remove();
-    nieuw.id = `dcFrame${b}`;
-    nieuw.style.opacity = '';
-    nieuw.style.pointerEvents = '';
-    toepassenCalib(b);
-  };
-  nieuw.addEventListener('load', ()=> setTimeout(wissel, DC_SWAP_WACHT_MS));
-  setTimeout(wissel, 30000); // noodrem als 'load' nooit komt
-  viewport.appendChild(nieuw);
-}
-
-// 1) Bordwissel-detectie: welke wedstrijd staat er (volgens het dashboard) op elk bord?
-let bordWedstrijd = null; // {1:id|null, ...}; null = nog niet eerder gemeten
-const wisselTimers = {};
-async function checkBordWissels(){
-  try{
-    const rows = await sbGet('wedstrijden', `datum=eq.${vandaagStr()}&bord=not.is.null&select=id,bord`);
-    const nu = {1:null,2:null,3:null,4:null};
-    rows.forEach(r=>{ if (nu.hasOwnProperty(r.bord)) nu[r.bord] = r.id; });
-    if (bordWedstrijd){
-      for (let b=1; b<=4; b++){
-        // Alleen als er een NIEUWE wedstrijd op het bord komt (niet bij vrijgeven)
-        if (nu[b] && nu[b] !== bordWedstrijd[b]){
-          clearTimeout(wisselTimers[b]);
-          wisselTimers[b] = setTimeout(()=>verversBordNaadloos(b), DC_WISSEL_DELAY_MS);
-        }
-      }
-    }
-    bordWedstrijd = nu;
-  }catch(e){ /* stil — sync-dot toont verbindingsstatus al */ }
-}
-
-// 2) Vangnet: elk bord periodiek verversen, verspreid zodat ze niet tegelijk wisselen.
-function startAutoVerversen(){
-  for (let b=1; b<=4; b++){
-    setTimeout(()=>{
-      setInterval(()=>verversBordNaadloos(b), DC_AUTO_RELOAD_MS);
-    }, (b-1) * (DC_AUTO_RELOAD_MS / 4));
-  }
-}
-
 async function laadDartCodes(){
   try{
     const rows = await sbGet('instellingen','sleutel=like.dartconnect_bord_*');
@@ -588,14 +546,12 @@ function renderSponsors(){
 // ══════════════════════════════════════════
 async function initAll(){
   renderSponsors();
+  renderBoards();          // tegels direct tonen, ook als er nog geen codes zijn
   await laadDartCodes();
   await laadKomendeWedstrijden();
   await laadMededeling();
-  await checkBordWissels();
 }
 initAll();
-startAutoVerversen();
-setInterval(checkBordWissels, MATCH_REFRESH_MS);
 setInterval(laadDartCodes, CODE_REFRESH_MS);
 setInterval(laadKomendeWedstrijden, MATCH_REFRESH_MS);
 setInterval(laadMededeling, MDD_REFRESH_MS);
