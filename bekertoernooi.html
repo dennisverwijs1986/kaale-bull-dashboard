@@ -64,7 +64,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .match .side.bye-label{background:transparent;color:var(--muted);cursor:default;font-style:italic;flex:1;padding:7px 10px;}
 .match.wacht{opacity:0.85;}
 .match.wacht .side{background:transparent;color:var(--orange);cursor:default;font-style:italic;flex:1;padding:7px 10px;}
-.match .sync{font-size:0.65rem;flex:0 0 auto;width:60px;text-align:center;}
+.match .sync{font-size:0.65rem;flex:0 0 auto;width:96px;text-align:center;line-height:1.25;}
+.sync.datum{color:var(--green);} .sync.nodatum{color:var(--muted);font-style:italic;}
 .sync.ok{color:var(--green);} .sync.pending{color:var(--orange);} .sync.error{color:var(--red);}
 .match .btn-sm{flex:0 0 auto;}
 .match.dirty{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange) inset;}
@@ -107,7 +108,7 @@ body.heeft-savebar .toast{bottom:84px;}
 
 @media(max-width:600px){
   .match{flex-wrap:wrap;}
-  .match .sync{display:none;}
+  .match .sync{width:100%;text-align:right;}
 }
 
 /* ── PDF/print-weergave ──
@@ -127,14 +128,15 @@ body.heeft-savebar .toast{bottom:84px;}
 .print-match .pm-naam.pm-winner{font-weight:800;}
 .print-match .pm-score{flex:0 0 auto;font-weight:700;min-width:46px;text-align:center;}
 .print-match .pm-open{flex:0 0 auto;color:#777;font-style:italic;font-size:0.78rem;}
+.print-match .pm-wacht{font-style:italic;color:#333;}
 .print-bye{font-size:0.8rem;color:#555;font-style:italic;margin-top:2px;}
 
 @media print{
-  body *{ visibility:hidden; }
-  #printView, #printView *{ visibility:visible; }
+  body > *:not(#printView){ display:none !important; }
+  body{ background:#fff; min-height:0; }
   #printView{
     display:block;
-    position:absolute; top:0; left:0; width:100%;
+    position:static; width:100%;
     background:#fff; color:#111; padding:0;
   }
   @page{ margin:14mm; }
@@ -218,6 +220,44 @@ function pairUp(namen){
 // ══════════════════════════════════════════
 const SEIZOEN = '2026-2027';
 let state = null; // volledige toernooi-staat (uit Supabase)
+// Datum/tijd per gekoppelde wedstrijdkaart in de planning (wedstrijden-tabel),
+// op id. Wordt niet opgeslagen in de toernooistaat, maar bij laden/opslaan
+// vers opgehaald, zodat een datum die in het dashboard is gezet hier meteen klopt.
+let planningInfo = {};
+
+async function laadPlanningInfo(){
+  if(!state || !state.fases) return;
+  const ids = [];
+  Object.values(state.fases).forEach(f => (f.matches||[]).forEach(m => { if(m._wedstrijdId) ids.push(m._wedstrijdId); }));
+  if(!ids.length) return;
+  try{
+    const rows = await sbGet('wedstrijden', `id=in.(${ids.join(',')})&select=id,datum,tijdstip,datum_nnb,status`);
+    planningInfo = {};
+    rows.forEach(r => { planningInfo[r.id] = r; });
+  }catch(e){ /* zonder planning-info tonen we gewoon de oude status */ }
+}
+
+// Korte Nederlandse datum, bv. "do 12 nov"
+function korteDatum(iso){
+  if(!iso) return '';
+  const [y,mo,d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, mo-1, d));
+  const dagen = ['zo','ma','di','wo','do','vr','za'];
+  const maanden = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  return `${dagen[dt.getUTCDay()]} ${d} ${maanden[mo-1]}`;
+}
+
+// Planningsstatus van een nog niet gespeelde wedstrijd:
+// {cls:'datum', txt:'do 12 nov 20:00'} als er een datum is,
+// {cls:'nodatum', txt:'nog geen datum'} als er alleen een kaart zonder datum is,
+// of null als de wedstrijd (nog) niet aan de planning gekoppeld is.
+function planningStatus(m){
+  const w = m._wedstrijdId ? planningInfo[m._wedstrijdId] : null;
+  if(!w) return null;
+  if(w.datum_nnb || !w.datum) return { cls:'nodatum', txt:'nog geen datum' };
+  const tijd = w.tijdstip ? ' ' + String(w.tijdstip).slice(0,5) : '';
+  return { cls:'datum', txt: korteDatum(w.datum) + tijd };
+}
 
 // Vaste bracket-structuur: elke fase weet hoeveel Bo, welke tak, en welke fase(s)
 // eraan vooraf moeten gaan voordat hij gegenereerd kan worden.
@@ -261,6 +301,7 @@ async function init(){
     berekenVolgendeFases();
     bewaarState();
     await syncNieuweWr2Wedstrijden();
+    await laadPlanningInfo();
   }
   document.getElementById('syncToggle').addEventListener('change', e=>{
     state = state || {};
@@ -277,6 +318,20 @@ async function init(){
 //  PDF / DELEN (via de print-dialoog van de browser: "Opslaan als PDF")
 // ══════════════════════════════════════════
 function pdfMatchRow(m){
+  // Plek die nog wacht op de winnaar van een ronde-1-wedstrijd: toon wie die
+  // wedstrijd spelen, i.p.v. het als bye weer te geven.
+  if(m._wachtOpWedstrijd && !m.a){
+    const rm = state.fases.ronde1 && state.fases.ronde1.matches.find(x=>x.nr===m._wachtOpWedstrijd);
+    const wieTxt = rm
+      ? `winnaar ${escapeHtml(rm.a)} / ${escapeHtml(rm.b)}`
+      : `winnaar wedstrijd ${m._wachtOpWedstrijd}`;
+    return `<div class="print-match">
+    <span class="pm-nr">${m.nr||''}</span>
+    <span class="pm-naam pm-wacht">${wieTxt}</span>
+    <span class="pm-open">nog geen datum</span>
+    <span class="pm-naam">${escapeHtml(m.b)}</span>
+  </div>`;
+  }
   const isBye = !m.a || !m.b;
   if(isBye){
     const naam = m.a || m.b || '';
@@ -288,7 +343,7 @@ function pdfMatchRow(m){
   return `<div class="print-match">
     <span class="pm-nr">${m.nr||''}</span>
     <span class="pm-naam${aWin?' pm-winner':''}">${escapeHtml(m.a)}</span>
-    ${m.winnaar ? `<span class="pm-score">${scoreTxt}</span>` : `<span class="pm-open">nog te spelen</span>`}
+    ${m.winnaar ? `<span class="pm-score">${scoreTxt}</span>` : `<span class="pm-open">${(()=>{ const ps = planningStatus(m); return ps && ps.cls==='datum' ? escapeHtml(ps.txt) : 'nog geen datum'; })()}</span>`}
     <span class="pm-naam${bWin?' pm-winner':''}">${escapeHtml(m.b)}</span>
   </div>`;
 }
@@ -530,6 +585,8 @@ async function slaAllesOp(){
       for(const {m, faseId} of opgeslagen) await schrijfWedstrijd(m, faseId);
     }
     await syncNieuweWr2Wedstrijden();
+    await laadPlanningInfo();
+    render();
     bezigMetOpslaan = false;
     document.getElementById('slaAllesOpBtn').disabled = false;
   }
@@ -692,7 +749,14 @@ function matchHtml(faseId, m, idx){
   }
   const aCls = m.winnaar ? (m.winnaar===m.a?'winner':'loser') : '';
   const bCls = m.winnaar ? (m.winnaar===m.b?'winner':'loser') : '';
-  const syncHtml = m.sync ? `<span class="sync ${m.sync}">${m.sync==='ok'?(m.winnaar?'✓ opgeslagen':'✓ gepland'):m.sync==='pending'?'…':'✗ fout'}</span>` : '<span class="sync"></span>';
+  let syncHtml = '<span class="sync"></span>';
+  if(m.sync === 'pending')      syncHtml = '<span class="sync pending">…</span>';
+  else if(m.sync === 'error')   syncHtml = '<span class="sync error">✗ fout</span>';
+  else if(m.winnaar)            syncHtml = m.sync==='ok' ? '<span class="sync ok">✓ opgeslagen</span>' : '<span class="sync"></span>';
+  else {
+    const ps = planningStatus(m);
+    if(ps) syncHtml = `<span class="sync ${ps.cls}">${ps.cls==='datum'?'📅 gepland<br>':''}${escapeHtml(ps.txt)}</span>`;
+  }
   const scoreAVal = m.scoreA===undefined||m.scoreA===null ? '' : m.scoreA;
   const scoreBVal = m.scoreB===undefined||m.scoreB===null ? '' : m.scoreB;
   return `<div class="match" data-fase="${faseId}" data-idx="${idx}">
