@@ -139,7 +139,8 @@
     <p class="info-note">
       4 periodes van 10 speelrondes. De periodekampioen (nr. 1) + de hoogst geplaatste speler zonder
       periodetitel gaan door naar de play-offs. Punten = gewonnen legs per wedstrijd (bv. 3-1 → 3 punten
-      winnaar, 1 punt verliezer). Vrije Ronde (bye) telt niet mee.
+      winnaar, 1 punt verliezer). Vrije Ronde (bye) telt wel mee voor de winnaar, maar "Vrije Ronde" zelf
+      verschijnt niet als speler in de lijst.
     </p>
 
     <div class="card import-card">
@@ -147,7 +148,9 @@
       <div class="hint">
         Exporteer de matchlog (CSV) uit DartConnect en upload 'm hier. De tool herkent automatisch welke
         Eerste Divisie-wedstrijden erin staan, koppelt ze aan de planning (op naam + datum) en slaat de
-        legscores op. Mag herhaald / met overlap geüpload worden — bestaande scores worden gewoon overschreven.
+        legscores op. Bye-uitslagen (Vrije Ronde, via League Portal) worden automatisch als nieuwe
+        wedstrijd aangemaakt en aan de juiste periode gekoppeld. Mag herhaald / met overlap geüpload
+        worden — bestaande scores worden gewoon overschreven, byes maar één keer aangemaakt.
       </div>
       <input type="file" id="csv-file" accept=".csv" onchange="handleFile(this)">
       <details class="paste-toggle">
@@ -178,14 +181,16 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const DIVISIE = 'Eerste Divisie';
+  const TOTAAL_RONDES = 42;
   const PERIODE_LABELS = {
     1: 'Ronde 1–10',
     2: 'Ronde 11–20',
     3: 'Ronde 21–30',
-    4: 'Ronde 31–40'
+    4: 'Ronde 31–42'
   };
   let activePeriode = 1;
-  let abbrevMap = {}; // "Voornaam L" -> "Volledige Naam"
+  let abbrevMap = {};       // "Voornaam L" -> "Volledige Naam"  (Scoring App bron)
+  let lastnameFirstMap = {}; // "Achternaam, Voornaam" -> "Volledige Naam"  (League Portal / bye bron)
 
   // ── LOGIN (zelfde patroon als spelerbeheer.html) ──
   async function tryLogin() {
@@ -223,31 +228,39 @@
   }
 
   async function init() {
-    await buildAbbrevMap();
+    await buildNameMaps();
     renderTabs();
     loadStand();
   }
 
-  // ── NAAM-AFKORTING MAPPING ──
-  // DartConnect toont spelers als "Voornaam L" (L = 1e letter van het 1e woord van de achternaam,
-  // met behoud van hoofdletter/kleine letter zoals in de volledige naam, bv. "van der Waal" -> "v").
-  async function buildAbbrevMap() {
+  // ── NAAM-MAPPING ──
+  // DartConnect toont spelers op twee manieren, afhankelijk van de bron:
+  //  - "Scoring App": "Voornaam L" (L = 1e letter van het 1e woord van de achternaam)
+  //  - "League Portal" (bye-uitslagen, handmatig via het portal ingevoerd): "Achternaam, Voornaam"
+  async function buildNameMaps() {
     const { data: spelers, error } = await supabaseClient
       .from('spelers').select('naam').eq('divisie', DIVISIE);
     if (error || !spelers) { showStatus('Kon spelerslijst niet laden: ' + (error ? error.message : ''), 'err'); return; }
 
     abbrevMap = {};
+    lastnameFirstMap = {};
     const collisions = {};
     spelers.forEach(s => {
       const parts = s.naam.trim().split(/\s+/);
       if (parts.length < 2) return;
-      const abbr = parts[0] + ' ' + parts[1][0];
+      const voornaam = parts[0];
+      const achternaam = parts.slice(1).join(' ');
+
+      const abbr = `${voornaam} ${achternaam[0]}`;
       if (abbrevMap[abbr] && abbrevMap[abbr] !== s.naam) {
         collisions[abbr] = collisions[abbr] || [abbrevMap[abbr]];
         collisions[abbr].push(s.naam);
       } else {
         abbrevMap[abbr] = s.naam;
       }
+
+      const lastnameFirst = `${achternaam}, ${voornaam}`;
+      lastnameFirstMap[lastnameFirst] = s.naam;
     });
     if (Object.keys(collisions).length) {
       showStatus('Let op: meerdere spelers matchen dezelfde afkorting: ' +
@@ -266,14 +279,39 @@
   }
 
   function parseCsvLine(line) {
-    // Eenvoudige CSV-split; DartConnect-export bevat geen quoted commas in de gebruikte kolommen.
-    return line.split(',').map(c => c.trim());
+    // Echte CSV-parser die rekening houdt met gequote velden. Dit is nodig omdat DartConnect
+    // bye-rijen (League Portal) namen in "Achternaam, Voornaam"-vorm schrijft — dus mét een komma
+    // ín het veld ("ronde, Vrije @ Kramer, Phylicia"). Een simpele split(',') breekt daarop.
+    const result = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; }
+          else { inQuotes = false; }
+        } else {
+          cur += c;
+        }
+      } else {
+        if (c === '"') { inQuotes = true; }
+        else if (c === ',') { result.push(cur.trim()); cur = ''; }
+        else { cur += c; }
+      }
+    }
+    result.push(cur.trim());
+    return result;
   }
 
   function parseDartConnectDate(d) {
     // Formaat M/D/YYYY
     const [m, day, y] = d.trim().split('/');
     return `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  }
+
+  function isVrijeRonde(naam) {
+    return !!naam && naam.toLowerCase().includes('vrije');
   }
 
   async function processCsvText(text) {
@@ -288,58 +326,94 @@
       division: headers.indexOf('Division'),
       date: headers.indexOf('Date'),
       matchup: headers.indexOf('Away/Guest @ Home/Host'),
-      legs: headers.indexOf('Legs Score')
+      legs: headers.indexOf('Legs Score'),
+      leaguePoints: headers.indexOf('League Points'),
+      source: headers.indexOf('Source')
     };
-    if (Object.values(idx).some(i => i === -1)) {
+    if (idx.division === -1 || idx.date === -1 || idx.matchup === -1 || idx.legs === -1) {
       logEl.innerHTML = '<div class="log-line log-err">Onverwacht CSV-formaat: verwachte kolommen niet gevonden.</div>';
       return;
     }
 
-    const parsed = [];
+    const normaal = [];
+    const byes = [];
     const problems = [];
 
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvLine(lines[i]);
-      if (cols[idx.division] !== DIVISIE) continue;
+      if (!cols[idx.division] || cols[idx.division] !== DIVISIE) continue;
 
-      const [awayAbbr, homeAbbr] = cols[idx.matchup].split('@').map(s => s.trim());
-      const legsParts = cols[idx.legs].split('@').map(s => parseInt(s.trim(), 10));
-      const [awayLegs, homeLegs] = legsParts;
-      const homeFull = abbrevMap[homeAbbr];
-      const awayFull = abbrevMap[awayAbbr];
+      const matchup = cols[idx.matchup] || '';
+      if (!matchup.includes('@')) continue;
+      const [awayRaw, homeRaw] = matchup.split('@').map(s => s.trim());
+      const datum = parseDartConnectDate(cols[idx.date]);
+      const bron = idx.source !== -1 ? (cols[idx.source] || '') : '';
+      const legsField = (cols[idx.legs] || '').trim();
+      const isBye = bron === 'League Portal' || !legsField;
 
-      if (!homeFull || !awayFull) {
-        problems.push(`Onbekende speler-afkorting: "${!homeFull ? homeAbbr : awayAbbr}" (rij: ${cols[idx.matchup]})`);
-        continue;
+      if (isBye) {
+        const homeFull = lastnameFirstMap[homeRaw];
+        const awayFull = lastnameFirstMap[awayRaw];
+        const homeIsBye = !homeFull && isVrijeRonde(homeRaw);
+        const awayIsBye = !awayFull && isVrijeRonde(awayRaw);
+
+        if (!homeIsBye && !awayIsBye) {
+          // geen "vrije ronde" herkend en geen legscore -> onbekende/lege rij, overslaan
+          if (!homeFull || !awayFull) {
+            problems.push(`Onbekende speler in bye-rij: "${matchup}"`);
+          }
+          continue;
+        }
+
+        const pointsField = idx.leaguePoints !== -1 ? (cols[idx.leaguePoints] || '').trim() : '';
+        if (!pointsField.includes('@')) { problems.push(`Kon League Points niet lezen voor: "${matchup}"`); continue; }
+        const [awayPunten, homePunten] = pointsField.split('@').map(s => parseInt(s.trim(), 10));
+        if (Number.isNaN(awayPunten) || Number.isNaN(homePunten)) { problems.push(`Kon League Points niet lezen voor: "${matchup}"`); continue; }
+
+        const speler = homeIsBye ? awayFull : homeFull;
+        if (!speler) { problems.push(`Onbekende speler in bye-rij: "${matchup}"`); continue; }
+
+        byes.push({
+          datum,
+          thuis: homeIsBye ? 'Vrije Ronde' : homeFull,
+          uit: awayIsBye ? 'Vrije Ronde' : awayFull,
+          legs_thuis: homePunten,
+          legs_uit: awayPunten,
+          speler
+        });
+      } else {
+        const homeFull = abbrevMap[homeRaw];
+        const awayFull = abbrevMap[awayRaw];
+        if (!homeFull || !awayFull) {
+          problems.push(`Onbekende speler-afkorting: "${!homeFull ? homeRaw : awayRaw}" (rij: ${matchup})`);
+          continue;
+        }
+        const [awayLegs, homeLegs] = legsField.split('@').map(s => parseInt(s.trim(), 10));
+        if (Number.isNaN(homeLegs) || Number.isNaN(awayLegs)) { problems.push(`Kon legscore niet lezen voor ${homeFull} vs ${awayFull}`); continue; }
+
+        normaal.push({ datum, thuis: homeFull, uit: awayFull, legs_thuis: homeLegs, legs_uit: awayLegs });
       }
-      if (Number.isNaN(homeLegs) || Number.isNaN(awayLegs)) {
-        problems.push(`Kon legscore niet lezen voor ${homeFull} vs ${awayFull}`);
-        continue;
-      }
-
-      parsed.push({
-        datum: parseDartConnectDate(cols[idx.date]),
-        thuis: homeFull, uit: awayFull,
-        legs_thuis: homeLegs, legs_uit: awayLegs
-      });
     }
 
-    if (!parsed.length && !problems.length) {
+    if (!normaal.length && !byes.length && !problems.length) {
       logEl.innerHTML = '<div class="log-line">Geen Eerste Divisie-wedstrijden gevonden in dit bestand.</div>';
       return;
     }
 
-    // Haal bestaande planning op om op (datum, thuis, uit) te matchen
+    // Haal de volledige planning op — nodig om normale wedstrijden te matchen én om
+    // voor bye-rijen te bepalen in welke speelronde de betreffende speler geen tegenstander had.
     const { data: wedstrijden, error } = await supabaseClient
-      .from('wedstrijden').select('id, datum, thuis, uit').eq('divisie', DIVISIE);
+      .from('wedstrijden').select('id, datum, thuis, uit, speelronde').eq('divisie', DIVISIE);
     if (error) { logEl.innerHTML = '<div class="log-line log-err">Kon planning niet laden: ' + error.message + '</div>'; return; }
 
+    // ── Normale wedstrijden: updaten op (datum, thuis, uit) ──
     const lookup = {};
     wedstrijden.forEach(w => { lookup[`${w.datum}|${w.thuis}|${w.uit}`] = w.id; });
 
-    let matched = 0, unmatched = [];
+    let matched = 0;
+    const unmatched = [];
     const updates = [];
-    parsed.forEach(row => {
+    normaal.forEach(row => {
       const key = `${row.datum}|${row.thuis}|${row.uit}`;
       const id = lookup[key];
       if (!id) { unmatched.push(`${row.datum}: ${row.thuis} vs ${row.uit}`); return; }
@@ -347,21 +421,98 @@
       updates.push({ id, legs_thuis: row.legs_thuis, legs_uit: row.legs_uit });
     });
 
-    const results = await Promise.all(updates.map(u =>
+    const updateResults = await Promise.all(updates.map(u =>
       supabaseClient.from('wedstrijden').update({ legs_thuis: u.legs_thuis, legs_uit: u.legs_uit }).eq('id', u.id)
     ));
-    const failed = results.filter(r => r.error);
+    const updateFailed = updateResults.filter(r => r.error);
 
-    let html = `<div class="log-summary">${matched} wedstrijd(en) gekoppeld en bijgewerkt.</div>`;
-    if (failed.length) html += `<div class="log-line log-err">${failed.length} update(s) mislukt.</div>`;
+    // ── Bye-rijen: nieuwe wedstrijd aanmaken (bestaat nog niet in de planning) ──
+    let byesToegevoegd = 0;
+    let byesOversloegen = 0;
+    const byeProblemen = [];
+
+    // Bepaal per speler in welke ronde(s) (1..TOTAAL_RONDES) hij/zij geen wedstrijd heeft gepland staan.
+    function ontbrekendeRondes(spelerNaam) {
+      const gebruikt = new Set();
+      wedstrijden.forEach(w => {
+        if (w.thuis === spelerNaam || w.uit === spelerNaam) gebruikt.add(parseInt(w.speelronde, 10));
+      });
+      const ontbrekend = [];
+      for (let r = 1; r <= TOTAAL_RONDES; r++) if (!gebruikt.has(r)) ontbrekend.push(r);
+      return ontbrekend;
+    }
+
+    // Meest gebruikelijke datum van een speelronde (voor het geval een speler nog 2 open bye-rondes heeft).
+    function meestWaarschijnlijkeDatum(ronde) {
+      const telling = {};
+      wedstrijden.forEach(w => {
+        if (parseInt(w.speelronde, 10) === ronde) telling[w.datum] = (telling[w.datum] || 0) + 1;
+      });
+      let beste = null, besteAantal = -1;
+      Object.entries(telling).forEach(([d, n]) => { if (n > besteAantal) { beste = d; besteAantal = n; } });
+      return beste;
+    }
+
+    for (const bye of byes) {
+      // Al aanwezig? (idempotent — voorkomt dubbele rijen bij herhaald uploaden)
+      const alAanwezig = wedstrijden.some(w =>
+        (w.thuis === bye.speler && w.uit === 'Vrije Ronde') ||
+        (w.uit === bye.speler && w.thuis === 'Vrije Ronde')
+      );
+      if (alAanwezig) { byesOversloegen++; continue; }
+
+      const kandidaten = ontbrekendeRondes(bye.speler);
+      if (!kandidaten.length) { byeProblemen.push(`${bye.speler}: geen ontbrekende speelronde gevonden (alle rondes al ingepland).`); continue; }
+
+      let ronde;
+      if (kandidaten.length === 1) {
+        ronde = kandidaten[0];
+      } else {
+        // Meerdere open bye-rondes: kies de ronde waarvan de gebruikelijke speeldatum het dichtst
+        // bij de datum van deze CSV-rij ligt.
+        const doelTijd = new Date(bye.datum).getTime();
+        let besteRonde = kandidaten[0], besteVerschil = Infinity;
+        kandidaten.forEach(r => {
+          const d = meestWaarschijnlijkeDatum(r);
+          if (!d) return;
+          const verschil = Math.abs(new Date(d).getTime() - doelTijd);
+          if (verschil < besteVerschil) { besteVerschil = verschil; besteRonde = r; }
+        });
+        ronde = besteRonde;
+      }
+
+      const { error: insertErr } = await supabaseClient.from('wedstrijden').insert({
+        divisie: DIVISIE,
+        datum: bye.datum,
+        thuis: bye.thuis,
+        uit: bye.uit,
+        legs_thuis: bye.legs_thuis,
+        legs_uit: bye.legs_uit,
+        speelronde: String(ronde),
+        status: 'gespeeld'
+      });
+      if (insertErr) { byeProblemen.push(`${bye.speler}: opslaan mislukt (${insertErr.message})`); continue; }
+
+      // lokaal bijwerken zodat een 2e bye in dezelfde upload niet dezelfde ronde kiest
+      wedstrijden.push({ id: 'nieuw', datum: bye.datum, thuis: bye.thuis, uit: bye.uit, speelronde: String(ronde) });
+      byesToegevoegd++;
+    }
+
+    // ── Logweergave ──
+    let html = `<div class="log-summary">${matched} wedstrijd(en) gekoppeld en bijgewerkt${byesToegevoegd ? `, ${byesToegevoegd} bye-overwinning(en) toegevoegd` : ''}.</div>`;
+    if (byesOversloegen) html += `<div class="log-line">${byesOversloegen} bye-uitslag(en) stonden al in de planning, overgeslagen.</div>`;
+    if (updateFailed.length) html += `<div class="log-line log-err">${updateFailed.length} update(s) mislukt.</div>`;
     if (unmatched.length) {
       html += `<div class="log-line log-err">${unmatched.length} rij(en) niet gevonden in de planning (mogelijk datum/naam-verschil):</div>`;
       unmatched.forEach(u => html += `<div class="log-line log-err">– ${u}</div>`);
     }
+    if (byeProblemen.length) {
+      byeProblemen.forEach(p => html += `<div class="log-line log-err">– ${p}</div>`);
+    }
     if (problems.length) {
       problems.forEach(p => html += `<div class="log-line log-err">– ${p}</div>`);
     }
-    if (!unmatched.length && !problems.length && !failed.length) {
+    if (!unmatched.length && !byeProblemen.length && !problems.length && !updateFailed.length) {
       html += `<div class="log-line log-ok">Alles gekoppeld, geen problemen.</div>`;
     }
     logEl.innerHTML = html;
