@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080d16">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KB Wedstrijdleiding">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>Kaale Bull — Wedstrijdleiding mobiel</title>
+<style>
+:root{
+  --bg:#0f1520; --s1:#161f30; --s2:#1e2a40; --s3:#243350; --border:#2a3a56;
+  --text:#f1f5f9; --muted:#94a3b8;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --blue:#3b82f6;
+  --ere:#a855f7; --eerste:#3b82f6; --beker:#f59e0b; --inhaal:#ef4444; --nnb:#06b6d4;
+  --top: env(safe-area-inset-top, 0px);
+  --bot: env(safe-area-inset-bottom, 0px);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);}
+body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.35;
+  -webkit-tap-highlight-color:transparent;overscroll-behavior-y:contain;
+  padding-top:calc(56px + var(--top));padding-bottom:calc(66px + var(--bot));min-height:100vh;}
+button,input,select{font:inherit;color:inherit;}
+button{cursor:pointer;background:none;border:none;}
+
+/* ── TOPBAR ── */
+.top{position:fixed;top:0;left:0;right:0;z-index:30;background:#080d16;border-bottom:1px solid var(--border);
+  padding:var(--top) 16px 0;height:calc(56px + var(--top));display:flex;align-items:center;gap:10px;}
+.top-title{font-weight:800;font-size:1.05rem;letter-spacing:.3px;flex:1;display:flex;align-items:center;gap:8px;min-width:0;}
+.top-title small{font-weight:600;color:var(--muted);font-size:.75rem;}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.dot.ok{background:var(--green);} .dot.bezig{background:var(--orange);} .dot.fout{background:var(--red);}
+.icon-btn{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:1.15rem;background:var(--s2);}
+.icon-btn:active{background:var(--s3);}
+a.icon-btn{color:var(--text);text-decoration:none;}
+
+/* ── BOTTOM NAV ── */
+.nav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:#080d16;border-top:1px solid var(--border);
+  display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:var(--bot);}
+.nav button{height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-size:.72rem;color:var(--muted);font-weight:600;position:relative;}
+.nav button .ic{font-size:1.25rem;line-height:1;}
+.nav button.act{color:var(--text);}
+.nav button.act::before{content:'';position:absolute;top:0;left:25%;right:25%;height:3px;border-radius:0 0 3px 3px;background:var(--blue);}
+.badge{position:absolute;top:7px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+  background:var(--nnb);color:#04222a;font-size:.68rem;font-weight:800;display:grid;place-items:center;}
+
+/* ── ALGEMEEN ── */
+.wrap{padding:12px 16px 24px;}
+.sec-title{font-size:.72rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:18px 0 8px;}
+.sec-title:first-child{margin-top:4px;}
+.muted{color:var(--muted);}
+.leeg{padding:28px 12px;text-align:center;color:var(--muted);background:var(--s1);border:1px dashed var(--border);border-radius:12px;}
+.fout-box{padding:12px 14px;border-radius:10px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fecaca;margin-bottom:12px;}
+
+/* datum-chips (horizontaal scrollen) */
+.datums{display:flex;gap:8px;overflow-x:auto;padding:2px 16px 10px;margin:0 -16px;scrollbar-width:none;scroll-snap-type:x proximity;}
+.datums::-webkit-scrollbar{display:none;}
+.dchip{flex-shrink:0;scroll-snap-align:center;min-width:74px;padding:8px 10px;border-radius:12px;background:var(--s1);
+  border:1px solid var(--border);text-align:center;}
+.dchip .dw{font-size:.7rem;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.5px;}
+.dchip .dd{font-weight:800;font-size:1rem;}
+.dchip .dn{font-size:.68rem;color:var(--muted);margin-top:1px;}
+.dchip.sel{background:var(--blue);border-color:var(--blue);}
+.dchip.sel .dw,.dchip.sel .dn{color:#dbeafe;}
+.dchip.vandaag:not(.sel){border-color:var(--green);}
+.dchip.vol .dn{color:var(--orange);font-weight:700;}
+.dchip.teveel .dn{color:var(--red);font-weight:800;}
+.dchip.sel.vol .dn,.dchip.sel.teveel .dn{color:#fff;}
+
+.stats{display:flex;gap:8px;margin:2px 0 10px;flex-wrap:wrap;}
+.stat{flex:1;min-width:70px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:7px 8px;text-align:center;}
+.stat b{display:block;font-size:1.1rem;}
+.stat span{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;}
+
+.seg{display:flex;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px;margin-bottom:6px;}
+.seg button{flex:1;padding:8px 4px;border-radius:8px;font-size:.82rem;font-weight:700;color:var(--muted);}
+.seg button.act{background:var(--s3);color:var(--text);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.85rem;color:var(--muted);margin:6px 2px 2px;}
+.switch{position:relative;width:44px;height:26px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;position:absolute;}
+.switch span{position:absolute;inset:0;border-radius:13px;background:var(--s3);transition:.15s;}
+.switch span::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#cbd5e1;transition:.15s;}
+.switch input:checked + span{background:var(--green);}
+.switch input:checked + span::after{transform:translateX(18px);background:#fff;}
+
+/* tijdslot-groep */
+.slot-hdr{display:flex;align-items:baseline;gap:8px;margin:16px 2px 6px;}
+.slot-hdr .t{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums;}
+.slot-hdr .c{font-size:.75rem;color:var(--muted);font-weight:700;}
+.slot-hdr .c.vol{color:var(--orange);}
+
+/* wedstrijdkaart — namen onder elkaar, altijd volledig leesbaar */
+.card{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--s1);border:1px solid var(--border);
+  border-left:4px solid var(--muted);border-radius:12px;padding:10px 10px 10px 12px;margin-bottom:8px;}
+.card:active{background:var(--s2);}
+.card.ere{border-left-color:var(--ere);} .card.eerste{border-left-color:var(--eerste);} .card.beker{border-left-color:var(--beker);}
+.card.gespeeld{opacity:.5;}
+.card.conflict{box-shadow:inset 0 0 0 1px rgba(239,68,68,.55);}
+.card-main{flex:1;min-width:0;}
+.card-when{font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:3px;font-variant-numeric:tabular-nums;}
+.names{display:flex;flex-direction:column;}
+.names .n{font-weight:700;font-size:1.02rem;overflow-wrap:anywhere;}
+.names .vs{font-size:.68rem;color:var(--muted);font-weight:600;margin:1px 0;letter-spacing:.5px;}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.chip{font-size:.68rem;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--s3);color:var(--muted);white-space:nowrap;}
+.chip.ere{background:rgba(168,85,247,.18);color:#d8b4fe;} .chip.eerste{background:rgba(59,130,246,.18);color:#93c5fd;}
+.chip.beker{background:rgba(245,158,11,.18);color:#fcd34d;} .chip.inhaal{background:rgba(239,68,68,.16);color:#fca5a5;}
+.chip.nnb{background:rgba(6,182,212,.16);color:#67e8f9;} .chip.rood{background:rgba(239,68,68,.2);color:#fecaca;}
+.chip.groen{background:rgba(16,185,129,.18);color:#6ee7b7;}
+.card-go{font-size:1.4rem;color:var(--muted);flex-shrink:0;}
+
+/* zoeken */
+.zoek{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--border);background:var(--s1);font-size:1rem;outline:none;}
+.zoek:focus{border-color:var(--blue);}
+
+/* formulieren */
+.veld{margin-bottom:12px;}
+.veld label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
+.inp{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--s2);font-size:1rem;outline:none;min-height:46px;}
+.inp:focus{border-color:var(--blue);}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px;}
+.rij2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.pill-rij{display:flex;gap:8px;flex-wrap:wrap;}
+.pill{padding:10px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--border);font-weight:700;font-size:.88rem;}
+.pill.act{background:var(--blue);border-color:var(--blue);}
+.pill.nnb.act{background:var(--nnb);border-color:var(--nnb);color:#04222a;}
+
+/* tijdslot-raster */
+.sloten{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.slot{padding:10px 4px;border-radius:10px;border:1.5px solid var(--green);background:rgba(16,185,129,.08);text-align:center;}
+.slot .st{font-weight:800;font-size:1.02rem;font-variant-numeric:tabular-nums;}
+.slot .sl{font-size:.68rem;opacity:.9;margin-top:1px;}
+.slot.conflict{border-color:var(--red);background:rgba(239,68,68,.12);}
+.slot.vol{border-color:var(--muted);background:rgba(148,163,184,.08);color:var(--muted);}
+.slot.sel{outline:3px solid var(--text);outline-offset:1px;}
+.slot-legenda{font-size:.72rem;color:var(--muted);margin-top:8px;}
+.link-btn{color:var(--blue);font-weight:700;font-size:.85rem;padding:8px 0;}
+
+/* spelers-context in het verzetscherm */
+.ctx{background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.ctx-rij{display:flex;gap:10px;padding:9px 12px;border-top:1px solid var(--border);font-size:.88rem;align-items:baseline;}
+.ctx-rij:first-child{border-top:none;}
+.ctx-rij .t{font-weight:800;min-width:44px;font-variant-numeric:tabular-nums;}
+.ctx-rij.rood{background:rgba(239,68,68,.12);}
+.ctx-rij.rood .t{color:#fca5a5;}
+.ctx-rij.nieuw{background:rgba(59,130,246,.12);}
+
+.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45);color:#fde68a;border-radius:10px;padding:10px 12px;font-size:.86rem;margin-top:12px;}
+.warn div+div{margin-top:5px;}
+.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.35);border-radius:10px;padding:10px 12px;font-size:.86rem;margin-top:10px;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.check{display:flex;align-items:center;gap:10px;padding:10px 0;font-size:.92rem;}
+.check input{width:22px;height:22px;accent-color:var(--blue);flex-shrink:0;}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:50px;padding:0 12px;border-radius:12px;font-weight:800;font-size:.92rem;white-space:nowrap;}
+.btn-pri{background:var(--green);color:#022c1f;}
+.btn-sec{background:var(--s3);}
+.btn-warn{background:var(--orange);color:#2b1a00;}
+.btn:disabled{opacity:.5;}
+.btn-klein{min-height:36px;padding:0 12px;font-size:.82rem;border-radius:9px;background:var(--s3);font-weight:700;}
+
+/* ── SHEET (verzetten) ── */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;opacity:0;pointer-events:none;transition:opacity .18s;}
+.sheet-bg.open{opacity:1;pointer-events:auto;}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-height:calc(100% - 24px - var(--top));background:var(--bg);
+  border-radius:18px 18px 0 0;border-top:1px solid var(--border);display:flex;flex-direction:column;
+  transform:translateY(105%);visibility:hidden;transition:transform .22s ease,visibility 0s linear .22s;}
+.sheet.open{transform:none;visibility:visible;transition:transform .22s ease;}
+.sheet-kop{padding:12px 16px 12px;border-bottom:1px solid var(--border);background:var(--s1);border-radius:18px 18px 0 0;display:flex;gap:10px;align-items:flex-start;}
+.sheet-kop .names .n{font-size:1.15rem;}
+.sheet-kop .nu{font-size:.8rem;color:var(--muted);margin-top:6px;font-weight:600;}
+.sheet-body{overflow-y:auto;padding:4px 16px 16px;-webkit-overflow-scrolling:touch;flex:1;}
+.sheet-voet{padding:10px 16px calc(10px + var(--bot));border-top:1px solid var(--border);background:var(--s1);display:grid;grid-template-columns:1fr 1.3fr;gap:10px;}
+
+/* installatie-hint */
+.install{display:flex;gap:10px;align-items:center;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.35);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:.85rem;}
+.install div{flex:1;}
+
+.toast{position:fixed;left:16px;right:16px;bottom:calc(76px + var(--bot));z-index:60;padding:12px 14px;border-radius:12px;background:var(--s3);
+  border:1px solid var(--border);font-weight:600;font-size:.9rem;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none;}
+.toast.show{opacity:1;transform:none;}
+.toast.groen{background:#064e3b;border-color:var(--green);} .toast.rood{background:#7f1d1d;border-color:var(--red);} .toast.oranje{background:#78350f;border-color:var(--orange);}
+
+@media (min-width:700px){ .wrap,.sheet{max-width:640px;margin-left:auto;margin-right:auto;} .sheet{border-left:1px solid var(--border);border-right:1px solid var(--border);} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-title">🎯 Kaale Bull <small>WL</small><span class="dot" id="dot"></span></div>
+  <button class="icon-btn" id="verversBtn" onclick="laadData()" aria-label="Verversen">⟳</button>
+  <a class="icon-btn" href="index.html" aria-label="Volledig dashboard" title="Volledig dashboard">🖥</a>
+</header>
+
+<main id="view"></main>
+
+<nav class="nav">
+  <button data-v="avond"  onclick="naarView('avond')"><span class="ic">📅</span>Avond</button>
+  <button data-v="zoek"   onclick="naarView('zoek')"><span class="ic">🔍</span>Speler</button>
+  <button data-v="nnb"    onclick="naarView('nnb')"><span class="ic">🕓</span>NNB<span class="badge" id="nnbBadge" hidden></span></button>
+  <button data-v="beker"  onclick="naarView('beker')"><span class="ic">🏆</span>Beker +</button>
+</nav>
+
+<div class="sheet-bg" id="sheetBg" onclick="sluitSheet()"></div>
+<section class="sheet" id="sheet" aria-modal="true" role="dialog"></section>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  SUPABASE (zelfde project en sleutel als index.html)
+// ══════════════════════════════════════════
+const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation' };
+const sbGet   = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR,cache:'no-store'}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+const sbPost  = async (t,b)    => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+const sbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+
+// Zelfde vaste tijdsloten en regels als de Planning Tool / verzet-modal in index.html
+const PT_SLOTS = [
+  {tijd:'19:30',cap:4},{tijd:'19:50',cap:4},{tijd:'20:10',cap:4},
+  {tijd:'20:30',cap:4},{tijd:'20:50',cap:4},{tijd:'21:10',cap:4},
+  {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3}
+];
+const MAX_PER_AVOND = 34;
+const MIN_RUST_MIN  = 40;
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let W = [], spelers = [], leiders = [];
+let geladen = false, laadFout = '';
+const S = { view:'avond', datum:null, div:'alle', toonGespeeld:false, zoek:'' };
+let sheet = null;
+const beker = { thuis:'', uit:'', bo:'Best of 5', ronde:'', datum:'', andereDatum:false, tijd:'', handmatig:false, bezig:false };
+let installPrompt = null;
+
+// ══════════════════════════════════════════
+//  HULPFUNCTIES
+// ══════════════════════════════════════════
+const $ = s => document.querySelector(s);
+function esc(s){ if(s===null||s===undefined) return ''; return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function jsAttr(v){ return esc(JSON.stringify(v===undefined?null:v)); }
+const naarMin = t => { const d=/^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
+function vandaag(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+const WD=['zo','ma','di','wo','do','vr','za'], WDL=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+const MND=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+function dObj(d){ const [y,m,dd]=d.split('-').map(Number); return new Date(y,m-1,dd); }
+function fmtKort(d){ if(!d) return ''; const o=dObj(d); return `${WD[o.getDay()]} ${o.getDate()} ${MND[o.getMonth()]}`; }
+function fmtLang(d){ if(!d) return ''; const o=dObj(d); return `${WDL[o.getDay()]} ${o.getDate()} ${MND[o.getMonth()]}`; }
+const isBeker = m => (m.divisie||'').toLowerCase().includes('beker');
+function divKey(m){
+  const d=(m.divisie||'').toLowerCase();
+  if(d.includes('beker')) return 'beker';
+  if(d.includes('ere')) return 'ere';
+  if(d.includes('eerste')||d.includes('1e')) return 'eerste';
+  return 'overig';
+}
+function divChip(m){
+  const k=divKey(m);
+  return `<span class="chip ${k}">${{ere:'Ere',eerste:'1e Div',beker:'Beker',overig:esc(m.divisie||'Div')}[k]}</span>`;
+}
+const deelSpeler = (a,b) => a.thuis===b.thuis || a.thuis===b.uit || a.uit===b.thuis || a.uit===b.uit;
+function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+
+function toast(msg,type=''){
+  const t=$('#toast'); t.textContent=msg; t.className=`toast show ${type}`;
+  clearTimeout(t._h); t._h=setTimeout(()=>t.className='toast',3400);
+}
+function zetDot(s){ $('#dot').className='dot '+s; }
+function lsGet(k){ try{return localStorage.getItem(k)||'';}catch(e){return '';} }
+function lsSet(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
+
+// Speelavonden = datums met minstens één wedstrijd met een echte datum
+function avonden(){ return [...new Set(W.filter(w=>!w.datum_nnb && w.datum).map(w=>w.datum))].sort(); }
+function telAvond(d, zonderId){ return W.filter(w=>w.datum===d && !w.datum_nnb && w.id!==zonderId).length; }
+
+// Status van één tijdslot voor een (nieuwe) wedstrijd — gelijk aan verzetSlotStatus() in index.html
+function slotStatus(datum, tijd, paar, zonderId){
+  const nieuw=naarMin(tijd);
+  const def=PT_SLOTS.find(s=>s.tijd===tijd);
+  const cap=def?def.cap:4;
+  const bezet=W.filter(w=>w.datum===datum && w.tijdstip===tijd && w.id!==zonderId && !w.datum_nnb).length;
+  const conflict = !!(paar && paar.thuis && paar.uit) && W.some(w=>{
+    if(w.id===zonderId || w.datum!==datum || w.datum_nnb || !w.tijdstip) return false;
+    const wm=naarMin(w.tijdstip); if(wm===null) return false;
+    return deelSpeler(w,paar) && Math.abs(wm-nieuw) < MIN_RUST_MIN;
+  });
+  return { bezet, cap, vol: bezet>=cap, conflict };
+}
+function rustConflicten(datum, tijd, paar, zonderId){
+  const nieuw=naarMin(tijd); if(nieuw===null) return [];
+  return W.filter(w=>{
+    if(w.id===zonderId || w.datum!==datum || w.datum_nnb || !w.tijdstip) return false;
+    const wm=naarMin(w.tijdstip); if(wm===null) return false;
+    return deelSpeler(w,paar) && Math.abs(wm-nieuw) < MIN_RUST_MIN;
+  });
+}
+// Bestaande rustconflicten binnen de huidige planning (voor de rode markering op kaarten)
+function heeftRustConflict(m){
+  if(m.datum_nnb || !m.tijdstip) return false;
+  return rustConflicten(m.datum, m.tijdstip, m, m.id).length>0;
+}
+
+// ══════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════
+let laadBezig=false;
+async function laadData(stil){
+  if(laadBezig) return; laadBezig=true;
+  zetDot('bezig');
+  try{
+    [W, spelers, leiders] = await Promise.all([
+      sbGet('wedstrijden','select=id,datum,tijdstip,divisie,thuis,uit,speelronde,status,datum_nnb,is_inhaal,originele_datum,notitie,bord&order=datum.asc,tijdstip.asc'),
+      sbGet('spelers','select=naam&order=naam.asc'),
+      sbGet('wedstrijdleiding','select=naam&actief=eq.true&order=naam.asc')
+    ]);
+    geladen=true; laadFout='';
+    zetDot('ok');
+    if(!stil) toast('Bijgewerkt','');
+  }catch(e){
+    laadFout = navigator.onLine===false ? 'Geen internetverbinding.' : `Kan data niet laden: ${e.message}`;
+    zetDot('fout');
+  }finally{ laadBezig=false; }
+  updateBadge();
+  // Het bekerformulier niet opnieuw opbouwen tijdens een achtergrond-verversing (behoudt invoer/focus)
+  if(!(stil && S.view==='beker')) render(); else renderBekerSloten();
+  if(sheet) renderSheet();
+}
+function updateBadge(){
+  const n=W.filter(w=>w.datum_nnb && w.status!=='gespeeld').length;
+  const b=$('#nnbBadge'); b.hidden=!n; b.textContent=n;
+}
+
+// ══════════════════════════════════════════
+//  VIEWS
+// ══════════════════════════════════════════
+function naarView(v){
+  S.view=v;
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('act',b.dataset.v===v));
+  render(); window.scrollTo(0,0);
+}
+function render(){
+  const el=$('#view');
+  if(!geladen){
+    el.innerHTML = `<div class="wrap">${laadFout?`<div class="fout-box">⚠ ${esc(laadFout)}</div><button class="btn btn-sec" style="width:100%" onclick="laadData()">Opnieuw proberen</button>`:'<div class="leeg">Wedstrijden laden…</div>'}</div>`;
+    return;
+  }
+  const fout = laadFout ? `<div class="fout-box">⚠ ${esc(laadFout)} Je ziet de laatst geladen stand.</div>` : '';
+  if(S.view==='avond') el.innerHTML = `<div class="wrap">${fout}${installHint()}${htmlAvond()}</div>`;
+  if(S.view==='zoek')  { el.innerHTML = `<div class="wrap">${fout}${htmlZoek()}</div>`; }
+  if(S.view==='nnb')   el.innerHTML = `<div class="wrap">${fout}${htmlNNB()}</div>`;
+  if(S.view==='beker') { el.innerHTML = `<div class="wrap">${fout}${htmlBeker()}</div>`; renderBekerSloten(); centreerDatum('#bekerDatums'); }
+  if(S.view==='avond') centreerDatum('#avondDatums');
+}
+
+function centreerDatum(sel){
+  const box=$(sel); if(!box) return;
+  const c=box.querySelector('.dchip.sel'); if(!c) return;
+  box.scrollLeft = c.offsetLeft - box.clientWidth/2 + c.offsetWidth/2;
+}
+
+function datumChips(id, gekozen, klik, zonderId, alleenVanaf){
+  const v=vandaag();
+  let lijst=avonden();
+  if(alleenVanaf) lijst=lijst.filter(d=>d>=v);
+  return `<div class="datums" id="${id}">` + lijst.map(d=>{
+    const n=telAvond(d, zonderId);
+    const cls=[d===gekozen?'sel':'', d===v?'vandaag':'', n>=MAX_PER_AVOND?'teveel':(n>=MAX_PER_AVOND-2?'vol':'')].join(' ');
+    return `<button class="dchip ${cls}" onclick="${klik}(${jsAttr(d)})">
+      <div class="dw">${d===v?'vandaag':WD[dObj(d).getDay()]}</div>
+      <div class="dd">${dObj(d).getDate()} ${MND[dObj(d).getMonth()]}</div>
+      <div class="dn">${n} wed.</div></button>`;
+  }).join('') + `</div>`;
+}
+
+// ── AVOND ──
+function kiesAvond(d){ S.datum=d; render(); }
+function htmlAvond(){
+  const datums=avonden();
+  if(!datums.length) return '<div class="leeg">Geen wedstrijden gevonden.</div>';
+  if(!S.datum || !datums.includes(S.datum)) S.datum = datums.find(d=>d>=vandaag()) || datums[datums.length-1];
+  const d=S.datum;
+  const alle=W.filter(w=>w.datum===d && !w.datum_nnb);
+  const open=alle.filter(w=>w.status!=='gespeeld');
+  const eind = (()=>{ const t=new Date(dObj(d)); t.setHours(19,30+Math.ceil(alle.length/4)*20,0,0); return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`; })();
+
+  let lijst=alle.filter(w=>S.toonGespeeld || w.status!=='gespeeld');
+  if(S.div!=='alle') lijst=lijst.filter(w=>divKey(w)===S.div);
+
+  const groepen={};
+  lijst.forEach(w=>{ const k=(!isBeker(w) && w.tijdstip) ? w.tijdstip : (w.tijdstip||'zonder'); (groepen[k]=groepen[k]||[]).push(w); });
+  const sleutels=Object.keys(groepen).sort((a,b)=> a==='zonder'?1 : b==='zonder'?-1 : a.localeCompare(b));
+
+  const telSlot = t => alle.filter(w=>w.tijdstip===t).length;
+  const capSlot = t => (PT_SLOTS.find(s=>s.tijd===t)||{cap:null}).cap;
+
+  const lijstHtml = sleutels.length ? sleutels.map(k=>{
+    const cap=capSlot(k), n=k==='zonder'?groepen[k].length:telSlot(k);
+    return `<div class="slot-hdr"><span class="t">${k==='zonder'?'Zonder tijd':esc(k)}</span>
+      ${k!=='zonder'&&cap?`<span class="c ${n>cap?'vol':''}">${n}/${cap}</span>`:''}</div>` +
+      groepen[k].map(w=>kaart(w)).join('');
+  }).join('') : `<div class="leeg">${open.length?'Niets in deze selectie.':'Alles gespeeld op deze avond 🎯'}</div>`;
+
+  return `
+    ${datumChips('avondDatums', d, 'kiesAvond', null, false)}
+    <div class="stats">
+      <div class="stat"><b>${alle.length}</b><span>totaal</span></div>
+      <div class="stat"><b style="color:var(--orange)">${open.length}</b><span>open</span></div>
+      <div class="stat"><b style="color:var(--blue)">${eind}</b><span>einde ±</span></div>
+    </div>
+    <div class="seg">
+      ${[['alle','Alles'],['ere','Ere'],['eerste','1e Div'],['beker','Beker']].map(([k,l])=>`<button class="${S.div===k?'act':''}" onclick="S.div='${k}';render()">${l}</button>`).join('')}
+    </div>
+    <div class="toggle-row"><span>Gespeelde wedstrijden tonen</span>
+      <label class="switch"><input type="checkbox" ${S.toonGespeeld?'checked':''} onchange="S.toonGespeeld=this.checked;render()"><span></span></label></div>
+    ${lijstHtml}`;
+}
+
+function kaart(w, opts={}){
+  const gespeeld = w.status==='gespeeld';
+  const conflict = !gespeeld && heeftRustConflict(w);
+  const chips = [
+    divChip(w),
+    w.is_inhaal ? '<span class="chip inhaal">Inhaal</span>' : '',
+    w.datum_nnb ? '<span class="chip nnb">NNB</span>' : '',
+    w.speelronde ? `<span class="chip">SR ${esc(w.speelronde)}</span>` : '',
+    w.bord ? `<span class="chip groen">🎯 Bord ${esc(w.bord)}</span>` : '',
+    conflict ? '<span class="chip rood">⚠ &lt;40 min rust</span>' : '',
+    w.notitie ? '<span class="chip">📝</span>' : '',
+    gespeeld ? '<span class="chip groen">✓ gespeeld</span>' : ''
+  ].join('');
+  const wanneer = opts.toonDatum
+    ? `<div class="card-when">${w.datum_nnb?'Datum nog niet bekend':esc(fmtKort(w.datum))}${!w.datum_nnb&&w.tijdstip?' · '+esc(w.tijdstip):''}</div>` : '';
+  const klik = gespeeld ? '' : `onclick="openVerzet(${jsAttr(w.id)})"`;
+  return `<button class="card ${divKey(w)} ${gespeeld?'gespeeld':''} ${conflict?'conflict':''}" ${klik} ${gespeeld?'disabled':''}>
+    <div class="card-main">${wanneer}
+      <div class="names"><span class="n">${esc(w.thuis)}</span><span class="vs">VS</span><span class="n">${esc(w.uit)}</span></div>
+      <div class="chips">${chips}</div>
+    </div>${gespeeld?'':'<span class="card-go">›</span>'}</button>`;
+}
+
+// ── ZOEKEN OP SPELER ──
+function htmlZoek(){
+  return `<input class="zoek" id="zoekInp" type="search" placeholder="Zoek speler…" autocomplete="off" value="${esc(S.zoek)}"
+      oninput="S.zoek=this.value;renderZoekResultaat()">
+    <div id="zoekRes">${htmlZoekResultaat()}</div>`;
+}
+function renderZoekResultaat(){ const r=$('#zoekRes'); if(r) r.innerHTML=htmlZoekResultaat(); }
+function htmlZoekResultaat(){
+  const q=norm(S.zoek.trim());
+  if(q.length<2) return '<p class="muted" style="margin-top:14px;font-size:.9rem;">Typ minstens 2 letters. Je ziet dan alle openstaande wedstrijden van die speler vanaf vandaag, inclusief NNB.</p>';
+  const v=vandaag();
+  const res=W.filter(w=>w.status!=='gespeeld' && (w.datum_nnb || w.datum>=v) && (norm(w.thuis).includes(q)||norm(w.uit).includes(q)))
+    .sort((a,b)=> (a.datum_nnb?0:1)-(b.datum_nnb?0:1) || (a.datum||'').localeCompare(b.datum||'') || (a.tijdstip||'').localeCompare(b.tijdstip||''));
+  if(!res.length) return '<div class="leeg" style="margin-top:14px;">Geen openstaande wedstrijden gevonden.</div>';
+  return `<div class="sec-title" style="margin-top:16px;">${res.length} open wedstrijd${res.length===1?'':'en'}</div>` + res.slice(0,80).map(w=>kaart(w,{toonDatum:true})).join('');
+}
+
+// ── NNB ──
+function htmlNNB(){
+  const lijst=W.filter(w=>w.datum_nnb && w.status!=='gespeeld');
+  if(!lijst.length) return '<div class="leeg">Geen wedstrijden zonder datum 👍</div>';
+  return `<div class="sec-title">Nieuwe datum nog niet bekend (${lijst.length})</div>` +
+    lijst.map(w=>kaart(w,{toonDatum:false}) .replace('<div class="chips">', `<div class="chips">${w.originele_datum?`<span class="chip">oorspr. ${esc(fmtKort(w.originele_datum))}</span>`:''}`)).join('');
+}
+
+// ══════════════════════════════════════════
+//  VERZETTEN (bottom sheet)
+// ══════════════════════════════════════════
+function openVerzet(id){
+  const m=W.find(w=>w.id===id); if(!m || m.status==='gespeeld') return;
+  const eersteKeerBeker = isBeker(m) && m.datum_nnb && !m.originele_datum && !m.is_inhaal;
+  const standaard = !m.tijdstip || PT_SLOTS.some(s=>s.tijd===m.tijdstip);
+  sheet = {
+    id, datum: m.datum_nnb ? '' : (m.datum||''), tijd: m.tijdstip||'',
+    handmatig: !standaard, nnb: !!m.datum_nnb, inhaal: !eersteKeerBeker,
+    door: lsGet('wl_door'), andereDatum:false, bezig:false, tijdAangepast:false
+  };
+  renderSheet();
+  $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
+  document.body.style.overflow='hidden';
+  laadData(true); // verse stand ophalen zodat conflicten kloppen
+}
+function sluitSheet(){
+  sheet=null;
+  $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function sheetKiesDatum(d){
+  const m=W.find(w=>w.id===sheet.id); if(!m) return;
+  sheet.datum=d; sheet.nnb=false; sheet.tijdAangepast=false;
+  // Past de gekozen tijd niet op de nieuwe avond? Dan meteen het eerste vrije slot voorstellen.
+  if(!sheet.handmatig){
+    const st = sheet.tijd ? slotStatus(d, sheet.tijd, m, m.id) : null;
+    if(!st || st.conflict || st.vol){
+      const vrij = PT_SLOTS.find(s=>{ const x=slotStatus(d,s.tijd,m,m.id); return !x.conflict && !x.vol; });
+      if(vrij){ sheet.tijdAangepast = !!sheet.tijd && sheet.tijd!==vrij.tijd; sheet.tijd=vrij.tijd; }
+    }
+  }
+  renderSheet();
+}
+function sheetKiesSlot(t){ sheet.tijd=t; sheet.handmatig=false; sheet.tijdAangepast=false; renderSheet(); }
+
+function sheetWaarschuwingen(m){
+  const w=[];
+  if(sheet.nnb || !sheet.datum) return w;
+  if(sheet.datum!==m.datum){
+    const n=telAvond(sheet.datum, m.id)+1;
+    if(n>MAX_PER_AVOND) w.push(`${esc(fmtKort(sheet.datum))} komt hiermee op <b>${n}</b> wedstrijden (max ${MAX_PER_AVOND}).`);
+  }
+  if(sheet.tijd){
+    const conf=rustConflicten(sheet.datum, sheet.tijd, m, m.id);
+    if(conf.length){
+      const namen=[...new Set(conf.flatMap(c=>[c.thuis,c.uit]).filter(n=>n===m.thuis||n===m.uit))];
+      w.push(`<b>${namen.map(esc).join(' en ')}</b> ${namen.length>1?'hebben':'heeft'} al een wedstrijd binnen ${MIN_RUST_MIN} min van ${esc(sheet.tijd)}.`);
+    }
+    const st=slotStatus(sheet.datum, sheet.tijd, null, m.id);
+    if(PT_SLOTS.some(s=>s.tijd===sheet.tijd) && st.bezet>=st.cap) w.push(`Tijdslot ${esc(sheet.tijd)} zit al vol (${st.bezet}/${st.cap}).`);
+  }
+  if(m.bord) w.push(`Deze wedstrijd staat nu op <b>bord ${esc(m.bord)}</b>.`);
+  return w;
+}
+
+function renderSheet(){
+  if(!sheet) return;
+  const m=W.find(w=>w.id===sheet.id);
+  const el=$('#sheet');
+  if(!m){ el.innerHTML=`<div class="sheet-body"><div class="leeg" style="margin-top:16px">Deze wedstrijd bestaat niet meer.</div></div>`; return; }
+
+  const nu = m.datum_nnb ? 'Nu: datum nog niet bekend (NNB)' : `Nu: ${esc(fmtLang(m.datum))}${m.tijdstip?' · '+esc(m.tijdstip):''}`;
+  const v=vandaag();
+  const extraDatum = sheet.datum && !avonden().includes(sheet.datum);
+
+  // Tijdsloten
+  let slotenHtml='';
+  if(!sheet.nnb && sheet.datum){
+    slotenHtml = sheet.handmatig
+      ? `<input class="inp" type="time" value="${esc(sheet.tijd)}" onchange="sheet.tijd=this.value;renderSheet()">
+         <button class="link-btn" onclick="sheet.handmatig=false;renderSheet()">← Terug naar tijdsloten</button>`
+      : `<div class="sloten">${PT_SLOTS.map(s=>{
+            const st=slotStatus(sheet.datum,s.tijd,m,m.id);
+            const cls=st.conflict?'conflict':st.vol?'vol':'';
+            const lbl=`${st.bezet}/${st.cap}${st.conflict?' · rust':st.vol?' · vol':''}`;
+            return `<button class="slot ${cls} ${s.tijd===sheet.tijd?'sel':''}" onclick="sheetKiesSlot('${s.tijd}')"><div class="st">${s.tijd}</div><div class="sl">${lbl}</div></button>`;
+          }).join('')}</div>
+         <div class="slot-legenda">Groen = vrij · rood = minder dan ${MIN_RUST_MIN} min rust · grijs = vol</div>
+         <button class="link-btn" onclick="sheet.handmatig=true;renderSheet()">Andere tijd invullen…</button>`;
+  }
+
+  // Wat spelen deze twee spelers nog meer op de gekozen avond?
+  let ctxHtml='';
+  if(!sheet.nnb && sheet.datum){
+    const nieuw=naarMin(sheet.tijd);
+    const anders=W.filter(w=>w.id!==m.id && w.datum===sheet.datum && !w.datum_nnb && deelSpeler(w,m))
+      .sort((a,b)=>(a.tijdstip||'99').localeCompare(b.tijdstip||'99'));
+    const rijen=anders.map(w=>{
+      const wm=naarMin(w.tijdstip);
+      const rood = nieuw!==null && wm!==null && Math.abs(wm-nieuw)<MIN_RUST_MIN;
+      return {t:w.tijdstip||'—', html:`<div class="ctx-rij ${rood?'rood':''}"><span class="t">${esc(w.tijdstip||'—')}</span><span>${esc(w.thuis)} – ${esc(w.uit)}${w.status==='gespeeld'?' <span class="muted">✓</span>':''}</span></div>`};
+    });
+    if(sheet.tijd) rijen.push({t:sheet.tijd, html:`<div class="ctx-rij nieuw"><span class="t">${esc(sheet.tijd)}</span><span><b>Deze wedstrijd</b></span></div>`});
+    rijen.sort((a,b)=>a.t.localeCompare(b.t));
+    ctxHtml = `<div class="sec-title">${esc(m.thuis)} & ${esc(m.uit)} op ${esc(fmtKort(sheet.datum))}</div>
+      ${anders.length ? `<div class="ctx">${rijen.map(r=>r.html).join('')}</div>` : '<div class="muted" style="font-size:.88rem;">Geen andere wedstrijden op deze avond.</div>'}`;
+  }
+
+  const warns=sheetWaarschuwingen(m);
+  const warnHtml = warns.length ? `<div class="warn">${warns.map(x=>`<div>⚠ ${x}</div>`).join('')}</div>` : '';
+  const aangepast = sheet.tijdAangepast ? `<div class="info"><span>Tijd aangepast naar het eerste vrije slot: <b>${esc(sheet.tijd)}</b></span></div>` : '';
+  const orig = m.originele_datum ? `<div class="info"><span>📌 Oorspronkelijke datum: <b>${esc(fmtKort(m.originele_datum))}</b></span><button class="btn-klein" onclick="herstelOrig()">Terugzetten</button></div>` : '';
+
+  const leiderOpts = '<option value="">— kies —</option>' + leiders.map(l=>`<option ${l.naam===sheet.door?'selected':''}>${esc(l.naam)}</option>`).join('');
+  const lblOpslaan = warns.length ? '⚠ Toch opslaan' : 'Opslaan';
+  const lblMail = warns.length ? '⚠ Toch + mail' : 'Opslaan & mail';
+  const oudScroll = el.querySelector('.sheet-body')?.scrollTop || 0; // scrollpositie behouden bij het kiezen van een slot
+
+  el.innerHTML = `
+    <div class="sheet-kop">
+      <div style="flex:1;min-width:0;">
+        <div class="names"><span class="n">${esc(m.thuis)}</span><span class="vs">VS</span><span class="n">${esc(m.uit)}</span></div>
+        <div class="chips">${divChip(m)}${m.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}${m.speelronde?`<span class="chip">SR ${esc(m.speelronde)}</span>`:''}</div>
+        <div class="nu">${nu}</div>
+      </div>
+      <button class="icon-btn" onclick="sluitSheet()" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="sheet-body">
+      ${orig}
+      <div class="sec-title">Nieuwe datum</div>
+      ${datumChips('sheetDatums', sheet.nnb?'':sheet.datum, 'sheetKiesDatum', m.id, true)}
+      <div class="pill-rij">
+        <button class="pill ${sheet.andereDatum||extraDatum?'act':''}" onclick="sheet.andereDatum=true;renderSheet()">📅 Andere datum</button>
+        <button class="pill nnb ${sheet.nnb?'act':''}" onclick="sheet.nnb=!sheet.nnb;if(sheet.nnb){sheet.datum='';sheet.tijd='';}renderSheet()">🕓 Nog niet bekend</button>
+      </div>
+      ${(sheet.andereDatum||extraDatum)&&!sheet.nnb ? `<input class="inp" style="margin-top:10px" type="date" value="${esc(sheet.datum)}" min="${v}" onchange="sheetKiesDatum(this.value)">` : ''}
+      ${slotenHtml ? `<div class="sec-title">Tijdslot</div>${slotenHtml}` : ''}
+      ${aangepast}
+      ${ctxHtml}
+      ${warnHtml}
+      <div class="sec-title">Opslaan</div>
+      <label class="check"><input type="checkbox" ${sheet.inhaal?'checked':''} onchange="sheet.inhaal=this.checked"> Telt als inhaalwedstrijd (oorspronkelijke datum bewaren)</label>
+      <div class="veld"><label>Gewijzigd door</label><select class="inp" onchange="sheet.door=this.value;lsSet('wl_door',this.value)">${leiderOpts}</select></div>
+    </div>
+    <div class="sheet-voet">
+      <button class="btn btn-sec" ${sheet.bezig?'disabled':''} onclick="slaVerzetOp(false)">${lblOpslaan}</button>
+      <button class="btn ${warns.length?'btn-warn':'btn-pri'}" ${sheet.bezig?'disabled':''} onclick="slaVerzetOp(true)">${sheet.bezig?'Bezig…':lblMail}</button>
+    </div>`;
+  centreerDatum('#sheetDatums');
+  el.querySelector('.sheet-body').scrollTop = oudScroll;
+}
+
+// Zelfde gegevens, log en mail als slaVerzetOp() in index.html
+async function slaVerzetOp(informeer){
+  if(!sheet || sheet.bezig) return;
+  const m=W.find(w=>w.id===sheet.id); if(!m) return;
+  const isNNB=sheet.nnb;
+  if(!isNNB && !sheet.datum){ toast('Kies een datum (of "Nog niet bekend")','rood'); return; }
+  if(!sheet.door){ toast('Kies wie de wijziging doet','rood'); return; }
+  const tijdInp=(sheet.tijd||'').trim();
+  if(tijdInp && !/^([01]\d|2[0-3]):[0-5]\d$/.test(tijdInp)){ toast('Tijd moet UU:MM zijn (bv. 19:30)','rood'); return; }
+
+  const id=m.id, oudeDatum=m.datum||null, oudeTijd=m.tijdstip||null;
+  const nieuweTijd = isNNB ? null : (tijdInp||null);
+  const origDatum  = sheet.inhaal ? (m.originele_datum || m.datum) : null;
+  const nieuweDatum = isNNB ? (m.datum || oudeDatum) : sheet.datum;
+  const door=sheet.door;
+
+  sheet.bezig=true; renderSheet();
+  try{
+    await sbPatch('wedstrijden', id, { datum:nieuweDatum, tijdstip:nieuweTijd, datum_nnb:isNNB, is_inhaal:sheet.inhaal, originele_datum:origDatum, status:'gepland' });
+    Object.assign(m,{ datum:nieuweDatum, tijdstip:nieuweTijd, datum_nnb:isNNB, is_inhaal:sheet.inhaal, originele_datum:origDatum, status:'gepland' });
+    sluitSheet();
+    if(!isNNB && S.view==='avond') S.datum=nieuweDatum;
+    render(); updateBadge();
+    const tijdGewijzigd = !isNNB && nieuweTijd && nieuweTijd!==oudeTijd;
+    toast(isNNB ? '🕓 Gemarkeerd als NNB' : `📅 Verzet naar ${fmtKort(nieuweDatum)}${tijdGewijzigd?` om ${nieuweTijd}`:''}`, 'oranje');
+
+    let logId=null;
+    try{
+      const rij=await sbPost('wijziging_log',{
+        wedstrijd_id:id, thuis:m.thuis||null, uit:m.uit||null, divisie:m.divisie||null, actie:'verzet',
+        oude_datum:oudeDatum, nieuwe_datum:isNNB?null:nieuweDatum, oude_tijdstip:oudeTijd, nieuwe_tijdstip:nieuweTijd,
+        gewijzigd_door:door, notitie:isNNB?'Nog niet bekend (NNB)':null, mail_verstuurd:false
+      });
+      logId=rij?.[0]?.id||null;
+    }catch(e){ console.error('Kon wijziging niet loggen:',e); }
+
+    if(informeer){
+      try{
+        const res=await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`,{
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${SB_KEY}`,'apikey':SB_KEY},
+          body:JSON.stringify({ type:'verzet', wedstrijd_id:id, gewijzigd_door:door, wijziging_log_id:logId, oude_tijdstip:oudeTijd, nieuwe_tijdstip:nieuweTijd })
+        });
+        const data=await res.json().catch(()=>({}));
+        if(!res.ok) throw new Error(data.error||'Onbekende fout');
+        toast(`📧 Spelers geïnformeerd (${data.verzonden_naar ?? '?'} mail(s))`,'groen');
+      }catch(e){ toast(`⚠ Verzet gelukt, maar mail mislukt: ${e.message}`,'rood'); }
+    }
+    laadData(true);
+  }catch(e){
+    if(sheet){ sheet.bezig=false; renderSheet(); }
+    toast(`Fout: ${e.message}`,'rood');
+  }
+}
+
+async function herstelOrig(){
+  const m=W.find(w=>w.id===sheet?.id); if(!m||!m.originele_datum) return;
+  if(!confirm(`${m.thuis} vs ${m.uit} terugzetten naar ${fmtKort(m.originele_datum)}?`)) return;
+  try{
+    await sbPatch('wedstrijden', m.id, { datum:m.originele_datum, is_inhaal:false, originele_datum:null, datum_nnb:false });
+    const d=m.originele_datum;
+    Object.assign(m,{ datum:d, is_inhaal:false, originele_datum:null, datum_nnb:false });
+    sluitSheet(); S.datum=d; render(); updateBadge();
+    toast(`↩ Teruggezet naar ${fmtKort(d)}`,'groen');
+    laadData(true);
+  }catch(e){ toast(`Fout: ${e.message}`,'rood'); }
+}
+
+// ══════════════════════════════════════════
+//  BEKERWEDSTRIJD INPLANNEN
+// ══════════════════════════════════════════
+function htmlBeker(){
+  const spOpts = sel => '<option value="">— kies speler —</option>' + spelers.filter(s=>s.naam!=='Vrije Ronde')
+    .map(s=>`<option ${s.naam===sel?'selected':''}>${esc(s.naam)}</option>`).join('');
+  const leiderOpts = '<option value="">— kies —</option>' + leiders.map(l=>`<option ${l.naam===lsGet('wl_door')?'selected':''}>${esc(l.naam)}</option>`).join('');
+  const extraDatum = beker.datum && !avonden().includes(beker.datum);
+  return `
+    <div class="sec-title">Nieuwe bekerwedstrijd</div>
+    <div class="veld"><label>Thuis</label><select class="inp" onchange="beker.thuis=this.value;renderBekerSloten()">${spOpts(beker.thuis)}</select></div>
+    <div class="veld"><label>Uit</label><select class="inp" onchange="beker.uit=this.value;renderBekerSloten()">${spOpts(beker.uit)}</select></div>
+    <div class="veld"><label>Format</label><div class="pill-rij">
+      ${['Best of 5','Best of 7','Best of 9'].map(b=>`<button class="pill ${beker.bo===b?'act':''}" onclick="beker.bo='${b}';this.parentNode.querySelectorAll('.pill').forEach(p=>p.classList.toggle('act',p===this))">${b.replace('Best of ','Bo')}</button>`).join('')}
+    </div></div>
+    <div class="veld"><label>Ronde (optioneel)</label><input class="inp" value="${esc(beker.ronde)}" placeholder="bv. Ronde 1" oninput="beker.ronde=this.value"></div>
+
+    <div class="sec-title">Datum</div>
+    ${datumChips('bekerDatums', beker.datum, 'bekerKiesDatum', null, true)}
+    <div class="pill-rij">
+      <button class="pill ${beker.andereDatum||extraDatum?'act':''}" onclick="beker.andereDatum=true;render()">📅 Andere datum</button>
+      <button class="pill nnb ${!beker.datum?'act':''}" onclick="beker.datum='';beker.tijd='';beker.andereDatum=false;render()">🕓 Nog geen datum</button>
+    </div>
+    ${beker.andereDatum||extraDatum ? `<input class="inp" style="margin-top:10px" type="date" value="${esc(beker.datum)}" min="${vandaag()}" onchange="bekerKiesDatum(this.value)">` : ''}
+    <div id="bekerSloten"></div>
+
+    <div class="veld" style="margin-top:14px;"><label>Ingepland door</label><select class="inp" id="bekerDoor" onchange="lsSet('wl_door',this.value)">${leiderOpts}</select></div>
+    <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:10px;margin-top:8px;">
+      <button class="btn btn-sec" ${beker.bezig?'disabled':''} onclick="voegBekerToe(false)">Plan in, geen mail</button>
+      <button class="btn btn-pri" ${beker.bezig?'disabled':''} onclick="voegBekerToe(true)">${beker.bezig?'Bezig…':'Plan in & mail'}</button>
+    </div>
+    <p class="muted" style="font-size:.78rem;margin-top:10px;">"Plan in, geen mail" zonder datum zet de wedstrijd bij NNB. "Plan in & mail" heeft een datum nodig.</p>`;
+}
+function bekerKiesDatum(d){ beker.datum=d; render(); }
+function renderBekerSloten(){
+  const box=$('#bekerSloten'); if(!box) return;
+  if(!beker.datum){ box.innerHTML=''; return; }
+  const paar = (beker.thuis && beker.uit) ? {thuis:beker.thuis, uit:beker.uit} : null;
+  const n=telAvond(beker.datum,null)+1;
+  const warns=[];
+  if(n>MAX_PER_AVOND) warns.push(`${esc(fmtKort(beker.datum))} komt hiermee op <b>${n}</b> wedstrijden (max ${MAX_PER_AVOND}).`);
+  if(paar && beker.tijd){
+    const c=rustConflicten(beker.datum,beker.tijd,paar,null);
+    if(c.length) warns.push(`Rustconflict: minder dan ${MIN_RUST_MIN} min tussen wedstrijden van dezelfde speler.`);
+  }
+  if(paar){
+    const anders=W.filter(w=>w.datum===beker.datum && !w.datum_nnb && deelSpeler(w,paar));
+    if(anders.length) warns.push(`Deze spelers spelen die avond ook: ${anders.map(w=>`${esc(w.tijdstip||'—')} ${esc(w.thuis)} – ${esc(w.uit)}`).join(', ')}`);
+  }
+  box.innerHTML = `<div class="sec-title">Tijd (optioneel)</div>` + (beker.handmatig
+    ? `<input class="inp" type="time" value="${esc(beker.tijd)}" onchange="beker.tijd=this.value;renderBekerSloten()">
+       <button class="link-btn" onclick="beker.handmatig=false;renderBekerSloten()">← Terug naar tijdsloten</button>`
+    : `<div class="sloten">${PT_SLOTS.map(s=>{
+          const st=slotStatus(beker.datum,s.tijd,paar,null);
+          const cls=st.conflict?'conflict':st.vol?'vol':'';
+          return `<button class="slot ${cls} ${s.tijd===beker.tijd?'sel':''}" onclick="beker.tijd=(beker.tijd==='${s.tijd}'?'':'${s.tijd}');renderBekerSloten()"><div class="st">${s.tijd}</div><div class="sl">${st.bezet}/${st.cap}${st.conflict?' · rust':st.vol?' · vol':''}</div></button>`;
+        }).join('')}</div>
+       <div class="slot-legenda">${paar?'Groen = vrij · rood = rustconflict · grijs = vol. Nogmaals tikken = geen tijd.':'Kies eerst beide spelers om rustconflicten te zien.'}</div>
+       <button class="link-btn" onclick="beker.handmatig=true;renderBekerSloten()">Andere tijd invullen…</button>`)
+    + (warns.length ? `<div class="warn">${warns.map(x=>`<div>⚠ ${x}</div>`).join('')}</div>` : '');
+}
+
+// Zelfde gegevens en mail als voegBekerToe() in index.html
+async function voegBekerToe(informeer){
+  if(beker.bezig) return;
+  const { thuis, uit } = beker;
+  const tijd=(beker.tijd||'').trim(), ronde=beker.ronde.trim();
+  const door=$('#bekerDoor')?.value||'';
+  if(!thuis||!uit){ toast('Kies twee spelers','rood'); return; }
+  if(thuis===uit){ toast('Kies twee verschillende spelers','rood'); return; }
+  if(informeer && !beker.datum){ toast('Kies een datum (of "Plan in, geen mail")','rood'); return; }
+  if(tijd && !/^([01]\d|2[0-3]):[0-5]\d$/.test(tijd)){ toast('Tijd moet UU:MM zijn','rood'); return; }
+
+  const isNNB = !informeer && !beker.datum;
+  const datum = beker.datum || vandaag(); // placeholder bij NNB, wordt nergens getoond zolang datum_nnb=true
+  if(!isNNB){
+    const n=telAvond(datum,null)+1;
+    if(n>MAX_PER_AVOND && !confirm(`${fmtKort(datum)} heeft al ${n-1} wedstrijden. Hiermee worden het er ${n} (max ${MAX_PER_AVOND}).\n\nToch inplannen?`)) return;
+    if(tijd && rustConflicten(datum,tijd,{thuis,uit},null).length && !confirm(`Een van beide spelers heeft binnen ${MIN_RUST_MIN} minuten van ${tijd} al een wedstrijd.\n\nToch inplannen?`)) return;
+  }
+
+  beker.bezig=true; render();
+  try{
+    const [nieuw]=await sbPost('wedstrijden',{
+      datum, tijdstip:isNNB?null:(tijd||null), divisie:`Beker (${beker.bo})`, thuis, uit,
+      speelronde:ronde||null, status:'gepland', is_inhaal:false, datum_nnb:isNNB
+    });
+    W.push(nieuw);
+    Object.assign(beker,{ thuis:'', uit:'', ronde:'', datum:'', tijd:'', andereDatum:false, handmatig:false });
+    if(isNNB){ toast(`🕓 ${thuis} vs ${uit} vastgelegd bij NNB (geen mail)`,'oranje'); }
+    else toast(`🏆 Bekerwedstrijd gepland op ${fmtKort(datum)}`,'oranje');
+
+    if(informeer){
+      try{
+        const res=await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`,{ method:'POST', headers:HDR,
+          body:JSON.stringify({ type:'nieuwe_beker', wedstrijd_id:nieuw.id, gewijzigd_door:door||null }) });
+        if(!res.ok) throw new Error(await res.text());
+        toast('📧 Spelers geïnformeerd over de bekerwedstrijd','groen');
+      }catch(e){ toast(`⚠ Gepland, maar mail mislukt: ${e.message}`,'rood'); }
+    }
+  }catch(e){ toast(`Fout: ${e.message}`,'rood'); }
+  finally{ beker.bezig=false; render(); updateBadge(); }
+}
+
+// ══════════════════════════════════════════
+//  INSTALLEREN ALS APP
+// ══════════════════════════════════════════
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+function installHint(){
+  if(isStandalone() || lsGet('wl_install_weg')==='1') return '';
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const tekst = installPrompt ? 'Zet deze pagina als app op je telefoon.'
+    : ios ? 'Als app installeren: tik in Safari op <b>Deel</b> ⬆︎ en dan <b>Zet op beginscherm</b>.'
+    : 'Als app installeren: open het browsermenu ⋮ en kies <b>App installeren</b> of <b>Toevoegen aan startscherm</b>.';
+  return `<div class="install"><div>📲 ${tekst}</div>
+    ${installPrompt?'<button class="btn-klein" onclick="installeer()">Installeer</button>':''}
+    <button class="btn-klein" onclick="lsSet('wl_install_weg','1');render()" aria-label="Verbergen">✕</button></div>`;
+}
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installPrompt=e; if(S.view==='avond') render(); });
+async function installeer(){ if(!installPrompt) return; installPrompt.prompt(); await installPrompt.userChoice; installPrompt=null; render(); }
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('Service worker niet geregistreerd:',e)));
+}
+
+// ══════════════════════════════════════════
+//  START + AUTOMATISCH VERVERSEN
+// ══════════════════════════════════════════
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') laadData(true); });
+setInterval(()=>{ if(document.visibilityState==='visible' && !sheet) laadData(true); }, 60000);
+window.addEventListener('online', ()=>laadData(true));
+naarView('avond');
+laadData(true);
+</script>
+</body>
+</html>
