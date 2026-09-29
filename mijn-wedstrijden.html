@@ -9,7 +9,7 @@
   :root {
     --bg:#0f1520; --s1:#161f30; --s2:#1e2a40; --s3:#243350; --border:#2a3a56;
     --text:#f1f5f9; --muted:#94a3b8; --blue:#3b82f6; --green:#10b981; --red:#ef4444;
-    --ere:#a855f7; --beker:#f59e0b;
+    --ere:#a855f7; --beker:#f59e0b; --warn:#f59e0b;
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text);
@@ -20,53 +20,252 @@
   main { max-width:720px; margin:0 auto; padding:16px; }
   .card { background:var(--s1); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px; }
   label { font-size:.8rem; color:var(--muted); display:block; margin-bottom:6px; }
-  select { width:100%; padding:10px; background:var(--s2); color:var(--text); border:1px solid var(--border); border-radius:6px; font-size:1rem; }
-  .meta { font-size:.82rem; color:var(--muted); line-height:1.6; }
+  select, textarea { width:100%; padding:10px; background:var(--s2); color:var(--text); border:1px solid var(--border); border-radius:6px; font-size:1rem; font-family:inherit; }
+  textarea { min-height:70px; resize:vertical; }
+  .meta { font-size:.85rem; color:var(--muted); line-height:1.6; }
   .meta strong { color:var(--text); }
+  .proef { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.45); color:#fcd34d; border-radius:8px; padding:10px 12px; font-size:.85rem; line-height:1.5; margin-bottom:14px; }
   .maand { font-size:.72rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin:18px 0 6px; }
-  .w { display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; align-items:center;
-    background:var(--s1); border:1px solid var(--border); border-left:4px solid var(--blue); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .w { background:var(--s1); border:1px solid var(--border); border-left:4px solid var(--blue); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
   .w.ere { border-left-color:var(--ere); } .w.beker { border-left-color:var(--beker); } .w.inhaal { border-left-color:var(--red); }
   .w.voorbij { opacity:.5; }
+  .w .kop { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
   .w .dag { font-weight:700; white-space:nowrap; }
   .w .tijd { color:var(--blue); font-weight:800; font-size:1.1rem; }
-  .w .wie { grid-column:1 / 3; font-size:.95rem; }
-  .w .versie { grid-row:1 / 3; grid-column:3; text-align:right; font-size:.72rem; color:var(--muted); line-height:1.5; }
-  .w .versie b { color:var(--text); }
-  .leeg, .fout { text-align:center; padding:24px; color:var(--muted); }
-  .fout { color:var(--red); }
+  .w .notitie { margin-left:auto; font-size:.72rem; color:var(--muted); text-align:right; }
+  .w .wie { font-size:.95rem; margin-top:2px; }
+  .w .sub { font-size:.8rem; color:var(--muted); }
+  .status { margin-top:8px; font-size:.85rem; border-radius:6px; padding:8px 10px; background:var(--s2); line-height:1.5; }
+  .status.open { border-left:3px solid var(--warn); } .status.ok { border-left:3px solid var(--green); } .status.nee { border-left:3px solid var(--red); }
+  .knoppen { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  button, .btn { font-family:inherit; font-size:.9rem; font-weight:700; border-radius:6px; padding:9px 14px; border:1px solid var(--border); background:var(--s2); color:var(--text); cursor:pointer; text-decoration:none; display:inline-block; }
+  button.hoofd, .btn.hoofd { background:var(--blue); border-color:var(--blue); color:#fff; }
+  button.groen { background:var(--green); border-color:var(--green); color:#04130d; }
+  button.rood { background:transparent; border-color:var(--red); color:#fca5a5; }
+  button:disabled { opacity:.5; cursor:default; }
+  .paneel { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .sloten { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin:8px 0; }
+  .slot { padding:8px 4px; text-align:center; border-radius:6px; border:1px solid var(--border); background:var(--s2); font-weight:700; cursor:pointer; color:var(--text); font-family:inherit; }
+  .slot small { display:block; font-weight:400; font-size:.62rem; color:var(--muted); margin-top:2px; }
+  .slot.vrij { border-color:var(--green); }
+  .slot.dicht { opacity:.45; cursor:default; }
+  .slot.gekozen { background:var(--green); color:#04130d; }
+  .slot.gekozen small { color:#04130d; }
+  .melding { margin-top:8px; font-size:.85rem; }
+  .melding.fout { color:#fca5a5; } .melding.goed { color:#6ee7b7; }
+  .leeg, .fout-groot { text-align:center; padding:24px; color:var(--muted); }
+  .fout-groot { color:#fca5a5; }
   .uitleg { font-size:.8rem; color:var(--muted); line-height:1.6; }
-  @media (max-width:420px) { .w .versie { font-size:.68rem; } }
+  .groot { font-size:1.15rem; font-weight:800; }
 </style>
 </head>
 <body>
 <header><h1>🎯 De Kaale Bull · <span>Mijn wedstrijden</span></h1></header>
-<main>
-  <div class="card" id="kiesKaart">
-    <label for="speler">Speler</label>
-    <select id="speler"><option value="">Laden…</option></select>
-  </div>
-
-  <div class="card meta" id="meta" hidden></div>
-  <div id="lijst"></div>
-
-  <div class="card uitleg">
-    Deze pagina toont precies wat de agenda-koppeling van deze speler op dit moment uitlevert.
-    Staat een wedstrijd hier anders dan in je telefoonagenda, dan heeft je agenda-app nog niet ververst.
-    <b>Versie</b> gaat 1 omhoog bij elke wijziging; zo zie je of een verzetting al is doorgevoerd.
-  </div>
-</main>
+<main id="app"><div class="leeg">Laden…</div></main>
 
 <script>
 const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
 const FEED = `${SB_URL}/functions/v1/ical-feed`;
+const API = `${SB_URL}/functions/v1/verzet-aanvraag`;
 
+const app = document.getElementById('app');
+const params = new URLSearchParams(location.search);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAGEN = ['zo','ma','di','wo','do','vr','za'];
+const DAGEN_LANG = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
 const MAANDEN = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
 
-// ── ICS inlezen (unfolding + escapes) ──
+const d = s => { const [y,m,dd] = String(s).split('-').map(Number); return new Date(y, m-1, dd); };
+const kort = s => { const x = d(s); return `${DAGEN[x.getDay()]} ${x.getDate()} ${MAANDEN[x.getMonth()].slice(0,3)}`; };
+const lang = s => { const x = d(s); return `${DAGEN_LANG[x.getDay()]} ${x.getDate()} ${MAANDEN[x.getMonth()]}`; };
+const vandaagStr = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; };
+const soortVan = (divisie, inhaal) => inhaal ? 'inhaal' : /^beker/i.test(divisie||'') ? 'beker' : /ere/i.test(divisie||'') ? 'ere' : '';
+const rondeTekst = (divisie, ronde) => /^beker/i.test(divisie||'') ? esc(divisie) : [ronde ? `Ronde ${esc(ronde)}` : '', esc(divisie)].filter(Boolean).join(' · ');
+
+async function api(actie, data = {}) {
+  const r = await fetch(API, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ actie, ...data }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Er ging iets mis.');
+  return j;
+}
+
+// ════════════════════════════════════════════
+//  1) PERSOONLIJKE PAGINA (?token=...)
+// ════════════════════════════════════════════
+const token = params.get('token');
+let mijn = null;
+
+async function laadMijn() {
+  try {
+    mijn = await api('mijn', { token });
+    tekenMijn();
+  } catch (e) { app.innerHTML = `<div class="fout-groot">${esc(e.message)}</div>`; }
+}
+
+function statusHtml(w) {
+  const v = w.voorstel; if (!v) return '';
+  const naar = `${kort(v.nieuwe_datum)} ${esc(v.nieuwe_tijdstip)}`;
+  if (v.status === 'voorgesteld') {
+    const wie = v.door_mij ? `Je hebt gevraagd om te verzetten naar <strong>${naar}</strong>. We wachten op ${esc(w.tegenstander)}.`
+                           : `<strong>${esc(w.tegenstander)}</strong> vraagt om te verzetten naar <strong>${naar}</strong>.`;
+    const knoppen = [];
+    if (v.antwoord) knoppen.push(`<a class="btn ${v.door_mij ? '' : 'hoofd'}" href="?antwoord=${esc(v.antwoord)}">${v.door_mij ? 'Antwoorden als tegenstander (test)' : 'Bekijken en antwoorden'}</a>`);
+    if (v.door_mij) knoppen.push(`<button class="rood" onclick="intrekken('${esc(v.id)}', this)">Verzoek intrekken</button>`);
+    return `<div class="status open">⏳ ${wie}<div class="knoppen">${knoppen.join('')}</div></div>`;
+  }
+  if (v.status === 'geaccepteerd') return `<div class="status ok">✅ Akkoord om te verzetten naar ${naar}.${mijn.proef ? ' <em>(proefmodus: niet echt verzet)</em>' : ''}</div>`;
+  if (v.status === 'afgewezen') return `<div class="status nee">✖ Verzoek om te verzetten naar ${naar} is afgewezen.</div>`;
+  if (v.status === 'verlopen') return `<div class="status nee">⌛ Verzoek om te verzetten naar ${naar} is vervallen (geen reactie).</div>`;
+  if (v.status === 'ingetrokken') return `<div class="status">Verzoek om te verzetten naar ${naar} is ingetrokken.</div>`;
+  return '';
+}
+
+function kaartHtml(w, vandaag) {
+  const voorbij = w.datum && w.datum < vandaag;
+  const kop = w.datum
+    ? `<span class="dag">${kort(w.datum)}</span><span class="tijd">${esc(w.tijdstip || '')}</span>`
+    : `<span class="dag">Datum nog niet bekend</span>`;
+  return `<div class="w ${soortVan(w.divisie, w.is_inhaal)}${voorbij ? ' voorbij' : ''}" id="w-${esc(w.id)}">
+    <div class="kop">${kop}</div>
+    <div class="wie">tegen <strong>${esc(w.tegenstander)}</strong></div>
+    <div class="sub">${rondeTekst(w.divisie, w.speelronde)}${w.is_inhaal ? ' · <span style="color:#fca5a5">inhaal</span>' : ''}</div>
+    ${statusHtml(w)}
+    ${w.verzetbaar ? `<div class="knoppen"><button onclick="openPaneel('${esc(w.id)}')">${w.datum ? 'Verzetten aanvragen' : 'Datum voorstellen'}</button></div><div class="paneel" id="p-${esc(w.id)}" hidden></div>` : ''}
+  </div>`;
+}
+
+function tekenMijn() {
+  const vandaag = vandaagStr();
+  const gepland = mijn.wedstrijden.filter(w => w.datum);
+  const nnb = mijn.wedstrijden.filter(w => !w.datum);
+  const komend = gepland.filter(w => w.datum >= vandaag);
+  const hor = d(mijn.horizon);
+  let html = '';
+  if (mijn.proef) html += `<div class="proef"><strong>Proefmodus.</strong> Verzetten via deze pagina wordt getest. Mails over je verzoek komen bij jou binnen (ook die voor je tegenstander), en er wordt niets echt verzet.</div>`;
+  html += `<div class="card meta"><span class="groot">Hoi ${esc(mijn.speler.naam.split(' ')[0])}</span><br>
+    ${komend.length} wedstrijd${komend.length === 1 ? '' : 'en'} gepland t/m ${MAANDEN[hor.getMonth()]}${nnb.length ? `, ${nnb.length} nog in te plannen` : ''}.
+    ${mijn.mag_verzetten ? '<br>Kun je niet? Vraag hieronder om je wedstrijd te verzetten. Je tegenstander krijgt dan een mail om akkoord te geven.' : ''}</div>`;
+  if (nnb.length) { html += `<div class="maand">Nog in te plannen</div>` + nnb.map(w => kaartHtml(w, vandaag)).join(''); }
+  let maand = '';
+  for (const w of gepland) {
+    const x = d(w.datum), key = `${x.getFullYear()}-${x.getMonth()}`;
+    if (key !== maand) { maand = key; html += `<div class="maand">${MAANDEN[x.getMonth()]} ${x.getFullYear()}</div>`; }
+    html += kaartHtml(w, vandaag);
+  }
+  if (!mijn.wedstrijden.length) html += '<div class="leeg">Geen wedstrijden gevonden.</div>';
+  app.innerHTML = html;
+}
+
+const keuze = {};
+async function openPaneel(id) {
+  document.querySelectorAll('.paneel').forEach(p => { if (p.id !== `p-${id}`) p.hidden = true; });
+  const p = document.getElementById(`p-${id}`);
+  if (!p.hidden) { p.hidden = true; return; }
+  p.hidden = false;
+  p.innerHTML = '<div class="sub">Speelavonden ophalen…</div>';
+  try {
+    const { avonden } = await api('sloten', { token, wedstrijd_id: id });
+    keuze[id] = { datum: '', tijd: '' };
+    p.innerHTML = `
+      <label>Naar welke speelavond?</label>
+      <select onchange="kiesAvond('${id}', this.value)"><option value="">Kies een avond…</option>
+        ${avonden.map(a => `<option value="${a}">${lang(a)}</option>`).join('')}</select>
+      <div id="s-${id}"></div>
+      <label style="margin-top:10px">Reden of toelichting (optioneel)</label>
+      <textarea id="r-${id}" maxlength="300" placeholder="Bijv. ik moet die avond werken"></textarea>
+      <div class="knoppen"><button class="hoofd" id="b-${id}" onclick="verstuur('${id}')" disabled>Verzoek versturen</button>
+        <button onclick="openPaneel('${id}')">Annuleren</button></div>
+      <div class="melding" id="m-${id}"></div>`;
+  } catch (e) { p.innerHTML = `<div class="melding fout">${esc(e.message)}</div>`; }
+}
+
+async function kiesAvond(id, datum) {
+  keuze[id] = { datum, tijd: '' };
+  document.getElementById(`b-${id}`).disabled = true;
+  const s = document.getElementById(`s-${id}`);
+  if (!datum) { s.innerHTML = ''; return; }
+  s.innerHTML = '<div class="sub" style="margin-top:8px">Vrije tijden ophalen…</div>';
+  try {
+    const { sloten } = await api('sloten', { token, wedstrijd_id: id, datum });
+    const vrij = sloten.filter(x => x.vrij).length;
+    s.innerHTML = `<label style="margin-top:10px">Hoe laat? ${vrij ? '' : '<span style="color:#fca5a5">Geen tijd vrij op deze avond.</span>'}</label>
+      <div class="sloten">${sloten.map(x => `<button type="button" class="slot ${x.vrij ? 'vrij' : 'dicht'}" ${x.vrij ? `onclick="kiesTijd('${id}','${x.tijd}', this)"` : 'disabled'}>${x.tijd}<small>${x.vrij ? 'vrij' : esc(x.reden)}</small></button>`).join('')}</div>`;
+  } catch (e) { s.innerHTML = `<div class="melding fout">${esc(e.message)}</div>`; }
+}
+
+function kiesTijd(id, tijd, el) {
+  keuze[id].tijd = tijd;
+  el.parentElement.querySelectorAll('.slot').forEach(b => b.classList.remove('gekozen'));
+  el.classList.add('gekozen');
+  document.getElementById(`b-${id}`).disabled = false;
+}
+
+async function verstuur(id) {
+  const b = document.getElementById(`b-${id}`), m = document.getElementById(`m-${id}`);
+  b.disabled = true; m.className = 'melding'; m.textContent = 'Versturen…';
+  try {
+    await api('voorstel', { token, wedstrijd_id: id, datum: keuze[id].datum, tijd: keuze[id].tijd, reden: document.getElementById(`r-${id}`).value });
+    m.className = 'melding goed'; m.textContent = 'Verzoek verstuurd! Je tegenstander krijgt een mail.';
+    setTimeout(laadMijn, 1200);
+  } catch (e) { m.className = 'melding fout'; m.textContent = e.message; b.disabled = false; }
+}
+
+async function intrekken(voorstelId, el) {
+  if (!confirm('Weet je zeker dat je dit verzoek wilt intrekken?')) return;
+  el.disabled = true;
+  try { await api('intrekken', { token, voorstel_id: voorstelId }); laadMijn(); }
+  catch (e) { alert(e.message); el.disabled = false; }
+}
+
+// ════════════════════════════════════════════
+//  2) ANTWOORDEN OP EEN VERZOEK (?antwoord=...)
+// ════════════════════════════════════════════
+const antwoord = params.get('antwoord');
+
+async function laadAntwoord() {
+  try {
+    const v = await api('bekijk', { antwoord });
+    const oud = v.oude_datum ? `${lang(v.oude_datum)}, ${esc(v.oude_tijdstip || '')}` : 'nog niet gepland';
+    const nieuw = `${lang(v.nieuwe_datum)}, ${esc(v.nieuwe_tijdstip)}`;
+    let html = v.proef ? `<div class="proef"><strong>Proefmodus.</strong> Je antwoordt hier als tegenstander. Er wordt niets echt verzet.</div>` : '';
+    html += `<div class="card">
+      <div class="sub">${esc(v.thuis)} – ${esc(v.uit)} · ${esc(v.divisie)}</div>
+      <p style="margin:8px 0 12px"><strong>${esc(v.van)}</strong> vraagt of jullie wedstrijd verzet kan worden.</p>
+      <div class="meta">Nu: ${oud}<br>Voorstel: <strong class="groot" style="color:var(--text)">${nieuw}</strong>
+      ${v.reden ? `<br>Reden: ${esc(v.reden)}` : ''}</div>`;
+    if (v.status !== 'voorgesteld') {
+      const t = { geaccepteerd:'✅ Je hebt al akkoord gegeven.', afgewezen:'✖ Dit verzoek is afgewezen.', verlopen:'⌛ Dit verzoek is vervallen.', ingetrokken:'Dit verzoek is ingetrokken.' }[v.status] || '';
+      html += `<div class="status" style="margin-top:12px">${t}</div></div>`;
+    } else if (v.nog_vrij === false) {
+      html += `<div class="status nee" style="margin-top:12px">Dit tijdstip is inmiddels niet meer vrij. Je kunt het verzoek alleen afwijzen; ${esc(v.van)} kan daarna een nieuw voorstel doen.</div>
+        <label style="margin-top:12px">Toelichting (optioneel)</label><textarea id="toel" maxlength="300"></textarea>
+        <div class="knoppen"><button class="rood" onclick="beantwoord('afwijs', this)">Afwijzen</button></div><div class="melding" id="am"></div></div>`;
+    } else {
+      html += `<label style="margin-top:14px">Toelichting (optioneel, vooral handig als je niet kunt)</label><textarea id="toel" maxlength="300"></textarea>
+        <div class="knoppen"><button class="groen" onclick="beantwoord('accepteer', this)">Ja, akkoord</button>
+        <button class="rood" onclick="beantwoord('afwijs', this)">Nee, kan niet</button></div><div class="melding" id="am"></div></div>`;
+    }
+    app.innerHTML = html;
+  } catch (e) { app.innerHTML = `<div class="fout-groot">${esc(e.message)}</div>`; }
+}
+
+async function beantwoord(besluit, el) {
+  const m = document.getElementById('am');
+  document.querySelectorAll('.knoppen button').forEach(b => b.disabled = true);
+  m.className = 'melding'; m.textContent = 'Versturen…';
+  try {
+    const r = await api('antwoord', { antwoord, besluit, reden: (document.getElementById('toel') || {}).value || '' });
+    m.className = 'melding goed';
+    m.textContent = r.status === 'geaccepteerd'
+      ? (r.proef ? 'Akkoord verstuurd. (Proefmodus: de wedstrijd is niet echt verzet.)' : 'Akkoord! De wedstrijd is verzet; jullie krijgen allebei een mail.')
+      : 'Je antwoord is verstuurd. De wedstrijd blijft staan zoals hij stond.';
+  } catch (e) { m.className = 'melding fout'; m.textContent = e.message; document.querySelectorAll('.knoppen button').forEach(b => b.disabled = false); }
+}
+
+// ════════════════════════════════════════════
+//  3) SYNCHRONISATIECHECK (geen token): toont wat de agenda-koppeling uitlevert
+// ════════════════════════════════════════════
 function parseIcs(tekst) {
   const regels = tekst.replace(/\r\n[ \t]/g, '').split(/\r?\n/);
   const events = []; let ev = null;
@@ -74,98 +273,80 @@ function parseIcs(tekst) {
   for (const r of regels) {
     if (r === 'BEGIN:VEVENT') { ev = {}; continue; }
     if (r === 'END:VEVENT') { if (ev) events.push(ev); ev = null; continue; }
-    if (!ev) { const m = r.match(/^X-WR-CALNAME:(.*)$/); if (m) events.naam = unesc(m[1]); continue; }
+    if (!ev) continue;
     const i = r.indexOf(':'); if (i < 0) continue;
-    const sleutel = r.slice(0, i).split(';')[0]; ev[sleutel] = unesc(r.slice(i + 1));
+    ev[r.slice(0, i).split(';')[0]] = unesc(r.slice(i + 1));
   }
   return events;
 }
-const icsDatum = v => { // 20261001T215000 of 20261001T215000Z
-  const m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/); if (!m) return null;
-  return { y:+m[1], mo:+m[2], d:+m[3], hh:m[4], mm:m[5], utc:v.endsWith('Z') };
-};
+const icsDatum = v => { const m = String(v||'').match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/); return m ? { y:+m[1], mo:+m[2], d:+m[3], hh:m[4], mm:m[5] } : null; };
 
-async function laadSpelers() {
-  const r = await fetch(`${SB_URL}/rest/v1/spelers?select=id,naam&order=naam`, { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` } });
-  if (!r.ok) throw new Error('Kon spelers niet laden');
-  return (await r.json()).filter(s => s.naam !== 'Vrije Ronde' && s.naam !== 'Vrijwillige schrijver');
+async function laadCheck() {
+  app.innerHTML = `<div class="card"><label for="speler">Speler</label><select id="speler"><option value="">Laden…</option></select></div>
+    <div class="card meta" id="meta" hidden></div><div id="lijst"></div>
+    <div class="card uitleg">Deze pagina toont precies wat de agenda-koppeling van deze speler op dit moment uitlevert.
+    Staat een wedstrijd hier anders dan in je telefoonagenda, dan heeft je agenda-app nog niet ververst.
+    Is een wedstrijd verzet, dan staat rechts wanneer dat gebeurde.</div>`;
+  const sel = document.getElementById('speler');
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/spelers?select=id,naam&order=naam`, { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` } });
+    if (!r.ok) throw new Error('Kon spelers niet laden');
+    const spelers = (await r.json()).filter(s => s.naam !== 'Vrije Ronde' && s.naam !== 'Vrijwillige schrijver');
+    sel.innerHTML = '<option value="">Kies een speler…</option>' + spelers.map(s => `<option value="${esc(s.id)}">${esc(s.naam)}</option>`).join('');
+    sel.onchange = () => {
+      const s = spelers.find(x => x.id === sel.value); if (!s) return;
+      const url = new URL(location.href); url.searchParams.set('speler_id', s.id); history.replaceState(null, '', url);
+      toonCheck(s.id, s.naam);
+    };
+    const gekozen = params.get('speler_id');
+    const s = spelers.find(x => x.id === gekozen);
+    if (s) { sel.value = s.id; toonCheck(s.id, s.naam); }
+  } catch (e) { sel.innerHTML = `<option>${esc(e.message)}</option>`; }
 }
 
-async function toon(spelerId, naam) {
-  const lijst = document.getElementById('lijst');
-  const meta = document.getElementById('meta');
+async function toonCheck(spelerId, naam) {
+  const lijst = document.getElementById('lijst'), meta = document.getElementById('meta');
   lijst.innerHTML = '<div class="leeg">Agenda ophalen…</div>'; meta.hidden = true;
   try {
     const r = await fetch(`${FEED}?speler_id=${encodeURIComponent(spelerId)}&_=${Date.now()}`, { cache:'no-store' });
     if (!r.ok) throw new Error(`Agenda gaf status ${r.status}`);
-    const events = parseIcs(await r.text());
-    events.sort((a, b) => (a.DTSTART || '').localeCompare(b.DTSTART || ''));
-
-    const nu = new Date();
-    const vandaag = `${nu.getFullYear()}${String(nu.getMonth()+1).padStart(2,'0')}${String(nu.getDate()).padStart(2,'0')}`;
+    const events = parseIcs(await r.text()).sort((a, b) => (a.DTSTART || '').localeCompare(b.DTSTART || ''));
+    const nu = new Date(), vandaag = vandaagStr().replace(/-/g, '');
     const komend = events.filter(e => (e.DTSTART || '').slice(0, 8) >= vandaag);
     const laatste = events.length ? icsDatum(events[events.length - 1].DTSTART) : null;
-
     meta.hidden = false;
-    meta.innerHTML = `<strong>${esc(naam)}</strong><br>` +
-      `${events.length} wedstrijd${events.length === 1 ? '' : 'en'} in de agenda, waarvan ${komend.length} nog te spelen.<br>` +
+    meta.innerHTML = `<strong>${esc(naam)}</strong><br>${events.length} wedstrijd${events.length === 1 ? '' : 'en'} in de agenda, waarvan ${komend.length} nog te spelen.<br>` +
       (laatste ? `Zichtbaar t/m <strong>${MAANDEN[laatste.mo - 1]} ${laatste.y}</strong>. ` : '') +
       `Opgehaald om ${nu.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' })}.`;
-
     if (!events.length) { lijst.innerHTML = '<div class="leeg">Geen wedstrijden in de agenda.</div>'; return; }
-
-    let html = '', huidigeMaand = '';
+    let html = '', maand = '';
     for (const e of events) {
-      const d = icsDatum(e.DTSTART); if (!d) continue;
-      const maandKey = `${d.y}-${d.mo}`;
-      if (maandKey !== huidigeMaand) { huidigeMaand = maandKey; html += `<div class="maand">${MAANDEN[d.mo - 1]} ${d.y}</div>`; }
-      const dagIdx = new Date(d.y, d.mo - 1, d.d).getDay();
+      const x = icsDatum(e.DTSTART); if (!x) continue;
+      if (`${x.y}-${x.mo}` !== maand) { maand = `${x.y}-${x.mo}`; html += `<div class="maand">${MAANDEN[x.mo - 1]} ${x.y}</div>`; }
       const desc = e.DESCRIPTION || '';
       const div = (desc.match(/Divisie: ([^\n]*)/) || [])[1] || '';
+      const ronde = (desc.match(/Speelronde: ([^\n]*)/) || [])[1] || '';
       const tegen = (desc.match(/tegen ([^\n]*)/) || [])[1] || e.SUMMARY || '';
       const isInhaal = /inhaal/i.test(e.SUMMARY || '');
-      const soort = isInhaal ? 'inhaal' : /^beker/i.test(div) ? 'beker' : /ere/i.test(div) ? 'ere' : '';
       const voorbij = (e.DTSTART || '').slice(0, 8) < vandaag;
-      const lm = e['LAST-MODIFIED'] ? icsDatum(e['LAST-MODIFIED']) : null;
-      let lmTxt = '';
-      if (lm) {
-        const t = new Date(Date.UTC(lm.y, lm.mo - 1, lm.d, +lm.hh, +lm.mm));
-        lmTxt = t.toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-      }
-      html += `<div class="w ${soort}${voorbij ? ' voorbij' : ''}">
-        <div class="dag">${DAGEN[dagIdx]} ${d.d} ${MAANDEN[d.mo - 1].slice(0, 3)}</div>
-        <div class="tijd">${d.hh}:${d.mm}</div>
-        <div class="versie">versie <b>${esc(e.SEQUENCE || '0')}</b>${lmTxt ? `<br>gewijzigd<br>${esc(lmTxt)}` : ''}</div>
-        <div class="wie">tegen ${esc(tegen)}${div ? ` <span style="color:var(--muted);font-size:.8rem">· ${esc(div)}</span>` : ''}${isInhaal ? ' <span style="color:var(--red);font-size:.8rem">· inhaal</span>' : ''}</div>
+      const lm = icsDatum(e['LAST-MODIFIED']);
+      const lmTxt = lm ? new Date(Date.UTC(lm.y, lm.mo - 1, lm.d, +lm.hh, +lm.mm)).toLocaleDateString('nl-NL', { day:'numeric', month:'short' }) : '';
+      const dag = new Date(x.y, x.mo - 1, x.d);
+      html += `<div class="w ${soortVan(div, isInhaal)}${voorbij ? ' voorbij' : ''}">
+        <div class="kop"><span class="dag">${DAGEN[dag.getDay()]} ${x.d} ${MAANDEN[x.mo - 1].slice(0,3)}</span><span class="tijd">${x.hh}:${x.mm}</span>
+        ${(+e.SEQUENCE > 0 && lmTxt) ? `<span class="notitie">verzet<br>${esc(lmTxt)}</span>` : ''}</div>
+        <div class="wie">tegen <strong>${esc(tegen)}</strong></div>
+        <div class="sub">${rondeTekst(div, ronde)}${isInhaal ? ' · <span style="color:#fca5a5">inhaal</span>' : ''}</div>
       </div>`;
     }
     lijst.innerHTML = html;
-  } catch (err) {
-    lijst.innerHTML = `<div class="fout">${esc(err.message)}</div>`;
-  }
+  } catch (e) { lijst.innerHTML = `<div class="fout-groot">${esc(e.message)}</div>`; }
 }
 
-(async () => {
-  const sel = document.getElementById('speler');
-  const params = new URLSearchParams(location.search);
-  const gekozen = params.get('speler_id');
-  try {
-    const spelers = await laadSpelers();
-    sel.innerHTML = '<option value="">Kies een speler…</option>' +
-      spelers.map(s => `<option value="${esc(s.id)}">${esc(s.naam)}</option>`).join('');
-    sel.addEventListener('change', () => {
-      const s = spelers.find(x => x.id === sel.value);
-      const url = new URL(location.href);
-      if (s) { url.searchParams.set('speler_id', s.id); history.replaceState(null, '', url); toon(s.id, s.naam); }
-    });
-    if (gekozen) {
-      const s = spelers.find(x => x.id === gekozen);
-      if (s) { sel.value = s.id; toon(s.id, s.naam); }
-    }
-  } catch (err) {
-    sel.innerHTML = `<option>${esc(err.message)}</option>`;
-  }
-})();
+// ── Start ──
+if (token) laadMijn();
+else if (antwoord) laadAntwoord();
+else laadCheck();
 </script>
 </body>
 </html>
