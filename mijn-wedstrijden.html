@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Mijn wedstrijden · De Kaale Bull</title>
+<style>
+  :root {
+    --bg:#0f1520; --s1:#161f30; --s2:#1e2a40; --s3:#243350; --border:#2a3a56;
+    --text:#f1f5f9; --muted:#94a3b8; --blue:#3b82f6; --green:#10b981; --red:#ef4444;
+    --ere:#a855f7; --beker:#f59e0b;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif; }
+  header { background:#080d16; border-bottom:2px solid var(--border); padding:16px; }
+  header h1 { margin:0; font-size:1.1rem; font-weight:800; }
+  header h1 span { color:var(--blue); }
+  main { max-width:720px; margin:0 auto; padding:16px; }
+  .card { background:var(--s1); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px; }
+  label { font-size:.8rem; color:var(--muted); display:block; margin-bottom:6px; }
+  select { width:100%; padding:10px; background:var(--s2); color:var(--text); border:1px solid var(--border); border-radius:6px; font-size:1rem; }
+  .meta { font-size:.82rem; color:var(--muted); line-height:1.6; }
+  .meta strong { color:var(--text); }
+  .maand { font-size:.72rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin:18px 0 6px; }
+  .w { display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; align-items:center;
+    background:var(--s1); border:1px solid var(--border); border-left:4px solid var(--blue); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .w.ere { border-left-color:var(--ere); } .w.beker { border-left-color:var(--beker); } .w.inhaal { border-left-color:var(--red); }
+  .w.voorbij { opacity:.5; }
+  .w .dag { font-weight:700; white-space:nowrap; }
+  .w .tijd { color:var(--blue); font-weight:800; font-size:1.1rem; }
+  .w .wie { grid-column:1 / 3; font-size:.95rem; }
+  .w .versie { grid-row:1 / 3; grid-column:3; text-align:right; font-size:.72rem; color:var(--muted); line-height:1.5; }
+  .w .versie b { color:var(--text); }
+  .leeg, .fout { text-align:center; padding:24px; color:var(--muted); }
+  .fout { color:var(--red); }
+  .uitleg { font-size:.8rem; color:var(--muted); line-height:1.6; }
+  @media (max-width:420px) { .w .versie { font-size:.68rem; } }
+</style>
+</head>
+<body>
+<header><h1>🎯 De Kaale Bull · <span>Mijn wedstrijden</span></h1></header>
+<main>
+  <div class="card" id="kiesKaart">
+    <label for="speler">Speler</label>
+    <select id="speler"><option value="">Laden…</option></select>
+  </div>
+
+  <div class="card meta" id="meta" hidden></div>
+  <div id="lijst"></div>
+
+  <div class="card uitleg">
+    Deze pagina toont precies wat de agenda-koppeling van deze speler op dit moment uitlevert.
+    Staat een wedstrijd hier anders dan in je telefoonagenda, dan heeft je agenda-app nog niet ververst.
+    <b>Versie</b> gaat 1 omhoog bij elke wijziging; zo zie je of een verzetting al is doorgevoerd.
+  </div>
+</main>
+
+<script>
+const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const FEED = `${SB_URL}/functions/v1/ical-feed`;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAGEN = ['zo','ma','di','wo','do','vr','za'];
+const MAANDEN = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+
+// ── ICS inlezen (unfolding + escapes) ──
+function parseIcs(tekst) {
+  const regels = tekst.replace(/\r\n[ \t]/g, '').split(/\r?\n/);
+  const events = []; let ev = null;
+  const unesc = v => v.replace(/\\n/g, '\n').replace(/\\([,;\\])/g, '$1');
+  for (const r of regels) {
+    if (r === 'BEGIN:VEVENT') { ev = {}; continue; }
+    if (r === 'END:VEVENT') { if (ev) events.push(ev); ev = null; continue; }
+    if (!ev) { const m = r.match(/^X-WR-CALNAME:(.*)$/); if (m) events.naam = unesc(m[1]); continue; }
+    const i = r.indexOf(':'); if (i < 0) continue;
+    const sleutel = r.slice(0, i).split(';')[0]; ev[sleutel] = unesc(r.slice(i + 1));
+  }
+  return events;
+}
+const icsDatum = v => { // 20261001T215000 of 20261001T215000Z
+  const m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/); if (!m) return null;
+  return { y:+m[1], mo:+m[2], d:+m[3], hh:m[4], mm:m[5], utc:v.endsWith('Z') };
+};
+
+async function laadSpelers() {
+  const r = await fetch(`${SB_URL}/rest/v1/spelers?select=id,naam&order=naam`, { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` } });
+  if (!r.ok) throw new Error('Kon spelers niet laden');
+  return (await r.json()).filter(s => s.naam !== 'Vrije Ronde' && s.naam !== 'Vrijwillige schrijver');
+}
+
+async function toon(spelerId, naam) {
+  const lijst = document.getElementById('lijst');
+  const meta = document.getElementById('meta');
+  lijst.innerHTML = '<div class="leeg">Agenda ophalen…</div>'; meta.hidden = true;
+  try {
+    const r = await fetch(`${FEED}?speler_id=${encodeURIComponent(spelerId)}&_=${Date.now()}`, { cache:'no-store' });
+    if (!r.ok) throw new Error(`Agenda gaf status ${r.status}`);
+    const events = parseIcs(await r.text());
+    events.sort((a, b) => (a.DTSTART || '').localeCompare(b.DTSTART || ''));
+
+    const nu = new Date();
+    const vandaag = `${nu.getFullYear()}${String(nu.getMonth()+1).padStart(2,'0')}${String(nu.getDate()).padStart(2,'0')}`;
+    const komend = events.filter(e => (e.DTSTART || '').slice(0, 8) >= vandaag);
+    const laatste = events.length ? icsDatum(events[events.length - 1].DTSTART) : null;
+
+    meta.hidden = false;
+    meta.innerHTML = `<strong>${esc(naam)}</strong><br>` +
+      `${events.length} wedstrijd${events.length === 1 ? '' : 'en'} in de agenda, waarvan ${komend.length} nog te spelen.<br>` +
+      (laatste ? `Zichtbaar t/m <strong>${MAANDEN[laatste.mo - 1]} ${laatste.y}</strong>. ` : '') +
+      `Opgehaald om ${nu.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' })}.`;
+
+    if (!events.length) { lijst.innerHTML = '<div class="leeg">Geen wedstrijden in de agenda.</div>'; return; }
+
+    let html = '', huidigeMaand = '';
+    for (const e of events) {
+      const d = icsDatum(e.DTSTART); if (!d) continue;
+      const maandKey = `${d.y}-${d.mo}`;
+      if (maandKey !== huidigeMaand) { huidigeMaand = maandKey; html += `<div class="maand">${MAANDEN[d.mo - 1]} ${d.y}</div>`; }
+      const dagIdx = new Date(d.y, d.mo - 1, d.d).getDay();
+      const desc = e.DESCRIPTION || '';
+      const div = (desc.match(/Divisie: ([^\n]*)/) || [])[1] || '';
+      const tegen = (desc.match(/tegen ([^\n]*)/) || [])[1] || e.SUMMARY || '';
+      const isInhaal = /inhaal/i.test(e.SUMMARY || '');
+      const soort = isInhaal ? 'inhaal' : /^beker/i.test(div) ? 'beker' : /ere/i.test(div) ? 'ere' : '';
+      const voorbij = (e.DTSTART || '').slice(0, 8) < vandaag;
+      const lm = e['LAST-MODIFIED'] ? icsDatum(e['LAST-MODIFIED']) : null;
+      let lmTxt = '';
+      if (lm) {
+        const t = new Date(Date.UTC(lm.y, lm.mo - 1, lm.d, +lm.hh, +lm.mm));
+        lmTxt = t.toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      }
+      html += `<div class="w ${soort}${voorbij ? ' voorbij' : ''}">
+        <div class="dag">${DAGEN[dagIdx]} ${d.d} ${MAANDEN[d.mo - 1].slice(0, 3)}</div>
+        <div class="tijd">${d.hh}:${d.mm}</div>
+        <div class="versie">versie <b>${esc(e.SEQUENCE || '0')}</b>${lmTxt ? `<br>gewijzigd<br>${esc(lmTxt)}` : ''}</div>
+        <div class="wie">tegen ${esc(tegen)}${div ? ` <span style="color:var(--muted);font-size:.8rem">· ${esc(div)}</span>` : ''}${isInhaal ? ' <span style="color:var(--red);font-size:.8rem">· inhaal</span>' : ''}</div>
+      </div>`;
+    }
+    lijst.innerHTML = html;
+  } catch (err) {
+    lijst.innerHTML = `<div class="fout">${esc(err.message)}</div>`;
+  }
+}
+
+(async () => {
+  const sel = document.getElementById('speler');
+  const params = new URLSearchParams(location.search);
+  const gekozen = params.get('speler_id');
+  try {
+    const spelers = await laadSpelers();
+    sel.innerHTML = '<option value="">Kies een speler…</option>' +
+      spelers.map(s => `<option value="${esc(s.id)}">${esc(s.naam)}</option>`).join('');
+    sel.addEventListener('change', () => {
+      const s = spelers.find(x => x.id === sel.value);
+      const url = new URL(location.href);
+      if (s) { url.searchParams.set('speler_id', s.id); history.replaceState(null, '', url); toon(s.id, s.naam); }
+    });
+    if (gekozen) {
+      const s = spelers.find(x => x.id === gekozen);
+      if (s) { sel.value = s.id; toon(s.id, s.naam); }
+    }
+  } catch (err) {
+    sel.innerHTML = `<option>${esc(err.message)}</option>`;
+  }
+})();
+</script>
+</body>
+</html>
