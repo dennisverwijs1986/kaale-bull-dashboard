@@ -185,7 +185,10 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .install{display:flex;gap:10px;align-items:center;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.35);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:.85rem;}
 .install div{flex:1;}
 
-.beker-frame{position:fixed;top:calc(56px + var(--top));bottom:calc(62px + var(--bot));left:0;right:0;width:100%;height:auto;border:0;background:var(--bg);}
+.beker-box{position:fixed;top:calc(56px + var(--top));bottom:calc(62px + var(--bot));left:0;right:0;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--bg);}
+.beker-box{display:flex;flex-direction:column;}
+.beker-box iframe{display:block;width:100%;flex:1;min-height:0;border:0;}
+.beker-los{display:block;padding:8px 16px;font-size:.78rem;font-weight:700;color:var(--muted);text-decoration:none;background:var(--s1);border-bottom:1px solid var(--border);text-align:center;}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(76px + var(--bot));z-index:60;padding:12px 14px;border-radius:12px;background:var(--s3);
   border:1px solid var(--border);font-weight:600;font-size:.9rem;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none;}
 .toast.show{opacity:1;transform:none;}
@@ -690,7 +693,9 @@ async function herstelOrig(){
 //  BEKER: het bracket (bekertoernooi.html) binnen de app tonen, zodat de navigatie onderin blijft staan
 // ══════════════════════════════════════════
 function htmlBeker(){
-  return `<iframe class="beker-frame" src="bekertoernooi.html" title="Bekertoernooi"></iframe>`;
+  return `<div class="beker-box">
+    <a class="beker-los" href="bekertoernooi.html" target="_blank" rel="noopener">Bracket niet zichtbaar? Open los in de browser ↗</a>
+    <iframe src="bekertoernooi.html" title="Bekertoernooi"></iframe></div>`;
 }
 
 // ══════════════════════════════════════════
