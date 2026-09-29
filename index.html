@@ -962,17 +962,24 @@ function renderAvondBanner() {
   eindTijd.setMinutes(eindTijd.getMinutes() + minTotaal);
   const eindStr  = `${String(eindTijd.getHours()).padStart(2,'0')}:${String(eindTijd.getMinutes()).padStart(2,'0')}`;
 
-  // Spelers met 3+ wedstrijden
-  const telling = {};
+  // Spelers met 3+ wedstrijden op deze avond — het getal telt af naarmate er gespeeld wordt
+  const totaalPer = {}, restPer = {};
   [...open,...gespeeld].forEach(w=>{
-    telling[w.thuis] = (telling[w.thuis]||0)+1;
-    telling[w.uit]   = (telling[w.uit]  ||0)+1;
+    totaalPer[w.thuis] = (totaalPer[w.thuis]||0)+1;
+    totaalPer[w.uit]   = (totaalPer[w.uit]  ||0)+1;
   });
-  const druk = Object.entries(telling).filter(([,n])=>n>=3).sort((a,b)=>b[1]-a[1]);
+  open.forEach(w=>{
+    restPer[w.thuis] = (restPer[w.thuis]||0)+1;
+    restPer[w.uit]   = (restPer[w.uit]  ||0)+1;
+  });
+  const druk = Object.keys(totaalPer)
+    .filter(n => totaalPer[n]>=3 && (restPer[n]||0)>0)
+    .map(n => [n, restPer[n], totaalPer[n]])
+    .sort((a,b)=>b[1]-a[1] || b[2]-a[2]);
 
   let warnHtml = '';
   if (druk.length) {
-    warnHtml = `<div class="avond-warning">⚠ Druk schema: ${druk.map(([n,c])=>`<strong>${escapeHtml(n)}</strong> (${c}×)`).join(', ')}</div>`;
+    warnHtml = `<div class="avond-warning">⚠ Druk schema: ${druk.map(([n,rest,tot])=>`<strong>${escapeHtml(n)}</strong> (${rest}× te gaan${rest<tot?` van ${tot}`:''})`).join(', ')}</div>`;
   }
 
   document.getElementById('avondBanner').innerHTML = `
@@ -1000,13 +1007,20 @@ function renderWerklast() {
   const open     = getOpen();
   const gespeeld = getGespeeld();
   const alle     = [...open,...gespeeld];
-  const telling  = {};
+  // Werklast = wat er nog gespeeld moet worden; totaal van de avond staat er klein achter
+  const telling  = {}, totaalPer = {};
   alle.forEach(w=>{
-    telling[w.thuis] = (telling[w.thuis]||0)+1;
-    telling[w.uit]   = (telling[w.uit]  ||0)+1;
+    totaalPer[w.thuis] = (totaalPer[w.thuis]||0)+1;
+    totaalPer[w.uit]   = (totaalPer[w.uit]  ||0)+1;
+    telling[w.thuis] = telling[w.thuis]||0;
+    telling[w.uit]   = telling[w.uit]  ||0;
+  });
+  open.forEach(w=>{
+    telling[w.thuis]++;
+    telling[w.uit]++;
   });
 
-  const gesorteerd = Object.entries(telling).sort((a,b)=>b[1]-a[1]);
+  const gesorteerd = Object.entries(telling).sort((a,b)=>b[1]-a[1] || totaalPer[b[0]]-totaalPer[a[0]]);
   if (!gesorteerd.length) { document.getElementById('werklastSec').style.display='none'; return; }
 
   // Vul spelers dropdown
@@ -1015,7 +1029,7 @@ function renderWerklast() {
   sel.innerHTML = '<option value="">— Alle spelers —</option>' +
     gesorteerd.map(([naam])=>`<option value="${escapeHtml(naam)}" ${naam===huidig?'selected':''}>${escapeHtml(naam)}</option>`).join('');
 
-  const max = gesorteerd[0][1];
+  const max = Math.max(1, gesorteerd[0][1]);
   document.getElementById('werklastSec').style.display = 'block';
 
   document.getElementById('werklastList').innerHTML = gesorteerd.map(([naam,cnt])=>{
@@ -1044,7 +1058,7 @@ function renderWerklast() {
     return `<div class="werklast-row ${isSelected?'selected':''}" onclick="filterOpSpeler(${jsAttr(naam)})">
       <span class="werklast-naam">${escapeHtml(naam)}</span>
       <div class="werklast-bar-wrap"><div class="werklast-bar ${high?'high':''}" style="width:${pct}%"></div></div>
-      <span class="werklast-count ${high?'high':''}">${cnt}×</span>
+      <span class="werklast-count ${high?'high':''}">${cnt===0?'<span style="color:var(--green);">✓</span>':`${cnt}×`}${totaalPer[naam]>cnt?`<span style="color:var(--muted);font-weight:400;font-size:0.7em;"> /${totaalPer[naam]}</span>`:''}</span>
     </div>
     ${isSelected ? `<div class="speler-wedstrijden open">${detailRows}</div>` : ''}`;
   }).join('');
