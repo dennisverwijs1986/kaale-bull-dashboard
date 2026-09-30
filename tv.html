@@ -166,14 +166,21 @@ body{
 }
 .sponsor-item{
   display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
-  margin:0 35px;padding:8px 26px;
+  margin:0 35px;padding:0 22px;
   background:rgba(148,163,184,0.08);
   border:1px solid var(--border);
   border-radius:14px;
-  min-width:120px;
   box-sizing:border-box;
+  overflow:hidden;
+  height:68px;
+  min-width:150px;
 }
-.sponsor-item img{max-height:48px;max-width:200px;width:auto;height:auto;object-fit:contain;filter:grayscale(0.1);display:block;}
+.sponsor-item img{
+  width:180px;height:48px;
+  object-fit:contain;object-position:center;
+  filter:grayscale(0.1);
+  display:block;
+}
 .sponsor-item.sponsor-naam{
   font-size:1.05rem;font-weight:700;color:var(--muted);letter-spacing:0.4px;
   text-transform:uppercase;opacity:0.85;
