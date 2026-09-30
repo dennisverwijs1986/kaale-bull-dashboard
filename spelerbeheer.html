@@ -43,7 +43,7 @@
   }
   header .accent { color: var(--orange); }
   main {
-    max-width: 900px;
+    max-width: 1440px;
     margin: 0 auto;
     padding: 20px;
   }
@@ -290,6 +290,42 @@
     min-width: 160px;
   }
   .bulk-row select.changed { border-color: var(--orange); }
+
+  /* ── Indeling in twee kolommen ── */
+  .sb-layout { display: grid; grid-template-columns: 370px 1fr; gap: 20px; align-items: start; }
+  .sb-zij { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 32px); overflow-y: auto; padding-right: 2px; }
+  .sb-zij > div, .sb-zij > details { margin-bottom: 0 !important; }
+  .sb-zij .field-group { min-width: 140px; }
+  .sb-kop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .sb-kop h2 { margin: 0; font-size: 1.05rem; font-weight: 800; }
+  .sb-kop h2 small { color: var(--muted); font-weight: 600; font-size: 0.85rem; margin-left: 6px; }
+  .sb-kop .toolbar { flex: 1; margin-bottom: 0; }
+  .div-kop { grid-column: 1 / -1; font-size: 0.72rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin: 10px 0 2px; display: flex; align-items: center; gap: 8px; }
+  .div-kop::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  #players-list.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  #players-list.grid .player-card { margin-bottom: 0; }
+  .player-card.div-ere { border-left: 3px solid #a855f7; }
+  .player-card.div-eerste { border-left: 3px solid var(--blue); }
+  .player-card.open { grid-column: 1 / -1; border-color: var(--blue); }
+  .player-card.open .player-body .field-row { flex-wrap: nowrap; }
+  .player-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .player-header > div:first-child { min-width: 0; }
+  #bulk-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px; }
+  #bulk-list .bulk-row { margin-bottom: 0; }
+  .import-kaart { background: var(--s1); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .import-kaart h3 { margin: 0 0 10px; font-size: 0.95rem; }
+  .import-kaart p { font-size: 0.8rem; color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
+  .gevaar { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .gevaar summary { cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--red); list-style: none; }
+  .gevaar summary::-webkit-details-marker { display: none; }
+  .gevaar summary::before { content: '▶ '; font-size: 0.7rem; }
+  .gevaar[open] summary::before { content: '▼ '; }
+  .gevaar p { margin-top: 10px; }
+  @media (max-width: 960px) {
+    .sb-layout { grid-template-columns: 1fr; }
+    .sb-zij { position: static; max-height: none; overflow: visible; }
+    .player-card.open .player-body .field-row { flex-wrap: wrap; }
+  }
 </style>
 </head>
 <body>
@@ -311,6 +347,8 @@
   <div id="app">
     <div id="status-msg"></div>
 
+    <div class="sb-layout">
+    <aside class="sb-zij">
     <div id="add-player-card">
       <h3>+ Nieuwe speler toevoegen</h3>
       <div class="field-row">
@@ -367,27 +405,31 @@
       <div id="swap-log" style="margin-top:10px;font-size:0.85rem;"></div>
     </div>
 
-    <div id="add-csv-card">
-      <h3>📥 CSV toevoegen</h3>
-      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Voegt de wedstrijden uit een CSV toe aan de bestaande planning, zonder iets te verwijderen. Kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde.</p>
+    <div class="import-kaart">
+      <h3>📥 Planning importeren</h3>
+      <p>Voegt de wedstrijden uit een CSV toe aan de bestaande planning, zonder iets te verwijderen. Kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde.</p>
       <label class="csv-drop csv-drop-neutral" for="csvToevoegen">
         ➕ Kies CSV en voeg toe
         <input type="file" id="csvToevoegen" accept=".csv" style="display:none;" onchange="voegCSVToe(this)">
       </label>
+      <details class="gevaar">
+        <summary>Nieuw seizoen starten</summary>
+        <p>Wist <strong>alle</strong> wedstrijden in de planning (ook gespeelde en bekerwedstrijden) en importeert daarna een nieuwe CSV. Spelers en contactgegevens blijven staan. Gebruik dit alleen bij de start van een nieuw seizoen — dit kan niet ongedaan worden gemaakt.</p>
+        <label class="csv-drop" for="csvNieuwSeizoen">
+          🆕 Kies CSV en start nieuw seizoen
+          <input type="file" id="csvNieuwSeizoen" accept=".csv" style="display:none;" onchange="startNieuwSeizoen(this)">
+        </label>
+      </details>
     </div>
 
-    <div id="new-season-card">
-      <h3>🆕 Nieuw seizoen starten</h3>
-      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Wist <strong>alle</strong> wedstrijden in de planning (ook gespeelde en bekerwedstrijden) en importeert daarna een nieuwe CSV. Spelers en contactgegevens blijven staan. Kolommen: Datum · Tijdstip · Divisie · Thuis · Uit · Speelronde. Gebruik dit alleen bij de start van een nieuw seizoen — dit kan niet ongedaan worden gemaakt.</p>
-      <label class="csv-drop" for="csvNieuwSeizoen">
-        🆕 Kies CSV en start nieuw seizoen
-        <input type="file" id="csvNieuwSeizoen" accept=".csv" style="display:none;" onchange="startNieuwSeizoen(this)">
-      </label>
-    </div>
-
-    <div class="toolbar">
-      <input type="text" id="search-input" placeholder="Zoek op naam..." oninput="bulkMode ? renderBulkList() : renderPlayers()">
-      <button onclick="toggleBulkMode()" id="bulk-toggle-btn">📋 Bulk divisie bewerken</button>
+    </aside>
+    <section>
+    <div class="sb-kop">
+      <h2>Spelers <small id="speler-telling"></small></h2>
+      <div class="toolbar">
+        <input type="text" id="search-input" placeholder="Zoek op naam..." oninput="bulkMode ? renderBulkList() : renderPlayers()">
+        <button onclick="toggleBulkMode()" id="bulk-toggle-btn">📋 Bulk divisie bewerken</button>
+      </div>
     </div>
 
     <div id="bulk-view" style="display:none;">
@@ -396,6 +438,8 @@
     </div>
 
     <div id="players-list" class="loading">Spelers laden...</div>
+    </section>
+    </div>
   </div>
 
 </main>
@@ -491,13 +535,24 @@
     const listEl = document.getElementById('players-list');
 
     const filtered = allPlayers.filter(p => p.naam.toLowerCase().includes(search));
+    const telEl = document.getElementById('speler-telling');
+    if (telEl) telEl.textContent = search ? `${filtered.length} van ${allPlayers.length}` : `(${allPlayers.length})`;
 
     if (filtered.length === 0) {
+      listEl.className = '';
       listEl.innerHTML = '<div class="empty-state">Geen spelers gevonden</div>';
       return;
     }
 
-    listEl.innerHTML = filtered.map(p => {
+    const groepen = [
+      ['Eredivisie', filtered.filter(p => p.divisie === 'Eredivisie')],
+      ['Eerste Divisie', filtered.filter(p => p.divisie === 'Eerste Divisie')],
+      ['Zonder divisie', filtered.filter(p => p.divisie !== 'Eredivisie' && p.divisie !== 'Eerste Divisie')],
+    ].filter(([, lijst]) => lijst.length);
+
+    listEl.className = 'grid';
+    listEl.innerHTML = groepen.map(([titel, lijst]) =>
+      `<div class="div-kop">${escapeHtml(titel)} · ${lijst.length}</div>` + lijst.map(p => {
       const contact = allContacts[p.id] || {};
       const metaBits = [];
       if (p.divisie) metaBits.push(p.divisie);
@@ -505,7 +560,7 @@
       const meta = metaBits.length ? metaBits.join(' · ') : 'Geen gegevens ingevuld';
 
       return `
-        <div class="player-card" id="card-${p.id}">
+        <div class="player-card ${p.divisie === 'Eredivisie' ? 'div-ere' : p.divisie === 'Eerste Divisie' ? 'div-eerste' : ''}" id="card-${p.id}">
           <div class="player-header" onclick="toggleCard('${p.id}')">
             <div>
               <div class="player-name">${escapeHtml(p.naam)}</div>
@@ -545,7 +600,7 @@
           </div>
         </div>
       `;
-    }).join('');
+    }).join('')).join('');
   }
 
   function toggleCard(id) {
