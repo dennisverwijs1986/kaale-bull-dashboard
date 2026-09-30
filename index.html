@@ -159,6 +159,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 /* ── DATE FILTER ── */
 .date-bar{padding:10px 16px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .date-bar-label{font-size:0.78rem;font-weight:600;color:var(--muted);white-space:nowrap;}
+.zoek-speler-wrap{display:flex;align-items:center;gap:4px;margin-left:12px;}
+.zoek-speler-inp{width:170px;padding:6px 10px;font-size:0.82rem;}
+.zoek-speler-inp:focus{border-color:var(--blue);outline:none;}
+.zoek-kop{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);padding:6px 2px;margin:4px 0 8px;border-bottom:1px solid var(--border);}
+.zoek-keuzes{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+.zoek-keuze{padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:0.9rem;font-weight:600;cursor:pointer;}
+.zoek-keuze:hover{border-color:var(--blue);}
+.zoek-keuze small{font-weight:400;color:var(--muted);margin-left:6px;}
+.zoek-datum{font-size:0.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 0 6px;}
+.zoek-kaart{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:6px;}
+.zoek-kaart .zk-tijd{font-weight:800;color:var(--blue);min-width:46px;}
+.zoek-kaart .zk-info{flex:1;min-width:0;}
+.zoek-kaart .zk-namen{font-weight:600;}
+.zoek-kaart .zk-namen b{color:var(--blue);}
+.zoek-kaart .zk-sub{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:0.7rem;color:var(--muted);margin-top:2px;}
 
 /* ── WACHTRIJ ── */
 .queue-wrap{padding:14px;}
@@ -464,6 +479,11 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
       <div class="halve-toggle" style="margin-left:12px;">
         <button class="halve-btn active" id="btnEersteHelft" onclick="setHalve('eerste')">1e helft — verliezer schrijft</button>
         <button class="halve-btn" id="btnTweedeHelft" onclick="setHalve('tweede')">2e helft — winnaar schrijft</button>
+      </div>
+      <div class="zoek-speler-wrap">
+        <input type="text" id="zoekSpelerInp" class="inp zoek-speler-inp" placeholder="🔍 Zoek speler…" autocomplete="off"
+               oninput="zoekSpelerTyp(this.value)" onkeydown="if(event.key==='Escape'){wisZoekSpeler();this.blur();}">
+        <button class="btn btn-ghost btn-xs" id="zoekSpelerWis" style="display:none;" onclick="wisZoekSpeler()" title="Zoeken wissen">✕</button>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="laadData()" style="margin-left:auto;">🔄 Vernieuwen</button>
     </div>
@@ -1420,7 +1440,103 @@ async function startOpBord(matchId, bord) {
 // ══════════════════════════════════════════
 //  WACHTRIJ
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+//  ZOEKEN OP SPELER (WL-desk): alle open wedstrijden van één speler, over alle avonden + NNB
+// ══════════════════════════════════════════
+let zoekTerm = '';
+let zoekSpelerNaam = '';
+const zoekNorm = s => (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function zoekSpelerActief() { return zoekTerm.trim().length >= 2 || !!zoekSpelerNaam; }
+function zoekVandaag() { const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; }
+function zoekOpenVan(naam) {
+  const v = zoekVandaag();
+  return wedstrijden.filter(w => w.status!=='gespeeld' && (w.thuis===naam || w.uit===naam) && (w.datum_nnb || (w.datum && w.datum>=v)));
+}
+
+function zoekSpelerTyp(waarde) {
+  zoekTerm = waarde;
+  zoekSpelerNaam = '';
+  if (actieveSpelerFilter) { actieveSpelerFilter=''; const sf=document.getElementById('spelersFilter'); if (sf) sf.value=''; const wb=document.getElementById('wisFilterBtn'); if (wb) wb.style.display='none'; }
+  document.getElementById('zoekSpelerWis').style.display = waarde ? 'inline-flex' : 'none';
+  renderQueue();
+}
+function kiesZoekSpeler(naam) {
+  zoekSpelerNaam = naam;
+  const inp = document.getElementById('zoekSpelerInp');
+  inp.value = naam; zoekTerm = naam;
+  document.getElementById('zoekSpelerWis').style.display = 'inline-flex';
+  renderQueue();
+}
+function wisZoekSpeler() {
+  zoekTerm = ''; zoekSpelerNaam = '';
+  const inp = document.getElementById('zoekSpelerInp'); if (inp) inp.value = '';
+  document.getElementById('zoekSpelerWis').style.display = 'none';
+  renderQueue();
+}
+
+function renderZoekSpeler() {
+  const container = document.getElementById('queueContainer');
+  container.innerHTML = '';
+  if (!zoekSpelerNaam) {
+    const q = zoekNorm(zoekTerm.trim());
+    const namen = [...new Set(wedstrijden.flatMap(w=>[w.thuis,w.uit]))]
+      .filter(n => n && n!=='Vrije Ronde' && zoekNorm(n).includes(q))
+      .sort((a,b)=>a.localeCompare(b));
+    if (!namen.length) { container.innerHTML = `<div class="empty">Geen speler gevonden met "${escapeHtml(zoekTerm.trim())}"</div>`; return; }
+    if (namen.length === 1) { kiesZoekSpeler(namen[0]); return; }
+    container.innerHTML = `<div class="zoek-kop">🔍 Welke speler bedoel je?</div>
+      <div class="zoek-keuzes">${namen.map(n=>`<button class="zoek-keuze" onclick="kiesZoekSpeler(${jsAttr(n)})">${escapeHtml(n)}<small>${zoekOpenVan(n).length} open</small></button>`).join('')}</div>`;
+    return;
+  }
+
+  const naam = zoekSpelerNaam;
+  const v = zoekVandaag();
+  const lijst = zoekOpenVan(naam).sort((a,b)=>
+    (a.datum_nnb?0:1)-(b.datum_nnb?0:1) || (a.datum||'').localeCompare(b.datum||'') || (a.tijdstip||'').localeCompare(b.tijdstip||''));
+
+  const kop = document.createElement('div');
+  kop.className = 'zoek-kop';
+  kop.textContent = `🔍 Open wedstrijden van ${naam} (${lijst.length})`;
+  container.appendChild(kop);
+  if (!lijst.length) { container.insertAdjacentHTML('beforeend','<div class="empty">Geen openstaande wedstrijden vanaf vandaag.</div>'); return; }
+
+  const bezetteIds     = new Set(Object.values(activeMatches).filter(Boolean));
+  const bezetteSpelers = getBezetteSpelers();
+  const besteBord      = getBesteBord()||1;
+  const markeer = n => n===naam ? `<b>${escapeHtml(n)}</b>` : escapeHtml(n);
+  let groep = null, nr = 1;
+  lijst.forEach(m => {
+    const g = m.datum_nnb ? 'NNB' : m.datum;
+    if (g !== groep) {
+      groep = g;
+      const h = document.createElement('div');
+      h.className = 'zoek-datum';
+      h.textContent = g==='NNB' ? 'Nog niet ingepland (NNB)' : (g===v ? `Vandaag · ${fmtDatum(g)}` : fmtDatum(g));
+      container.appendChild(h);
+    }
+    if (!m.datum_nnb && m.datum===v) {
+      // Vandaag: gewone kaart (met bord-knop), tenzij hij al op een bord staat
+      if (bezetteIds.has(m.id)) { container.insertAdjacentHTML('beforeend', `<div class="zoek-kaart"><span class="zk-tijd">${escapeHtml(m.tijdstip||'')}</span><div class="zk-info"><div class="zk-namen">${markeer(m.thuis)} vs ${markeer(m.uit)}</div><div class="zk-sub">🟢 nu bezig op een bord</div></div></div>`); return; }
+      container.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord));
+      return;
+    }
+    const isBeker = (m.divisie||'').toLowerCase().includes('beker');
+    const kaart = document.createElement('div');
+    kaart.className = 'zoek-kaart';
+    kaart.innerHTML = `
+      <span class="zk-tijd">${!m.datum_nnb && !isBeker && m.tijdstip ? escapeHtml(m.tijdstip) : '—'}</span>
+      <div class="zk-info">
+        <div class="zk-namen">${markeer(m.thuis)} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${markeer(m.uit)}</div>
+        <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}</div>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="openNotitieModal('${m.id}')" title="Notitie">📝</button>
+      <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>`;
+    container.appendChild(kaart);
+  });
+}
+
 function renderQueue() {
+  if (zoekSpelerActief()) { renderZoekSpeler(); return; }
   const container = document.getElementById('queueContainer');
   container.innerHTML = '';
   const open = getOpen();
