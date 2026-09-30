@@ -176,7 +176,10 @@ body{
   min-width:150px;
 }
 .sponsor-item img{
-  width:180px;height:48px;
+  /* Logo vult het kader zo groot mogelijk: vaste hoogte, breedte volgt het logo
+     (brede logo's worden begrensd door max-width). Lege randen zijn uit de
+     logobestanden zelf geknipt, anders blijven ze klein ogen. */
+  height:52px;width:auto;max-width:230px;
   object-fit:contain;object-position:center;
   filter:grayscale(0.1);
   display:block;
@@ -541,7 +544,11 @@ function renderSponsors(){
   // ziet het er weer identiek uit aan het begin — geen zichtbare sprong).
   track.innerHTML = eenmaal + eenmaal;
 
-  requestAnimationFrame(()=>{
+  // Pas meten als alle logo's geladen zijn: de breedte hangt nu af van het logo zelf.
+  const imgs = Array.from(track.querySelectorAll('img'));
+  Promise.all(imgs.map(img => img.complete ? null :
+    new Promise(res => { img.onload = img.onerror = res; })))
+  .then(() => requestAnimationFrame(()=>{
     // Meet de breedte van precies 1 kopie (= gap + breedte van alle sponsor-items samen)
     const gap = 70; // moet gelijk zijn aan de 'gap' in .sponsor-track CSS
     const kinderen = Array.from(track.children);
@@ -554,7 +561,7 @@ function renderSponsors(){
 
     const duur = Math.max(8, eenKopieBreedte / SPONSOR_SNELHEID_PX_PER_SEC);
     track.style.animationDuration = `${duur}s`;
-  });
+  }));
 }
 
 // ══════════════════════════════════════════
