@@ -1483,13 +1483,21 @@ function renderZoekSpeler() {
       .filter(n => n && n!=='Vrije Ronde' && zoekNorm(n).includes(q))
       .sort((a,b)=>a.localeCompare(b));
     if (!namen.length) { container.innerHTML = `<div class="empty">Geen speler gevonden met "${escapeHtml(zoekTerm.trim())}"</div>`; return; }
-    if (namen.length === 1) { kiesZoekSpeler(namen[0]); return; }
-    container.innerHTML = `<div class="zoek-kop">🔍 Welke speler bedoel je?</div>
-      <div class="zoek-keuzes">${namen.map(n=>`<button class="zoek-keuze" onclick="kiesZoekSpeler(${jsAttr(n)})">${escapeHtml(n)}<small>${zoekOpenVan(n).length} open</small></button>`).join('')}</div>`;
-    return;
+    if (namen.length > 1) {
+      container.innerHTML = `<div class="zoek-kop">🔍 Welke speler bedoel je?</div>
+        <div class="zoek-keuzes">${namen.map(n=>`<button class="zoek-keuze" onclick="kiesZoekSpeler(${jsAttr(n)})">${escapeHtml(n)}<small>${zoekOpenVan(n).length} open</small></button>`).join('')}</div>`;
+      return;
+    }
+    // Precies één speler past: toon zijn wedstrijden, maar laat het zoekveld ongemoeid (je bent misschien nog aan het typen).
+    return renderZoekResultaat(namen[0]);
   }
+  renderZoekResultaat(zoekSpelerNaam);
+}
 
-  const naam = zoekSpelerNaam;
+function renderZoekResultaat(naam) {
+  const container = document.getElementById('queueContainer');
+  container.innerHTML = '';
+
   const v = zoekVandaag();
   const lijst = zoekOpenVan(naam).sort((a,b)=>
     (a.datum_nnb?0:1)-(b.datum_nnb?0:1) || (a.datum||'').localeCompare(b.datum||'') || (a.tijdstip||'').localeCompare(b.tijdstip||''));
