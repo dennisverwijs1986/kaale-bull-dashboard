@@ -37,7 +37,7 @@
   }
   header h1 { font-size: 1.15rem; margin: 0; font-weight: 800; letter-spacing: 0.5px; }
   header .accent { color: var(--orange); }
-  main { max-width: 1000px; margin: 0 auto; padding: 20px; }
+  main { max-width: 1440px; margin: 0 auto; padding: 20px; }
 
   #login-screen {
     max-width: 360px; margin: 80px auto; background: var(--s1);
@@ -105,6 +105,40 @@
   .small-btn.danger { color: var(--red); }
   #wl-add { display: flex; gap: 8px; margin-top: 10px; }
   #wl-add input { flex: 1; background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; }
+
+  /* ── Indeling: filters links, logboek als tabel rechts ── */
+  .lb-layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  .lb-zij { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .lb-kaart { background: var(--s1); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .lb-kaart h3 { margin: 0 0 10px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .lb-zij .toolbar { flex-direction: column; margin-bottom: 0; }
+  .lb-zij .toolbar input, .lb-zij .toolbar select { width: 100%; }
+  .lb-zij #wl-add { flex-direction: column; }
+  .lb-zij .wl-row { gap: 6px; }
+  .lb-zij .wl-naam { font-size: 0.9rem; min-width: 0; }
+  .lb-zij .small-btn { padding: 4px 8px; font-size: 0.7rem; white-space: nowrap; }
+  .lb-telling { font-size: 0.8rem; color: var(--muted); margin: 0 0 8px 2px; }
+  .log-tabel { background: var(--s1); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .lt-rij { display: grid; grid-template-columns: 60px minmax(220px, 1.6fr) 130px minmax(170px, 1.2fr) 110px minmax(120px, 0.9fr) 110px; gap: 10px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+  .lt-rij:last-child { border-bottom: none; }
+  .lt-rij:not(.lt-kop):hover { background: var(--s2); }
+  .lt-kop { background: var(--s2); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+  .lt-wanneer { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+  .lt-match { font-weight: 700; }
+  .lt-match small { display: block; font-weight: 400; color: var(--muted); font-size: 0.72rem; margin-top: 1px; }
+  .lt-oud { color: var(--muted); text-decoration: line-through; }
+  .lt-pijl { color: var(--muted); margin: 0 4px; }
+  .lt-fout { grid-column: 2 / -1; color: var(--red); font-size: 0.75rem; margin-top: -4px; }
+  .lt-dag { background: var(--bg); padding: 6px 14px; font-size: 0.7rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--blue); border-bottom: 1px solid var(--border); }
+  @media (max-width: 1100px) {
+    .lb-layout { grid-template-columns: 1fr; }
+    .lb-zij { position: static; }
+    .lt-kop { display: none; }
+    .lt-rij { grid-template-columns: 1fr auto; gap: 4px 10px; }
+    .lt-rij > div { grid-column: 1 / -1; }
+    .lt-rij > .lt-match { grid-column: 1; grid-row: 1; }
+    .lt-rij > .lt-wanneer { grid-column: 2; grid-row: 1; }
+  }
 </style>
 </head>
 <body>
@@ -125,7 +159,10 @@
 
   <div id="app">
     <div class="stats-row" id="stats-row"></div>
-
+    <div class="lb-layout">
+    <aside class="lb-zij">
+    <div class="lb-kaart">
+    <h3>Filteren</h3>
     <div class="toolbar">
       <input type="text" id="search-input" placeholder="Zoek op speler..." oninput="renderLog()">
       <select id="actie-filter" onchange="renderLog()">
@@ -141,17 +178,21 @@
         <option value="geen">Geen mail</option>
       </select>
     </div>
-
-    <div id="log-list" class="loading">Log laden...</div>
-
-    <details id="beheer">
-      <summary>👥 Wedstrijdleiding-namen beheren</summary>
+    </div>
+    <div class="lb-kaart">
+      <h3>👥 Wedstrijdleiding</h3>
       <div id="wl-list"></div>
       <div id="wl-add">
         <input type="text" id="wl-new-naam" placeholder="Nieuwe naam...">
         <button class="small-btn" onclick="voegWedstrijdleiderToe()">+ Toevoegen</button>
       </div>
-    </details>
+    </div>
+    </aside>
+    <section>
+      <div class="lb-telling" id="lb-telling"></div>
+      <div id="log-list" class="loading">Log laden...</div>
+    </section>
+    </div>
   </div>
 
 </main>
@@ -261,7 +302,7 @@
   function fmtDatum(d) {
     if (!d) return null;
     const dt = new Date(d + 'T00:00:00');
-    return dt.toLocaleDateString('nl-NL', { day:'2-digit', month:'short', year:'numeric' });
+    return dt.toLocaleDateString('nl-NL', { weekday:'short', day:'numeric', month:'short' });
   }
 
   function renderLog() {
@@ -282,36 +323,44 @@
     });
 
     const listEl = document.getElementById('log-list');
+    const telEl = document.getElementById('lb-telling');
+    if (telEl) telEl.textContent = rows.length === allLog.length ? `${rows.length} wijzigingen` : `${rows.length} van ${allLog.length} wijzigingen`;
     if (rows.length === 0) {
+      listEl.className = '';
       listEl.innerHTML = '<div class="empty-state">Geen wijzigingen gevonden.</div>';
       return;
     }
-
-    listEl.innerHTML = rows.map(l => {
+    const pijl = (oud, nieuw) => {
+      if (oud && nieuw && oud !== nieuw) return `<span class="lt-oud">${oud}</span><span class="lt-pijl">→</span><strong>${nieuw}</strong>`;
+      if (nieuw) return `<strong>${nieuw}</strong>`;
+      if (oud) return `<span class="lt-oud">${oud}</span><span class="lt-pijl">→</span>NNB`;
+      return '<span style="color:var(--muted)">—</span>';
+    };
+    const dagLabel = iso => new Date(iso).toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' });
+    let html = `<div class="lt-rij lt-kop"><div>Tijd</div><div>Wedstrijd</div><div>Actie</div><div>Datum</div><div>Tijdslot</div><div>Door</div><div>Mail</div></div>`;
+    let dag = '';
+    for (const l of rows) {
+      const d = l.created_at ? new Date(l.created_at).toLocaleDateString('nl-NL') : '';
+      if (d !== dag) { dag = d; html += `<div class="lt-dag">${escapeHtml(dagLabel(l.created_at))}</div>`; }
       const actieLabel = l.actie === 'verzet' ? '📅 Verzet' : l.actie === 'nieuwe_beker' ? '🏆 Nieuwe beker' : '✏️ Overig';
       let mailBadge;
-      if (l.mail_verstuurd) mailBadge = `<span class="badge badge-ok">📧 Mail verstuurd</span>`;
-      else if (l.mail_error) mailBadge = `<span class="badge badge-err">⚠ Mail mislukt</span>`;
+      if (l.mail_verstuurd) mailBadge = `<span class="badge badge-ok">📧 verstuurd</span>`;
+      else if (l.mail_error) mailBadge = `<span class="badge badge-err">⚠ mislukt</span>`;
       else mailBadge = `<span class="badge badge-none">geen mail</span>`;
-
-      const datumWijziging = (l.oude_datum && l.nieuwe_datum && l.oude_datum !== l.nieuwe_datum)
-        ? `${fmtDatum(l.oude_datum)} → <strong>${fmtDatum(l.nieuwe_datum)}</strong>`
-        : (l.nieuwe_datum ? fmtDatum(l.nieuwe_datum) : '');
-
-      return `
-        <div class="log-card">
-          <div class="log-top">
-            <div>
-              <div class="log-match">${escapeHtml(l.thuis||'?')} vs ${escapeHtml(l.uit||'?')} <span class="badge badge-actie">${actieLabel}</span></div>
-              <div class="log-meta">${datumWijziging} ${l.divisie?('· '+escapeHtml(l.divisie)):''}</div>
-              <div class="log-meta">Door: <strong>${escapeHtml(l.gewijzigd_door||'-')}</strong> ${mailBadge}</div>
-              ${l.mail_error ? `<div class="log-error">${escapeHtml(l.mail_error)}</div>` : ''}
-            </div>
-            <div class="log-datum">${fmtDatetime(l.created_at)}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
+      const tijd = new Date(l.created_at).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
+      html += `<div class="lt-rij">
+        <div class="lt-wanneer">${tijd}</div>
+        <div class="lt-match">${escapeHtml(l.thuis||'?')} – ${escapeHtml(l.uit||'?')}${l.divisie ? `<small>${escapeHtml(l.divisie)}</small>` : ''}</div>
+        <div><span class="badge badge-actie">${actieLabel}</span></div>
+        <div>${pijl(fmtDatum(l.oude_datum), fmtDatum(l.nieuwe_datum))}</div>
+        <div>${pijl(l.oude_tijdstip ? escapeHtml(l.oude_tijdstip) : null, l.nieuwe_tijdstip ? escapeHtml(l.nieuwe_tijdstip) : null)}</div>
+        <div>${escapeHtml(l.gewijzigd_door || '-')}</div>
+        <div>${mailBadge}</div>
+        ${l.mail_error ? `<div class="lt-fout">⚠ ${escapeHtml(l.mail_error)}</div>` : ''}
+      </div>`;
+    }
+    listEl.className = 'log-tabel';
+    listEl.innerHTML = html;
   }
 
   function renderWL() {
