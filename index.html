@@ -261,8 +261,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .queue-col-title.eerste { background: rgba(59,130,246,0.12); color: var(--eerste); border-bottom: 2px solid var(--eerste); }
 .beker-balk { background: linear-gradient(90deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05)); border: 1px solid rgba(245,158,11,0.25); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
 .beker-balk-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--beker); margin-bottom: 6px; }
-.beker-balk-cards { display: flex; flex-wrap: wrap; gap: 6px; }
-.beker-balk-cards .match-card { flex: 1; min-width: 240px; }
+.beker-balk-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 6px; }
+/* Bekerkaarten: namen krijgen altijd ruimte; is de kaart te smal, dan schuiven de knoppen naar een tweede regel i.p.v. de namen weg te drukken */
+.beker-balk-cards .match-card { margin-bottom: 0; flex-wrap: wrap; row-gap: 6px; min-width: 0; }
+.beker-balk-cards .match-card .match-info { flex: 1 1 200px; }
+.beker-balk-cards .match-card .match-acts { margin-left: auto; }
 .mdd-wrap{border:1px solid rgba(59,130,246,0.25);border-radius:8px;overflow:hidden;background:linear-gradient(135deg,var(--s2),var(--s1));margin-bottom:14px;}
 .mdd-hdr{padding:10px 13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;background:rgba(59,130,246,0.05);border-bottom:1px solid rgba(59,130,246,0.15);}
 .mdd-hdr:hover{background:rgba(59,130,246,0.1);}
