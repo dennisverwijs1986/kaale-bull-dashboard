@@ -71,6 +71,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .match.dirty{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange) inset;}
 .match.fout{border-color:var(--red);box-shadow:0 0 0 1px var(--red) inset;}
 .match .score-in.dirty{border-color:var(--orange);background:rgba(217,171,63,0.14);}
+/* Snelkeuze-uitslagen onder elke wedstrijd */
+.match .snel{flex-basis:100%;display:flex;gap:12px;flex-wrap:wrap;padding:2px 104px 0 30px;}
+.snel-groep{display:flex;gap:6px;flex-wrap:wrap;}
+.snel-groep.b{margin-left:auto;}
+.snel-btn{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;font-variant-numeric:tabular-nums;transition:background .12s;}
+.snel-btn:hover{background:var(--s3);color:var(--text);}
+.snel-btn.hint{border-color:var(--green);border-style:dashed;color:var(--text);}
+.snel-btn.act{background:var(--green);border-color:var(--green);border-style:solid;color:#081712;}
+@media (max-width:700px){ .match .snel{padding:2px 0 0 0;} }
 
 /* Eén opslaanbalk onderin, alleen zichtbaar als er iets is gewijzigd */
 .savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#081712;border-top:2px solid var(--orange);padding:12px 16px;display:none;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
@@ -231,7 +240,7 @@ async function laadPlanningInfo(){
   Object.values(state.fases).forEach(f => (f.matches||[]).forEach(m => { if(m._wedstrijdId) ids.push(m._wedstrijdId); }));
   if(!ids.length) return;
   try{
-    const rows = await sbGet('wedstrijden', `id=in.(${ids.join(',')})&select=id,datum,tijdstip,datum_nnb,status`);
+    const rows = await sbGet('wedstrijden', `id=in.(${ids.join(',')})&select=id,datum,tijdstip,datum_nnb,status,uitslag`);
     planningInfo = {};
     rows.forEach(r => { planningInfo[r.id] = r; });
   }catch(e){ /* zonder planning-info tonen we gewoon de oude status */ }
@@ -534,6 +543,8 @@ function updateSaveBar(){
   scoreRijen().forEach(r=>{
     r.row.classList.toggle('dirty', r.gewijzigd);
     [r.inA, r.inB].forEach(inp => inp.classList.toggle('dirty', inp.value.trim() !== inp.dataset.orig));
+    r.row.querySelectorAll('.snel-btn').forEach(btn => btn.classList.toggle('act',
+      btn.dataset.a === r.inA.value.trim() && btn.dataset.b === r.inB.value.trim()));
     if(r.gewijzigd) aantal++;
     else r.row.classList.remove('fout');
   });
@@ -767,8 +778,44 @@ function matchHtml(faseId, m, idx){
     <input class="score-in" type="number" inputmode="numeric" min="0" max="${legsNodig(bo)}" id="scoreB-${faseId}-${idx}" data-kant="b" data-orig="${scoreBVal}" value="${scoreBVal}" oninput="updateSaveBar()">
     <div class="naam ${bCls}">${escapeHtml(m.b)}</div>
     ${syncHtml}
+    ${snelHtml(faseId, m, idx, bo)}
   </div>`;
 }
+
+// Uitslag zoals in het dashboard bij "Klaar" vastgelegd ("Winnaar: X" / "Verliezer: X") -> welke kant won
+function planHintKant(m){
+  const w = m._wedstrijdId ? planningInfo[m._wedstrijdId] : null;
+  const u = (w && w.uitslag) || '';
+  let r = /^Winnaar:\s*(.+)$/.exec(u);
+  if(r) return r[1].trim()===m.a ? 'a' : r[1].trim()===m.b ? 'b' : null;
+  r = /^Verliezer:\s*(.+)$/.exec(u);
+  if(r) return r[1].trim()===m.a ? 'b' : r[1].trim()===m.b ? 'a' : null;
+  return null;
+}
+
+// Snelkeuze-knoppen: alle geldige eindstanden, links voor speler A, rechts voor speler B.
+// Bij een al gespeelde wedstrijd alleen de kant van de huidige winnaar (score corrigeren,
+// niet de winnaar omdraaien: die is dan al doorgeschoven in het bracket).
+function snelHtml(faseId, m, idx, bo){
+  const n = legsNodig(bo);
+  const hint = m.winnaar ? null : planHintKant(m);
+  const knop = (a,b,kant) => `<button type="button" class="snel-btn${hint===kant?' hint':''}" data-a="${a}" data-b="${b}" title="${escapeHtml(kant==='a'?m.a:m.b)} wint ${Math.max(a,b)}–${Math.min(a,b)}" onclick="kiesSnel('${faseId}',${idx},${a},${b})">${a}–${b}</button>`;
+  const groepA = Array.from({length:n},(_,i)=>knop(n,i,'a')).join('');       // 3–0, 3–1, 3–2
+  const groepB = Array.from({length:n},(_,i)=>knop(n-1-i,n,'b')).join('');   // 2–3, 1–3, 0–3
+  const toonA = !m.winnaar || m.winnaar===m.a;
+  const toonB = !m.winnaar || m.winnaar===m.b;
+  return `<div class="snel">${toonA?`<div class="snel-groep a">${groepA}</div>`:''}${toonB?`<div class="snel-groep b">${groepB}</div>`:''}</div>`;
+}
+
+function kiesSnel(faseId, idx, a, b){
+  const inA = document.getElementById(`scoreA-${faseId}-${idx}`);
+  const inB = document.getElementById(`scoreB-${faseId}-${idx}`);
+  if(!inA || !inB) return;
+  inA.value = a; inB.value = b;
+  inA.closest('.match').classList.remove('fout');
+  updateSaveBar();
+}
+window.kiesSnel = kiesSnel;
 
 function faseCardHtml(faseId){
   const fase = state.fases[faseId];
