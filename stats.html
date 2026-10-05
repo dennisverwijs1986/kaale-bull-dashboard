@@ -40,6 +40,12 @@
   .season-tag { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); border-radius: 999px; padding: 4px 14px; font-size: 12px; font-weight: 600; }
   .btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 6px 14px; cursor: pointer; font-size: 12px; transition: border-color .15s, color .15s; }
   .btn:hover { border-color: var(--green); color: var(--green); }
+  .snap-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 20px; font-size: 13px; }
+  .snap-bar input[type=date] { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px; color-scheme: dark; }
+  .snap-bar .btn-save { border-color: var(--green); color: var(--green); }
+  .snap-status { font-size: 12px; color: var(--text-dim); }
+  .snap-status.ok { color: var(--green); }
+  .snap-status.err { color: #ff6b6b; }
 
   /* Division tabs */
   .tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -91,7 +97,7 @@
     @page { size: A4 landscape; margin: 8mm; }
     body { background: #fff; color: #111; font-size: 10px; }
     header { background: #1a1a2e !important; padding: 6px 14px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .upload-zone, .btn { display: none !important; }
+    .upload-zone, .btn, .snap-bar { display: none !important; }
     .tabs { display: none !important; }
     .controls { margin-bottom: 8px !important; }
     .season-tag { border: 1px solid #007a5e !important; color: #007a5e !important; background: #e8f5f1 !important; font-size: 10px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -140,7 +146,12 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.0/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let laatsteSpelers = [];
 const fileInput = document.getElementById('fileInput');
 const dropZone  = document.getElementById('dropZone');
 const output    = document.getElementById('output');
@@ -182,6 +193,7 @@ function render(rows, filename) {
     hFinish: n(r['HDO']),
     bestLeg: n(r['Best Leg']) || 0,
   })).filter(p => p.naam && p.matches > 0);
+  laatsteSpelers = players;
 
   const divOrder = ['Eredivisie', 'Eerste Divisie'];
   const divisions = [...new Set(players.map(p => p.div))].sort((a, b) => {
@@ -308,9 +320,68 @@ function render(rows, filename) {
         <button class="btn" onclick="window.print()">🖨️ Afdrukken / PDF</button>
       </div>
     </div>
+    <div class="snap-bar">
+      <span>Opslaan als tussenstand van</span>
+      <input type="date" id="snapDatum" value="${vandaag()}">
+      <button class="btn btn-save" id="snapKnop" onclick="opslaanTussenstand()">💾 Opslaan</button>
+      <span class="snap-status" id="snapStatus">Nog niet opgeslagen</span>
+    </div>
     <div class="tabs" id="tabs">${tabsHtml}</div>
     ${divsHtml}
   `;
+}
+
+function vandaag() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Slaat de geüploade leaderboard-stand op in stats_snapshots (basis voor de tussenbalans).
+// Zelfde datum nogmaals opslaan overschrijft die tussenstand.
+async function opslaanTussenstand() {
+  const status = document.getElementById('snapStatus');
+  const knop = document.getElementById('snapKnop');
+  const datum = document.getElementById('snapDatum').value;
+  if (!datum) { status.className = 'snap-status err'; status.textContent = 'Kies eerst een datum.'; return; }
+  if (!laatsteSpelers.length) { status.className = 'snap-status err'; status.textContent = 'Geen spelers in deze CSV.'; return; }
+  knop.disabled = true;
+  status.className = 'snap-status'; status.textContent = 'Bezig met opslaan…';
+  try {
+    // Namen omzetten naar de schrijfwijze uit het dashboard (DartConnect schrijft "Van" met hoofdletter)
+    const { data: spelers, error: spErr } = await supabaseClient.from('spelers').select('naam');
+    if (spErr) throw spErr;
+    const naamMap = new Map((spelers || []).map(s => [s.naam.toLowerCase(), s.naam]));
+    const onbekend = [];
+    const rijen = laatsteSpelers.map(p => {
+      const naam = naamMap.get(p.naam.toLowerCase());
+      if (!naam) onbekend.push(p.naam);
+      return {
+        peildatum: datum,
+        divisie: p.div,
+        speler: naam || p.naam,
+        wedstrijden: p.matches,
+        s180: p.s180,
+        t140: p.hvPlus,
+        t100: p.hPlus,
+        gem: Math.round(p.gem * 100) / 100,
+        hoogste_finish: p.hFinish || null,
+        beste_leg: p.bestLeg || null,
+        bron: 'csv'
+      };
+    });
+    const { error } = await supabaseClient.from('stats_snapshots')
+      .upsert(rijen, { onConflict: 'peildatum,divisie,speler' });
+    if (error) throw error;
+    const d = new Date(datum + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' });
+    status.className = 'snap-status ok';
+    status.textContent = `✓ Tussenstand van ${d} opgeslagen (${rijen.length} spelers)` +
+      (onbekend.length ? ` — let op, onbekende naam: ${onbekend.join(', ')}` : '');
+  } catch (e) {
+    status.className = 'snap-status err';
+    status.textContent = 'Opslaan mislukt: ' + (e.message || e);
+  } finally {
+    knop.disabled = false;
+  }
 }
 
 function switchTab(idx) {
