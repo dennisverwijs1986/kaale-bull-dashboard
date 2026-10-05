@@ -44,6 +44,8 @@
   .snap-bar input[type=date] { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px; color-scheme: dark; }
   .snap-bar .btn-save { border-color: var(--green); color: var(--green); }
   .snap-status { font-size: 12px; color: var(--text-dim); }
+  .archief { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin: -12px 0 24px; font-size: 13px; color: var(--text-dim); }
+  .archief select, .controls select { background: var(--bg2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px; color-scheme: dark; max-width: 100%; }
   .snap-status.ok { color: var(--green); }
   .snap-status.err { color: #ff6b6b; }
 
@@ -97,7 +99,7 @@
     @page { size: A4 landscape; margin: 8mm; }
     body { background: #fff; color: #111; font-size: 10px; }
     header { background: #1a1a2e !important; padding: 6px 14px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .upload-zone, .btn, .snap-bar { display: none !important; }
+    .upload-zone, .btn, .snap-bar, .archief, .controls select { display: none !important; }
     .tabs { display: none !important; }
     .controls { margin-bottom: 8px !important; }
     .season-tag { border: 1px solid #007a5e !important; color: #007a5e !important; background: #e8f5f1 !important; font-size: 10px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -140,6 +142,10 @@
     <div class="icon">📊</div>
     <div style="font-size:15px;font-weight:600">CSV uploaden</div>
     <div class="hint">DartConnect leaderboard export (puntkomma-gescheiden) — sleep of klik</div>
+  </div>
+  <div class="archief" id="archiefBalk">
+    <label for="archiefKeuze">Of bekijk een opgeslagen tussenstand:</label>
+    <select id="archiefKeuze" onchange="laadTussenstand(this.value)"><option value="">Laden…</option></select>
   </div>
   <input type="file" id="fileInput" accept=".csv">
   <div id="output"></div>
@@ -194,6 +200,12 @@ function render(rows, filename) {
     bestLeg: n(r['Best Leg']) || 0,
   })).filter(p => p.naam && p.matches > 0);
   laatsteSpelers = players;
+  const season = filename.replace('.csv','').replace('Leaderboard_export_','').replace(/_/g,'-');
+  renderSpelers(players, `📅 Seizoen ${season}`, true);
+}
+
+// Toont de tabellen voor een lijst spelers; bron = CSV-upload (opslaanbaar) of opgeslagen tussenstand
+function renderSpelers(players, label, opslaanbaar) {
 
   const divOrder = ['Eredivisie', 'Eerste Divisie'];
   const divisions = [...new Set(players.map(p => p.div))].sort((a, b) => {
@@ -203,8 +215,6 @@ function render(rows, filename) {
     if (ib !== -1) return 1;
     return a.localeCompare(b);
   });
-  const season = filename.replace('.csv','').replace('Leaderboard_export_','').replace(/_/g,'-');
-
   // Tabs HTML
   const tabsHtml = divisions.map((d,i) =>
     `<div class="tab ${i===0?'active':''}" onclick="switchTab(${i})">${d}</div>`
@@ -312,24 +322,65 @@ function render(rows, filename) {
   }).join('');
 
   dropZone.style.display = 'none';
-  output.innerHTML = `
-    <div class="controls">
-      <span class="season-tag">📅 Seizoen ${season}</span>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" onclick="document.getElementById('fileInput').click()">📂 Andere CSV</button>
-        <button class="btn" onclick="window.print()">🖨️ Afdrukken / PDF</button>
-      </div>
-    </div>
+  document.getElementById('archiefBalk').style.display = 'none';
+  const snapBar = opslaanbaar ? `
     <div class="snap-bar">
       <span>Opslaan als tussenstand van</span>
       <input type="date" id="snapDatum" value="${vandaag()}">
       <button class="btn btn-save" id="snapKnop" onclick="opslaanTussenstand()">💾 Opslaan</button>
       <span class="snap-status" id="snapStatus">Nog niet opgeslagen</span>
+    </div>` : '';
+  output.innerHTML = `
+    <div class="controls">
+      <span class="season-tag">${label}</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select aria-label="Opgeslagen tussenstand" onchange="laadTussenstand(this.value)">${archiefOpties()}</select>
+        <button class="btn" onclick="document.getElementById('fileInput').click()">📂 Andere CSV</button>
+        <button class="btn" onclick="window.print()">🖨️ Afdrukken / PDF</button>
+      </div>
     </div>
+    ${snapBar}
     <div class="tabs" id="tabs">${tabsHtml}</div>
     ${divsHtml}
   `;
 }
+
+// ── Opgeslagen tussenstanden ──
+let archiefData = [];   // gesorteerde lijst peildata (nieuwste eerst)
+
+function datumNL(iso) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function archiefOpties(gekozen) {
+  if (!archiefData.length) return '<option value="">Nog geen opgeslagen tussenstanden</option>';
+  return '<option value="">📁 Opgeslagen tussenstand…</option>' +
+    archiefData.map(d => `<option value="${d}" ${d === gekozen ? 'selected' : ''}>${datumNL(d)}</option>`).join('');
+}
+
+async function laadArchief() {
+  const sel = document.getElementById('archiefKeuze');
+  const { data, error } = await supabaseClient.from('stats_snapshot_peildata').select('peildatum').order('peildatum', { ascending: false });
+  if (error) { sel.innerHTML = '<option value="">Kon tussenstanden niet laden</option>'; return; }
+  archiefData = [...new Set((data || []).map(r => r.peildatum))];
+  sel.innerHTML = archiefOpties();
+  document.querySelectorAll('.controls select').forEach(s => s.innerHTML = archiefOpties());
+}
+
+async function laadTussenstand(datum) {
+  if (!datum) return;
+  const { data, error } = await supabaseClient.from('stats_snapshots').select('*').eq('peildatum', datum);
+  if (error || !data) { output.innerHTML = `<p style="color:#f66;padding:1rem">Fout bij laden: ${error ? error.message : 'geen data'}</p>`; return; }
+  const players = data.map(r => ({
+    naam: r.speler, div: r.divisie, matches: r.wedstrijden || 0, s180: r.s180 || 0,
+    hvPlus: r.t140 || 0, hPlus: r.t100 || 0, gem: Number(r.gem) || 0,
+    hFinish: r.hoogste_finish || 0, bestLeg: r.beste_leg || 0,
+  })).filter(p => p.matches > 0);
+  renderSpelers(players, `📁 Tussenstand ${datumNL(datum)}`, false);
+  document.querySelectorAll('.controls select').forEach(s => s.innerHTML = archiefOpties(datum));
+}
+
+laadArchief();
 
 function vandaag() {
   const d = new Date();
@@ -372,6 +423,7 @@ async function opslaanTussenstand() {
     const { error } = await supabaseClient.from('stats_snapshots')
       .upsert(rijen, { onConflict: 'peildatum,divisie,speler' });
     if (error) throw error;
+    laadArchief();
     const d = new Date(datum + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' });
     status.className = 'snap-status ok';
     status.textContent = `✓ Tussenstand van ${d} opgeslagen (${rijen.length} spelers)` +
