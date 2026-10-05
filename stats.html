@@ -346,7 +346,7 @@ function renderSpelers(players, label, opslaanbaar) {
 }
 
 // ── Opgeslagen tussenstanden ──
-let archiefData = [];   // gesorteerde lijst peildata (nieuwste eerst)
+let archiefData = [];   // gesorteerde lijst peildata (oudste eerst)
 
 function datumNL(iso) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -360,7 +360,7 @@ function archiefOpties(gekozen) {
 
 async function laadArchief() {
   const sel = document.getElementById('archiefKeuze');
-  const { data, error } = await supabaseClient.from('stats_snapshot_peildata').select('peildatum').order('peildatum', { ascending: false });
+  const { data, error } = await supabaseClient.from('stats_snapshot_peildata').select('peildatum').order('peildatum', { ascending: true });
   if (error) { sel.innerHTML = '<option value="">Kon tussenstanden niet laden</option>'; return; }
   archiefData = [...new Set((data || []).map(r => r.peildatum))];
   sel.innerHTML = archiefOpties();
