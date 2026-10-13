@@ -283,6 +283,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .slot-bezet.ok   { background: rgba(16,185,129,0.12); color: var(--green); }
 .slot-bezet.vol  { background: rgba(245,158,11,0.15); color: var(--orange); }
 .slot-bezet.over { background: rgba(239,68,68,0.15); color: var(--red); }
+.slot-groep.leeg { display: none; }
+body.sleept .slot-groep.leeg { display: block; }
+body.sleept .slot-groep { transition: box-shadow 0.1s, border-color 0.1s; }
+body.sleept .slot-groep.drop-ok   { border-color: var(--green); }
+body.sleept .slot-groep.drop-rust { border-color: var(--red); opacity: 0.75; }
+body.sleept .slot-groep.drop-vol  { border-color: var(--muted); opacity: 0.55; }
+body.sleept .slot-groep.drop-zelf { opacity: 0.5; }
+body.sleept .slot-groep.drop-ok .slot-kop   { background: rgba(16,185,129,0.15); }
+body.sleept .slot-groep.drop-rust .slot-kop { background: rgba(239,68,68,0.15); }
+.slot-groep.drop-hover { box-shadow: 0 0 0 2px var(--orange); }
+.slot-kop .slot-hint { display: none; font-size: 0.62rem; color: var(--muted); }
+body.sleept .slot-kop .slot-hint { display: inline; }
 .beker-balk-cards .match-card { margin-bottom: 0; flex-wrap: wrap; row-gap: 6px; min-width: 0; }
 .beker-balk-cards .match-card .match-info { flex: 1 1 200px; }
 .beker-balk-cards .match-card .match-acts { margin-left: auto; }
@@ -1650,10 +1662,31 @@ function vulMetSlotGroepen(col, lijst, nr, bezetteIds, bezetteSpelers, besteBord
     if (!g || g.key !== key) { g = { key, datum: m.datum, tijd: m.tijdstip||'', items: [] }; groepen.push(g); }
     g.items.push(m);
   });
+  // Bij één avond: ook de lege standaardslots als (verborgen) groep toevoegen, zodat je
+  // er tijdens het slepen een wedstrijd op kunt neerzetten.
+  if (!alleDatums) {
+    const datum = huidigeDatum();
+    PT_SLOTS.forEach(sl => {
+      if (!groepen.some(g => g.tijd === sl.tijd)) groepen.push({ key: sl.tijd, datum, tijd: sl.tijd, items: [] });
+    });
+    groepen.sort((a,b) => (!a.tijd) - (!b.tijd) || a.tijd.localeCompare(b.tijd));
+  }
   groepen.forEach(g => {
     const wrap = document.createElement('div');
-    wrap.className = 'slot-groep';
     const n = g.items.length;
+    wrap.className = 'slot-groep' + (n ? '' : ' leeg');
+    if (!alleDatums && g.tijd) {
+      wrap.dataset.tijd = g.tijd;
+      wrap.dataset.datum = g.datum || '';
+      wrap.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; wrap.classList.add('drop-hover'); });
+      wrap.addEventListener('dragleave', e => { if (!wrap.contains(e.relatedTarget)) wrap.classList.remove('drop-hover'); });
+      wrap.addEventListener('drop', e => {
+        e.preventDefault();
+        wrap.classList.remove('drop-hover');
+        const id = e.dataTransfer.getData('matchId');
+        if (id) verplaatsNaarSlot(id, g.tijd);
+      });
+    }
     let bezetHtml = '';
     if (g.tijd) {
       const slotDef = PT_SLOTS.find(s => s.tijd === g.tijd);
@@ -1670,6 +1703,7 @@ function vulMetSlotGroepen(col, lijst, nr, bezetteIds, bezetteSpelers, besteBord
         ${g.tijd ? `<span class="slot-tijd">🕒 ${escapeHtml(g.tijd)}</span>` : `<span class="slot-tijd geen">Geen tijdstip</span>`}
         ${datumTxt}
         <span class="slot-aantal">${n} ${n===1?'wedstrijd':'wedstrijden'}</span>
+        <span class="slot-hint">↓ hier neerzetten</span>
         ${bezetHtml}
       </div>`;
     g.items.forEach(m => wrap.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
@@ -1693,7 +1727,8 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   const card = document.createElement('div');
   card.className = `match-card div-${divKey} ${isBlocked?'blocked':''}`;
   card.draggable = !isBlocked;
-  card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); });
+  card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); e.dataTransfer.effectAllowed='move'; startSlotSleep(m); });
+  card.addEventListener('dragend', stopSlotSleep);
 
   // Sleep-wissel: sleep een andere kaart hierop om tijden te ruilen (alleen bij
   // normale wedstrijden met een echt tijdstip; beker/inhaal hebben geen vast slot).
@@ -2137,6 +2172,112 @@ async function herstelOrigDatum(id) {
     sluitModal('verzetModal');
     bouwDatumFilter(); renderAll();
     toast(`↩ Teruggezet naar ${fmtDatum(m.datum)}`,'green');
+  } catch(e) { toast(`Fout: ${e.message}`,'red'); }
+}
+
+// ══════════════════════════════════════════
+//  SLEEP NAAR TIJDSLOT: wedstrijd op een slotkop/-blok in de wachtrij neerzetten
+//  Op de speelavond zelf: geen mail. Vooraf: vraag of de spelers gemaild moeten worden.
+// ══════════════════════════════════════════
+function lokaleDatumVandaag() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Rust- en capaciteitscheck voor wedstrijd m in slot `tijd` op zijn eigen avond.
+function slotCheckVoor(m, tijd) {
+  const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
+  const nieuwMin = naarMin(tijd);
+  const slotDef = PT_SLOTS.find(s => s.tijd === tijd);
+  const cap = slotDef ? slotDef.cap : 4;
+  const bezet = wedstrijden.filter(w => w.datum === m.datum && w.tijdstip === tijd && w.id !== m.id && !w.datum_nnb).length;
+  const conflicten = wedstrijden.filter(w => {
+    if (w.id === m.id || w.datum !== m.datum || w.datum_nnb || !w.tijdstip) return false;
+    const wMin = naarMin(w.tijdstip); if (wMin === null) return false;
+    const raakt = w.thuis === m.thuis || w.uit === m.thuis || w.thuis === m.uit || w.uit === m.uit;
+    return raakt && Math.abs(wMin - nieuwMin) < MIN_RUST_MIN;
+  });
+  return { bezet, cap, vol: bezet >= cap, conflicten };
+}
+
+function startSlotSleep(m) {
+  if (huidigeDatum() === 'ALL' || !m.datum || m.datum_nnb) return;
+  document.body.classList.add('sleept');
+  document.querySelectorAll('.slot-groep[data-tijd]').forEach(g => {
+    g.classList.remove('drop-ok','drop-rust','drop-vol','drop-zelf');
+    const tijd = g.dataset.tijd;
+    if (tijd === m.tijdstip) { g.classList.add('drop-zelf'); return; }
+    const st = slotCheckVoor(m, tijd);
+    g.classList.add(st.conflicten.length ? 'drop-rust' : st.vol ? 'drop-vol' : 'drop-ok');
+  });
+}
+
+function stopSlotSleep() {
+  document.body.classList.remove('sleept');
+  document.querySelectorAll('.slot-groep').forEach(g => g.classList.remove('drop-ok','drop-rust','drop-vol','drop-zelf','drop-hover'));
+}
+
+async function verplaatsNaarSlot(id, nieuweTijd) {
+  stopSlotSleep();
+  const m = wedstrijden.find(w => w.id === id);
+  if (!m || !m.datum || m.datum_nnb) return;
+  if (m.status === 'gespeeld' || Object.values(activeMatches).includes(m.id)) {
+    toast('Deze wedstrijd is al bezig of gespeeld','red'); return;
+  }
+  const oudeTijd = m.tijdstip || null;
+  if (oudeTijd === nieuweTijd) return;
+
+  const st = slotCheckVoor(m, nieuweTijd);
+  if (st.conflicten.length) {
+    const namen = [...new Set(st.conflicten.flatMap(w => [w.thuis, w.uit]).filter(n => n === m.thuis || n === m.uit))];
+    if (!confirm(`⚠ WAARSCHUWING\n\n${namen.join(' en ')} ${namen.length>1?'hebben':'heeft'} dan minder dan ${MIN_RUST_MIN} min rust rond ${nieuweTijd}.\n\nZeker doorgaan?`)) {
+      toast('Verplaatsen geannuleerd','orange'); return;
+    }
+  }
+  if (st.vol) {
+    if (!confirm(`⚠ WAARSCHUWING\n\nHet slot ${nieuweTijd} zit al vol (${st.bezet}/${st.cap}).\n\nToch hierheen verplaatsen?`)) {
+      toast('Verplaatsen geannuleerd','orange'); return;
+    }
+  }
+
+  const isVandaag = m.datum === lokaleDatumVandaag();
+  let mailen = false;
+  if (!isVandaag) {
+    mailen = confirm(`${m.thuis} vs ${m.uit}\n${oudeTijd || '—'} → ${nieuweTijd} op ${fmtDatum(m.datum)}\n\nSpelers een mail sturen over de nieuwe tijd?\n\nOK = verplaatsen + mailen\nAnnuleren = alleen verplaatsen, geen mail`);
+  }
+
+  const door = 'Wedstrijdleiding (sleep naar slot)';
+  try {
+    await sbPatch('wedstrijden', id, { tijdstip: nieuweTijd });
+    m.tijdstip = nieuweTijd;
+    renderAll();
+    toast(`🕒 ${m.thuis} vs ${m.uit} → ${nieuweTijd}`,'green');
+
+    let logId = null;
+    try {
+      const logRow = await sbPost('wijziging_log', {
+        wedstrijd_id: id, thuis: m.thuis, uit: m.uit, divisie: m.divisie,
+        actie: 'verzet', oude_datum: m.datum, nieuwe_datum: m.datum,
+        oude_tijdstip: oudeTijd, nieuwe_tijdstip: nieuweTijd,
+        gewijzigd_door: door, notitie: 'Ander tijdslot (zelfde avond)', mail_verstuurd: false
+      });
+      logId = logRow?.[0]?.id || null;
+    } catch(logErr) { console.error('Kon slotverplaatsing niet loggen:', logErr); }
+
+    if (mailen) {
+      try {
+        const res = await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${SB_KEY}`, 'apikey':SB_KEY },
+          body: JSON.stringify({ type:'verzet', wedstrijd_id: id, gewijzigd_door: door, wijziging_log_id: logId, oude_tijdstip: oudeTijd, nieuwe_tijdstip: nieuweTijd })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Onbekende fout');
+        toast(`📧 Spelers geïnformeerd (${data.verzonden_naar} mail(s))`,'green');
+      } catch(mailErr) {
+        toast(`⚠ Verplaatst, maar mail mislukt: ${mailErr.message}`,'red');
+      }
+    }
   } catch(e) { toast(`Fout: ${e.message}`,'red'); }
 }
 
