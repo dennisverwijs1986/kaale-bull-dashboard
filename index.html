@@ -216,7 +216,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 /* ── MODALS ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:200;display:none;align-items:center;justify-content:center;}
 .overlay.open{display:flex;}
-.modal{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:22px;width:90%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:22px;width:90%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.6);max-height:calc(100vh - 32px);overflow-y:auto;}
+/* Verzetten: andere wedstrijden van beide spelers op de gekozen avond */
+.va-titel{font-size:0.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:2px 0 6px;}
+.va-lijst{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:12px;}
+.va-rij{display:flex;gap:10px;align-items:baseline;padding:6px 10px;font-size:0.78rem;border-top:1px solid var(--border);}
+.va-rij:first-child{border-top:none;}
+.va-rij .t{font-weight:700;min-width:38px;font-variant-numeric:tabular-nums;}
+.va-rij.rood{background:rgba(239,68,68,0.12);} .va-rij.rood .t{color:#fca5a5;}
+.va-rij.nieuw{background:rgba(59,130,246,0.14);}
+.va-leeg{font-size:0.72rem;color:var(--muted);margin-bottom:12px;}
 .modal-title{font-size:1rem;font-weight:700;margin-bottom:14px;}
 .modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
 .score-inp{font-size:1.4rem;font-weight:700;text-align:center;background:var(--s2);border:2px solid var(--border);color:var(--text);border-radius:8px;padding:10px;width:100%;}
@@ -651,7 +660,8 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
       </label>
       <input type="text" class="inp" id="verzetTijdHandmatig" placeholder="19:30" style="display:none;margin-top:6px;" oninput="kiesVerzetSlot(this.value.trim(), true)">
     </div>
-    <div id="verzetSlotenMsg" style="font-size:0.68rem;color:var(--muted);margin:-2px 0 12px;">Min. 40 min rust tussen wedstrijden op dezelfde avond voor dezelfde speler.</div>
+    <div id="verzetSlotenMsg" style="font-size:0.68rem;color:var(--muted);margin:-2px 0 12px;">Min. 20 min rust tussen wedstrijden op dezelfde avond voor dezelfde speler.</div>
+    <div id="verzetSpelerAvond"></div>
     <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--nnb);cursor:pointer;margin-bottom:12px;">
       <input type="checkbox" id="verzetNNB" onchange="toggleVerzetNNB()"> 🕓 Datum nog niet bekend (NNB)
     </label>
@@ -749,10 +759,6 @@ let dcPreviewOpen = {
   3: localStorage.getItem('dc_preview_open_3')==='1',
   4: localStorage.getItem('dc_preview_open_4')==='1'
 }; // live scorebord-voorbeeld standaard ingeklapt, per bord onthouden
-// Bijhouden wanneer speler voor het laatst een wedstrijd STARTTE (timestamp)
-let spelersLaatsteStart = {}; // naam → timestamp ms
-
-const MIN_RUST_MS = 20 * 60 * 1000; // 20 minuten
 
 // ══════════════════════════════════════════
 //  KLOK
@@ -1430,9 +1436,6 @@ async function startOpBord(matchId, bord) {
   // schrijver NIET wissen — blijft zichtbaar van vorige partij
   // DartConnect-koppeling NIET aanraken: het scoreboard volgt de tablet zelf naar de volgende
   // wedstrijd, zolang de iframe niet herladen wordt (zie renderBoards).
-  // Bijhouden rusttijd
-  const m = wedstrijden.find(w=>w.id===matchId);
-  if (m) { spelersLaatsteStart[m.thuis]=Date.now(); spelersLaatsteStart[m.uit]=Date.now(); }
   startTimer(bord);
   renderBoards(); renderQueue();
   toast(`▶ Gestart op bord ${bord}`,'green');
@@ -1636,17 +1639,9 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   // Sleep-wissel blijft beperkt tot normale wedstrijden met een vast slot.
   const kanWisselen = toonTijd && !isInhaal;
 
-  // Rusttijd check
-  const nuMs = Date.now();
-  const laastThuis = spelersLaatsteStart[m.thuis] || 0;
-  const laastUit   = spelersLaatsteStart[m.uit]   || 0;
-  const minRust    = Math.min(nuMs-laastThuis, nuMs-laastUit);
-  const teWeinigRust = (laastThuis>0||laastUit>0) && minRust < MIN_RUST_MS;
-  const rustWarn   = teWeinigRust && !isBlocked;
-  const rustMinuten = Math.ceil((MIN_RUST_MS-minRust)/60000);
 
   const card = document.createElement('div');
-  card.className = `match-card div-${divKey} ${isBlocked?'blocked':''} ${rustWarn?'warn-rust':''}`;
+  card.className = `match-card div-${divKey} ${isBlocked?'blocked':''}`;
   card.draggable = !isBlocked;
   card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); });
 
@@ -1669,7 +1664,6 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   const chip = getDivChip(m);
   const origDatumBadge = m.originele_datum
     ? `<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>` : '';
-  const rustBadge = rustWarn ? `<span class="warn-chip">⏳ rust: ${rustMinuten}min</span>` : '';
   const notitieBadge = m.notitie ? `<span class="warn-chip" style="background:rgba(59,130,246,0.12);color:var(--blue);">📝</span>` : '';
 
   // Bord opties, beste bord gesuggereerd
@@ -1688,7 +1682,6 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
         ${chip}
         ${m.speelronde?`<span>SR ${m.speelronde}</span>`:''}
         ${origDatumBadge}
-        ${rustBadge}
         ${notitieBadge}
         ${isBlocked?'<span style="color:var(--red);font-size:0.65rem;">⛔ speler bezig</span>':''}
       </div>
@@ -1847,18 +1840,17 @@ function toggleVerzetNNB() {
   tijdInp.disabled = nnb;
   document.getElementById('verzetSlotenWrap').style.opacity = nnb ? '0.4' : '1';
   document.getElementById('verzetSlotenWrap').style.pointerEvents = nnb ? 'none' : 'auto';
-  if (nnb) { datumInp.value = ''; tijdInp.value = ''; document.getElementById('verzetSlotenGrid').innerHTML=''; }
+  if (nnb) { datumInp.value = ''; tijdInp.value = ''; document.getElementById('verzetSlotenGrid').innerHTML=''; renderVerzetSpelerAvond(); }
   else renderVerzetSloten();
 }
 
 // ══════════════════════════════════════════
-//  VERZET: dynamische tijdslot-indeling (40-minutenregel + capaciteit)
+//  VERZET: dynamische tijdslot-indeling (rustregel MIN_RUST_MIN + capaciteit)
 //  Gebruikt dezelfde vaste tijdsloten (PT_SLOTS) als de Planning Tool.
 // ══════════════════════════════════════════
 function verzetSlotStatus(datum, tijd, m) {
   const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
   const nieuwMin = naarMin(tijd);
-  const MIN_RUST_MIN = 40;
 
   const slotDef = PT_SLOTS.find(s => s.tijd === tijd);
   const cap = slotDef ? slotDef.cap : 4;
@@ -1882,7 +1874,7 @@ function renderVerzetSloten() {
   const datum = document.getElementById('verzetDatum').value;
   const m = wedstrijden.find(w => w.id === verzetId);
   grid.innerHTML = '';
-  if (!datum || !m) { msg.textContent = 'Kies eerst een datum om de vrije tijdsloten te zien.'; return; }
+  if (!datum || !m) { msg.textContent = 'Kies eerst een datum om de vrije tijdsloten te zien.'; renderVerzetSpelerAvond(); return; }
 
   const huidigeTijd = document.getElementById('verzetTijd').value;
   let eersteVrije = null;
@@ -1908,7 +1900,33 @@ function renderVerzetSloten() {
   if (!handmatigAan && !huidigeTijd && eersteVrije) { kiesVerzetSlot(eersteVrije, true); return; }
   msg.textContent = alleGeblokkeerd
     ? '⚠ Geen enkel standaard tijdslot is vrij op deze avond voor deze spelers — kies handmatig of een andere datum.'
-    : 'Groen = vrij · rood = <40 min rust-conflict · grijs = slot vol. Klik om te kiezen.';
+    : `Groen = vrij · rood = <${MIN_RUST_MIN} min rust-conflict · grijs = slot vol. Klik om te kiezen.`;
+  renderVerzetSpelerAvond();
+}
+
+// Welke wedstrijden hebben deze twee spelers nog meer op de gekozen avond?
+// Rood = binnen MIN_RUST_MIN minuten van de gekozen tijd; blauw = deze wedstrijd op de nieuwe tijd.
+function renderVerzetSpelerAvond() {
+  const box = document.getElementById('verzetSpelerAvond');
+  if (!box) return;
+  const datum = document.getElementById('verzetDatum').value;
+  const m = wedstrijden.find(w => w.id === verzetId);
+  if (!m || !datum || document.getElementById('verzetNNB').checked) { box.innerHTML = ''; return; }
+  const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
+  const tijd = document.getElementById('verzetTijd').value.trim();
+  const nieuw = naarMin(tijd);
+  const anders = wedstrijden.filter(w => w.id !== m.id && w.datum === datum && !w.datum_nnb &&
+    (w.thuis === m.thuis || w.uit === m.thuis || w.thuis === m.uit || w.uit === m.uit));
+  const titel = `<div class="va-titel">${escapeHtml(m.thuis)} &amp; ${escapeHtml(m.uit)} op ${fmtDatum(datum)}</div>`;
+  if (!anders.length) { box.innerHTML = titel + '<div class="va-leeg">Geen andere wedstrijden op deze avond.</div>'; return; }
+  const rijen = anders.map(w => {
+    const wm = naarMin(w.tijdstip);
+    const rood = nieuw !== null && wm !== null && Math.abs(wm - nieuw) < MIN_RUST_MIN;
+    return { k: w.tijdstip || '99', html: `<div class="va-rij ${rood?'rood':''}"><span class="t">${escapeHtml(w.tijdstip||'—')}</span><span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${w.status==='gespeeld'?' <span style="color:var(--muted);">✓</span>':''}</span></div>` };
+  });
+  if (tijd) rijen.push({ k: tijd, html: `<div class="va-rij nieuw"><span class="t">${escapeHtml(tijd)}</span><span><strong>Deze wedstrijd</strong></span></div>` });
+  rijen.sort((a,b) => a.k.localeCompare(b.k));
+  box.innerHTML = titel + `<div class="va-lijst">${rijen.map(r=>r.html).join('')}</div>`;
 }
 
 function kiesVerzetSlot(tijd, stil) {
@@ -1932,6 +1950,7 @@ function toggleVerzetHandmatig() {
   } else if (document.getElementById('verzetTijdHandmatig').value) {
     document.getElementById('verzetTijd').value = document.getElementById('verzetTijdHandmatig').value;
   }
+  renderVerzetSpelerAvond();
 }
 
 async function slaVerzetOp(informeer) {
@@ -1961,7 +1980,7 @@ async function slaVerzetOp(informeer) {
   // totdat er wél een datum wordt ingevuld; datum_nnb geeft aan dat dit een placeholder is.
   const nieuweDatum = isNNB ? (nieuweDatumInp || m?.datum || oudeDatum) : nieuweDatumInp;
 
-  // ── CAPACITEITSCHECK: max 34 wedstrijden per avond ──
+  // ── CAPACITEITSCHECK: max MAX_PER_AVOND wedstrijden per avond ──
   if (!isNNB && nieuweDatum && nieuweDatum !== oudeDatum) {
     const wedstrijdenOpNieuweDatum = wedstrijden.filter(w => 
       w.datum === nieuweDatum && 
@@ -1969,8 +1988,8 @@ async function slaVerzetOp(informeer) {
       !w.datum_nnb          // NNB-matches tellen niet mee voor capaciteit
     );
     const totaalNaVerzet = wedstrijdenOpNieuweDatum.length + 1;
-    if (totaalNaVerzet > 34) {
-      const msg = `⚠ WAARSCHUWING\n\n${fmtDatum(nieuweDatum)} heeft al ${wedstrijdenOpNieuweDatum.length} wedstrijden.\nDeze zou het totaal op ${totaalNaVerzet} brengen (max 34).\n\nZeker doorgaan?`;
+    if (totaalNaVerzet > MAX_PER_AVOND) {
+      const msg = `⚠ WAARSCHUWING\n\n${fmtDatum(nieuweDatum)} heeft al ${wedstrijdenOpNieuweDatum.length} wedstrijden.\nDeze zou het totaal op ${totaalNaVerzet} brengen (max ${MAX_PER_AVOND}).\n\nZeker doorgaan?`;
       if (!confirm(msg)) {
         toast('Verzet geannuleerd', 'orange');
         return;
@@ -1978,9 +1997,8 @@ async function slaVerzetOp(informeer) {
     }
   }
 
-  // ── RUSTCHECK: min. 40 minuten tussen wedstrijden van dezelfde speler, zelfde avond ──
+  // ── RUSTCHECK: min. MIN_RUST_MIN minuten tussen wedstrijden van dezelfde speler, zelfde avond ──
   if (!isNNB && nieuweTijd) {
-    const MIN_RUST_MIN = 40;
     const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
     const nieuwMin = naarMin(nieuweTijd);
     const conflicten = wedstrijden.filter(w => {
@@ -2090,9 +2108,8 @@ async function wisselTijden(id1, id2) {
   if (!t1 || !t2) { toast('Beide wedstrijden hebben een tijdstip nodig','red'); return; }
   if (t1 === t2) { toast('Zelfde tijdstip, niets te wisselen','orange'); return; }
 
-  // Rustcheck: min. 40 min tussen wedstrijden van dezelfde speler op dezelfde avond,
+  // Rustcheck: min. MIN_RUST_MIN min tussen wedstrijden van dezelfde speler op dezelfde avond,
   // gecontroleerd op de tijden zoals ze NA de wissel zouden zijn.
-  const MIN_RUST_MIN = 40;
   const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
   const vindConflicten = (wed, nieuweTijd) => {
     const nieuwMin = naarMin(nieuweTijd);
@@ -2241,12 +2258,12 @@ async function voegBekerToe(informeer) {
   // deze wordt nergens getoond zolang datum_nnb=true staat (matches staan los in de NNB-balk).
   const datum = datumInp || new Date().toISOString().slice(0,10);
 
-  // ── CAPACITEITSCHECK: max 34 wedstrijden per avond (bekerwedstrijden tellen nu ook mee) ──
+  // ── CAPACITEITSCHECK: max MAX_PER_AVOND wedstrijden per avond (bekerwedstrijden tellen nu ook mee) ──
   if (!isNNB) {
     const wedstrijdenOpDatum = wedstrijden.filter(w => w.datum === datum && !w.datum_nnb);
     const totaalNaToevoegen = wedstrijdenOpDatum.length + 1;
-    if (totaalNaToevoegen > 34) {
-      const msg = `⚠ WAARSCHUWING\n\n${fmtDatum(datum)} heeft al ${wedstrijdenOpDatum.length} wedstrijden.\nDeze zou het totaal op ${totaalNaToevoegen} brengen (max 34).\n\nZeker doorgaan?`;
+    if (totaalNaToevoegen > MAX_PER_AVOND) {
+      const msg = `⚠ WAARSCHUWING\n\n${fmtDatum(datum)} heeft al ${wedstrijdenOpDatum.length} wedstrijden.\nDeze zou het totaal op ${totaalNaToevoegen} brengen (max ${MAX_PER_AVOND}).\n\nZeker doorgaan?`;
       if (!confirm(msg)) { toast('Toevoegen geannuleerd','orange'); return; }
     }
   }
@@ -2403,8 +2420,13 @@ document.addEventListener('click', (e) => {
 const PT_SLOTS = [
   {tijd:'19:30',cap:4},{tijd:'19:50',cap:4},{tijd:'20:10',cap:4},
   {tijd:'20:30',cap:4},{tijd:'20:50',cap:4},{tijd:'21:10',cap:4},
-  {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3}
+  {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3},
+  {tijd:'22:30',cap:3}
 ];
+// Max. aantal wedstrijden per avond = totale capaciteit van alle tijdsloten (nu 37)
+const MAX_PER_AVOND = PT_SLOTS.reduce((t,s)=>t+s.cap, 0);
+// Minimale rust tussen twee wedstrijden van dezelfde speler op één avond
+const MIN_RUST_MIN = 20;
 
 let ptRijen   = [];
 let ptHeaders = [];
