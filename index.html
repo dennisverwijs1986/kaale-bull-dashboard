@@ -272,6 +272,17 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .beker-balk-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--beker); margin-bottom: 6px; }
 .beker-balk-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 6px; }
 /* Bekerkaarten: namen krijgen altijd ruimte; is de kaart te smal, dan schuiven de knoppen naar een tweede regel i.p.v. de namen weg te drukken */
+.slot-groep { margin: 0 0 10px; border: 1px solid var(--border); border-radius: 7px; background: rgba(255,255,255,0.015); overflow: hidden; }
+.slot-groep .match-card { margin: 0; border-radius: 0; border-top: none; border-right: none; border-bottom: 1px solid var(--border); }
+.slot-groep .match-card:last-child { border-bottom: none; }
+.slot-kop { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--s2); border-bottom: 1px solid var(--border); font-size: 0.72rem; }
+.slot-kop .slot-tijd { font-family: monospace; font-weight: 700; font-size: 0.85rem; color: var(--orange); }
+.slot-kop .slot-tijd.geen { color: var(--muted); font-family: inherit; font-size: 0.72rem; }
+.slot-kop .slot-aantal { color: var(--text); font-weight: 600; }
+.slot-kop .slot-bezet { margin-left: auto; font-size: 0.65rem; padding: 1px 7px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+.slot-bezet.ok   { background: rgba(16,185,129,0.12); color: var(--green); }
+.slot-bezet.vol  { background: rgba(245,158,11,0.15); color: var(--orange); }
+.slot-bezet.over { background: rgba(239,68,68,0.15); color: var(--red); }
 .beker-balk-cards .match-card { margin-bottom: 0; flex-wrap: wrap; row-gap: 6px; min-width: 0; }
 .beker-balk-cards .match-card .match-info { flex: 1 1 200px; }
 .beker-balk-cards .match-card .match-acts { margin-left: auto; }
@@ -1077,7 +1088,7 @@ function renderWerklast() {
       const tegenstander = isSelf ? w.uit : w.thuis;
       const rol = isSelf ? 'Thuis' : 'Uit';
       return `<div class="speler-match-row div-${divKey} ${w.status==='gespeeld'?'speler-match-gespeeld':''}">
-        ${getDivKey(w)==='beker' || !w.tijdstip ? '' : `<span class="match-time ${w.is_inhaal?'inhaal':'normal'}" style="font-size:0.68rem;">${escapeHtml(w.tijdstip)}</span>`}
+        ${!w.tijdstip ? '' : `<span class="match-time ${getDivKey(w)==='beker'?'beker':w.is_inhaal?'inhaal':'normal'}" style="font-size:0.68rem;">${escapeHtml(w.tijdstip)}</span>`}
         <span style="flex:1;font-weight:600;">${escapeHtml(naam)} <span style="color:var(--muted);font-weight:400;font-size:0.7rem;">(${rol})</span> vs ${escapeHtml(tegenstander)}</span>
         ${getDivChip(w)}
         ${w.status==='gespeeld'?'<span style="color:var(--green);font-size:0.7rem;">✓</span>':''}
@@ -1578,7 +1589,7 @@ function renderQueue() {
   const isDivEre    = m => { const d=(m.divisie||'').toLowerCase(); return d.includes('ere') && !d.includes('beker'); };
   const isDivEerste = m => { const d=(m.divisie||'').toLowerCase(); return (d.includes('eerste')||d.includes('1e')) && !d.includes('beker'); };
 
-  const bekerLijst  = open.filter(m => !bezetteIds.has(m.id) && m.divisie?.toLowerCase().includes('beker'));
+  const bekerLijst  = open.filter(m => !bezetteIds.has(m.id) && m.divisie?.toLowerCase().includes('beker')).sort(sorteer);
   const ereLijst    = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && isDivEre(m)).sort(sorteer);
   const eersteLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && isDivEerste(m)).sort(sorteer);
   const overigLijst = open.filter(m => !bezetteIds.has(m.id) && !m.divisie?.toLowerCase().includes('beker') && !isDivEre(m) && !isDivEerste(m)).sort(sorteer);
@@ -1608,7 +1619,7 @@ function renderQueue() {
   if (!ereLijst.length && !overigLijst.length) {
     ereCol.innerHTML += '<div class="empty">Niets open</div>';
   } else {
-    [...ereLijst,...overigLijst].forEach(m => ereCol.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+    nr = vulMetSlotGroepen(ereCol, [...ereLijst,...overigLijst], nr, bezetteIds, bezetteSpelers, besteBord);
   }
   cols.appendChild(ereCol);
 
@@ -1619,12 +1630,52 @@ function renderQueue() {
   if (!eersteLijst.length) {
     eersteCol.innerHTML += '<div class="empty">Niets open</div>';
   } else {
-    eersteLijst.forEach(m => eersteCol.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+    nr = vulMetSlotGroepen(eersteCol, eersteLijst, nr, bezetteIds, bezetteSpelers, besteBord);
   }
   cols.appendChild(eersteCol);
 
   container.appendChild(cols);
   renderHistory();
+}
+
+// Groepeert wedstrijden per tijdslot (bij 'Alle datums' per datum + tijdslot) met een kop
+// die laat zien hoeveel er in deze kolom open staan en hoe vol het slot die avond is
+// (alle divisies + beker samen, ook al gespeelde/lopende wedstrijden) t.o.v. de capaciteit.
+function vulMetSlotGroepen(col, lijst, nr, bezetteIds, bezetteSpelers, besteBord) {
+  const alleDatums = huidigeDatum() === 'ALL';
+  const groepen = [];
+  lijst.forEach(m => {
+    const key = (alleDatums ? (m.datum||'') + '|' : '') + (m.tijdstip||'');
+    let g = groepen[groepen.length-1];
+    if (!g || g.key !== key) { g = { key, datum: m.datum, tijd: m.tijdstip||'', items: [] }; groepen.push(g); }
+    g.items.push(m);
+  });
+  groepen.forEach(g => {
+    const wrap = document.createElement('div');
+    wrap.className = 'slot-groep';
+    const n = g.items.length;
+    let bezetHtml = '';
+    if (g.tijd) {
+      const slotDef = PT_SLOTS.find(s => s.tijd === g.tijd);
+      const totaal  = wedstrijden.filter(w => w.datum === g.datum && w.tijdstip === g.tijd && !w.datum_nnb).length;
+      if (slotDef) {
+        const cls = totaal > slotDef.cap ? 'over' : totaal === slotDef.cap ? 'vol' : 'ok';
+        bezetHtml = `<span class="slot-bezet ${cls}" title="Alle wedstrijden in dit slot op deze avond (beide divisies + beker), incl. gespeeld">slot ${totaal}/${slotDef.cap}</span>`;
+      } else {
+        bezetHtml = `<span class="slot-bezet vol" title="Geen standaard tijdslot">afwijkend · ${totaal} totaal</span>`;
+      }
+    }
+    const datumTxt = alleDatums && g.datum ? `<span style="color:var(--muted);">${fmtDatum(g.datum)}</span>` : '';
+    wrap.innerHTML = `<div class="slot-kop">
+        ${g.tijd ? `<span class="slot-tijd">🕒 ${escapeHtml(g.tijd)}</span>` : `<span class="slot-tijd geen">Geen tijdstip</span>`}
+        ${datumTxt}
+        <span class="slot-aantal">${n} ${n===1?'wedstrijd':'wedstrijden'}</span>
+        ${bezetHtml}
+      </div>`;
+    g.items.forEach(m => wrap.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+    col.appendChild(wrap);
+  });
+  return nr;
 }
 
 function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
@@ -1633,11 +1684,10 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   const isBeker    = m.divisie?.toLowerCase().includes('beker');
   const divKey     = getDivKey(m);
   // Toon het tijdstip zodra het bekend is — ook bij inhaalwedstrijden (die sinds de
-  // dynamische tijdslot-indeling ook een echt tijdslot krijgen). Bekerwedstrijden
-  // hebben geen vast rooster en tonen daarom nooit een tijd op de kaart.
-  const toonTijd   = !isBeker && !!m.tijdstip;
+  // dynamische tijdslot-indeling ook een echt tijdslot krijgen) en bekerwedstrijden.
+  const toonTijd   = !!m.tijdstip;
   // Sleep-wissel blijft beperkt tot normale wedstrijden met een vast slot.
-  const kanWisselen = toonTijd && !isInhaal;
+  const kanWisselen = toonTijd && !isInhaal && !isBeker;
 
 
   const card = document.createElement('div');
