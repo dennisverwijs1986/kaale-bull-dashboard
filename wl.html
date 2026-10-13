@@ -255,10 +255,11 @@ const sbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?
 const PT_SLOTS = [
   {tijd:'19:30',cap:4},{tijd:'19:50',cap:4},{tijd:'20:10',cap:4},
   {tijd:'20:30',cap:4},{tijd:'20:50',cap:4},{tijd:'21:10',cap:4},
-  {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3}
+  {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3},
+  {tijd:'22:30',cap:3}
 ];
-const MAX_PER_AVOND = 34;
-const MIN_RUST_MIN  = 40;
+const MAX_PER_AVOND = PT_SLOTS.reduce((t,s)=>t+s.cap, 0); // nu 37
+const MIN_RUST_MIN  = 20;
 
 // ══════════════════════════════════════════
 //  STATE
@@ -461,7 +462,7 @@ function kaart(w, opts={}){
     w.datum_nnb ? '<span class="chip nnb">NNB</span>' : '',
     w.speelronde ? `<span class="chip">SR ${esc(w.speelronde)}</span>` : '',
     w.bord ? `<span class="chip groen">🎯 Bord ${esc(w.bord)}</span>` : '',
-    conflict ? '<span class="chip rood">⚠ &lt;40 min rust</span>' : '',
+    conflict ? `<span class="chip rood">⚠ &lt;${MIN_RUST_MIN} min rust</span>` : '',
     w.notitie ? '<span class="chip">📝</span>' : '',
     gespeeld ? '<span class="chip groen">✓ gespeeld</span>' : ''
   ].join('');
