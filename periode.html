@@ -137,8 +137,9 @@
     <div id="status-msg"></div>
 
     <p class="info-note">
-      4 periodes van 10 speelrondes. De periodekampioen (nr. 1) + de hoogst geplaatste speler zonder
-      periodetitel gaan door naar de play-offs. Punten = gewonnen legs per wedstrijd (bv. 3-1 → 3 punten
+      4 periodes van 10 speelrondes. Per periode krijgt de nummer 1 de titel en een play-off ticket; wint
+      iemand meerdere periodes, dan gaat het ticket naar de eerstvolgende speler zonder ticket. De nummers 1 en 2 van de
+      eindstand promoveren direct. Daarnaast krijgt de hoogst geplaatste speler in de eindstand zonder ticket er nog een: 5 tickets in totaal. Punten = gewonnen legs per wedstrijd (bv. 3-1 → 3 punten
       winnaar, 1 punt verliezer). Vrije Ronde (bye) telt wel mee voor de winnaar, maar "Vrije Ronde" zelf
       verschijnt niet als speler in de lijst.
     </p>
@@ -168,6 +169,12 @@
       </div>
       <div class="tabs" id="tabs" style="margin-top:14px;"></div>
       <div id="stand-container"><div class="loading">Standen laden...</div></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 4px;">🎟 Eindoverzicht (voorlopig)</h3>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:10px;">Seizoenstotaal over alle periodes. Play-offs: 5 spelers uit de Eerste Divisie (4 periodetickets + 1 via de eindstand) tegen nr. 17 t/m 19 van de Eredivisie.</div>
+      <div id="eind-container"><div class="loading">Laden...</div></div>
     </div>
 
   </div>
@@ -551,6 +558,7 @@
   async function loadStand() {
     const container = document.getElementById('stand-container');
     container.innerHTML = '<div class="loading">Standen laden...</div>';
+    loadEind();
 
     const { data, error } = await supabaseClient
       .from('periodestand_eerste_divisie')
@@ -576,6 +584,51 @@
     });
     html += '</tbody></table>';
     container.innerHTML = html;
+  }
+
+
+  // ── EINDOVERZICHT: totaalstand, directe promotie, play-off tickets ──
+  async function loadEind() {
+    const el = document.getElementById('eind-container');
+    const { data, error } = await supabaseClient
+      .from('periodestand_eerste_divisie').select('*')
+      .order('periode', { ascending: true }).order('positie', { ascending: true });
+    if (error) { el.innerHTML = '<div class="empty-state">Fout: ' + error.message + '</div>'; return; }
+    if (!data || !data.length) { el.innerHTML = '<div class="empty-state">Nog geen gespeelde wedstrijden.</div>'; return; }
+
+    const tot = {};
+    data.forEach(r => {
+      const t = tot[r.speler] || (tot[r.speler] = { speler: r.speler, w: 0, g: 0, p: 0 });
+      t.w += Number(r.wedstrijden_gespeeld); t.g += Number(r.gewonnen); t.p += Number(r.periodepunten);
+    });
+    const lijst = Object.values(tot).sort((a, b) => b.p - a.p || b.g - a.g || a.speler.localeCompare(b.speler));
+    lijst.forEach((t, i) => t.pos = i + 1);
+    const promo = new Set(lijst.slice(0, 2).map(t => t.speler));
+
+    // Titels: nr. 1 per periode. Tickets: nr. 1, of de eerstvolgende zonder ticket (en niet direct gepromoveerd).
+    const titels = {}, tickets = {};
+    [1, 2, 3, 4].forEach(p => {
+      const rijen = data.filter(r => r.periode === p);
+      if (!rijen.length) return;
+      (titels[rijen[0].speler] = titels[rijen[0].speler] || []).push(p);
+      const kandidaat = rijen.find(r => !tickets[r.speler] && !promo.has(r.speler));
+      if (kandidaat) tickets[kandidaat.speler] = p;
+    });
+
+    // 5e ticket: hoogste in de eindstand zonder ticket (en niet direct gepromoveerd)
+    const vijfde = lijst.find(t => !tickets[t.speler] && !promo.has(t.speler));
+    if (vijfde) tickets[vijfde.speler] = 'E';
+
+    let html = '<table class="stand"><thead><tr><th></th><th>Speler</th><th style="text-align:right;">Wedstr.</th><th style="text-align:right;">Winst</th><th style="text-align:right;">Punten</th><th>Status</th></tr></thead><tbody>';
+    lijst.forEach(t => {
+      const badges = [];
+      if (promo.has(t.speler)) badges.push('⬆ Directe promotie');
+      if (titels[t.speler]) badges.push('🏆 Titel P' + titels[t.speler].join(', P'));
+      if (tickets[t.speler]) badges.push(tickets[t.speler] === 'E' ? '🎟 Ticket (eindstand)' : '🎟 Ticket (P' + tickets[t.speler] + ')');
+      html += `<tr class="${promo.has(t.speler) ? 'leader' : ''}"><td class="pos">${t.pos}</td><td>${t.speler}</td>` +
+        `<td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num">${t.p}</td><td style="font-size:12px;">${badges.join(' · ')}</td></tr>`;
+    });
+    el.innerHTML = html + '</tbody></table>';
   }
 
   // ── PDF EXPORT (zelfde print-methode als de Planning Tool op index.html) ──
