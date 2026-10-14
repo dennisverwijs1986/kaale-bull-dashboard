@@ -23,6 +23,7 @@
   --beker:   #f59e0b;
   --inhaal:  #ef4444;
   --nnb:     #06b6d4;
+  --tv-ondermarge: 4vh;   /* ruimte onder de logobalk i.v.m. TV-overscan */
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;}
@@ -102,6 +103,59 @@ body{
 }
 .board-empty .icon{font-size:2rem;opacity:0.5;}
 .board-empty .txt{font-size:0.85rem;}
+
+/* ── SPONSOR IN DE SPOTLIGHT (lege bordvakken) ── */
+.spot{
+  position:absolute;inset:0;overflow:hidden;
+  background:
+    radial-gradient(ellipse 55% 70% at 50% 52%, rgba(245,158,11,0.13), transparent 70%),
+    linear-gradient(160deg, #131c2e 0%, #0a0f19 100%);
+}
+.spot::before{ /* langzaam draaiende lichtbundels achter het logo */
+  content:'';position:absolute;left:50%;top:52%;width:160%;aspect-ratio:1;
+  transform:translate(-50%,-50%);opacity:0.07;
+  background:repeating-conic-gradient(from 0deg, #fff 0deg 6deg, transparent 6deg 30deg);
+  -webkit-mask:radial-gradient(circle, #000 0%, transparent 60%);
+          mask:radial-gradient(circle, #000 0%, transparent 60%);
+  animation:spotDraai 120s linear infinite;
+}
+@keyframes spotDraai{to{transform:translate(-50%,-50%) rotate(360deg);}}
+.spot-kop{
+  position:absolute;top:10px;left:0;right:0;z-index:3;text-align:center;
+  font-size:0.8rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--orange);opacity:0.85;
+}
+.spot-slide{
+  position:absolute;inset:14% 10% 12%;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;
+}
+.spot-slide img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 8px 30px rgba(0,0,0,0.55));}
+.spot-slide .naam{font-size:clamp(1.6rem,3.6vw,3.6rem);font-weight:900;color:var(--text);text-align:center;letter-spacing:1px;text-transform:uppercase;}
+.spot-slide.in{animation:spotIn 1.4s cubic-bezier(.2,.8,.2,1) forwards, spotZoom 62s linear forwards;}
+.spot-slide.uit{scale:1.06;animation:spotUit 1s ease-in forwards;}
+@keyframes spotIn{
+  0%  {opacity:0;transform:scale(0.85) rotateY(-25deg);filter:blur(10px);}
+  100%{opacity:1;transform:scale(1)    rotateY(0);     filter:blur(0);}
+}
+@keyframes spotZoom{from{scale:1;}to{scale:1.06;}}  /* rustige 'Ken Burns'-zoom tijdens het tonen */
+@keyframes spotUit{
+  0%  {opacity:1;transform:scale(1);   filter:blur(0);}
+  100%{opacity:0;transform:scale(1.12);filter:blur(12px);}
+}
+.spot-glans{ /* lichtflits die over het logo veegt bij een wissel */
+  position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;
+  background:linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.22) 50%, transparent 65%);
+  transform:translateX(-100%);
+}
+.spot-glans.flits{animation:spotGlans 1.6s ease-out forwards;}
+@keyframes spotGlans{
+  0%{opacity:1;transform:translateX(-100%);}
+  100%{opacity:1;transform:translateX(100%);}
+}
+.spot-voet{
+  position:absolute;bottom:10px;left:0;right:0;z-index:3;text-align:center;
+  font-size:0.75rem;color:var(--muted);letter-spacing:1px;opacity:0.7;
+}
 .calib-panel{
   position:absolute;bottom:8px;left:8px;right:8px;z-index:6;
   background:rgba(15,21,32,0.92);border:1px solid var(--border);border-radius:8px;
@@ -120,32 +174,36 @@ body{
 .bottom-bar{
   flex:1 1 auto;background:var(--s1);border-top:1px solid var(--border);
   display:flex;flex-direction:column;min-height:0;
+  /* Veilige marge onderin: veel TV's snijden de onderrand van het beeld af (overscan).
+     Pas TV_ONDERMARGE aan als de logo's nog steeds net buiten beeld vallen. */
+  padding-bottom:var(--tv-ondermarge);
 }
-.upcoming-panel{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:14px 28px;}
-.upcoming-hdr{flex:0 0 auto;font-size:1.3rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.upcoming-panel{--k:1;flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:calc(1.1vh * var(--k)) 28px calc(1vh * var(--k));}
+.upcoming-hdr{flex:0 0 auto;font-size:calc(2.4vh * var(--k));font-weight:700;margin-bottom:calc(0.5vh * var(--k));display:flex;align-items:center;gap:10px;}
 .upcoming-body{flex:1 1 auto;overflow-y:auto;}
-.slot-columns{display:flex;flex-direction:column;gap:8px;height:100%;justify-content:center;}
-.slot-hdr{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex:0 0 auto;}
-.slot-hdr .tijd{font-family:monospace;font-size:2.2rem;font-weight:800;color:var(--orange);flex:0 0 auto;}
+.slot-columns{display:flex;flex-direction:column;gap:8px;min-height:100%;justify-content:safe center;}
+.slot-hdr{display:flex;align-items:center;gap:18px;margin-bottom:calc(1.1vh * var(--k));flex:0 0 auto;}
+.slot-hdr .tijd{font-family:monospace;font-size:calc(4.4vh * var(--k));font-weight:800;color:var(--orange);flex:0 0 auto;line-height:1;}
 .slot-hdr .tag{
-  font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
-  padding:4px 12px;border-radius:7px;background:rgba(16,185,129,0.15);color:var(--green);flex:0 0 auto;
+  font-size:calc(1.65vh * var(--k));font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+  padding:calc(0.45vh * var(--k)) 14px;border-radius:8px;background:rgba(16,185,129,0.15);color:var(--green);flex:0 0 auto;
 }
 .slot-hdr .tag.straks{background:rgba(59,130,246,0.15);color:var(--blue);}
-.slot-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+/* 2 kolommen: een tijdslot heeft meestal 4 wedstrijden (2x2) */
+.slot-list{display:grid;grid-template-columns:1fr 1fr;gap:calc(1.1vh * var(--k)) 16px;overflow-y:auto;}
 .match-pill{
   background:var(--s2);border:1px solid var(--border);border-radius:10px;
-  padding:9px 22px;display:flex;align-items:center;gap:14px;
+  padding:calc(1.1vh * var(--k)) 24px;display:flex;align-items:center;gap:16px;min-width:0;
 }
-.div-chip{font-size:0.8rem;font-weight:700;padding:3px 10px;border-radius:6px;text-transform:uppercase;letter-spacing:0.3px;flex:0 0 auto;}
+.div-chip{font-size:calc(1.55vh * var(--k));font-weight:700;padding:calc(0.4vh * var(--k)) 12px;border-radius:6px;text-transform:uppercase;letter-spacing:0.3px;flex:0 0 auto;}
 .div-chip.ere{background:rgba(168,85,247,0.2);color:var(--ere);}
 .div-chip.eerste{background:rgba(59,130,246,0.2);color:var(--eerste);}
 .div-chip.beker{background:rgba(245,158,11,0.2);color:var(--beker);}
 .div-chip.inhaal{background:rgba(239,68,68,0.2);color:var(--inhaal);}
 .div-chip.general{background:rgba(148,163,184,0.12);color:var(--muted);}
-.match-pill .teams{font-size:1.55rem;font-weight:600;}
-.match-pill .teams .vs{color:var(--muted);font-weight:400;font-size:1.25rem;margin:0 9px;}
-.empty-msg{color:var(--muted);font-size:1.3rem;text-align:center;padding:20px 10px;}
+.match-pill .teams{font-size:calc(3.1vh * var(--k));font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.match-pill .teams .vs{color:var(--muted);font-weight:400;font-size:0.72em;margin:0 0.4em;}
+.empty-msg{color:var(--muted);font-size:calc(2.5vh * var(--k));text-align:center;padding:20px 10px;}
 .empty-msg .icon{font-size:2.4rem;display:block;margin-bottom:8px;opacity:0.5;}
 
 .sponsor-panel{
@@ -357,7 +415,13 @@ function bouwTegel(b, code){
              </div>
              <button class="calib-reset" onclick="calReset(${b})">reset</button>
            </div>`
-        : `<div class="board-empty"><span class="icon">📴</span><span class="txt">Bord ${b} — koppeling volgt</span></div>`
+        : (SPONSORS.length
+            ? `<div class="spot" data-bord="${b}">
+                 <div class="spot-kop">Met dank aan onze sponsor</div>
+                 <div class="spot-glans"></div>
+                 <div class="spot-voet">Bord ${b} — koppeling volgt</div>
+               </div>`
+            : `<div class="board-empty"><span class="icon">📴</span><span class="txt">Bord ${b} — koppeling volgt</span></div>`)
       }`;
   return tile;
 }
@@ -380,8 +444,72 @@ function renderBoards(){
       const viewport = document.getElementById(`dcView${b}`);
       if (viewport) boardResizeObserver.observe(viewport);
       toepassenCalib(b);
+    } else {
+      startSpotlight(tile.querySelector('.spot'));
     }
   }
+}
+
+// ══════════════════════════════════════════
+//  SPONSOR IN DE SPOTLIGHT
+//  Een leeg bordvak toont een willekeurige sponsor, wisselt ca. elke minuut.
+//  Staan er meerdere borden leeg, dan krijgt elk vak een andere sponsor.
+//  Raakt alleen lege vakken aan — gekoppelde DartConnect-borden blijven ongemoeid.
+// ══════════════════════════════════════════
+const SPOT_DUUR_MS = 60000;
+let spotStapel = [];
+function spotTrekSponsor(nietDeze){
+  for (let poging = 0; poging < SPONSORS.length * 2; poging++){
+    if (!spotStapel.length){
+      spotStapel = SPONSORS.map((_,i)=>i);
+      for (let i = spotStapel.length-1; i > 0; i--){          // schudden
+        const j = Math.floor(Math.random()*(i+1));
+        [spotStapel[i], spotStapel[j]] = [spotStapel[j], spotStapel[i]];
+      }
+    }
+    const idx = spotStapel.shift();
+    if (!nietDeze.includes(idx) || SPONSORS.length <= nietDeze.length) return idx;
+    spotStapel.push(idx);
+  }
+  return Math.floor(Math.random()*SPONSORS.length);
+}
+function spotToon(spot){
+  if (!spot || !document.body.contains(spot)) return false;
+  const inBeeld = [...document.querySelectorAll('.spot')].map(s => +s.dataset.idx).filter(n => !isNaN(n));
+  const idx = spotTrekSponsor(inBeeld);
+  const s = SPONSORS[idx];
+  spot.dataset.idx = idx;
+
+  const slide = document.createElement('div');
+  slide.className = 'spot-slide';
+  if (s.logo){
+    const img = document.createElement('img');
+    img.src = s.logo; img.alt = s.naam || '';
+    img.onerror = ()=>{ img.replaceWith(Object.assign(document.createElement('div'),{className:'naam',textContent:s.naam||''})); };
+    slide.appendChild(img);
+  } else {
+    slide.appendChild(Object.assign(document.createElement('div'),{className:'naam',textContent:s.naam||''}));
+  }
+  spot.querySelectorAll('.spot-slide').forEach(oud=>{
+    oud.classList.remove('in'); oud.classList.add('uit');
+    setTimeout(()=>oud.remove(), 1100);
+  });
+  spot.appendChild(slide);
+  requestAnimationFrame(()=>slide.classList.add('in'));
+
+  const glans = spot.querySelector('.spot-glans');
+  if (glans){ glans.classList.remove('flits'); void glans.offsetWidth; glans.classList.add('flits'); }
+  return true;
+}
+function startSpotlight(spot){
+  if (!spot) return;
+  spotToon(spot);
+  // per bord iets verschoven, zodat niet alle lege vakken tegelijk wisselen
+  const b = +spot.dataset.bord || 1;
+  setTimeout(function volgende(){
+    if (!spotToon(spot)) return;                 // vak is intussen gekoppeld → stoppen
+    setTimeout(volgende, SPOT_DUUR_MS);
+  }, SPOT_DUUR_MS + (b-1) * 7000);
 }
 
 // Meet elke bord-tegel en bereken de 'cover'-schaal zodat het native 1600x900-canvas
@@ -506,7 +634,31 @@ function renderSidebar(rows){
       </div>`;
   }).join('');
   body.innerHTML = `<div class="slot-columns">${blokken}</div>`;
+  pasNamenIn(body);
 }
+
+// Lange namen (bv. "Marieke van der Waal vs Rianne van der Heiden") passend maken door
+// alleen dát kaartje iets kleiner te zetten, tot minimaal 65% van de normale grootte.
+function pasNamenIn(root){
+  requestAnimationFrame(()=>{
+    // Past het blok niet in de hoogte (mededeling actief of 5+ wedstrijden)? Dan alles
+    // in stapjes iets kleiner, tot minimaal 70%.
+    const panel = root.closest('.upcoming-panel');
+    let k = 1; panel.style.setProperty('--k', k);
+    while (root.scrollHeight > root.clientHeight + 1 && k > 0.7){
+      k = Math.round((k - 0.05)*100)/100; panel.style.setProperty('--k', k);
+    }
+    root.querySelectorAll('.match-pill .teams').forEach(el=>{
+      el.style.fontSize = '';
+      const basis = parseFloat(getComputedStyle(el).fontSize);
+      let f = basis;
+      while (el.scrollWidth > el.clientWidth + 1 && f > basis * 0.65){
+        f -= 1; el.style.fontSize = f + 'px';
+      }
+    });
+  });
+}
+window.addEventListener('resize', ()=>pasNamenIn(document.getElementById('sidebarBody')));
 
 // ══════════════════════════════════════════
 //  MEDEDELING (bovenaan, ingesteld vanuit index.html)
@@ -517,12 +669,14 @@ async function laadMededeling(){
     const tekst = rows.find(r=>r.sleutel==='tv_mededeling_tekst')?.waarde || '';
     const actief = rows.find(r=>r.sleutel==='tv_mededeling_actief')?.waarde === 'true';
     const banner = document.getElementById('mddBanner');
+    const wasZichtbaar = banner.classList.contains('show');
     if (actief && tekst){
       document.getElementById('mddTxt').textContent = tekst;
       banner.classList.add('show');
     } else {
       banner.classList.remove('show');
     }
+    if (wasZichtbaar !== banner.classList.contains('show')) pasNamenIn(document.getElementById('sidebarBody'));
   }catch(e){ /* stille fout — sync-dot toont algemene verbindingsstatus al */ }
 }
 
