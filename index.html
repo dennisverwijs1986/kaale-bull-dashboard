@@ -2645,9 +2645,9 @@ const PT_SLOTS = [
   {tijd:'19:30',cap:4},{tijd:'19:50',cap:4},{tijd:'20:10',cap:4},
   {tijd:'20:30',cap:4},{tijd:'20:50',cap:4},{tijd:'21:10',cap:4},
   {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3},
-  {tijd:'22:30',cap:3}
+  {tijd:'22:30',cap:3},{tijd:'22:50',cap:3}
 ];
-// Max. aantal wedstrijden per avond = totale capaciteit van alle tijdsloten (nu 37)
+// Max. aantal wedstrijden per avond = totale capaciteit van alle tijdsloten (nu 40)
 const MAX_PER_AVOND = PT_SLOTS.reduce((t,s)=>t+s.cap, 0);
 // Minimale rust tussen twee wedstrijden van dezelfde speler op één avond
 const MIN_RUST_MIN = 20;
