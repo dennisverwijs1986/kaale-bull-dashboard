@@ -275,6 +275,25 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .slot-groep { margin: 0 0 10px; border: 1px solid var(--border); border-radius: 7px; background: rgba(255,255,255,0.015); overflow: hidden; }
 .slot-groep .match-card { margin: 0; border-radius: 0; border-top: none; border-right: none; border-bottom: 1px solid var(--border); }
 .slot-groep .match-card:last-child { border-bottom: none; }
+.slot-raster-kop { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 6px; position: sticky; top: 0; z-index: 2; background: var(--bg, #0f1520); }
+.slot-raster-kop .queue-col-title { margin-bottom: 0; }
+.slot-raster-kop .queue-col-title.ere { border-radius: 5px 0 0 0; }
+.slot-raster-kop .queue-col-title.eerste { border-radius: 0 5px 0 0; }
+.slot-rij.leeg .slot-cellen { display: none; }
+.slot-rij { margin-bottom: 12px; border-width: 1px 1px 1px 1px; }
+.slot-cellen { display: grid; grid-template-columns: 1fr 1fr; }
+.slot-cel { min-width: 0; }
+.slot-cel.ere { border-right: 1px solid var(--border); }
+.slot-cel-leeg { color: var(--muted); opacity: 0.4; text-align: center; padding: 14px 0; font-size: 0.8rem; }
+.slot-kop .slot-split { font-size: 0.66rem; color: var(--muted); }
+.slot-kop .slot-split .ere { color: var(--ere); }
+.slot-kop .slot-split .eerste { color: var(--eerste); }
+@media (max-width: 760px) {
+  .slot-raster-kop, .slot-cellen { grid-template-columns: 1fr; }
+  .slot-raster-kop { position: static; }
+  .slot-cel.ere { border-right: none; border-bottom: 1px solid var(--border); }
+  .slot-cel-leeg { display: none; }
+}
 .slot-kop { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--s2); border-bottom: 1px solid var(--border); font-size: 0.72rem; }
 .slot-kop .slot-tijd { font-family: monospace; font-weight: 700; font-size: 0.85rem; color: var(--orange); }
 .slot-kop .slot-tijd.geen { color: var(--muted); font-family: inherit; font-size: 0.72rem; }
@@ -1620,69 +1639,58 @@ function renderQueue() {
     container.appendChild(balk);
   }
 
-  // ── 2 KOLOMMEN ──
-  const cols = document.createElement('div');
-  cols.className = 'queue-cols';
-
-  // Ere kolom
-  const ereCol = document.createElement('div');
-  ereCol.className = 'queue-col';
-  ereCol.innerHTML = `<div class="queue-col-title ere">🔵 Ere Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${ereLijst.length} open</span></div>`;
-  if (!ereLijst.length && !overigLijst.length) {
-    ereCol.innerHTML += '<div class="empty">Niets open</div>';
+  // ── RASTER: één rij per tijdvak, Ere links / 1e Divisie rechts ──
+  const ereAlles = [...ereLijst, ...overigLijst];
+  const raster = document.createElement('div');
+  raster.className = 'slot-raster';
+  raster.innerHTML = `<div class="slot-raster-kop">
+      <div class="queue-col-title ere">🔵 Ere Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${ereAlles.length} open</span></div>
+      <div class="queue-col-title eerste">🟠 1e Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${eersteLijst.length} open</span></div>
+    </div>`;
+  if (!ereAlles.length && !eersteLijst.length) {
+    raster.insertAdjacentHTML('beforeend', '<div class="empty">Niets open</div>');
   } else {
-    nr = vulMetSlotGroepen(ereCol, [...ereLijst,...overigLijst], nr, bezetteIds, bezetteSpelers, besteBord);
+    nr = vulSlotRijen(raster, ereAlles, eersteLijst, nr, bezetteIds, bezetteSpelers, besteBord);
   }
-  cols.appendChild(ereCol);
-
-  // 1e Divisie kolom
-  const eersteCol = document.createElement('div');
-  eersteCol.className = 'queue-col';
-  eersteCol.innerHTML = `<div class="queue-col-title eerste">🟠 1e Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${eersteLijst.length} open</span></div>`;
-  if (!eersteLijst.length) {
-    eersteCol.innerHTML += '<div class="empty">Niets open</div>';
-  } else {
-    nr = vulMetSlotGroepen(eersteCol, eersteLijst, nr, bezetteIds, bezetteSpelers, besteBord);
-  }
-  cols.appendChild(eersteCol);
-
-  container.appendChild(cols);
+  container.appendChild(raster);
   renderHistory();
 }
 
-// Groepeert wedstrijden per tijdslot (bij 'Alle datums' per datum + tijdslot) met een kop
-// die laat zien hoeveel er in deze kolom open staan en hoe vol het slot die avond is
+// Bouwt per tijdslot (bij 'Alle datums' per datum + tijdslot) één rij over beide divisies.
+// De kop toont het aantal open wedstrijden per divisie en hoe vol het slot die avond is
 // (alle divisies + beker samen, ook al gespeelde/lopende wedstrijden) t.o.v. de capaciteit.
-function vulMetSlotGroepen(col, lijst, nr, bezetteIds, bezetteSpelers, besteBord) {
+function vulSlotRijen(raster, ereLijst, eersteLijst, nr, bezetteIds, bezetteSpelers, besteBord) {
   const alleDatums = huidigeDatum() === 'ALL';
-  const groepen = [];
-  lijst.forEach(m => {
-    const key = (alleDatums ? (m.datum||'') + '|' : '') + (m.tijdstip||'');
-    let g = groepen[groepen.length-1];
-    if (!g || g.key !== key) { g = { key, datum: m.datum, tijd: m.tijdstip||'', items: [] }; groepen.push(g); }
-    g.items.push(m);
-  });
-  // Bij één avond: ook de lege standaardslots als (verborgen) groep toevoegen, zodat je
-  // er tijdens het slepen een wedstrijd op kunt neerzetten.
+  const sleutel = m => (alleDatums ? (m.datum||'') + '|' : '') + (m.tijdstip||'');
+  const groepen = new Map();
+  const pak = (m) => {
+    const key = sleutel(m);
+    if (!groepen.has(key)) groepen.set(key, { key, datum: m.datum, tijd: m.tijdstip||'', ere: [], eerste: [] });
+    return groepen.get(key);
+  };
+  ereLijst.forEach(m => pak(m).ere.push(m));
+  eersteLijst.forEach(m => pak(m).eerste.push(m));
+  // Bij één avond: ook de lege standaardslots als (verborgen) rij, zodat je er tijdens
+  // het slepen een wedstrijd op kunt neerzetten.
   if (!alleDatums) {
     const datum = huidigeDatum();
-    PT_SLOTS.forEach(sl => {
-      if (!groepen.some(g => g.tijd === sl.tijd)) groepen.push({ key: sl.tijd, datum, tijd: sl.tijd, items: [] });
-    });
-    groepen.sort((a,b) => (!a.tijd) - (!b.tijd) || a.tijd.localeCompare(b.tijd));
+    PT_SLOTS.forEach(sl => { if (!groepen.has(sl.tijd)) groepen.set(sl.tijd, { key: sl.tijd, datum, tijd: sl.tijd, ere: [], eerste: [] }); });
   }
-  groepen.forEach(g => {
-    const wrap = document.createElement('div');
-    const n = g.items.length;
-    wrap.className = 'slot-groep' + (n ? '' : ' leeg');
+  const lijst = [...groepen.values()].sort((a,b) =>
+    (alleDatums ? (a.datum||'').localeCompare(b.datum||'') : 0) || (!a.tijd) - (!b.tijd) || a.tijd.localeCompare(b.tijd));
+
+  lijst.forEach(g => {
+    const n = g.ere.length + g.eerste.length;
+    const rij = document.createElement('div');
+    rij.className = 'slot-groep slot-rij' + (n ? '' : ' leeg');
     if (!alleDatums && g.tijd) {
-      wrap.dataset.tijd = g.tijd;
-      wrap.dataset.datum = g.datum || '';
-      wrap.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; wrap.classList.add('drop-hover'); });
-      wrap.addEventListener('dragleave', e => { if (!wrap.contains(e.relatedTarget)) wrap.classList.remove('drop-hover'); });
-      wrap.addEventListener('drop', e => {
+      rij.dataset.tijd = g.tijd;
+      rij.dataset.datum = g.datum || '';
+      rij.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; rij.classList.add('drop-hover'); });
+      rij.addEventListener('dragleave', e => { if (!rij.contains(e.relatedTarget)) rij.classList.remove('drop-hover'); });
+      rij.addEventListener('drop', e => {
         e.preventDefault();
-        wrap.classList.remove('drop-hover');
+        rij.classList.remove('drop-hover');
         const id = e.dataTransfer.getData('matchId');
         if (id) verplaatsNaarSlot(id, g.tijd);
       });
@@ -1699,15 +1707,22 @@ function vulMetSlotGroepen(col, lijst, nr, bezetteIds, bezetteSpelers, besteBord
       }
     }
     const datumTxt = alleDatums && g.datum ? `<span style="color:var(--muted);">${fmtDatum(g.datum)}</span>` : '';
-    wrap.innerHTML = `<div class="slot-kop">
+    rij.innerHTML = `<div class="slot-kop">
         ${g.tijd ? `<span class="slot-tijd">🕒 ${escapeHtml(g.tijd)}</span>` : `<span class="slot-tijd geen">Geen tijdstip</span>`}
         ${datumTxt}
         <span class="slot-aantal">${n} ${n===1?'wedstrijd':'wedstrijden'}</span>
+        <span class="slot-split"><span class="ere">${g.ere.length} Ere</span> · <span class="eerste">${g.eerste.length} 1e Div</span></span>
         <span class="slot-hint">↓ hier neerzetten</span>
         ${bezetHtml}
-      </div>`;
-    g.items.forEach(m => wrap.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
-    col.appendChild(wrap);
+      </div>
+      <div class="slot-cellen"><div class="slot-cel ere"></div><div class="slot-cel eerste"></div></div>`;
+    const [celEre, celEerste] = rij.querySelectorAll('.slot-cel');
+    const vul = (cel, items) => {
+      if (!items.length) { cel.innerHTML = '<div class="slot-cel-leeg">—</div>'; return; }
+      items.forEach(m => cel.appendChild(maakMatchCard(m, nr++, bezetteIds, bezetteSpelers, besteBord)));
+    };
+    vul(celEre, g.ere); vul(celEerste, g.eerste);
+    raster.appendChild(rij);
   });
   return nr;
 }
