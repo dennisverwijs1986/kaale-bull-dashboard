@@ -131,17 +131,14 @@ body{
 }
 .spot-slide img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 8px 30px rgba(0,0,0,0.55));}
 .spot-slide .naam{font-size:clamp(1.6rem,3.6vw,3.6rem);font-weight:900;color:var(--text);text-align:center;letter-spacing:1px;text-transform:uppercase;}
-.spot-slide.in{animation:spotIn 1.4s cubic-bezier(.2,.8,.2,1) forwards, spotZoom 62s linear forwards;}
-.spot-slide.uit{scale:1.06;animation:spotUit 1s ease-in forwards;}
-@keyframes spotIn{
-  0%  {opacity:0;transform:scale(0.85) rotateY(-25deg);filter:blur(10px);}
-  100%{opacity:1;transform:scale(1)    rotateY(0);     filter:blur(0);}
-}
+.spot-slide.in{opacity:1;animation:spotZoom 62s linear forwards;}
+/* Logo dat tussen de balk en een groot vak vliegt */
+.vlieg-logo{position:fixed;z-index:50;pointer-events:none;object-fit:contain;
+  filter:drop-shadow(0 10px 28px rgba(0,0,0,0.6));will-change:left,top,width,height,transform;}
+/* Leeg kaartje in de balk terwijl het logo groot in beeld staat */
+.sponsor-item.weg{border-style:dashed;border-color:rgba(245,158,11,0.45);background:rgba(245,158,11,0.05);}
+.sponsor-item.weg img{opacity:0;}
 @keyframes spotZoom{from{scale:1;}to{scale:1.06;}}  /* rustige 'Ken Burns'-zoom tijdens het tonen */
-@keyframes spotUit{
-  0%  {opacity:1;transform:scale(1);   filter:blur(0);}
-  100%{opacity:0;transform:scale(1.12);filter:blur(12px);}
-}
 .spot-glans{ /* lichtflits die over het logo veegt bij een wissel */
   position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;
   background:linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.22) 50%, transparent 65%);
@@ -417,7 +414,6 @@ function bouwTegel(b, code){
            </div>`
         : (SPONSORS.length
             ? `<div class="spot" data-bord="${b}">
-                 <div class="spot-kop">Met dank aan onze sponsor</div>
                  <div class="spot-glans"></div>
                  <div class="spot-voet">Bord ${b} — koppeling volgt</div>
                </div>`
@@ -434,6 +430,7 @@ function renderBoards(){
     const oudeView = oud && oud.querySelector('.dc-viewport');
     if (oudeView) boardResizeObserver.unobserve(oudeView);
     const tile = bouwTegel(b, code);
+    if (oud) spotLaatLos(oud.querySelector('.spot'));         // logo van een leeg vak terug in de balk
     if (oud) wrap.replaceChild(tile, oud);
     else {
       // op de juiste plek (volgorde 1..4) invoegen
@@ -456,58 +453,136 @@ function renderBoards(){
 //  Staan er meerdere borden leeg, dan krijgt elk vak een andere sponsor.
 //  Raakt alleen lege vakken aan — gekoppelde DartConnect-borden blijven ongemoeid.
 // ══════════════════════════════════════════
-const SPOT_DUUR_MS = 60000;
+const SPOT_DUUR_MS  = 60000;   // hoe lang een logo groot in beeld staat
+const SPOT_VLIEG_MS = 1300;    // duur van de vlucht balk <-> groot vak
 let spotStapel = [];
-function spotTrekSponsor(nietDeze){
-  for (let poging = 0; poging < SPONSORS.length * 2; poging++){
-    if (!spotStapel.length){
-      spotStapel = SPONSORS.map((_,i)=>i);
-      for (let i = spotStapel.length-1; i > 0; i--){          // schudden
-        const j = Math.floor(Math.random()*(i+1));
-        [spotStapel[i], spotStapel[j]] = [spotStapel[j], spotStapel[i]];
-      }
-    }
-    const idx = spotStapel.shift();
-    if (!nietDeze.includes(idx) || SPONSORS.length <= nietDeze.length) return idx;
-    spotStapel.push(idx);
+const spotInGebruik = new Set();   // sponsors die nu groot staan (hun plek in de balk is leeg)
+
+function spotSchud(){
+  spotStapel = SPONSORS.map((_,i)=>i);
+  for (let i = spotStapel.length-1; i > 0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [spotStapel[i], spotStapel[j]] = [spotStapel[j], spotStapel[i]];
   }
-  return Math.floor(Math.random()*SPONSORS.length);
 }
-function spotToon(spot){
-  if (!spot || !document.body.contains(spot)) return false;
-  const inBeeld = [...document.querySelectorAll('.spot')].map(s => +s.dataset.idx).filter(n => !isNaN(n));
-  const idx = spotTrekSponsor(inBeeld);
+// Kaartjes in de logobalk van een sponsor (2 stuks: de balk staat er dubbel in voor de naadloze scroll)
+function balkItems(idx){ return [...document.querySelectorAll(`#sponsorTrack .sponsor-item[data-idx="${idx}"]`)]; }
+function zichtbaarItem(idx){
+  const w = window.innerWidth;
+  return balkItems(idx).find(el=>{ const r = el.getBoundingClientRect(); return r.width && r.left >= 0 && r.right <= w; }) || null;
+}
+// Kies (willekeurig, iedereen eerst één keer) een sponsor die nu volledig zichtbaar in de balk staat
+function spotKies(){
+  for (let ronde = 0; ronde < 2; ronde++){
+    if (!spotStapel.length) spotSchud();
+    const kandidaat = spotStapel.find(i => !spotInGebruik.has(i) && SPONSORS[i].logo && zichtbaarItem(i));
+    if (kandidaat !== undefined){ spotStapel.splice(spotStapel.indexOf(kandidaat),1); return kandidaat; }
+    spotSchud();
+  }
+  // niemand zichtbaar (zou zelden gebeuren): pak gewoon iemand die vrij is
+  const vrij = SPONSORS.map((_,i)=>i).filter(i=>!spotInGebruik.has(i));
+  return vrij.length ? vrij[Math.floor(Math.random()*vrij.length)] : 0;
+}
+function balkGat(idx, aan){ balkItems(idx).forEach(el=>el.classList.toggle('weg', aan)); }
+
+// Laat een kopie van het logo vliegen van rect A naar rect B. Beide zijn functies, zodat een
+// bewegend doel (de scrollende balk) frame voor frame gevolgd wordt.
+function vlieg(src, vanFn, naarFn, duur, klaar){
+  const kloon = document.createElement('img');
+  kloon.src = src; kloon.className = 'vlieg-logo';
+  document.body.appendChild(kloon);
+  const ease = t => t<0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;   // easeInOutCubic
+  const t0 = performance.now();
+  (function stap(nu){
+    const t = Math.min(1, (nu - t0) / duur), e = ease(t);
+    const a = vanFn(), b = naarFn();
+    const x = a.left + (b.left - a.left)*e, y = a.top + (b.top - a.top)*e;
+    const w = a.width + (b.width - a.width)*e, h = a.height + (b.height - a.height)*e;
+    const boog = Math.sin(Math.PI*t) * 0.06;                         // lichte 'pop' halverwege
+    kloon.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;transform:scale(${1+boog});`;
+    if (t < 1) requestAnimationFrame(stap);
+    else { klaar && klaar(); kloon.remove(); }
+  })(t0);
+}
+// Rechthoek van het logo binnen een kaartje/vak, berekend uit de echte beeldverhouding
+function logoRect(img){
+  const r = img.getBoundingClientRect();
+  const nw = img.naturalWidth || r.width, nh = img.naturalHeight || r.height;
+  const s = Math.min(r.width / nw, r.height / nh);
+  const w = nw*s, h = nh*s;
+  return { left: r.left + (r.width-w)/2, top: r.top + (r.height-h)/2, width: w, height: h };
+}
+// Waar 'terug in de balk' heen moet als het gat net buiten beeld is: de rechterrand van de balk
+function balkInstap(){
+  const p = document.getElementById('sponsorPanel').getBoundingClientRect();
+  return { left: p.right - 60, top: p.top + p.height/2 - 26, width: 120, height: 52 };
+}
+
+// Groot logo terug de balk in
+function spotTerug(spot){
+  const slide = spot.querySelector('.spot-slide');
+  if (!slide) return;
+  const idx = +spot.dataset.idx;
+  const img = slide.querySelector('img');
+  delete spot.dataset.idx;
+  if (!img || isNaN(idx)){ slide.remove(); return; }
+  const van = logoRect(img);
+  slide.remove();
+  const naar = () => { const el = zichtbaarItem(idx); return el ? logoRect(el.querySelector('img')) : balkInstap(); };
+  vlieg(img.src, ()=>van, naar, SPOT_VLIEG_MS, ()=>{ balkGat(idx, false); spotInGebruik.delete(idx); });
+}
+
+// Volgend logo uit de balk naar het grote vak
+function spotUit(spot){
+  const idx = spotKies();
   const s = SPONSORS[idx];
+  spotInGebruik.add(idx);
   spot.dataset.idx = idx;
 
   const slide = document.createElement('div');
   slide.className = 'spot-slide';
-  if (s.logo){
-    const img = document.createElement('img');
-    img.src = s.logo; img.alt = s.naam || '';
-    img.onerror = ()=>{ img.replaceWith(Object.assign(document.createElement('div'),{className:'naam',textContent:s.naam||''})); };
-    slide.appendChild(img);
-  } else {
-    slide.appendChild(Object.assign(document.createElement('div'),{className:'naam',textContent:s.naam||''}));
-  }
-  spot.querySelectorAll('.spot-slide').forEach(oud=>{
-    oud.classList.remove('in'); oud.classList.add('uit');
-    setTimeout(()=>oud.remove(), 1100);
-  });
+  const img = document.createElement('img');
+  img.alt = s.naam || '';
+  slide.appendChild(img);
   spot.appendChild(slide);
-  requestAnimationFrame(()=>slide.classList.add('in'));
 
-  const glans = spot.querySelector('.spot-glans');
-  if (glans){ glans.classList.remove('flits'); void glans.offsetWidth; glans.classList.add('flits'); }
+  const bron = zichtbaarItem(idx);
+  const toon = ()=>{
+    slide.classList.add('in');
+    const glans = spot.querySelector('.spot-glans');
+    if (glans){ glans.classList.remove('flits'); void glans.offsetWidth; glans.classList.add('flits'); }
+  };
+  img.onload = ()=>{
+    if (!document.body.contains(spot)) return;
+    if (!bron){ balkGat(idx, true); toon(); return; }     // geen zichtbaar kaartje: gewoon infaden
+    const van = logoRect(bron.querySelector('img'));
+    balkGat(idx, true);                                    // gat in de balk (blijft meeschuiven)
+    vlieg(img.src, ()=>van, ()=>logoRect(img), SPOT_VLIEG_MS, toon);
+  };
+  img.onerror = ()=>{ slide.innerHTML = `<div class="naam">${escapeHtml(s.naam||'')}</div>`; balkGat(idx, true); toon(); };
+  img.src = s.logo;
+}
+
+function spotWissel(spot){
+  if (!spot || !document.body.contains(spot)) return false;
+  spotTerug(spot);
+  setTimeout(()=>{ if (document.body.contains(spot)) spotUit(spot); }, SPOT_VLIEG_MS * 0.55);
   return true;
+}
+// Een leeg vak wordt gekoppeld (of opnieuw opgebouwd): zijn logo terug in de balk zetten
+function spotLaatLos(spot){
+  if (!spot) return;
+  const idx = +spot.dataset.idx;
+  if (!isNaN(idx)){ balkGat(idx, false); spotInGebruik.delete(idx); }
 }
 function startSpotlight(spot){
   if (!spot) return;
-  spotToon(spot);
-  // per bord iets verschoven, zodat niet alle lege vakken tegelijk wisselen
   const b = +spot.dataset.bord || 1;
+  // eerste keer: even wachten tot de logobalk is opgebouwd en loopt
+  setTimeout(()=>{ if (document.body.contains(spot)) spotUit(spot); }, 1500 + (b-1)*400);
+  // per bord iets verschoven, zodat niet alle lege vakken tegelijk wisselen
   setTimeout(function volgende(){
-    if (!spotToon(spot)) return;                 // vak is intussen gekoppeld → stoppen
+    if (!spotWissel(spot)) return;               // vak is intussen gekoppeld → stoppen
     setTimeout(volgende, SPOT_DUUR_MS);
   }, SPOT_DUUR_MS + (b-1) * 7000);
 }
@@ -688,9 +763,9 @@ function renderSponsors(){
   const track = document.getElementById('sponsorTrack');
   if (!SPONSORS.length){ panel.style.display = 'none'; return; }
 
-  const itemHtml = s => s.logo
-    ? `<span class="sponsor-item"><img src="${s.logo}" alt="${s.naam||''}"></span>`
-    : `<span class="sponsor-item sponsor-naam">${s.naam}</span>`;
+  const itemHtml = (s,i) => s.logo
+    ? `<span class="sponsor-item" data-idx="${i}"><img src="${s.logo}" alt="${s.naam||''}"></span>`
+    : `<span class="sponsor-item sponsor-naam" data-idx="${i}">${s.naam}</span>`;
 
   const eenmaal = SPONSORS.map(itemHtml).join('');
   // Inhoud dubbel plaatsen zodat de scroll naadloos kan lussen (kopie 2 staat exact 1x
