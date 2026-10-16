@@ -104,6 +104,35 @@ body{
 .board-empty .icon{font-size:2rem;opacity:0.5;}
 .board-empty .txt{font-size:0.85rem;}
 
+/* ── BORDBALK (boven elk scorebord: wie speelt hier + schrijver) ──
+   Hoogte aanpassen? Alleen --bar-h wijzigen; het scorebord eronder schaalt vanzelf mee. */
+.board-tile{--bar-h:5vh;}
+.board-tile > .dc-viewport,
+.board-tile > .spot,
+.board-tile > .board-empty{top:var(--bar-h);}
+.board-tile-hdr{top:var(--bar-h);background:none;justify-content:flex-end;}
+.bord-bar{
+  position:absolute;top:0;left:0;right:0;height:var(--bar-h);z-index:6;
+  display:flex;align-items:center;gap:1.2vh;padding:0 1.4vh;
+  background:var(--s1);border-bottom:2px solid var(--border);
+  font-size:2.5vh;line-height:1;white-space:nowrap;overflow:hidden;
+}
+.bord-bar .bb-num{font-weight:800;font-family:monospace;letter-spacing:1px;flex:0 0 auto;}
+.bord-bar .bb-chip{font-size:1.7vh;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;
+  padding:0.5vh 1vh;border-radius:5px;flex:0 0 auto;}
+.bord-bar .bb-teams{font-weight:700;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.bord-bar .bb-teams .vs{color:var(--muted);font-weight:400;margin:0 0.8vh;}
+.bord-bar .bb-schr{flex:0 0 auto;color:var(--muted);font-size:2.1vh;}
+.bord-bar .bb-schr b{color:var(--text);font-weight:700;}
+.bord-bar .bb-vrij{color:var(--muted);flex:1 1 auto;}
+.bord-bar.ere   {background:rgba(168,85,247,0.18);border-bottom-color:var(--ere);}
+.bord-bar.eerste{background:rgba(59,130,246,0.18);border-bottom-color:var(--eerste);}
+.bord-bar.beker {background:rgba(245,158,11,0.18);border-bottom-color:var(--beker);}
+.bord-bar.ere    .bb-chip{background:var(--ere);color:#fff;}
+.bord-bar.eerste .bb-chip{background:var(--eerste);color:#fff;}
+.bord-bar.beker  .bb-chip{background:var(--beker);color:#111;}
+.bord-bar.general .bb-chip{background:var(--s3);color:var(--muted);}
+
 /* ── SPONSOR IN DE SPOTLIGHT (lege bordvakken) ── */
 .spot{
   position:absolute;inset:0;overflow:hidden;
@@ -389,8 +418,8 @@ function bouwTegel(b, code){
   tile.dataset.bord = b;
   tile.dataset.code = code || '';
   tile.innerHTML = `
+      <div class="bord-bar" id="bordBar${b}"></div>
       <div class="board-tile-hdr">
-        <span class="num">🎯 BORD ${b}</span>
         <div class="board-tile-ctrl">
           ${code ? `<button class="tile-btn" title="kalibreren" onclick="toggleCalib(${b})">⚙</button>` : ''}
         </div>
@@ -444,7 +473,90 @@ function renderBoards(){
     } else {
       startSpotlight(tile.querySelector('.spot'));
     }
+    renderBordBalk(b);       // nieuwe tegel → balk direct weer vullen
   }
+}
+
+// ══════════════════════════════════════════
+//  BORDBALK — welke wedstrijd staat op welk bord + schrijver
+//  Bron: wedstrijden.bord (gezet bij 'start op bord' in het dashboard) en
+//  instellingen.bord_schrijver_<n>. Zo zien spelers op de tv waar ze moeten
+//  gooien, ook als de tablet de wedstrijd nog niet heeft opgezet.
+//  Alleen de balk wordt bijgewerkt — de DartConnect-iframe blijft ongemoeid.
+// ══════════════════════════════════════════
+const BORD_REFRESH_MS = 10000;
+let bordWedstrijd = {1:null,2:null,3:null,4:null};
+let bordSchrijver = {1:'',2:'',3:'',4:''};
+
+// Divisiekleur, ook bij inhaalwedstrijden (op het bord telt welke competitie het is)
+function bordDivKey(m){
+  const d=(m.divisie||'').toLowerCase();
+  if(d.includes('ere')) return 'ere';
+  if(d.includes('eerste')||d.includes('1e')) return 'eerste';
+  if(d.includes('beker')) return 'beker';
+  return 'general';
+}
+
+function renderBordBalk(b){
+  const bar = document.getElementById(`bordBar${b}`);
+  if (!bar) return;
+  const m = bordWedstrijd[b];
+  const schr = bordSchrijver[b];
+  const schrHtml = schr ? `<span class="bb-schr">✍️ <b>${escapeHtml(schr)}</b></span>` : '';
+  let cls = 'bord-bar', html;
+  if (m){
+    const k = bordDivKey(m);
+    const labels = {ere:'Ere',eerste:'1e Div',beker:'Beker',general:m.divisie||'Div'};
+    cls += ' ' + k;
+    html = `<span class="bb-num">BORD ${b}</span>
+      <span class="bb-chip">${escapeHtml(labels[k])}</span>
+      <span class="bb-teams">${escapeHtml(m.thuis||'?')}<span class="vs">–</span>${escapeHtml(m.uit||'?')}</span>
+      ${schrHtml}`;
+  } else {
+    html = `<span class="bb-num">BORD ${b}</span><span class="bb-vrij">vrij</span>${schrHtml}`;
+  }
+  // alleen aanraken als er echt iets veranderd is (voorkomt knipperen)
+  if (bar.dataset.html === html && bar.className === cls) return;
+  bar.className = cls;
+  bar.innerHTML = html;
+  bar.dataset.html = html;
+  pasBordNamenIn(bar);
+}
+
+// Lange namen: eerst iets kleiner (tot 70%), daarna pas afkappen met '…'
+function pasBordNamenIn(bar){
+  requestAnimationFrame(()=>{
+    const el = bar.querySelector('.bb-teams');
+    if (!el) return;
+    el.style.fontSize = '';
+    const basis = parseFloat(getComputedStyle(el).fontSize);
+    let f = basis;
+    while (el.scrollWidth > el.clientWidth + 1 && f > basis * 0.7){
+      f -= 1; el.style.fontSize = f + 'px';
+    }
+  });
+}
+window.addEventListener('resize', ()=>{ for (let b=1;b<=4;b++){ const bar=document.getElementById(`bordBar${b}`); if(bar) pasBordNamenIn(bar); } });
+
+async function laadBordInfo(){
+  try{
+    const vandaag = vandaagStr();
+    const [rows, schr] = await Promise.all([
+      sbGet('wedstrijden',
+        `select=id,bord,thuis,uit,divisie,tijdstip&datum=eq.${vandaag}&status=neq.gespeeld&bord=not.is.null&order=tijdstip.asc`),
+      sbGet('instellingen','sleutel=like.bord_schrijver_*')
+    ]);
+    const nieuwW = {1:null,2:null,3:null,4:null};
+    rows.forEach(w=>{ if (nieuwW.hasOwnProperty(w.bord) && !nieuwW[w.bord]) nieuwW[w.bord] = w; });
+    const nieuwS = {1:'',2:'',3:'',4:''};
+    schr.forEach(r=>{
+      const b = r.sleutel.replace('bord_schrijver_','');
+      if (nieuwS.hasOwnProperty(b)) nieuwS[b] = (r.waarde||'').trim();
+    });
+    bordWedstrijd = nieuwW; bordSchrijver = nieuwS;
+    for (let b=1;b<=4;b++) renderBordBalk(b);
+    setSync(true);
+  }catch(e){ setSync(false); }
 }
 
 // ══════════════════════════════════════════
@@ -800,11 +912,13 @@ async function initAll(){
   renderSponsors();
   renderBoards();          // tegels direct tonen, ook als er nog geen codes zijn
   await laadDartCodes();
+  await laadBordInfo();
   await laadKomendeWedstrijden();
   await laadMededeling();
 }
 initAll();
 setInterval(laadDartCodes, CODE_REFRESH_MS);
+setInterval(laadBordInfo, BORD_REFRESH_MS);
 setInterval(laadKomendeWedstrijden, MATCH_REFRESH_MS);
 setInterval(laadMededeling, MDD_REFRESH_MS);
 </script>
