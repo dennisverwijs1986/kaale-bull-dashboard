@@ -105,6 +105,17 @@ body.heeft-savebar .toast{bottom:84px;}
 .roadmap .pill.bezig{border-color:var(--orange);color:var(--orange);background:rgba(217,171,63,0.12);}
 .roadmap .pill.nog-niet{opacity:0.55;}
 
+/* Voortgangsbalken: groen = gespeeld, goud = ingepland met datum */
+.voortgang{margin:-4px 0 12px;}
+.voortgang .balk{position:relative;height:8px;border-radius:5px;background:var(--s3);overflow:hidden;display:flex;}
+.voortgang .balk .gespeeld{background:var(--green);height:100%;transition:width .3s;}
+.voortgang .balk .ingepland{background:rgba(217,171,63,0.55);height:100%;transition:width .3s;}
+.voortgang .tekst{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-size:0.72rem;color:var(--muted);margin-top:4px;}
+.voortgang .tekst b{color:var(--text);}
+.voortgang.totaal{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin:0 0 16px;}
+.voortgang.totaal .titel{font-size:0.7rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.voortgang.totaal .balk{height:12px;}
+
 .champ-banner{background:linear-gradient(135deg, rgba(217,171,63,0.22), rgba(217,171,63,0.05));border:1px solid var(--orange);border-radius:10px;padding:16px 18px;margin-bottom:16px;text-align:center;box-shadow:0 0 24px rgba(217,171,63,0.15);}
 .champ-banner .icon{font-size:1.6rem;}
 .champ-banner .naam{font-size:1.2rem;font-weight:800;color:var(--orange);}
@@ -817,6 +828,47 @@ function kiesSnel(faseId, idx, a, b){
 }
 window.kiesSnel = kiesSnel;
 
+// Voortgang van een fase: byes tellen niet mee, wachtplekken (tegenstander
+// nog onbekend) wel, want die wedstrijd moet nog gespeeld worden.
+function faseVoortgang(fase){
+  const r = { totaal:0, gespeeld:0, ingepland:0 };
+  (fase && fase.matches || []).forEach(m=>{
+    const wacht = m._wachtOpWedstrijd && !m.a;
+    if(!wacht && (!m.a || !m.b)) return; // bye
+    r.totaal++;
+    if(m.winnaar){ r.gespeeld++; return; }
+    const ps = planningStatus(m);
+    if(ps && ps.cls==='datum') r.ingepland++;
+  });
+  return r;
+}
+
+function voortgangHtml(v, extraCls='', titel=''){
+  if(!v.totaal) return '';
+  const pct = Math.round(100*v.gespeeld/v.totaal);
+  const wG = 100*v.gespeeld/v.totaal, wI = 100*v.ingepland/v.totaal;
+  const open = v.totaal - v.gespeeld - v.ingepland;
+  const rechts = v.gespeeld===v.totaal ? 'alles gespeeld'
+    : [v.ingepland ? `${v.ingepland} ingepland` : '', open ? `${open} nog zonder datum` : ''].filter(Boolean).join(' · ');
+  return `<div class="voortgang ${extraCls}">
+    ${titel ? `<div class="titel">${titel}</div>` : ''}
+    <div class="balk" title="${v.gespeeld} gespeeld, ${v.ingepland} ingepland, ${open} nog zonder datum">
+      <div class="gespeeld" style="width:${wG}%"></div><div class="ingepland" style="width:${wI}%"></div>
+    </div>
+    <div class="tekst"><span><b>${pct}%</b> gespeeld (${v.gespeeld} van ${v.totaal})</span><span>${rechts}</span></div>
+  </div>`;
+}
+
+function totaalVoortgangHtml(){
+  const t = { totaal:0, gespeeld:0, ingepland:0 };
+  FASE_VOLGORDE.forEach(id=>{
+    if(!state.fases[id]) return;
+    const v = faseVoortgang(state.fases[id]);
+    t.totaal+=v.totaal; t.gespeeld+=v.gespeeld; t.ingepland+=v.ingepland;
+  });
+  return voortgangHtml(t, 'totaal', 'Voortgang tot nu toe geloote rondes');
+}
+
 function faseCardHtml(faseId){
   const fase = state.fases[faseId];
   const meta = FASES[faseId];
@@ -831,6 +883,7 @@ function faseCardHtml(faseId){
     ? `<div class="desc">➕ ${fase.bye.length} speler${fase.bye.length===1?'':'s'} kreeg automatisch een bye door naar de volgende fase.</div>` : '';
   return `<div class="card">
     <h2>${meta.label} ${badgeTak} ${badgeStatus}</h2>
+    ${voortgangHtml(faseVoortgang(fase))}
     ${meta.label.includes('tussenronde') ? '<div class="desc">Extra tussenronde om terug te komen op een rond aantal spelers.</div>' : ''}
     <div class="matches">${matchesHtml}</div>
     ${byeNote}
@@ -865,6 +918,7 @@ function render(){
   }
 
   let html = roadmapHtml();
+  html += totaalVoortgangHtml();
 
   if(state.kampioenWR || state.kampioenVR){
     html += '<div class="champ-banner">';
