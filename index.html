@@ -839,13 +839,14 @@ function setSync(state, txt) {
 // ══════════════════════════════════════════
 async function laadData() {
   setSync('loading','⏳ LADEN…');
+  const bordVersie = bordSyncVersie;
   try {
     let dcRows;
     [wedstrijden, spelers, wedstrijdleiders, dcRows] = await Promise.all([
       sbGet('wedstrijden','order=datum.asc,tijdstip.asc'),
       sbGet('spelers','order=naam.asc'),
       sbGet('wedstrijdleiding','order=naam.asc&actief=eq.true'),
-      sbGet('instellingen','or=(sleutel.like.dartconnect_bord_*,sleutel.like.tv_mededeling_*)')
+      sbGet('instellingen','or=(sleutel.like.dartconnect_bord_*,sleutel.like.tv_mededeling_*,sleutel.like.bord_schrijver_*)')
     ]);
     dcRows.forEach(r => {
       const b = r.sleutel.replace('dartconnect_bord_','');
@@ -856,6 +857,8 @@ async function laadData() {
     document.getElementById('mddTekst').value = mddTekstRow?.waarde || '';
     document.getElementById('mddActief').checked = mddActiefRow?.waarde === 'true';
     mddPreviewUpdate();
+    // Bordstand komt uit de database, zodat elk scherm (kroeg, thuis, telefoon) hetzelfde ziet
+    if (bordVersie === bordSyncVersie) pasBordStandToe(wedstrijden, dcRows.filter(r=>r.sleutel.startsWith('bord_schrijver_')));
     setSync('ok','● VERBONDEN');
     bouwDatumFilter();
     vulBekerDropdowns();
@@ -1352,7 +1355,7 @@ function formMs(ms) {
   const s=Math.floor(ms/1000);
   return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
-function wisselSchrijver(b,naam) { schrijvers[b]=naam; renderQueue(); }
+function wisselSchrijver(b,naam) { schrijvers[b]=naam; renderQueue(); slaSchrijverOp(b); }
 function toggleDcPreview(b) {
   dcPreviewOpen[b] = !dcPreviewOpen[b];
   localStorage.setItem(`dc_preview_open_${b}`, dcPreviewOpen[b]?'1':'0');
@@ -1468,16 +1471,102 @@ async function zetDartCode(b) {
 }
 function herstelBaan(b) {
   const mid = activeMatches[b];
+  bordLokaalGewijzigd();
   stopTimer(b); activeMatches[b]=null; schrijvers[b]='';
   renderBoards(); renderQueue();
-  if (mid) sbPatch('wedstrijden', mid, {bord:null}).catch(e=>console.error('Kon bord niet vrijgeven in Supabase:', e));
+  slaSchrijverOp(b);
+  if (mid) sbPatch('wedstrijden', mid, {bord:null})
+    .catch(e=>console.error('Kon bord niet vrijgeven in Supabase:', e))
+    .finally(bordLokaalGewijzigd);
 }
+
+// ══════════════════════════════════════════
+//  LIVE BORDEN — bordstand en schrijvers gedeeld via Supabase
+//  Wedstrijd op bord: kolom `bord` in wedstrijden. Schrijver per bord: instellingen `bord_schrijver_<n>`.
+//  Elk scherm haalt dit elke 5 sec op, zodat thuis/telefoon live meekijkt met de laptop in de kroeg.
+// ══════════════════════════════════════════
+let bordSyncVersie = 0;     // verhoogd bij elke lokale bordwijziging; oudere ophaalresultaten worden dan genegeerd
+let bordSyncBezig  = false;
+function bordLokaalGewijzigd() { bordSyncVersie++; }
+
+async function slaSchrijverOp(b) {
+  bordLokaalGewijzigd();
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/instellingen?on_conflict=sleutel`, {
+      method:'POST', headers:{...HDR, 'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify({sleutel:`bord_schrijver_${b}`, waarde: schrijvers[b]||''})
+    });
+    if (!r.ok) throw new Error(await r.text());
+  } catch(e) { console.error('Kon schrijver niet opslaan in Supabase:', e); }
+  finally { bordLokaalGewijzigd(); }
+}
+
+// Zet activeMatches en schrijvers volgens de database. Geeft true terug als er iets veranderde.
+function pasBordStandToe(rijen, schrijverRijen) {
+  const nieuw = {1:null,2:null,3:null,4:null};
+  rijen.forEach(r => {
+    if (r.bord && r.status!=='gespeeld' && nieuw.hasOwnProperty(r.bord) && nieuw[r.bord]===null) nieuw[r.bord] = r.id;
+  });
+  let veranderd = false;
+  for (let b=1;b<=4;b++) {
+    if (activeMatches[b] !== nieuw[b]) {
+      veranderd = true;
+      if (!nieuw[b]) stopTimer(b);
+      activeMatches[b] = nieuw[b];
+    }
+  }
+  (schrijverRijen||[]).forEach(r => {
+    const b = r.sleutel.replace('bord_schrijver_','');
+    if (schrijvers.hasOwnProperty(b) && schrijvers[b] !== (r.waarde||'')) { schrijvers[b] = r.waarde||''; veranderd = true; }
+  });
+  return veranderd;
+}
+
+async function syncBorden(forceer) {
+  if (bordSyncBezig || (document.hidden && !forceer)) return;
+  if (document.querySelector('.overlay.open')) return; // niet verversen terwijl een venster open staat
+  bordSyncBezig = true;
+  const versie = bordSyncVersie;
+  try {
+    const ids = Object.values(activeMatches).filter(Boolean);
+    const q = ids.length ? `or=(bord.not.is.null,id.in.(${ids.join(',')}))` : 'bord=not.is.null';
+    const [rijen, sch] = await Promise.all([
+      sbGet('wedstrijden', q),
+      sbGet('instellingen', 'sleutel=like.bord_schrijver_*')
+    ]);
+    if (versie !== bordSyncVersie) return;   // ondertussen lokaal iets gewijzigd → volgende ronde opnieuw
+    let rijVeranderd = false;
+    rijen.forEach(r => {
+      const i = wedstrijden.findIndex(w => w.id===r.id);
+      if (i < 0) { wedstrijden.push(r); rijVeranderd = true; }
+      else if (JSON.stringify(wedstrijden[i]) !== JSON.stringify(r)) { wedstrijden[i] = r; rijVeranderd = true; }
+    });
+    const bordVeranderd = pasBordStandToe(rijen, sch);
+    if (bordVeranderd || rijVeranderd) { renderBoards(); renderAll(); }
+  } catch(e) {
+    console.warn('Bordstand ophalen mislukt:', e);
+  } finally { bordSyncBezig = false; }
+}
+setInterval(syncBorden, 5000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncBorden(); });
 
 // ══════════════════════════════════════════
 //  START OP BORD
 // ══════════════════════════════════════════
 async function startOpBord(matchId, bord) {
   if (activeMatches[bord]!==null) { toast(`Bord ${bord} is bezet!`,'red'); return; }
+  bordLokaalGewijzigd();
+  // Eerst in de database kijken: misschien heeft iemand anders (ander scherm) dit bord of deze wedstrijd net gestart
+  try {
+    const rijen = await sbGet('wedstrijden', `or=(bord.eq.${bord},id.eq.${matchId})&select=id,bord,status`);
+    const bordBezet = rijen.find(r => r.bord===bord && r.status!=='gespeeld' && r.id!==matchId);
+    const zelf = rijen.find(r => r.id===matchId);
+    if (bordBezet) { toast(`Bord ${bord} is net op een ander scherm bezet`,'red'); syncBorden(true); return; }
+    if (zelf && zelf.status==='gespeeld') { toast('Deze wedstrijd is al gespeeld','red'); syncBorden(true); return; }
+    if (zelf && zelf.bord && zelf.bord!==bord) { toast(`Deze wedstrijd staat al op bord ${zelf.bord}`,'red'); syncBorden(true); return; }
+  } catch(e) { console.warn('Bordcheck mislukt, ga door:', e); }
+  if (activeMatches[bord]!==null) { toast(`Bord ${bord} is bezet!`,'red'); return; }
+  bordLokaalGewijzigd();
   activeMatches[bord] = matchId;
   // schrijver NIET wissen — blijft zichtbaar van vorige partij
   // DartConnect-koppeling NIET aanraken: het scoreboard volgt de tablet zelf naar de volgende
@@ -1487,6 +1576,7 @@ async function startOpBord(matchId, bord) {
   toast(`▶ Gestart op bord ${bord}`,'green');
   try { await sbPatch('wedstrijden', matchId, {bord}); }
   catch(e) { console.error('Kon bord niet opslaan in Supabase:', e); }
+  finally { bordLokaalGewijzigd(); }
 }
 
 // ══════════════════════════════════════════
@@ -1873,6 +1963,7 @@ function kiesSpeler(gekozen, ander) {
 
   // Zet schrijver direct op het bord
   schrijvers[uitslagBord] = schrijverNaam;
+  slaSchrijverOp(uitslagBord);
   renderBoards();
 
   document.getElementById('uitslagOpslaanBtn').disabled = false;
@@ -1891,10 +1982,12 @@ async function slaUitslagOp() {
     : `Winnaar: ${gekozenSpeler}`;
 
   try {
+    bordLokaalGewijzigd();
     await sbPatch('wedstrijden',id,{status:'gespeeld',uitslag:uitslagTekst,notitie:notitie||null,schrijver:schrijvers[uitslagBord]||null,bord:null});
     if (m) { m.status='gespeeld'; m.uitslag=uitslagTekst; m.notitie=notitie||null; m.schrijver=schrijvers[uitslagBord]||null; }
     stopTimer(uitslagBord);
     activeMatches[uitslagBord] = null;
+    bordLokaalGewijzigd();
     // schrijver blijft zichtbaar op het bord totdat nieuwe wedstrijd start
     sluitModal('uitslagModal');
     uitslagBord=null; gekozenSpeler=null;
