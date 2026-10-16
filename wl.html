@@ -42,7 +42,7 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 
 /* ── BOTTOM NAV ── */
 .nav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:#080d16;border-top:1px solid var(--border);
-  display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:var(--bot);}
+  display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot);}
 .nav button{height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   font-size:.72rem;color:var(--muted);font-weight:600;position:relative;}
 .nav button .ic{font-size:1.25rem;line-height:1;}
@@ -216,6 +216,20 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 .toast.show{opacity:1;transform:none;}
 .toast.groen{background:#064e3b;border-color:var(--green);} .toast.rood{background:#7f1d1d;border-color:var(--red);} .toast.oranje{background:#78350f;border-color:var(--orange);}
 
+
+/* ── STAND (alleen bekijken) ── */
+.st-sel{width:100%;padding:10px 12px;border-radius:10px;background:var(--s1);border:1px solid var(--border);color:var(--text);font-size:.9rem;margin-bottom:8px;}
+.st-lijst{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:6px;}
+.st-rij{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);}
+.st-rij:last-child{border-bottom:none;}
+.st-rij.st-top{background:rgba(245,158,11,.08);}
+.st-pos{width:26px;text-align:center;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0;}
+.st-naam{flex:1;min-width:0;font-weight:700;}
+.st-sub{display:block;font-size:.72rem;color:var(--muted);font-weight:600;margin-top:2px;}
+.st-val{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums;text-align:right;}
+.st-val small{display:block;font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.st-info{font-size:.75rem;color:var(--muted);margin:10px 2px 0;}
+.st-badges{display:block;font-size:.72rem;color:var(--orange);font-weight:700;margin-top:2px;}
 @media (min-width:700px){ .wrap,.sheet{max-width:640px;margin-left:auto;margin-right:auto;} .sheet{border-left:1px solid var(--border);border-right:1px solid var(--border);} }
 </style>
 </head>
@@ -234,6 +248,7 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
   <button data-v="zoek"   onclick="naarView('zoek')"><span class="ic">🔍</span>Speler</button>
   <button data-v="nnb"    onclick="naarView('nnb')"><span class="ic">🕓</span>NNB<span class="badge" id="nnbBadge" hidden></span></button>
   <button data-v="beker"  onclick="naarView('beker')"><span class="ic">🏆</span>Beker</button>
+  <button data-v="stand"  onclick="naarView('stand')"><span class="ic">📊</span>Stand</button>
 </nav>
 
 <div class="sheet-bg" id="sheetBg" onclick="sluitSheet()"></div>
@@ -360,6 +375,7 @@ async function laadData(stil){
   }finally{ laadBezig=false; }
   updateBadge();
   render();
+  if(S.view==='stand' && !stil) laadStand(true);
   if(sheet) renderSheet();
   else if(scoreSheet && !scoreSheet.bezig) renderScoreSheet();
 }
@@ -387,6 +403,7 @@ function render(){
   if(S.view==='zoek')  { el.innerHTML = `<div class="wrap">${fout}${htmlZoek()}</div>`; }
   if(S.view==='nnb')   el.innerHTML = `<div class="wrap">${fout}${htmlNNB()}</div>`;
   if(S.view==='beker') el.innerHTML = `<div class="wrap">${htmlBeker()}</div>`;
+  if(S.view==='stand') { el.innerHTML = `<div class="wrap">${htmlStand()}</div>`; laadStand(); }
   if(S.view==='avond') centreerDatum('#avondDatums');
 }
 
@@ -504,6 +521,108 @@ function htmlNNB(){
     lijst.map(w=>kaart(w,{toonDatum:false}) .replace('<div class="chips">', `<div class="chips">${w.originele_datum?`<span class="chip">oorspr. ${esc(fmtKort(w.originele_datum))}</span>`:''}`)).join('');
 }
 
+// ══════════════════════════════════════════
+//  STAND — stats (stats_snapshots) en periodestand Eerste Divisie, alleen bekijken
+// ══════════════════════════════════════════
+const ST = { tab:'stats', peildata:null, datum:'', rijen:{}, div:'Eredivisie', sort:'180', periode:null, pstand:null, fout:'' };
+const PER_LABEL = {1:'Ronde 1–10',2:'Ronde 11–20',3:'Ronde 21–30',4:'Ronde 31–42'};
+let stBezig=false;
+async function laadStand(forceer){
+  if(stBezig) return;
+  const nodig = ST.tab==='stats' ? (ST.peildata===null || (ST.datum && !ST.rijen[ST.datum])) : ST.pstand===null;
+  if(!nodig && !forceer) return;
+  stBezig=true; ST.fout='';
+  try{
+    if(ST.tab==='stats'){
+      if(ST.peildata===null || forceer){
+        const pd = await sbGet('stats_snapshot_peildata','select=peildatum&order=peildatum.asc');
+        ST.peildata=[...new Set(pd.map(r=>r.peildatum))];
+        if(!ST.datum || !ST.peildata.includes(ST.datum)) ST.datum=ST.peildata[ST.peildata.length-1]||'';
+      }
+      if(ST.datum && (!ST.rijen[ST.datum] || forceer))
+        ST.rijen[ST.datum] = await sbGet('stats_snapshots',`select=*&peildatum=eq.${encodeURIComponent(ST.datum)}`);
+    }else{
+      ST.pstand = await sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc');
+      if(ST.periode===null){ const ps=ST.pstand.map(r=>r.periode); ST.periode = ps.length ? Math.max(...ps) : 1; }
+    }
+  }catch(e){ ST.fout = navigator.onLine===false ? 'Geen internetverbinding.' : `Kan stand niet laden: ${e.message}`; }
+  finally{ stBezig=false; }
+  if(S.view==='stand') $('#view').innerHTML = `<div class="wrap">${htmlStand()}</div>`;
+}
+function stZet(k,v){ ST[k]=v; if(S.view==='stand'){ $('#view').innerHTML=`<div class="wrap">${htmlStand()}</div>`; laadStand(); } }
+function fmtPeil(d){ const o=dObj(d); return `${o.getDate()} ${MND[o.getMonth()]} ${o.getFullYear()}`; }
+function segKnop(k,v,label){ return `<button class="${ST[k]===v?'act':''}" onclick='stZet(${jsAttr(k)},${jsAttr(v)})'>${esc(label)}</button>`; }
+function stRij(pos, naam, sub, val, eenheid, top){
+  return `<div class="st-rij${top?' st-top':''}"><div class="st-pos">${pos}</div><div class="st-naam">${esc(naam)}${sub?`<span class="st-sub">${sub}</span>`:''}</div><div class="st-val">${val}${eenheid?`<small>${esc(eenheid)}</small>`:''}</div></div>`;
+}
+function medaille(i){ return ['🥇','🥈','🥉'][i] || (i+1); }
+function htmlStand(){
+  let h = `<div class="seg">${segKnop('tab','stats','Statistieken')}${segKnop('tab','periode','Periodestand')}</div>`;
+  if(ST.fout) h += `<div class="fout-box">⚠ ${esc(ST.fout)}</div>`;
+  return h + (ST.tab==='stats' ? htmlStats() : htmlPeriode());
+}
+function htmlStats(){
+  if(ST.peildata===null) return '<div class="leeg">Statistieken laden…</div>';
+  if(!ST.peildata.length) return '<div class="leeg">Nog geen tussenstanden opgeslagen.</div>';
+  let h = `<select class="st-sel" onchange="stZet('datum',this.value)">${ST.peildata.slice().reverse().map(d=>`<option value="${esc(d)}" ${d===ST.datum?'selected':''}>Tussenstand ${esc(fmtPeil(d))}</option>`).join('')}</select>`;
+  h += `<div class="seg">${segKnop('div','Eredivisie','Eredivisie')}${segKnop('div','Eerste Divisie','Eerste Divisie')}</div>`;
+  h += `<div class="seg">${segKnop('sort','180',"180's")}${segKnop('sort','3da','3DA')}${segKnop('sort','finish','Finish')}${segKnop('sort','leg','Beste leg')}</div>`;
+  const rijen = ST.rijen[ST.datum];
+  if(!rijen) return h+'<div class="leeg">Tussenstand laden…</div>';
+  const pp = rijen.filter(r=>r.divisie===ST.div && (r.wedstrijden||0)>0).map(r=>({
+    naam:r.speler, m:r.wedstrijden||0, s180:r.s180||0, t140:r.t140||0, t100:r.t100||0, gem:Number(r.gem)||0, fin:r.hoogste_finish||0, leg:r.beste_leg||0 }));
+  if(!pp.length) return h+'<div class="leeg">Geen spelers in deze tussenstand.</div>';
+  let lijst, html;
+  if(ST.sort==='180'){
+    lijst=pp.sort((a,b)=>b.s180-a.s180||b.t140-a.t140);
+    html=lijst.map((p,i)=>stRij(medaille(i),p.naam,`${p.m} wedstr. · 140+ ${p.t140} · 100+ ${p.t100} · 3DA ${p.gem.toFixed(2)}`,p.s180,'180',i===0)).join('');
+  }else if(ST.sort==='3da'){
+    lijst=pp.sort((a,b)=>b.gem-a.gem);
+    html=lijst.map((p,i)=>stRij(medaille(i),p.naam,`${p.m} wedstr.`,p.gem.toFixed(2),'3DA',i===0)).join('');
+  }else if(ST.sort==='finish'){
+    lijst=pp.filter(p=>p.fin>=100).sort((a,b)=>b.fin-a.fin);
+    html=lijst.length?lijst.map((p,i)=>stRij(medaille(i),p.naam,'',p.fin,'finish',i===0)).join(''):'';
+  }else{
+    lijst=pp.filter(p=>p.leg>0&&p.leg<18).sort((a,b)=>a.leg-b.leg);
+    html=lijst.length?lijst.map((p,i)=>stRij(medaille(i),p.naam,'',p.leg,'darts',i===0)).join(''):'';
+  }
+  const leegTxt={finish:'Geen 100+ finishes.',leg:'Geen legs onder 18 darts.'}[ST.sort];
+  return h + (html?`<div class="st-lijst">${html}</div>`:`<div class="leeg">${leegTxt}</div>`) +
+    `<div class="st-info">Bron: DartConnect-leaderboard, ingevoerd via stats.html.</div>`;
+}
+function htmlPeriode(){
+  if(ST.pstand===null) return '<div class="leeg">Periodestand laden…</div>';
+  let h = `<div class="seg">${[1,2,3,4].map(p=>segKnop('periode',p,'P'+p)).join('')}${segKnop('periode','eind','Eind')}</div>`;
+  const data=ST.pstand;
+  if(!data.length) return h+'<div class="leeg">Nog geen gespeelde wedstrijden.</div>';
+  if(ST.periode!=='eind'){
+    const rijen=data.filter(r=>r.periode===ST.periode);
+    h += `<div class="st-info" style="margin:4px 2px 0">Eerste Divisie · Periode ${ST.periode} (${PER_LABEL[ST.periode]})</div>`;
+    if(!rijen.length) return h+'<div class="leeg">Nog geen gespeelde wedstrijden in deze periode.</div>';
+    return h+`<div class="st-lijst">${rijen.map(r=>stRij(r.positie===1?'🏆':r.positie,r.speler,`${r.wedstrijden_gespeeld} wedstr. · ${r.gewonnen} winst`,r.periodepunten,'punten',r.positie===1)).join('')}</div>`;
+  }
+  // Eindoverzicht: zelfde regels als periode.html
+  const tot={};
+  data.forEach(r=>{ const t=tot[r.speler]||(tot[r.speler]={speler:r.speler,w:0,g:0,p:0}); t.w+=Number(r.wedstrijden_gespeeld); t.g+=Number(r.gewonnen); t.p+=Number(r.periodepunten); });
+  const lijst=Object.values(tot).sort((a,b)=>b.p-a.p||b.g-a.g||a.speler.localeCompare(b.speler));
+  const promo=new Set(lijst.slice(0,2).map(t=>t.speler));
+  const titels={}, tickets={};
+  [1,2,3,4].forEach(p=>{
+    const rijen=data.filter(r=>r.periode===p); if(!rijen.length) return;
+    (titels[rijen[0].speler]=titels[rijen[0].speler]||[]).push(p);
+    const k=rijen.find(r=>!tickets[r.speler]&&!promo.has(r.speler)); if(k) tickets[k.speler]=p;
+  });
+  const vijfde=lijst.find(t=>!tickets[t.speler]&&!promo.has(t.speler)); if(vijfde) tickets[vijfde.speler]='E';
+  h += `<div class="st-info" style="margin:4px 2px 0">Eerste Divisie · totaal alle periodes</div>`;
+  return h+`<div class="st-lijst">${lijst.map((t,i)=>{
+    const b=[];
+    if(promo.has(t.speler)) b.push('⬆ Directe promotie');
+    if(titels[t.speler]) b.push('🏆 Titel P'+titels[t.speler].join(', P'));
+    if(tickets[t.speler]) b.push(tickets[t.speler]==='E'?'🎟 Ticket (eindstand)':'🎟 Ticket (P'+tickets[t.speler]+')');
+    const sub=`${t.w} wedstr. · ${t.g} winst${b.length?`<span class="st-badges">${esc(b.join(' · '))}</span>`:''}`;
+    return stRij(i+1,t.speler,sub,t.p,'punten',promo.has(t.speler));
+  }).join('')}</div>`;
+}
 // ══════════════════════════════════════════
 //  VERZETTEN (bottom sheet)
 // ══════════════════════════════════════════
