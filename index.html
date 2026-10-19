@@ -206,6 +206,35 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .warn-chip{font-size:0.62rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(249,115,22,0.15);color:var(--warn);}
 .orig-datum{font-size:0.62rem;color:var(--muted);font-style:italic;}
 
+/* ── BORDKNOPJES (vervangen keuzemenu + ▶) ── */
+.bord-knoppen{display:flex;gap:3px;}
+.bord-knop{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:0.75rem;font-weight:700;font-family:inherit;cursor:pointer;background:rgba(16,185,129,0.12);color:var(--green);border:1px solid rgba(16,185,129,0.4);padding:0;transition:all 0.15s;}
+.bord-knop:hover:not(:disabled){background:var(--green);color:#000;}
+.bord-knop.beste{background:rgba(16,185,129,0.3);border-color:var(--green);}
+.bord-knop:disabled{background:transparent;color:#475569;border-color:var(--border);cursor:not-allowed;}
+.vs-kort,.info-ic{display:none;}
+.info-ic{font-size:0.85rem;color:var(--muted);flex-shrink:0;cursor:help;}
+.info-ic.rust{color:var(--red);}
+.weergave-knop{background:var(--s2);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:4px 10px;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;}
+.weergave-knop:hover{color:var(--text);}
+body.compact .weergave-knop{color:var(--green);border-color:var(--green);}
+
+/* ── COMPACTE WEERGAVE: één regel per wedstrijd ── */
+body.compact .match-card{padding:4px 8px;margin-bottom:2px;gap:7px;border-radius:0;}
+body.compact .slot-groep .match-card{margin:0;}
+body.compact .match-info{display:flex;align-items:center;gap:8px;}
+body.compact .match-players{flex:1 1 auto;min-width:0;font-size:0.88rem;}
+body.compact .match-sub{margin-top:0;flex-shrink:0;flex-wrap:nowrap;}
+body.compact .match-sub .div-chip:not(.beker),
+body.compact .match-sub .orig-datum,
+body.compact .match-sub .rust-chip{display:none;}
+body.compact .vs-lang{display:none;}
+body.compact .vs-kort{display:inline;color:var(--muted);font-weight:400;}
+body.compact .info-ic{display:inline;}
+body.compact .slot-cel .match-time{display:none;}
+body.compact .match-acts .btn-xs{background:transparent;border-color:transparent;padding:2px 4px;}
+body.compact .bord-knop{width:22px;height:22px;}
+
 /* ── HISTORY ── */
 .history-card{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:7px;padding:9px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;opacity:0.7;gap:8px;}
 .history-info{flex:1;min-width:0;}
@@ -431,6 +460,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 <div class="topbar">
   <div class="topbar-logo">🎯 <span>Kaale Bull</span><span style="color:var(--muted);font-size:0.72rem;font-weight:400;margin-left:4px;">Wedstrijdleiding</span></div>
   <div class="topbar-right">
+    <button class="weergave-knop" id="weergaveKnop" onclick="wisselWeergave()" title="Wissel tussen ruime kaarten en compacte regels">☰ Compact</button>
     <div class="clock" id="clock">00:00</div>
     <div class="sync-badge idle" id="syncBadge">NIET VERBONDEN</div>
   </div>
@@ -743,6 +773,15 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── Weergave: ruime kaarten of compacte regels (onthouden per laptop) ──
+function zetWeergave(compact) {
+  document.body.classList.toggle('compact', compact);
+  const k = document.getElementById('weergaveKnop');
+  if (k) k.textContent = compact ? '▦ Ruim' : '☰ Compact';
+  try { localStorage.setItem('kb_weergave', compact ? 'compact' : 'ruim'); } catch(e) {}
+}
+function wisselWeergave() { zetWeergave(!document.body.classList.contains('compact')); }
+(function(){ let w=null; try { w = localStorage.getItem('kb_weergave'); } catch(e) {} if (w === 'compact') zetWeergave(true); })();
 // ══════════════════════════════════════════
 //  SUPABASE
 // ══════════════════════════════════════════
@@ -1686,7 +1725,6 @@ function renderZoekResultaat(naam) {
         <div class="zk-namen">${markeer(m.thuis)} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${markeer(m.uit)}</div>
         <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}${(rustInfo.perWedstrijd.get(m.id)||[]).map(c=>{const a=c.a.id===m.id?c.b:c.a;return `<span class="rust-chip">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(a.tijdstip||'')}</span>`;}).join('')}</div>
       </div>
-      <button class="btn btn-ghost btn-xs" onclick="openNotitieModal('${m.id}')" title="Notitie">📝</button>
       <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>`;
     container.appendChild(kaart);
   });
@@ -1918,33 +1956,43 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
     ? `<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>` : '';
   const notitieBadge = m.notitie ? `<span class="warn-chip" style="background:rgba(59,130,246,0.12);color:var(--blue);">📝</span>` : '';
 
-  // Bord opties, beste bord gesuggereerd
-  let bordOpts = '';
+  // Bordknopjes 1–4: klik = direct op dat bord. Bezette borden grijs, beste bord feller.
+  let bordKnoppen = '';
   for (let b=1;b<=4;b++) {
     const bezig = activeMatches[b]!==null;
-    bordOpts += `<option value="${b}" ${bezig?'disabled':''} ${b===besteBord&&!bezig?'selected':''}>${bezig?`Bord ${b} (bezet)`:`Bord ${b}`}</option>`;
+    const uit   = bezig || isBlocked;
+    const cls   = bezig ? 'bezet' : (b===besteBord ? 'beste' : '');
+    const tip   = bezig ? `Bord ${b} is bezet` : isBlocked ? 'Speler is nog bezig' : `Start op bord ${b}`;
+    bordKnoppen += `<button class="bord-knop ${cls}" ${uit?'disabled':''} title="${tip}" onclick="startOpBord('${m.id}',${b})">${b}</button>`;
   }
+
+  // Compacte weergave: rust- en inhaalinfo als één ⚠-icoon met uitleg bij aanwijzen
+  const extraInfo = [
+    ...rustC.map(c => { const ander = c.a.id === m.id ? c.b : c.a; return `${c.speler} ook om ${ander.tijdstip||''}`; }),
+    ...(m.originele_datum ? [`orig. datum ${fmtDatum(m.originele_datum)}`] : [])
+  ];
+  const infoIcoon = rustC.length
+    ? `<span class="info-ic rust" title="${escapeHtml(extraInfo.join(' · '))}">⚠</span>`
+    : (m.originele_datum ? `<span class="info-ic" title="${escapeHtml(extraInfo.join(' · '))}">↩</span>` : '');
 
   card.innerHTML = `
     <span class="match-nr">${nr}</span>
     ${toonTijd ? `<span class="match-time ${tijdCls}">🕒 ${m.tijdstip||'--:--'}</span>` : ''}
     <div class="match-info">
-      <div class="match-players">${escapeHtml(m.thuis)} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${escapeHtml(m.uit)}</div>
+      <div class="match-players">${escapeHtml(m.thuis)} <span class="vs-lang" style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span><span class="vs-kort">–</span> ${escapeHtml(m.uit)}</div>
       <div class="match-sub">
         ${chip}
-        ${m.speelronde?`<span>SR ${m.speelronde}</span>`:''}
+        ${m.speelronde?`<span class="sr-label">SR ${m.speelronde}</span>`:''}
         ${origDatumBadge}
-        ${notitieBadge}
-        ${isBlocked?'<span style="color:var(--red);font-size:0.65rem;">⛔ speler bezig</span>':''}
+        ${isBlocked?'<span class="bezig-label" style="color:var(--red);font-size:0.65rem;">⛔ speler bezig</span>':''}
         ${rustC.map(c => { const ander = c.a.id === m.id ? c.b : c.a; return `<span class="rust-chip" title="${escapeHtml(c.speler)} heeft ook ${escapeHtml(ander.thuis)} – ${escapeHtml(ander.uit)} om ${escapeHtml(ander.tijdstip||'')}">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(ander.tijdstip||'')}</span>`; }).join('')}
       </div>
     </div>
+    ${infoIcoon}
     <div class="match-acts">
-      <button class="btn btn-ghost btn-xs" onclick="openNotitieModal('${m.id}')" title="Notitie">📝</button>
       <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>
       ${isBeker?`<button class="btn btn-ghost btn-xs" onclick="verwijderBeker('${m.id}')" title="Verwijderen">🗑</button>`:''}
-      <select class="bord-sel" id="bs${m.id}" ${isBlocked?'disabled':''}>${bordOpts}</select>
-      <button class="btn btn-green btn-sm" ${isBlocked?'disabled':''} onclick="startOpBord('${m.id}',parseInt(document.getElementById('bs${m.id}').value))">▶</button>
+      <div class="bord-knoppen">${bordKnoppen}</div>
     </div>`;
   return card;
 }
