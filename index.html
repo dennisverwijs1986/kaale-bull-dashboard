@@ -319,6 +319,8 @@ body.sleept .slot-groep.drop-rust .slot-kop { background: rgba(239,68,68,0.15); 
 .slot-groep.drop-hover { box-shadow: 0 0 0 2px var(--orange); }
 .slot-kop .slot-hint { display: none; font-size: 0.62rem; color: var(--muted); }
 body.sleept .slot-kop .slot-hint { display: inline; }
+body.sleept .match-card.swap-ok   { outline: 2px solid var(--green); outline-offset: -2px; }
+body.sleept .match-card.swap-rust { outline: 2px solid var(--red); outline-offset: -2px; opacity: 0.6; }
 .beker-balk-cards .match-card { margin-bottom: 0; flex-wrap: wrap; row-gap: 6px; min-width: 0; }
 .beker-balk-cards .match-card .match-info { flex: 1 1 200px; }
 .beker-balk-cards .match-card .match-acts { margin-left: auto; }
@@ -1880,19 +1882,19 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   // Toon het tijdstip zodra het bekend is — ook bij inhaalwedstrijden (die sinds de
   // dynamische tijdslot-indeling ook een echt tijdslot krijgen) en bekerwedstrijden.
   const toonTijd   = !!m.tijdstip;
-  // Sleep-wissel blijft beperkt tot normale wedstrijden met een vast slot.
-  const kanWisselen = toonTijd && !isInhaal && !isBeker;
+  // Sleep-wissel: elke wedstrijd met een tijdstip (ook inhaal/beker) kan van tijd ruilen.
+  const kanWisselen = toonTijd;
 
 
   const card = document.createElement('div');
   const rustC = rustInfo.perWedstrijd.get(m.id) || [];
   card.className = `match-card div-${divKey} ${isBlocked?'blocked':''} ${rustC.length?'warn-rust':''}`;
   card.draggable = !isBlocked;
+  card.dataset.id = m.id;
   card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); e.dataTransfer.effectAllowed='move'; startSlotSleep(m); });
   card.addEventListener('dragend', stopSlotSleep);
 
-  // Sleep-wissel: sleep een andere kaart hierop om tijden te ruilen (alleen bij
-  // normale wedstrijden met een echt tijdstip; beker/inhaal hebben geen vast slot).
+  // Sleep-wissel: sleep een andere kaart hierop om tijden te ruilen.
   if (kanWisselen && !isBlocked) {
     card.addEventListener('dragover', e=>{ e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect='move'; card.classList.add('swap-target'); });
     card.addEventListener('dragleave', ()=>card.classList.remove('swap-target'));
@@ -2375,11 +2377,19 @@ function startSlotSleep(m) {
     const st = slotCheckVoor(m, tijd);
     g.classList.add(st.conflicten.length ? 'drop-rust' : st.vol ? 'drop-vol' : 'drop-ok');
   });
+  // Kaarten waarmee geruild kan worden: groen = ruil kan qua rust, rood = geeft rustconflict.
+  document.querySelectorAll('.match-card[data-id]').forEach(c => {
+    c.classList.remove('swap-ok','swap-rust');
+    const ander = wedstrijden.find(w => w.id === c.dataset.id);
+    if (!ander || ander.id === m.id || ander.datum !== m.datum || !ander.tijdstip || !m.tijdstip || ander.tijdstip === m.tijdstip) return;
+    c.classList.add(wisselConflicten(m, ander).length ? 'swap-rust' : 'swap-ok');
+  });
 }
 
 function stopSlotSleep() {
   document.body.classList.remove('sleept');
   document.querySelectorAll('.slot-groep').forEach(g => g.classList.remove('drop-ok','drop-rust','drop-vol','drop-zelf','drop-hover'));
+  document.querySelectorAll('.match-card.swap-ok, .match-card.swap-rust').forEach(c => c.classList.remove('swap-ok','swap-rust'));
 }
 
 async function verplaatsNaarSlot(id, nieuweTijd) {
@@ -2449,13 +2459,30 @@ async function verplaatsNaarSlot(id, nieuweTijd) {
 // ══════════════════════════════════════════
 //  SLEEP-WISSEL: tijden ruilen tussen 2 wedstrijden (live queue)
 // ══════════════════════════════════════════
+// Rustconflicten die ontstaan als m1 en m2 van tijdstip ruilen (tijden NA de wissel).
+function wisselConflicten(m1, m2) {
+  const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
+  const check = (wed, nieuweTijd, nieuwAnder) => {
+    const nieuwMin = naarMin(nieuweTijd);
+    const spelers = [wed.thuis, wed.uit].filter(n => n && n !== 'Vrije Ronde');
+    return wedstrijden.filter(w => {
+      if (w.id===m1.id || w.id===m2.id || w.datum!==wed.datum || w.datum_nnb || !w.tijdstip) return false;
+      const wMin = naarMin(w.tijdstip); if (wMin===null) return false;
+      return spelers.some(n => n===w.thuis || n===w.uit) && Math.abs(wMin-nieuwMin) < MIN_RUST_MIN;
+    }).concat(
+      // ook de twee geruilde wedstrijden onderling (zelfde speler in beide)
+      spelers.some(n => n===nieuwAnder.w.thuis || n===nieuwAnder.w.uit) && Math.abs(naarMin(nieuwAnder.t)-nieuwMin) < MIN_RUST_MIN ? [nieuwAnder.w] : []
+    );
+  };
+  return [...check(m1, m2.tijdstip, {w:m2,t:m1.tijdstip}), ...check(m2, m1.tijdstip, {w:m1,t:m2.tijdstip})];
+}
+
 async function wisselTijden(id1, id2) {
   const m1 = wedstrijden.find(w=>w.id===id1);
   const m2 = wedstrijden.find(w=>w.id===id2);
   if (!m1 || !m2) return;
-  const isBeker = w => w.divisie?.toLowerCase().includes('beker');
-  if (isBeker(m1) || isBeker(m2) || m1.is_inhaal || m2.is_inhaal) {
-    toast('Kan geen tijd wisselen voor beker-/inhaalwedstrijden','red'); return;
+  if (m1.status==='gespeeld' || m2.status==='gespeeld' || Object.values(activeMatches).includes(m1.id) || Object.values(activeMatches).includes(m2.id)) {
+    toast('Wedstrijd is al bezig of gespeeld','red'); return;
   }
   if (m1.datum !== m2.datum) {
     toast('Kan alleen tijden wisselen binnen dezelfde avond','red'); return;
@@ -2464,19 +2491,7 @@ async function wisselTijden(id1, id2) {
   if (!t1 || !t2) { toast('Beide wedstrijden hebben een tijdstip nodig','red'); return; }
   if (t1 === t2) { toast('Zelfde tijdstip, niets te wisselen','orange'); return; }
 
-  // Rustcheck: min. MIN_RUST_MIN min tussen wedstrijden van dezelfde speler op dezelfde avond,
-  // gecontroleerd op de tijden zoals ze NA de wissel zouden zijn.
-  const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
-  const vindConflicten = (wed, nieuweTijd) => {
-    const nieuwMin = naarMin(nieuweTijd);
-    return wedstrijden.filter(w => {
-      if (w.id===id1 || w.id===id2 || w.datum!==wed.datum || w.datum_nnb || !w.tijdstip) return false;
-      const wMin = naarMin(w.tijdstip); if (wMin===null) return false;
-      const raakt = w.thuis===wed.thuis || w.uit===wed.thuis || w.thuis===wed.uit || w.uit===wed.uit;
-      return raakt && Math.abs(wMin-nieuwMin) < MIN_RUST_MIN;
-    });
-  };
-  const conflicten = [...vindConflicten(m1,t2), ...vindConflicten(m2,t1)];
+  const conflicten = wisselConflicten(m1, m2);
   if (conflicten.length) {
     if (!confirm(`⚠ WAARSCHUWING\n\nNa het wisselen ontstaat voor minstens één speler een rustconflict (<${MIN_RUST_MIN} min tussen wedstrijden).\n\nZeker doorgaan?`)) {
       toast('Wissel geannuleerd','orange'); return;
