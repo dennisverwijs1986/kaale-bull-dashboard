@@ -886,10 +886,14 @@ function bouwDatumFilter() {
   const sel = document.getElementById('datumFilter');
   const huidig = sel.value;
   const datums = [...new Set(wedstrijden.filter(w=>!w.datum_nnb).map(w=>w.datum))].sort();
-  sel.innerHTML = '<option value="ALL">Alle datums</option>' +
-    datums.map(d=>`<option value="${d}">${fmtDatum(d)}</option>`).join('');
-  const vandaag = new Date().toISOString().slice(0,10);
+  const vandaag = zoekVandaag();
   const straks  = datums.find(d=>d>=vandaag);
+  // Geweest = grijs; de eerstvolgende avond (of vandaag) krijgt een pijltje, zodat je hem snel terugvindt.
+  sel.innerHTML = '<option value="ALL">Alle datums</option>' +
+    datums.map(d => d < vandaag
+      ? `<option value="${d}" style="color:#64748b;">${fmtDatum(d)}</option>`
+      : `<option value="${d}"${d===straks?' style="font-weight:700;"':''}>${d===straks?'▶ ':''}${fmtDatum(d)}${d===vandaag?' · vandaag':''}</option>`
+    ).join('');
   if (huidig && huidig!=='ALL' && datums.includes(huidig)) sel.value = huidig;
   else if (straks) sel.value = straks;
   else if (datums.length) sel.value = datums[0];
