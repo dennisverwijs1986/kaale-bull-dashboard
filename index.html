@@ -184,7 +184,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .match-card.div-beker{border-left-color:var(--beker);}
 .match-card.div-inhaal{border-left-color:var(--inhaal);}
 .match-card.blocked{opacity:0.45;}
-.match-card.warn-rust{background:rgba(249,115,22,0.06);border-left-color:var(--warn) !important;}
+.match-card.warn-rust{outline:1px dashed rgba(239,68,68,0.7);outline-offset:-1px;}
+.rust-chip{font-size:0.62rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(239,68,68,0.15);color:var(--red);white-space:nowrap;}
 .match-card.swap-target{border-color:var(--blue) !important;background:rgba(59,130,246,0.10);box-shadow:inset 0 0 0 1px var(--blue);}
 .match-nr{font-weight:700;color:var(--green);min-width:20px;font-size:0.95rem;flex-shrink:0;}
 .match-time{font-family:monospace;font-size:0.72rem;padding:2px 6px;border-radius:4px;flex-shrink:0;white-space:nowrap;font-weight:600;}
@@ -1677,7 +1678,7 @@ function renderZoekResultaat(naam) {
       <span class="zk-tijd">${!m.datum_nnb && !isBeker && m.tijdstip ? escapeHtml(m.tijdstip) : '—'}</span>
       <div class="zk-info">
         <div class="zk-namen">${markeer(m.thuis)} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${markeer(m.uit)}</div>
-        <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}</div>
+        <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}${(rustInfo.perWedstrijd.get(m.id)||[]).map(c=>{const a=c.a.id===m.id?c.b:c.a;return `<span class="rust-chip">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(a.tijdstip||'')}</span>`;}).join('')}</div>
       </div>
       <button class="btn btn-ghost btn-xs" onclick="openNotitieModal('${m.id}')" title="Notitie">📝</button>
       <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>`;
@@ -1685,7 +1686,43 @@ function renderZoekResultaat(naam) {
   });
 }
 
+// ══════════════════════════════════════════
+//  RUSTCONFLICTEN — speler heeft 2 wedstrijden binnen MIN_RUST_MIN min op dezelfde avond
+//  Wordt bij elke render opnieuw berekend over alle komende avonden (vanaf vandaag).
+// ══════════════════════════════════════════
+let rustInfo = { conflicten: [], perWedstrijd: new Map() };
+function vindRustConflicten() {
+  const vandaag = zoekVandaag();
+  const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
+  const perDatum = new Map();
+  wedstrijden.forEach(w => {
+    if (w.datum_nnb || !w.datum || w.datum < vandaag) return;
+    const t = naarMin(w.tijdstip); if (t === null) return;
+    if (!perDatum.has(w.datum)) perDatum.set(w.datum, []);
+    perDatum.get(w.datum).push({ w, t });
+  });
+  const conflicten = [], perWedstrijd = new Map();
+  const voegToe = (id, c) => { if (!perWedstrijd.has(id)) perWedstrijd.set(id, []); perWedstrijd.get(id).push(c); };
+  perDatum.forEach(lijst => {
+    for (let i = 0; i < lijst.length; i++) for (let j = i + 1; j < lijst.length; j++) {
+      const a = lijst[i], b = lijst[j];
+      if (a.w.status === 'gespeeld' && b.w.status === 'gespeeld') continue;
+      const diff = Math.abs(a.t - b.t);
+      if (diff >= MIN_RUST_MIN) continue;
+      const gedeeld = [a.w.thuis, a.w.uit].filter(n => n && n !== 'Vrije Ronde' && (n === b.w.thuis || n === b.w.uit));
+      gedeeld.forEach(speler => {
+        const [vroeg, laat] = a.t <= b.t ? [a.w, b.w] : [b.w, a.w];
+        const c = { speler, datum: a.w.datum, a: vroeg, b: laat, diff };
+        conflicten.push(c); voegToe(a.w.id, c); voegToe(b.w.id, c);
+      });
+    }
+  });
+  conflicten.sort((x, y) => x.datum.localeCompare(y.datum) || (x.a.tijdstip||'').localeCompare(y.a.tijdstip||''));
+  return { conflicten, perWedstrijd };
+}
+
 function renderQueue() {
+  rustInfo = vindRustConflicten();
   if (zoekSpelerActief()) { renderZoekSpeler(); return; }
   const container = document.getElementById('queueContainer');
   container.innerHTML = '';
@@ -1848,7 +1885,8 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
 
 
   const card = document.createElement('div');
-  card.className = `match-card div-${divKey} ${isBlocked?'blocked':''}`;
+  const rustC = rustInfo.perWedstrijd.get(m.id) || [];
+  card.className = `match-card div-${divKey} ${isBlocked?'blocked':''} ${rustC.length?'warn-rust':''}`;
   card.draggable = !isBlocked;
   card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); e.dataTransfer.effectAllowed='move'; startSlotSleep(m); });
   card.addEventListener('dragend', stopSlotSleep);
@@ -1892,6 +1930,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
         ${origDatumBadge}
         ${notitieBadge}
         ${isBlocked?'<span style="color:var(--red);font-size:0.65rem;">⛔ speler bezig</span>':''}
+        ${rustC.map(c => { const ander = c.a.id === m.id ? c.b : c.a; return `<span class="rust-chip" title="${escapeHtml(c.speler)} heeft ook ${escapeHtml(ander.thuis)} – ${escapeHtml(ander.uit)} om ${escapeHtml(ander.tijdstip||'')}">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(ander.tijdstip||'')}</span>`; }).join('')}
       </div>
     </div>
     <div class="match-acts">
