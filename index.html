@@ -486,22 +486,35 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 .pt-table td{padding:6px 10px;border-bottom:1px solid rgba(42,58,86,0.5);}
 @media(max-width:600px){.pt-grid2,.pt-slots-grid{grid-template-columns:1fr;}}
 
+/* ── VOORBEELD: één menubalk + statusregel ── */
+.nav-tabs{align-items:center;}
+.nav-logo{font-size:1rem;margin-right:14px;white-space:nowrap;}
+.nav-right{gap:12px;}
+.nav-right .clock{font-size:1.15rem;}
+.statusregel{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-bottom:12px;}
+.statusregel>#avondBanner{display:contents;}
+.avond-regel{flex:1 1 auto;display:flex;align-items:center;flex-wrap:wrap;gap:6px 16px;background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(168,85,247,0.08));border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:6px 12px;font-size:0.8rem;color:var(--muted);}
+.ar-titel{font-size:0.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;}
+.ar-stat b{font-size:1rem;color:var(--text);font-weight:800;}
+.ar-druk{margin-left:auto;background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);color:var(--warn);border-radius:5px;padding:3px 9px;font:inherit;font-size:0.75rem;font-weight:700;cursor:pointer;}
+.ar-druk span{font-size:0.65rem;margin-left:3px;}
+.druk-lijst{flex-basis:100%;order:5;display:flex;flex-wrap:wrap;gap:4px 14px;padding:7px 10px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25);border-radius:6px;font-size:0.75rem;color:var(--warn);}
+.statusregel #nnbBanner{display:contents;}
+.statusregel .nnb-banner{margin:0;padding:6px 12px;display:flex;flex-direction:column;justify-content:center;}
+.statusregel .nnb-banner:has(.nnb-list.open){flex-basis:100%;order:6;}
+.statusregel .nnb-banner-title{gap:10px;}
+.sr-n{color:var(--text);font-size:0.85rem;}
+.statusregel .mdd-wrap{margin:0;display:flex;flex-direction:column;justify-content:center;}
+.statusregel .mdd-hdr{padding:6px 12px;border-bottom:0;gap:10px;flex:1;}
+.statusregel .mdd-wrap:has(.mdd-body.open){flex-basis:100%;order:7;}
+.statusregel .mdd-wrap:has(.mdd-body.open) .mdd-hdr{border-bottom:1px solid rgba(59,130,246,0.15);}
 </style>
 </head>
 <body>
 
-<!-- ── TOPBAR ── -->
-<div class="topbar">
-  <div class="topbar-logo">🎯 <span>Kaale Bull</span><span style="color:var(--muted);font-size:0.72rem;font-weight:400;margin-left:4px;">Wedstrijdleiding</span></div>
-  <div class="topbar-right">
-    <button class="weergave-knop" id="weergaveKnop" onclick="wisselWeergave()" title="Wissel tussen ruime kaarten en compacte regels">☰ Compact</button>
-    <div class="clock" id="clock">00:00</div>
-    <div class="sync-badge idle" id="syncBadge">NIET VERBONDEN</div>
-  </div>
-</div>
-
 <!-- ── NAV TABS ── -->
 <div class="nav-tabs">
+  <div class="topbar-logo nav-logo">🎯 <span>Kaale Bull</span></div>
   <div class="nav-tab active" id="navDashboard" onclick="switchNav('dashboard')">📋 Wedstrijdleiding</div>
   <a class="nav-tab" href="tv.html" target="_blank" rel="noopener">📺 TV</a>
   <div class="nav-dropdown" id="navBekerDropdown">
@@ -512,6 +525,9 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
     </div>
   </div>
   <div class="nav-right">
+    <button class="weergave-knop" id="weergaveKnop" onclick="wisselWeergave()" title="Wissel tussen ruime kaarten en compacte regels">☰ Compact</button>
+    <div class="clock" id="clock">00:00</div>
+    <div class="sync-badge idle" id="syncBadge">NIET VERBONDEN</div>
     <div class="nav-dropdown" id="navAdminDropdown">
       <div class="nav-tab nav-dropdown-btn" id="navAdminBtn" onclick="toggleAdminDropdown(event)">⚙️ Admin ▾</div>
       <div class="nav-dropdown-menu align-right" id="navAdminMenu">
@@ -615,9 +631,12 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 
     <div class="queue-wrap">
       <!-- MEDEDELING VOOR TV: korte boodschap bovenaan tv.html (bekerloting, geen darten deze week, etc.) -->
+      <div class="statusregel">
+      <div id="avondBanner"></div>
+      <div id="nnbBanner"></div>
       <div class="mdd-wrap">
         <div class="mdd-hdr" onclick="toggleMdd()">
-          <span class="mdd-hdr-title">📢 Mededeling voor TV <span class="mdd-status uit" id="mddStatus">uit</span></span>
+          <span class="mdd-hdr-title">📢 TV-mededeling <span class="mdd-status uit" id="mddStatus">uit</span></span>
           <span id="mddArrow" style="color:var(--blue);">►</span>
         </div>
         <div class="mdd-body" id="mddBody">
@@ -632,11 +651,8 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
         </div>
       </div>
 
-      <!-- NNB: wedstrijden zonder bekende (inhaal)datum, altijd zichtbaar ongeacht avondfilter -->
-      <div id="nnbBanner"></div>
 
-      <!-- AVOND OVERZICHT -->
-      <div id="avondBanner"></div>
+    </div>
 
       <!-- FOUTMELDING -->
       <div id="queueError"></div>
@@ -1095,7 +1111,7 @@ function renderNNBBanner() {
   el.innerHTML = `
     <div class="nnb-banner">
       <div class="nnb-banner-title" onclick="toggleNNB()">
-        <span>🕓 Nog niet bekend — nieuwe datum ontbreekt (${lijst.length})</span>
+        <span title="Nog niet bekend — nieuwe datum ontbreekt">🕓 NNB <b class="sr-n">${lijst.length}</b></span>
         <span class="nnb-banner-arrow" id="nnbArrow">${nnbOpen ? '▼' : '►'}</span>
       </div>
       <div class="nnb-list${nnbOpen ? ' open' : ''}" id="nnbList">${items}</div>
@@ -1142,17 +1158,17 @@ function renderAvondBanner() {
     warnHtml = `<div class="avond-warning">⚠ Druk schema: ${druk.map(([n,rest,tot])=>`<strong>${escapeHtml(n)}</strong> (${rest}× te gaan${rest<tot?` van ${tot}`:''})`).join(', ')}</div>`;
   }
 
+  const drukLijst = druk.map(([n,rest,tot])=>`<span class="druk-naam"><strong>${escapeHtml(n)}</strong> ${rest}×${rest<tot?`/${tot}`:''}</span>`).join('');
   document.getElementById('avondBanner').innerHTML = `
-    <div class="avond-banner">
-      <div class="avond-banner-title">📊 Avondoverzicht — ${fmtDatum(d)}</div>
-      <div class="avond-stats">
-        <div class="avond-stat"><div class="avond-stat-val">${totaal}</div><div class="avond-stat-lbl">Totaal</div></div>
-        <div class="avond-stat"><div class="avond-stat-val" style="color:var(--orange);">${open.length}</div><div class="avond-stat-lbl">Open</div></div>
-        <div class="avond-stat"><div class="avond-stat-val" style="color:var(--green);">${gespeeld.length}</div><div class="avond-stat-lbl">Klaar</div></div>
-        <div class="avond-stat"><div class="avond-stat-val" style="color:var(--blue);">${eindStr}</div><div class="avond-stat-lbl">Verwacht einde</div></div>
-      </div>
-      ${warnHtml}
-    </div>`;
+    <div class="avond-regel">
+      <span class="ar-titel">📊 ${fmtDatum(d)}</span>
+      <span class="ar-stat"><b>${totaal}</b> totaal</span>
+      <span class="ar-stat"><b style="color:var(--orange);">${open.length}</b> open</span>
+      <span class="ar-stat"><b style="color:var(--green);">${gespeeld.length}</b> klaar</span>
+      <span class="ar-stat">einde <b style="color:var(--blue);">${eindStr}</b></span>
+      ${druk.length ? `<button class="ar-druk${window._drukOpen?' open':''}" onclick="window._drukOpen=!window._drukOpen;renderAvondBanner()">⚠ Druk schema <b>${druk.length}</b> <span>${window._drukOpen?'▼':'►'}</span></button>` : ''}
+    </div>
+    ${druk.length && window._drukOpen ? `<div class="druk-lijst">${drukLijst}</div>` : ''}`;
 }
 
 // ══════════════════════════════════════════
