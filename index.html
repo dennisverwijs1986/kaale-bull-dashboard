@@ -259,9 +259,13 @@ body.compact .board-acts{grid-column:4;grid-row:2;margin:0;display:flex;gap:4px;
 body.compact .board-acts .btn{padding:3px 8px;width:auto;}
 body.compact .board-card:not(.busy) .dc-row{grid-column:4;grid-row:1;}
 body.compact .board-empty{grid-column:2 / 4;grid-row:1;flex-direction:row;border-width:1px;padding:2px 6px;font-size:0.7rem;}
-body.compact .dc-inp-row,
+body.compact .dc-inp-row{grid-column:1 / -1;margin-top:2px;}
+/* DC-voorbeeld hoort in compact niet op de laptop (daarvoor is de iPad); iframe blijft wel bestaan
+   (display:none), zodat terugschakelen naar Ruim hem niet herlaadt */
 body.compact .dc-frame-wrap,
-body.compact .dc-ctrl-row{grid-column:1 / -1;margin-top:2px;}
+body.compact .dc-ctrl-row,
+body.compact .dc-eye-btn{display:none !important;}
+body.compact .boards-grid{align-items:start;}
 
 /* ── HISTORY ── */
 .history-card{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:7px;padding:9px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;opacity:0.7;gap:8px;}
