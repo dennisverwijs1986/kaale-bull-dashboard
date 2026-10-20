@@ -67,6 +67,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .dc-row{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:8px;}
 .dc-eye-btn{background:none;border:none;color:var(--muted);font-size:0.85rem;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;}
 .dc-eye-btn:hover{color:var(--text);}
+.dc-row-r{display:flex;align-items:center;gap:6px;}
+.dc-calib-btn.aan{color:var(--nnb);}
 .dc-link{font-size:0.68rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:4px;cursor:pointer;background:none;border:none;font-family:inherit;padding:0;}
 .dc-link:hover{color:var(--text);}
 .dc-link.linked{color:var(--nnb);}
@@ -879,6 +881,8 @@ let dcPreviewOpen = {
   3: localStorage.getItem('dc_preview_open_3')==='1',
   4: localStorage.getItem('dc_preview_open_4')==='1'
 }; // live scorebord-voorbeeld standaard ingeklapt, per bord onthouden
+// Plaatsingsknoppen (breedte/hoogte/verschuif) alleen tonen na klik op ⚙, net als op de TV
+let dcCalibOpen = {1:false,2:false,3:false,4:false};
 
 // ══════════════════════════════════════════
 //  KLOK
@@ -1313,15 +1317,19 @@ function renderBoards() {
          </div>`
       : `<div class="dc-row">
            <button class="dc-link ${dcCode?'linked':''}" onclick="toggleDartCodeInput(${b})">📺<span class="dc-tekst"> ${dcCode?`Gekoppeld: ${dcCodeKort}`:'DartConnect koppelen'}</span></button>
-           ${dcCode ? `<button class="dc-eye-btn" onclick="toggleDcPreview(${b})" title="${dcPreviewOpen[b]?'Verberg voorbeeld':'Toon voorbeeld'}">${dcPreviewOpen[b]?'🙈':'👁'}</button>` : ''}
+           <span class="dc-row-r">
+             ${dcCode && dcPreviewOpen[b] ? `<button class="dc-eye-btn dc-calib-btn ${dcCalibOpen[b]?'aan':''}" onclick="toggleDcCalib(${b})" title="${dcCalibOpen[b]?'Klaar met plaatsen':'Scorebord plaatsen (zoom/positie)'}">⚙</button>` : ''}
+             ${dcCode ? `<button class="dc-eye-btn" onclick="toggleDcPreview(${b})" title="${dcPreviewOpen[b]?'Verberg voorbeeld':'Toon voorbeeld'}">${dcPreviewOpen[b]?'🙈':'👁'}</button>` : ''}
+           </span>
          </div>`;
     // De iframe blijft altijd bestaan zolang er een code is (verbergen = display:none, niet weghalen),
     // want weghalen en terugzetten = herladen = "Something went wrong".
     const dcZichtbaar = dcPreviewOpen[b] && !dartCodesOpen[b];
     const dcVerberg = dcZichtbaar ? '' : 'display:none;';
+    const dcCtrlVerberg = (dcZichtbaar && dcCalibOpen[b]) ? '' : 'display:none;';
     const dcFrame = dcCode
       ? `<div class="dc-frame-wrap" id="dcWrap${b}" style="${dcVerberg}height:${dcHoogte(b)}px"><iframe src="${dcUrl(dcCode)}"></iframe></div>
-         <div class="dc-ctrl-row" style="${dcVerberg}">
+         <div class="dc-ctrl-row" style="${dcCtrlVerberg}">
            <div class="dc-ctrl-group">
              <span class="dc-ctrl-lbl">breedte</span>
              <button class="dc-ctrl-btn" onclick="dcZetSchaal(${b},-0.02)">−</button>
@@ -1334,7 +1342,7 @@ function renderBoards() {
              <button class="dc-ctrl-btn" onclick="dcZetHoogte(${b},20)">+</button>
            </div>
          </div>
-         <div class="dc-ctrl-row" style="${dcVerberg}">
+         <div class="dc-ctrl-row" style="${dcCtrlVerberg}">
            <div class="dc-ctrl-group">
              <span class="dc-ctrl-lbl">verschuif</span>
              <button class="dc-ctrl-btn" onclick="dcZetPositie(${b},0,-20)" title="omhoog">↑</button>
@@ -1434,6 +1442,10 @@ function formMs(ms) {
   return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
 function wisselSchrijver(b,naam) { schrijvers[b]=naam; renderQueue(); slaSchrijverOp(b); }
+function toggleDcCalib(b) {
+  dcCalibOpen[b] = !dcCalibOpen[b];
+  renderBoards();
+}
 function toggleDcPreview(b) {
   dcPreviewOpen[b] = !dcPreviewOpen[b];
   localStorage.setItem(`dc_preview_open_${b}`, dcPreviewOpen[b]?'1':'0');
