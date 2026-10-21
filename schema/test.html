@@ -636,8 +636,7 @@ function renderAlles(){
     <div class="avond-titel"><h2>${esc(titel.charAt(0).toUpperCase()+titel.slice(1))}</h2>
       <span class="teller">${rijen.length} wedstrijden${open<rijen.length && open ? ` · ${open} open` : ''}</span></div>
     ${slots}
-    <button class="deel" id="deelApp">📲 Stuur de app door</button>
-    ${sponsorsHtml()}`;
+    <button class="deel" id="deelApp">📲 Stuur de app door</button>`;
   el.querySelector('#deelApp').addEventListener('click', deelApp);
 
   el.querySelectorAll('[data-avond]').forEach(b=>b.addEventListener('click',()=>{ S.gekozenAvond=b.dataset.avond; renderAlles(); }));
