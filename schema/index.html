@@ -609,6 +609,29 @@ window.addEventListener('online', ()=>{ laad(); laadLive(); });
 // ══════════════════════════════════════════
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope:'./' }).catch(()=>{});
 
+// ══════════════════════════════════════════
+//  ANONIEME TELLING — één seintje per apparaat per dag (browser of geïnstalleerde app).
+//  Alleen een willekeurig apparaatnummer, geen naam of andere gegevens.
+// ══════════════════════════════════════════
+(function telBezoek(){
+  try{
+    let id = lezen('kb_schema_apparaat');
+    if (!id){
+      id = (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+        const r=Math.random()*16|0; return (c==='x'?r:(r&3|8)).toString(16); }));
+      opslaan('kb_schema_apparaat', id);
+    }
+    const app = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const sleutel = 'kb_schema_geteld_' + (app ? 'app' : 'web');
+    if (lezen(sleutel) === vandaag()) return;      // vandaag al geteld
+    fetch(`${SB_URL}/rest/v1/app_bezoeken`, {
+      method:'POST',
+      headers:{ ...HDR, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
+      body: JSON.stringify({ apparaat:id, geinstalleerd:app })
+    }).then(r=>{ if (r.ok || r.status===409) opslaan(sleutel, vandaag()); }).catch(()=>{});
+  }catch(e){}
+})();
+
 (function installeerTip(){
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   if (standalone || lezen('kb_schema_tip_weg')) return;
