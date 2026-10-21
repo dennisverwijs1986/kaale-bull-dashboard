@@ -570,10 +570,12 @@ window.addEventListener('resize', ()=>{ for (let b=1;b<=4;b++){ const bar=docume
 
 async function laadBordInfo(){
   try{
-    const vandaag = vandaagStr();
+    // Geen datumfilter: wat de WL in het dashboard op een bord zet, komt hier — ongeacht
+    // datum of volgorde. Staan er (bv. door een vergeten 'Herstel') twee op hetzelfde bord,
+    // dan wint die van de nieuwste avond.
     const [rows, schr] = await Promise.all([
       sbGet('wedstrijden',
-        `select=id,bord,thuis,uit,divisie,tijdstip&datum=eq.${vandaag}&status=neq.gespeeld&bord=not.is.null&order=tijdstip.asc`),
+        `select=id,bord,thuis,uit,divisie,datum&status=neq.gespeeld&bord=not.is.null&order=datum.desc,id.desc`),
       sbGet('instellingen','sleutel=like.bord_schrijver_*')
     ]);
     const nieuwW = {1:null,2:null,3:null,4:null};
