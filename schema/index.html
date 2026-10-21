@@ -47,7 +47,7 @@ button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
   display:flex;justify-content:center;padding:4px 4px calc(4px + env(safe-area-inset-bottom));}
 .nav-in{display:flex;width:100%;max-width:640px;}
 .nav button{flex:1;border:0;background:none;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:3px;
-  font-size:.72rem;font-weight:600;padding:7px 0 5px;cursor:pointer;position:relative;}
+  font-size:.7rem;font-weight:600;padding:7px 0 5px;cursor:pointer;position:relative;}
 .nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 .nav button.actief{color:#93c5fd;}
 .nav .badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:17px;height:17px;border-radius:9px;background:var(--green);
@@ -156,6 +156,62 @@ main{padding:12px 16px;max-width:640px;margin:0 auto;}
 .datumkop.vandaag{color:var(--green);}
 .kaart .tijd-groot{font-family:ui-monospace,monospace;font-weight:700;color:var(--orange);font-size:1rem;min-width:46px;}
 .volgende-kaart{box-shadow:0 0 0 2px var(--orange);}
+/* ── JOUW BEURT ── */
+.beurt{border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;}
+.beurt .ico{font-size:1.6rem;line-height:1;}
+.beurt b{display:block;font-size:1.02rem;}
+.beurt span{font-size:.82rem;opacity:.85;}
+.beurt.nu{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.6);color:#a7f3d0;}
+.beurt.klaar{background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.55);color:#fde68a;}
+.beurt.wacht{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:#bfdbfe;}
+.beurt.later{background:var(--s1);border:1px solid var(--border);color:var(--text);}
+
+/* ── AGENDA ── */
+.agenda{background:var(--s1);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;}
+.agenda summary{padding:11px 14px;font-weight:700;cursor:pointer;list-style:none;display:flex;justify-content:space-between;}
+.agenda summary::-webkit-details-marker{display:none;}
+.agenda summary::after{content:'›';color:var(--muted);transition:transform .2s;}
+.agenda[open] summary::after{transform:rotate(90deg);}
+.agenda-in{padding:0 14px 14px;}
+.agenda-knoppen{display:flex;gap:8px;margin:4px 0 10px;}
+.agenda-knoppen a{flex:1;text-align:center;background:var(--eerste);color:#fff;text-decoration:none;font-weight:700;font-size:.85rem;border-radius:8px;padding:10px 4px;}
+.agenda-in p{margin:0;color:var(--muted);font-size:.8rem;line-height:1.5;}
+
+/* ── STANDEN ── */
+.seg{display:flex;gap:6px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:10px;}
+.seg button{flex:1;border:0;background:none;border-radius:8px;padding:8px 6px;font-weight:700;font-size:.85rem;color:var(--muted);cursor:pointer;}
+.seg button.actief{background:var(--s3);color:var(--text);}
+.periodes{display:flex;gap:6px;margin-bottom:10px;}
+.periodes button{flex:1;border:1px solid var(--border);background:var(--s1);border-radius:9px;padding:6px 2px;cursor:pointer;}
+.periodes button b{display:block;font-size:.85rem;}
+.periodes button span{font-size:.62rem;color:var(--muted);}
+.periodes button.actief{background:var(--eerste);border-color:var(--eerste);}
+.periodes button.actief span{color:#dbeafe;}
+table.stand{width:100%;border-collapse:collapse;font-size:.88rem;}
+table.stand th{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:6px 6px;border-bottom:1px solid var(--border);}
+table.stand td{padding:8px 6px;border-bottom:1px solid rgba(42,58,86,.6);}
+table.stand .num{text-align:right;font-variant-numeric:tabular-nums;}
+table.stand .pos{width:28px;color:var(--muted);font-weight:700;}
+table.stand tr.leider td{color:#fcd34d;font-weight:700;}
+table.stand tr.ik td{background:rgba(59,130,246,.14);}
+table.stand tr.zone-po td.pos{color:var(--orange);}
+table.stand tr.zone-po td{background:rgba(245,158,11,.06);}
+table.stand tr.zone-deg td.pos{color:var(--red);}
+table.stand tr.zone-deg td{background:rgba(239,68,68,.07);}
+table.stand tr.streep td{border-top:2px solid var(--border);}
+.zone-tag{font-size:.6rem;font-weight:800;text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;}
+.zone-tag.po{background:rgba(245,158,11,.2);color:#fcd34d;}
+.zone-tag.deg{background:rgba(239,68,68,.2);color:#fca5a5;}
+.zone-tag.prom{background:rgba(16,185,129,.2);color:#6ee7b7;margin-left:0;}
+.zone-tag.titel{background:rgba(245,197,24,.18);color:#fcd34d;}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
+.tags .zone-tag{margin-left:0;}
+.seg + .seg{margin-top:-4px;}
+.stand-noot{color:var(--dim);font-size:.75rem;margin-top:10px;}
+
+/* ── TESTVERSIE ── */
+.testbalk{background:#7c3aed;color:#fff;text-align:center;font-size:.75rem;font-weight:800;letter-spacing:.06em;padding:4px;}
+
 .nnb-blok{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45);border-radius:12px;padding:12px 12px 6px;margin-bottom:14px;}
 .nnb-kop{font-weight:800;color:#fcd34d;margin-bottom:4px;}
 .nnb-uitleg{font-size:.82rem;color:#fde68a;margin:0 0 10px;}
@@ -189,20 +245,24 @@ main{padding:12px 16px;max-width:640px;margin:0 auto;}
   <section id="viewAlles"></section>
   <section id="viewMijn" hidden></section>
   <section id="viewLive" hidden></section>
+  <section id="viewStand" hidden></section>
   <div class="voet">Ververst automatisch · wijzigingen van de wedstrijdleiding zie je direct</div>
 </main>
 
 <nav class="nav" aria-label="Menu">
   <div class="nav-in">
     <button id="tabAlles" data-view="alles" class="actief">
-      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Alle wedstrijden
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Schema
     </button>
     <button id="tabMijn" data-view="mijn">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Mijn wedstrijden
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Mijn
     </button>
     <button id="tabLive" data-view="live">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>Live borden
       <span class="badge" id="liveBadge" hidden></span>
+    </button>
+    <button id="tabStand" data-view="stand">
+      <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Standen
     </button>
   </div>
 </nav>
@@ -287,6 +347,9 @@ const S = {
   codes:  {1:'',2:'',3:'',4:''},           // DartConnect-link per bord
   schrijvers: {1:'',2:'',3:'',4:''},
   openBord: null,                          // bord dat nu groot in beeld staat
+  ikId: null, ikIdVoor: null,              // speler-id voor de agenda-links
+  standDiv: 'ere', standPeriode: null, stand: null, standTijd: 0,
+  offline: false, cacheTijd: null,
 };
 const BORDEN=[1,2,3,4];
 
@@ -298,7 +361,7 @@ const BORDEN=[1,2,3,4];
   else {
     S.ik = lezen('kb_schema_ik');
     const v = p.get('view') || lezen('kb_schema_view');
-    if (v==='mijn' || v==='live') S.view=v;
+    if (v==='mijn' || v==='live' || v==='stand') S.view=v;
   }
 })();
 
@@ -328,23 +391,44 @@ async function laad(){
     const tekst = (I.app_mededeling_tekst||'').trim();
     if (String(I.app_mededeling_actief)==='true' && tekst){ mdd.textContent='📣 '+tekst; mdd.hidden=false; } else mdd.hidden=true;
 
-    S.geladen=true;
+    S.geladen=true; S.offline=false;
+    opslaan('kb_schema_cache', JSON.stringify({ t:Date.now(), rijen:S.rijen, nnb:S.nnb, kantel:S.kantel,
+      mdd: mdd.hidden ? '' : mdd.textContent }));
     zetSync(true);
     render();
   }catch(e){
+    S.offline=true;
     zetSync(false);
     if (!S.geladen) document.getElementById('viewAlles').innerHTML =
       `<div class="leeg"><span class="ico">📡</span>Kan het schema nu niet ophalen.<br>Controleer je internet — we proberen het automatisch opnieuw.</div>`;
   }finally{ bezig=false; }
 }
 
+const hhmm = d => `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 function zetSync(ok){
   document.getElementById('dot').className = 'dot ' + (ok ? 'ok' : 'fout');
-  const n=new Date();
+  if (ok) S.cacheTijd = Date.now();
   document.getElementById('syncTekst').textContent = ok
-    ? `bijgewerkt ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`
-    : 'geen verbinding';
+    ? `bijgewerkt ${hhmm(new Date())}`
+    : (S.cacheTijd ? `offline · stand van ${hhmm(new Date(S.cacheTijd))}` : 'geen verbinding');
 }
+
+// Laatst bekende planning van dit toestel: direct tonen bij opstarten, en als er geen internet is.
+(function laadUitCache(){
+  try{
+    const c = JSON.parse(lezen('kb_schema_cache') || 'null');
+    if (!c || !Array.isArray(c.rijen)) return;
+    const vd = vandaag();
+    S.rijen = c.rijen.filter(w=>w.datum >= vd);
+    S.nnb = c.nnb || [];
+    S.kantel = c.kantel || 24;
+    const namen = new Set(); [...S.rijen, ...S.nnb].forEach(w=>{ namen.add(w.thuis); namen.add(w.uit); });
+    S.spelers = [...namen].filter(Boolean).sort((a,b)=>a.localeCompare(b,'nl'));
+    if (c.mdd){ const m=document.getElementById('mededeling'); m.textContent=c.mdd; m.hidden=false; }
+    S.cacheTijd = c.t; S.geladen = true;
+    document.getElementById('syncTekst').textContent = `stand van ${hhmm(new Date(c.t))}`;
+  }catch(e){}
+})();
 
 // ══════════════════════════════════════════
 //  WEERGAVE
@@ -354,7 +438,9 @@ function render(){
   document.getElementById('viewAlles').hidden = S.view!=='alles';
   document.getElementById('viewMijn').hidden  = S.view!=='mijn';
   document.getElementById('viewLive').hidden  = S.view!=='live';
-  if (S.view==='alles') renderAlles(); else if (S.view==='mijn') renderMijn(); else renderLive();
+  document.getElementById('viewStand').hidden = S.view!=='stand';
+  if (S.view==='alles') renderAlles(); else if (S.view==='mijn') renderMijn();
+  else if (S.view==='live') renderLive(); else renderStand();
 }
 
 function namenHtml(w){
@@ -387,6 +473,33 @@ function kaartHtml(w, opties={}){
     </div>
     <div class="k-rechts">${opties.nnb ? '<span class="nnb-label">NNB</span>' : rechtsHtml(w)}</div>
   </div>`;
+}
+
+// Waar staat de gekozen speler vanavond? Op basis van wat de wedstrijdleiding op de borden zet.
+function beurtInfo(){
+  if (!S.ik) return null;
+  const vd=vandaag();
+  const vanavond = S.rijen.filter(w=>w.datum===vd);
+  const mijn = vanavond.filter(w=>(w.thuis===S.ik||w.uit===S.ik) && w.status!=='gespeeld');
+  if (!mijn.length) return null;
+  const m = mijn.find(w=>w.bord) || mijn[0];
+  const tegen = m.thuis===S.ik ? m.uit : m.thuis;
+  if (m.bord) return { soort:'nu', ico:'🎯', kop:`Je speelt nu op bord ${m.bord}`, sub:`tegen ${tegen}` };
+  const begonnen = vanavond.some(w=>w.bord || w.status==='gespeeld');
+  if (!begonnen){
+    const tijden = mijn.map(w=>w.tijdstip).filter(Boolean);
+    return { soort:'later', ico:'🗓️', kop: tijden.length ? `Vanavond speel je om ${tijden.join(' en ')}` : 'Je speelt vanavond',
+             sub: mijn.length>1 ? `${mijn.length} wedstrijden` : `tegen ${tegen}` };
+  }
+  // Wachtrij: alles van vanavond dat nog niet gespeeld is en nog niet op een bord staat, in volgorde van het schema
+  const wachtrij = vanavond.filter(w=>w.status!=='gespeeld' && !w.bord);
+  const plek = wachtrij.indexOf(m);
+  if (plek < 4) return { soort:'klaar', ico:'⏳', kop:'Je bent eerstvolgend, houd je klaar', sub:`tegen ${tegen}${m.tijdstip ? ` · gepland ${m.tijdstip}` : ''}` };
+  return { soort:'wacht', ico:'🕐', kop:`Nog ${plek} wedstrijd${plek===1?'':'en'} vóór jou`, sub:`tegen ${tegen}${m.tijdstip ? ` · gepland ${m.tijdstip}` : ''}` };
+}
+function beurtHtml(){
+  const b = beurtInfo(); if (!b) return '';
+  return `<div class="beurt ${b.soort}"><div class="ico">${b.ico}</div><div><b>${esc(b.kop)}</b><span>${esc(b.sub)}</span></div></div>`;
 }
 
 function avondenLijst(){ return [...new Set(S.rijen.map(w=>w.datum))]; }
@@ -424,6 +537,7 @@ function renderAlles(){
 
   const titel = fmtLang.format(alsDatum(S.gekozenAvond));
   el.innerHTML = `
+    ${beurtHtml()}
     <div class="avonden" id="avonden">${chips}</div>
     <div class="avond-titel"><h2>${esc(titel.charAt(0).toUpperCase()+titel.slice(1))}</h2>
       <span class="teller">${rijen.length} wedstrijden${open<rijen.length ? ` · ${open} open` : ''}</span></div>
@@ -454,6 +568,7 @@ function renderMijn(){
   const volgende = mijn.find(w=>w.status!=='gespeeld');
 
   let html = `<div class="ik-balk"><h2>${esc(S.ik)}</h2><button class="knop-klein" id="wissel">Andere speler</button></div>`;
+  html += beurtHtml();
   if (!mijn.length && !mijnNnb.length){
     html += `<div class="leeg"><span class="ico">🎯</span>Geen wedstrijden in de vrijgegeven planning.</div>`;
   } else {
@@ -473,8 +588,43 @@ function renderMijn(){
       html += perDag[d].map(w=>kaartHtml(w,{metTijd:true, volgende: w===volgende})).join('');
     });
   }
+  html += agendaHtml();
   el.innerHTML = html;
-  el.querySelector('#wissel').addEventListener('click',()=>{ S.ik=null; opslaan('kb_schema_ik',null); render(); });
+  el.querySelector('#wissel').addEventListener('click',()=>{ S.ik=null; S.ikId=null; opslaan('kb_schema_ik',null); render(); });
+  const ag = el.querySelector('.agenda');
+  if (ag){ ag.open = lezen('kb_schema_agenda_open')==='1'; ag.addEventListener('toggle',()=>opslaan('kb_schema_agenda_open', ag.open?'1':'0')); }
+  haalIkId();
+}
+
+// ── Agenda-koppeling (zelfde links als in de mails) ──
+async function haalIkId(){
+  if (!S.ik || S.ikIdVoor===S.ik) return;
+  S.ikIdVoor = S.ik;
+  try{ const c=JSON.parse(lezen('kb_schema_ikid')||'null'); if (c && c.naam===S.ik && c.id){ S.ikId=c.id; } }catch(e){}
+  try{
+    const r = await sbGet('spelers', `select=id&naam=eq.${encodeURIComponent(S.ik)}&limit=1`);
+    S.ikId = r[0]?.id || null;
+    if (S.ikId) opslaan('kb_schema_ikid', JSON.stringify({naam:S.ik, id:S.ikId}));
+    if (S.view==='mijn') renderMijn();
+  }catch(e){ S.ikIdVoor=null; }
+}
+function agendaHtml(){
+  if (!S.ikId) return '';
+  const https = `${SB_URL}/functions/v1/ical-feed?speler_id=${encodeURIComponent(S.ikId)}`;
+  const webcal = https.replace(/^https:/,'webcal:');
+  const iphone = `${https}&open=1`;
+  const google = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`;
+  const outlook = `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(https)}&name=${encodeURIComponent('Kaale Bull - '+S.ik)}`;
+  return `<details class="agenda"><summary>📅 Zet je wedstrijden in je agenda</summary>
+    <div class="agenda-in">
+      <div class="agenda-knoppen">
+        <a href="${esc(iphone)}" target="_blank" rel="noopener">iPhone</a>
+        <a href="${esc(google)}" target="_blank" rel="noopener">Android</a>
+        <a href="${esc(outlook)}" target="_blank" rel="noopener">Outlook</a>
+      </div>
+      <p><b>iPhone:</b> tik op "Abonneer". <b>Android</b> (Samsung e.d.): tik op "Toevoegen". <b>Outlook / Hotmail:</b> log in als daarom gevraagd wordt en tik op "Importeren".<br>
+      Eén keer instellen is genoeg: daarna komen al je wedstrijden en wijzigingen vanzelf in je agenda. Heb je hem al? Dan hoef je niets te doen.</p>
+    </div></details>`;
 }
 
 // ══════════════════════════════════════════
@@ -483,6 +633,7 @@ function renderMijn(){
 document.querySelectorAll('.nav [data-view]').forEach(b=>b.addEventListener('click',()=>{
   S.view=b.dataset.view; opslaan('kb_schema_view', S.view); render(); window.scrollTo(0,0);
   if (S.view==='live') laadLive();
+  if (S.view==='stand') laadStand();
 }));
 // Een groen bordlabel in de wedstrijdlijst opent direct de livestand van dat bord
 document.addEventListener('click', e=>{
@@ -517,11 +668,13 @@ async function laadLive(){
     });
     const gewijzigd = JSON.stringify([borden,codes,schr]) !== JSON.stringify([S.borden,S.codes,S.schrijvers]);
     S.borden=borden; S.codes=codes; S.schrijvers=schr;
+    const opBord = {}; BORDEN.forEach(b=>{ if (borden[b]) opBord[borden[b].id]=b; });
+    S.rijen.forEach(w=>{ if (w.status!=='gespeeld') w.bord = opBord[w.id] || null; });
     const aantalLive = BORDEN.filter(b=>S.borden[b]).length;
     const badge=document.getElementById('liveBadge');
     badge.textContent=aantalLive; badge.hidden=!aantalLive;
     if (gewijzigd){
-      if (S.view==='live') renderLive(); else if (S.geladen) render();
+      if (S.view==='live') renderLive(); else if (S.geladen && S.view!=='stand') render();
       if (S.openBord) werkScorebordBij();
     }
   }catch(e){ /* sync-stip toont de verbinding al */ }
@@ -555,6 +708,174 @@ function renderLive(){
   el.innerHTML = `<div class="avond-titel"><h2>Live borden</h2></div>
     <p class="live-intro">${niets ? 'Op dit moment wordt er nergens gegooid. Op de speelavond zie je hier welke wedstrijd op welk bord staat.' : 'Tik op een bord om de live stand te volgen.'}</p>
     ${kaarten}`;
+}
+
+// ══════════════════════════════════════════
+//  STANDEN (alleen bekijken) — zelfde berekening als periode.html
+// ══════════════════════════════════════════
+const PERIODE_LABELS = {1:'Ronde 1–10', 2:'Ronde 11–20', 3:'Ronde 21–30', 4:'Ronde 31–42'};
+const ERE_PLAYOFF = [17,18,19], ERE_DEGRADATIE = [20,21];
+let standBezig=false;
+async function laadStand(force){
+  if (standBezig || (!force && S.stand && Date.now()-S.standTijd < 60000)) { renderStand(); return; }
+  standBezig=true;
+  try{
+    const [pst, ere, stats, volgende] = await Promise.all([
+      sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
+      sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
+      sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300'),
+      sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`)
+    ]);
+    // Statistieken: per divisie alleen de laatste peildatum
+    const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
+    S.stand = { pst, ere: berekenEre(ere), eind: berekenEind(pst),
+                stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
+    S.standTijd = Date.now();
+    if (!S.standPeriode){
+      // Periode die nu loopt: die van de eerstvolgende speelronde in de planning (1–10, 11–20, 21–30, 31–42)
+      const rondes = volgende.map(w=>parseInt(w.speelronde,10)).filter(n=>!isNaN(n));
+      const r = rondes.length ? Math.min(...rondes) : null;
+      S.standPeriode = r===null ? 'eind' : r<=10 ? 1 : r<=20 ? 2 : r<=30 ? 3 : 4;
+    }
+  }catch(e){ if (!S.stand) S.stand = { fout:true }; }
+  finally{ standBezig=false; }
+  if (S.view==='stand') renderStand();
+}
+function berekenEre(data){
+  const t={}, rij=n=>t[n]||(t[n]={speler:n,g:0,w:0,v:0,lv:0,lt:0,p:0,zonder:0});
+  const bye=n=>!n||n.toLowerCase()===BYE;
+  data.forEach(m=>{
+    const metLegs = m.legs_thuis!==null && m.legs_uit!==null;
+    let winnaar=null;
+    if (metLegs) winnaar = m.legs_thuis>m.legs_uit ? m.thuis : m.uit;
+    else if (m.uitslag){
+      const mt=m.uitslag.match(/^(Winnaar|Verliezer):\s*(.+)$/i);
+      if (mt){ const n=mt[2].trim(); winnaar = mt[1].toLowerCase()==='winnaar' ? n : (n===m.thuis ? m.uit : m.thuis); }
+    }
+    [[m.thuis,m.legs_thuis,m.legs_uit],[m.uit,m.legs_uit,m.legs_thuis]].forEach(([n,voor,tegen])=>{
+      if (bye(n)) return; const r=rij(n); r.g++;
+      if (winnaar===n) r.w++; else if (winnaar) r.v++;
+      if (metLegs){ r.lv+=voor; r.lt+=tegen; r.p+=voor; } else r.zonder++;
+    });
+  });
+  const l=Object.values(t).sort((a,b)=>b.p-a.p||b.w-a.w||a.v-b.v||(b.lv-b.lt)-(a.lv-a.lt)||a.speler.localeCompare(b.speler));
+  l.forEach((r,i)=>{ const v=l[i-1]; r.pos=(v&&v.p===r.p&&v.w===r.w&&v.v===r.v&&(v.lv-v.lt)===(r.lv-r.lt))?v.pos:i+1; });
+  return l;
+}
+// Eindstand Eerste Divisie: totaal over de periodes, directe promotie (nr. 1 en 2),
+// periodetitels en play-off tickets — zelfde regels als periode.html
+function berekenEind(data){
+  const tot={};
+  data.forEach(r=>{ const t=tot[r.speler]||(tot[r.speler]={speler:r.speler,w:0,g:0,p:0});
+    t.w+=Number(r.wedstrijden_gespeeld); t.g+=Number(r.gewonnen); t.p+=Number(r.periodepunten); });
+  const lijst=Object.values(tot).sort((a,b)=>b.p-a.p||b.g-a.g||a.speler.localeCompare(b.speler));
+  lijst.forEach((t,i)=>t.pos=i+1);
+  const promo=new Set(lijst.slice(0,2).map(t=>t.speler));
+  const titels={}, tickets={};
+  [1,2,3,4].forEach(p=>{
+    const rijen=data.filter(r=>r.periode===p); if (!rijen.length) return;
+    (titels[rijen[0].speler]=titels[rijen[0].speler]||[]).push(p);
+    const k=rijen.find(r=>!tickets[r.speler] && !promo.has(r.speler)); if (k) tickets[k.speler]=p;
+  });
+  const vijfde=lijst.find(t=>!tickets[t.speler] && !promo.has(t.speler)); if (vijfde) tickets[vijfde.speler]='E';
+  lijst.forEach(t=>{ t.promo=promo.has(t.speler); t.titels=titels[t.speler]||[]; t.ticket=tickets[t.speler]||null; });
+  return lijst;
+}
+const STAT_SORT = {
+  gem:  { kort:'Gem',  label:'Gemiddelde',     kolommen:[['gem','Gemiddelde']],                          sorteer:[['gem',true]] },
+  s180: { kort:'180',  label:"180's",          kolommen:[['s180','180'],['t140','140+'],['t100','100+']],  sorteer:[['s180',true],['t140',true],['t100',true]] },
+  hoogste_finish: { kort:'HF', label:'Hoogste finish', kolommen:[['hoogste_finish','Hoogste finish']],     sorteer:[['hoogste_finish',true]] },
+  beste_leg: { kort:'BL', label:'Beste leg',     kolommen:[['beste_leg','Beste leg (darts)']],             sorteer:[['beste_leg',false]] },
+};
+function knoppen(attr, opties, actief){
+  return opties.map(([w,l])=>`<button data-${attr}="${w}" class="${String(actief)===String(w)?'actief':''}">${l}</button>`).join('');
+}
+function renderStand(){
+  const el=document.getElementById('viewStand');
+  S.standSoort = S.standSoort || 'rang';
+  S.statsSort = S.statsSort || 'gem';
+  const kop = `<div class="seg">${knoppen('soort',[['rang','Ranglijst'],['stats','Statistieken']],S.standSoort)}</div>
+    <div class="seg">${knoppen('div',[['ere','Eredivisie'],['eerste','Eerste Divisie']],S.standDiv)}</div>`;
+  let inhoud;
+  if (!S.stand) inhoud = `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
+  else if (S.stand.fout) inhoud = `<div class="leeg"><span class="ico">📡</span>Kan de standen nu niet ophalen.</div>`;
+  else if (S.standSoort==='stats') inhoud = statsHtml();
+  else if (S.standDiv==='eerste') inhoud = eersteHtml();
+  else inhoud = ereHtml();
+  el.innerHTML = `<div class="avond-titel"><h2>Standen</h2></div>${kop}${inhoud}`;
+  el.querySelectorAll('[data-soort]').forEach(b=>b.addEventListener('click',()=>{ S.standSoort=b.dataset.soort; renderStand(); }));
+  el.querySelectorAll('[data-div]').forEach(b=>b.addEventListener('click',()=>{ S.standDiv=b.dataset.div; renderStand(); }));
+  el.querySelectorAll('[data-periode]').forEach(b=>b.addEventListener('click',()=>{ const v=b.dataset.periode; S.standPeriode = v==='eind' ? 'eind' : Number(v); renderStand(); }));
+  el.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{ S.statsSort=b.dataset.sort; renderStand(); }));
+}
+function eersteHtml(){
+  const per = [1,2,3,4].map(p=>`<button data-periode="${p}" class="${S.standPeriode===p?'actief':''}"><b>P${p}</b><span>${PERIODE_LABELS[p].replace('Ronde ','')}</span></button>`).join('')
+    + `<button data-periode="eind" class="${S.standPeriode==='eind'?'actief':''}"><b>Eind</b><span>totaal</span></button>`;
+  let tabel;
+  if (S.standPeriode==='eind'){
+    const l=S.stand.eind;
+    tabel = l.length ? `<table class="stand"><thead><tr><th></th><th>Speler</th><th class="num">Wedstr.</th><th class="num">Winst</th><th class="num">Ptn</th></tr></thead><tbody>${
+      l.map(t=>{ const tags=[];
+        if (t.promo) tags.push('<span class="zone-tag prom">⬆ promotie</span>');
+        if (t.titels.length) tags.push(`<span class="zone-tag titel">🏆 P${t.titels.join(', P')}</span>`);
+        if (t.ticket) tags.push(`<span class="zone-tag po">🎟 ${t.ticket==='E'?'eindstand':'P'+t.ticket}</span>`);
+        return `<tr class="${t.promo?'leider':''}${t.speler===S.ik?' ik':''}"><td class="pos">${t.pos}</td><td>${esc(t.speler)}${tags.length?`<div class="tags">${tags.join('')}</div>`:''}</td><td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num"><b>${t.p}</b></td></tr>`;
+      }).join('')}</tbody></table>
+      <div class="stand-noot">⬆ Nr. 1 en 2 promoveren direct. 🏆 Periodetitel. 🎟 Play-off ticket: per periode de beste speler zonder ticket, plus één via de eindstand.</div>`
+      : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden.</div>`;
+  } else {
+    const rijen = S.stand.pst.filter(r=>r.periode===S.standPeriode);
+    tabel = rijen.length
+      ? `<table class="stand"><thead><tr><th></th><th>Speler</th><th class="num">Wedstr.</th><th class="num">Winst</th><th class="num">Ptn</th></tr></thead><tbody>${
+          rijen.map(r=>`<tr class="${r.positie==1?'leider':''}${r.speler===S.ik?' ik':''}"><td class="pos">${r.positie==1?'🏆':r.positie}</td><td>${esc(r.speler)}</td><td class="num">${r.wedstrijden_gespeeld}</td><td class="num">${r.gewonnen}</td><td class="num"><b>${r.periodepunten}</b></td></tr>`).join('')
+        }</tbody></table><div class="stand-noot">Punten = gewonnen legs. ${PERIODE_LABELS[S.standPeriode]}.</div>`
+      : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden in deze periode.</div>`;
+  }
+  return `<div class="periodes">${per}</div>${tabel}`;
+}
+function ereHtml(){
+  const l=S.stand.ere;
+  if (!l.length) return `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden.</div>`;
+  const zonder = l.reduce((n,r)=>n+r.zonder,0)/2;
+  const geenLegs = l.every(r=>r.lv===0 && r.lt===0);   // nog geen enkele legstand ingelezen: punten weglaten
+  const rij = (r,i)=>{ const plek=i+1; let cls='', tag='';
+    if (ERE_PLAYOFF.includes(plek)){ cls='zone-po'; if (plek===ERE_PLAYOFF[0]) tag='<span class="zone-tag po">play-offs</span>'; }
+    if (ERE_DEGRADATIE.includes(plek)){ cls='zone-deg'; if (plek===ERE_DEGRADATIE[0]) tag='<span class="zone-tag deg">degradatie</span>'; }
+    if (plek===ERE_PLAYOFF[0]||plek===ERE_DEGRADATIE[0]) cls+=' streep';
+    if (r.speler===S.ik) cls+=' ik';
+    return `<tr class="${cls}"><td class="pos">${r.pos}</td><td>${esc(r.speler)}${tag}</td><td class="num">${r.g}</td>` +
+      (geenLegs ? `<td class="num">${r.w}</td><td class="num">${r.v}</td>` : `<td class="num">${r.w}-${r.v}</td><td class="num"><b>${r.p}</b>${r.zonder?' *':''}</td>`) + `</tr>`;
+  };
+  const kop = geenLegs ? '<th class="num">G</th><th class="num">W</th><th class="num">V</th>' : '<th class="num">G</th><th class="num">W-V</th><th class="num">Ptn</th>';
+  const noot = geenLegs
+    ? 'Gesorteerd op winst en verlies. De punten (gewonnen legs) verschijnen zodra de legstanden zijn ingelezen.'
+    : `Punten = gewonnen legs.${zonder ? ` * ${Math.round(zonder)} gespeelde wedstrijd(en) hebben nog geen legstand en tellen nog niet mee voor de punten.` : ''}`;
+  return `<table class="stand"><thead><tr><th></th><th>Speler</th>${kop}</tr></thead><tbody>${l.map(rij).join('')}</tbody></table><div class="stand-noot">${noot}</div>`;
+}
+function statsHtml(){
+  const naam = S.standDiv==='eerste' ? 'Eerste Divisie' : 'Eredivisie';
+  const rijen = S.stand.stats.filter(r=>r.divisie===naam);
+  if (!rijen.length) return `<div class="leeg"><span class="ico">📊</span>Nog geen statistieken voor de ${naam}.</div>`;
+  const def = STAT_SORT[S.statsSort];
+  const num = (r,k) => r[k]===null || r[k]===undefined || r[k]==='' ? null : Number(r[k]);
+  // Spelers zonder waarde voor de hoofdstatistiek tellen niet mee
+  const l = rijen.filter(r=>num(r,def.sorteer[0][0])!==null).sort((a,b)=>{
+    for (const [k,hoog] of def.sorteer){ const x=num(a,k)??-1, y=num(b,k)??-1; if (x!==y) return hoog ? y-x : x-y; }
+    return a.speler.localeCompare(b.speler);
+  });
+  // Gedeelde plek bij precies dezelfde waarden
+  l.forEach((r,i)=>{ const v=l[i-1]; r._pos = v && def.sorteer.every(([k])=>num(v,k)===num(r,k)) ? v._pos : i+1; });
+  const fmt = (r,k)=>{ const v=r[k]; if (v===null||v===undefined||v==='') return '–'; return k==='gem' ? Number(v).toFixed(2).replace('.',',') : v; };
+  const peil = S.stand.peil[naam];
+  return `<div class="periodes">${knoppenSort()}</div>
+    <table class="stand"><thead><tr><th></th><th>Speler</th>${def.kolommen.map(([,t])=>`<th class="num">${t}</th>`).join('')}</tr></thead><tbody>${
+      l.map(r=>`<tr class="${r.speler===S.ik?'ik':''}"><td class="pos">${r._pos}</td><td>${esc(r.speler)}</td>${
+        def.kolommen.map(([k],i)=>`<td class="num">${i===0?`<b>${fmt(r,k)}</b>`:fmt(r,k)}</td>`).join('')}</tr>`).join('')
+    }</tbody></table>
+    <div class="stand-noot">Stand van ${esc(fmtLang.format(alsDatum(peil)))} (DartConnect).${S.statsSort==='gem' ? ' Gemiddelde per 3 darts.' : ''}${S.statsSort==='beste_leg' ? ' Minste aantal darts voor een leg.' : ''}</div>`;
+}
+function knoppenSort(){
+  return Object.entries(STAT_SORT).map(([k,d])=>`<button data-sort="${k}" class="${S.statsSort===k?'actief':''}"><b>${d.kort}</b><span>${d.label}</span></button>`).join('');
 }
 
 // ── Scorebord groot in beeld ──
@@ -598,6 +919,7 @@ function openScorebord(b){
 }
 // Anonieme telling: één seintje per apparaat per bord per dag (geen naam)
 function telScorebord(b){
+  if (TESTVERSIE) return;
   try{
     const id=lezen('kb_schema_apparaat'); if (!id) return;
     const sleutel='kb_schema_bord_'+b;
@@ -621,6 +943,7 @@ window.addEventListener('popstate',()=>sluitScorebord(true));
 render();
 laad();
 laadLive();
+if (S.view==='stand') laadStand();
 setInterval(()=>{ if (document.visibilityState==='visible') laad(); }, REFRESH_MS);
 setInterval(()=>{ if (document.visibilityState==='visible') laadLive(); }, LIVE_REFRESH_MS);
 document.addEventListener('visibilitychange',()=>{ if (document.visibilityState==='visible'){ laad(); laadLive(); } });
@@ -629,13 +952,15 @@ window.addEventListener('online', ()=>{ laad(); laadLive(); });
 // ══════════════════════════════════════════
 //  PWA: service worker + installeer-tip
 // ══════════════════════════════════════════
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope:'./' }).catch(()=>{});
+const TESTVERSIE = false;  // op true zetten voor een testpagina: geen service worker, geen telling
+if (!TESTVERSIE && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope:'./' }).catch(()=>{});
 
 // ══════════════════════════════════════════
 //  ANONIEME TELLING — één seintje per apparaat per dag (browser of geïnstalleerde app).
 //  Alleen een willekeurig apparaatnummer, geen naam of andere gegevens.
 // ══════════════════════════════════════════
 (function telBezoek(){
+  if (TESTVERSIE) return;
   try{
     let id = lezen('kb_schema_apparaat');
     if (!id){
@@ -656,6 +981,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { sc
 
 (function installeerTip(){
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (TESTVERSIE) return;
   if (standalone || lezen('kb_schema_tip_weg')) return;
   const box=document.getElementById('installeer'), tekst=document.getElementById('installeerTekst'), ja=document.getElementById('installeerJa');
   document.getElementById('installeerNee').addEventListener('click',()=>{ box.hidden=true; opslaan('kb_schema_tip_weg','1'); });
