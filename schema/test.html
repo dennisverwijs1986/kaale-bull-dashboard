@@ -349,7 +349,7 @@ const S = {
   schrijvers: {1:'',2:'',3:'',4:''},
   openBord: null,                          // bord dat nu groot in beeld staat
   ikId: null, ikIdVoor: null,              // speler-id voor de agenda-links
-  standDiv: 'eerste', standPeriode: null, stand: null, standTijd: 0,
+  standDiv: 'ere', standPeriode: null, stand: null, standTijd: 0,
   offline: false, cacheTijd: null,
 };
 const BORDEN=[1,2,3,4];
@@ -721,17 +721,23 @@ async function laadStand(force){
   if (standBezig || (!force && S.stand && Date.now()-S.standTijd < 60000)) { renderStand(); return; }
   standBezig=true;
   try{
-    const [pst, ere, stats] = await Promise.all([
+    const [pst, ere, stats, volgende] = await Promise.all([
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
       sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
-      sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300')
+      sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300'),
+      sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`)
     ]);
     // Statistieken: per divisie alleen de laatste peildatum
     const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
     S.stand = { pst, ere: berekenEre(ere), eind: berekenEind(pst),
                 stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
     S.standTijd = Date.now();
-    if (!S.standPeriode){ const ps=[...new Set(pst.map(r=>r.periode))]; S.standPeriode = ps.length ? Math.max(...ps) : 1; }
+    if (!S.standPeriode){
+      // Periode die nu loopt: die van de eerstvolgende speelronde in de planning (1–10, 11–20, 21–30, 31–42)
+      const rondes = volgende.map(w=>parseInt(w.speelronde,10)).filter(n=>!isNaN(n));
+      const r = rondes.length ? Math.min(...rondes) : null;
+      S.standPeriode = r===null ? 'eind' : r<=10 ? 1 : r<=20 ? 2 : r<=30 ? 3 : 4;
+    }
   }catch(e){ if (!S.stand) S.stand = { fout:true }; }
   finally{ standBezig=false; }
   if (S.view==='stand') renderStand();
@@ -777,8 +783,10 @@ function berekenEind(data){
   return lijst;
 }
 const STAT_SORT = {
-  gem:{label:'Gemiddelde', kort:'Gem', hoog:true}, s180:{label:"180's", kort:'180', hoog:true},
-  hoogste_finish:{label:'Hoogste finish', kort:'HF', hoog:true}, beste_leg:{label:'Beste leg', kort:'BL', hoog:false}
+  gem:  { kort:'Gem',  label:'Gemiddelde',     kolommen:[['gem','Gemiddelde']],                          sorteer:[['gem',true]] },
+  s180: { kort:'180',  label:"180's",          kolommen:[['s180','180'],['t140','140+'],['t100','100+']],  sorteer:[['s180',true],['t140',true],['t100',true]] },
+  hoogste_finish: { kort:'HF', label:'Hoogste finish', kolommen:[['hoogste_finish','Hoogste finish']],     sorteer:[['hoogste_finish',true]] },
+  beste_leg: { kort:'BL', label:'Beste leg',     kolommen:[['beste_leg','Beste leg (darts)']],             sorteer:[['beste_leg',false]] },
 };
 function knoppen(attr, opties, actief){
   return opties.map(([w,l])=>`<button data-${attr}="${w}" class="${String(actief)===String(w)?'actief':''}">${l}</button>`).join('');
@@ -788,7 +796,7 @@ function renderStand(){
   S.standSoort = S.standSoort || 'rang';
   S.statsSort = S.statsSort || 'gem';
   const kop = `<div class="seg">${knoppen('soort',[['rang','Ranglijst'],['stats','Statistieken']],S.standSoort)}</div>
-    <div class="seg">${knoppen('div',[['eerste','Eerste Divisie'],['ere','Eredivisie']],S.standDiv)}</div>`;
+    <div class="seg">${knoppen('div',[['ere','Eredivisie'],['eerste','Eerste Divisie']],S.standDiv)}</div>`;
   let inhoud;
   if (!S.stand) inhoud = `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
   else if (S.stand.fout) inhoud = `<div class="leeg"><span class="ico">📡</span>Kan de standen nu niet ophalen.</div>`;
@@ -849,22 +857,23 @@ function statsHtml(){
   const naam = S.standDiv==='eerste' ? 'Eerste Divisie' : 'Eredivisie';
   const rijen = S.stand.stats.filter(r=>r.divisie===naam);
   if (!rijen.length) return `<div class="leeg"><span class="ico">📊</span>Nog geen statistieken voor de ${naam}.</div>`;
-  const s=S.statsSort, def=STAT_SORT[s];
-  const waarde = r => r[s]===null || r[s]===undefined || r[s]==='' ? null : Number(r[s]);
-  const l = rijen.slice().sort((a,b)=>{
-    const x=waarde(a), y=waarde(b);
-    if (x===null && y===null) return a.speler.localeCompare(b.speler);
-    if (x===null) return 1; if (y===null) return -1;
-    return (def.hoog ? y-x : x-y) || a.speler.localeCompare(b.speler);
+  const def = STAT_SORT[S.statsSort];
+  const num = (r,k) => r[k]===null || r[k]===undefined || r[k]==='' ? null : Number(r[k]);
+  // Spelers zonder waarde voor de hoofdstatistiek tellen niet mee
+  const l = rijen.filter(r=>num(r,def.sorteer[0][0])!==null).sort((a,b)=>{
+    for (const [k,hoog] of def.sorteer){ const x=num(a,k)??-1, y=num(b,k)??-1; if (x!==y) return hoog ? y-x : x-y; }
+    return a.speler.localeCompare(b.speler);
   });
+  // Gedeelde plek bij precies dezelfde waarden
+  l.forEach((r,i)=>{ const v=l[i-1]; r._pos = v && def.sorteer.every(([k])=>num(v,k)===num(r,k)) ? v._pos : i+1; });
   const fmt = (r,k)=>{ const v=r[k]; if (v===null||v===undefined||v==='') return '–'; return k==='gem' ? Number(v).toFixed(2).replace('.',',') : v; };
-  const cel = (r,k)=>`<td class="num">${k===s?`<b>${fmt(r,k)}</b>`:fmt(r,k)}</td>`;
   const peil = S.stand.peil[naam];
   return `<div class="periodes">${knoppenSort()}</div>
-    <table class="stand"><thead><tr><th></th><th>Speler</th>${Object.keys(STAT_SORT).map(k=>`<th class="num">${STAT_SORT[k].kort}</th>`).join('')}</tr></thead><tbody>${
-      l.map((r,i)=>`<tr class="${r.speler===S.ik?'ik':''}"><td class="pos">${i+1}</td><td>${esc(r.speler)}</td>${Object.keys(STAT_SORT).map(k=>cel(r,k)).join('')}</tr>`).join('')
+    <table class="stand"><thead><tr><th></th><th>Speler</th>${def.kolommen.map(([,t])=>`<th class="num">${t}</th>`).join('')}</tr></thead><tbody>${
+      l.map(r=>`<tr class="${r.speler===S.ik?'ik':''}"><td class="pos">${r._pos}</td><td>${esc(r.speler)}</td>${
+        def.kolommen.map(([k],i)=>`<td class="num">${i===0?`<b>${fmt(r,k)}</b>`:fmt(r,k)}</td>`).join('')}</tr>`).join('')
     }</tbody></table>
-    <div class="stand-noot">Stand van ${esc(fmtLang.format(alsDatum(peil)))} (DartConnect). Gem = gemiddelde per 3 darts, HF = hoogste finish, BL = beste leg (aantal darts).</div>`;
+    <div class="stand-noot">Stand van ${esc(fmtLang.format(alsDatum(peil)))} (DartConnect).${S.statsSort==='gem' ? ' Gemiddelde per 3 darts.' : ''}${S.statsSort==='beste_leg' ? ' Minste aantal darts voor een leg.' : ''}</div>`;
 }
 function knoppenSort(){
   return Object.entries(STAT_SORT).map(([k,d])=>`<button data-sort="${k}" class="${S.statsSort===k?'actief':''}"><b>${d.kort}</b><span>${d.label}</span></button>`).join('');
