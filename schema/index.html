@@ -340,7 +340,7 @@ const S = {
   rijen: [], nnb: [], spelers: [],
   gekozenAvond: null,
   ik: null,
-  view: 'alles',
+  view: 'mijn',
   kantel: 24,
   geladen: false,
   borden: {1:null,2:null,3:null,4:null},   // wedstrijd per bord
@@ -360,8 +360,9 @@ const BORDEN=[1,2,3,4];
   if (sp){ S.ik=sp.trim(); opslaan('kb_schema_ik', S.ik); S.view='mijn'; }
   else {
     S.ik = lezen('kb_schema_ik');
-    const v = p.get('view') || lezen('kb_schema_view');
-    if (v==='mijn' || v==='live' || v==='stand') S.view=v;
+    // De app opent altijd op Mijn wedstrijden (met ?view=... in de link kan een ander tabblad)
+    const v = p.get('view');
+    S.view = (v==='alles' || v==='live' || v==='stand') ? v : 'mijn';
   }
 })();
 
@@ -631,7 +632,7 @@ function agendaHtml(){
 //  TABS + VERVERSEN
 // ══════════════════════════════════════════
 document.querySelectorAll('.nav [data-view]').forEach(b=>b.addEventListener('click',()=>{
-  S.view=b.dataset.view; opslaan('kb_schema_view', S.view); render(); window.scrollTo(0,0);
+  S.view=b.dataset.view; render(); window.scrollTo(0,0);
   if (S.view==='live') laadLive();
   if (S.view==='stand') laadStand();
 }));
