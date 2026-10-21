@@ -240,6 +240,19 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .roadmap span.bezig{border-color:rgba(245,158,11,.5);color:#fcd34d;}
 .kampioen{background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.45);border-radius:12px;padding:10px 12px;margin-bottom:10px;color:#fde68a;font-weight:700;}
 .bfase{margin-bottom:14px;}
+.bfasen{overflow-x:auto;scrollbar-width:none;}
+.bfasen::-webkit-scrollbar{display:none;}
+.bfasen button{flex:0 0 auto;min-width:84px;}
+.bgroep{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:10px 0 6px;}
+.duel{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:9px 10px;margin-bottom:6px;font-size:.88rem;}
+.duel.mijn{background:var(--s2);border-color:#3b5584;}
+.duel .da{text-align:right;overflow-wrap:anywhere;}
+.duel .db{text-align:left;overflow-wrap:anywhere;}
+.duel .dm{text-align:center;font-weight:800;font-variant-numeric:tabular-nums;color:var(--muted);min-width:48px;white-space:nowrap;}
+.duel .dm .verslag{display:block;font-size:.68rem;margin-top:2px;}
+.duel .winst{font-weight:800;color:var(--text);}
+.duel .verlies{color:var(--muted);}
+.duel .ik{color:#93c5fd;}
 .bfase h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 6px;}
 .bm{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-left:4px solid var(--beker);border-radius:10px;padding:9px 12px;margin-bottom:6px;}
 .bm.mijn{background:var(--s2);}
@@ -970,33 +983,77 @@ function bekerHtml(){
   const st = S.beker && S.beker.staat;
   if (!st || !st.fases) return `<div class="leeg"><span class="ico">🏆</span>Het bekertoernooi is nog niet geloot.</div>`;
   const f = st.fases;
-  const road = B_VOLGORDE.map(id=>{
-    if (!f[id]) return `<span>${esc(B_FASES[id].kort)}</span>`;
-    const ms=f[id].matches||[], klaar=ms.filter(m=>m.winnaar).length;
-    return f[id].afgerond ? `<span class="klaar">${esc(B_FASES[id].kort)} ✓</span>` : `<span class="bezig">${esc(B_FASES[id].kort)} ${klaar}/${ms.length}</span>`;
-  }).join('');
+  const r1 = (f.ronde1 && f.ronde1.matches) || [];
+  const fasen = B_VOLGORDE.filter(id=>f[id] && (f[id].matches||[]).length);
+  // Standaard de fase die nu loopt (eerste niet-afgeronde), anders de laatste
+  // Standaard de nieuwste fase die nog loopt, anders de laatste
+  if (!S.bekerFase || !fasen.includes(S.bekerFase)) S.bekerFase = fasen.filter(id=>!f[id].afgerond).pop() || fasen[fasen.length-1];
+
+  const wachtNaam = m => { const rm=r1.find(x=>x.nr===m._wachtOpWedstrijd); return rm ? `winnaar ${rm.a} / ${rm.b}` : 'nog onbekend'; };
+  const naamA = m => m.a || (m._wachtOpWedstrijd ? wachtNaam(m) : 'nog onbekend');
+  const naamB = m => m.b || 'nog onbekend';
+
+  // ── Jouw beker ──
+  let jouw = '';
+  if (S.ik){
+    const mijn = [];
+    B_VOLGORDE.forEach(id=>(f[id]?.matches||[]).forEach(m=>{ if (m.a===S.ik || m.b===S.ik) mijn.push({id,m}); }));
+    const bye = (f.ronde1?.bye||[]).includes(S.ik);
+    if (mijn.length || bye){
+      const open = mijn.find(x=>!x.m.winnaar);
+      const laatste = mijn.filter(x=>x.m.winnaar).pop();
+      let status;
+      if (st.kampioenWR===S.ik) status='🏆 Bekerwinnaar!';
+      else if (st.kampioenVR===S.ik) status='🥈 Winnaar verliezersronde!';
+      else if (open){
+        const tegen = open.m.a===S.ik ? naamB(open.m) : naamA(open.m);
+        status = `Volgende: <b>${esc(B_FASES[open.id].label)}</b> tegen <b>${esc(tegen)}</b>`;
+      } else if (laatste && laatste.m.winnaar!==S.ik){
+        // Toernooiregels: verliezers van ronde 1 → verliezersronde 2; bye-spelers die hun eerste duel (WR 2) verliezen
+        // krijgen één troostronde in de verliezersronde; verder is een nederlaag het einde.
+        const eersteDuel = mijn[0] === laatste;
+        if (laatste.id==='ronde1') status='Je gaat door in de <b>verliezersronde</b>. Je tegenstander volgt na de loting.';
+        else if (laatste.id==='wr2' && bye && eersteDuel) status='Je krijgt een troostronde in de <b>verliezersronde</b>. Je tegenstander volgt na de loting.';
+        else status='Je bent uitgeschakeld. Bedankt voor het meedoen!';
+      } else if (laatste) status='Gewonnen! Je tegenstander in de volgende ronde volgt na de loting.';
+      else status='Je wacht op de volgende loting.';
+      const res = mijn.filter(x=>x.m.winnaar).map(x=>{
+        const ikA = x.m.a===S.ik, tegen = ikA ? x.m.b : x.m.a, won = x.m.winnaar===S.ik;
+        const sc = x.m.scoreA!=null ? (ikA ? `${x.m.scoreA}-${x.m.scoreB}` : `${x.m.scoreB}-${x.m.scoreA}`) : '';
+        return `<div class="res"><span class="rd">${esc(B_FASES[x.id].kort)}</span><span class="rt">tegen ${esc(tegen)}</span><span class="rs"><span class="wv ${won?'w':'v'}">${won?'W':'V'}</span><span class="score">${sc}</span></span></div>`;
+      }).join('');
+      jouw = `<div class="uitslagen" style="margin-top:0"><h3>Jouw beker</h3><div style="font-size:.9rem;margin-bottom:6px">${status}</div>${bye && !mijn.some(x=>x.id==='ronde1') ? '<div class="stand-noot" style="margin:0 0 6px">Bye in ronde 1.</div>' : ''}${res}</div>`;
+    }
+  }
+
   const kamp = [st.kampioenWR ? `🏆 Bekerwinnaar: ${esc(st.kampioenWR)}` : '', st.kampioenVR ? `🥈 Winnaar verliezersronde: ${esc(st.kampioenVR)}` : '']
     .filter(Boolean).map(t=>`<div class="kampioen">${t}</div>`).join('');
-  const r1 = (f.ronde1 && f.ronde1.matches) || [];
-  // Nieuwste fase bovenaan
-  const fases = B_VOLGORDE.filter(id=>f[id] && (f[id].matches||[]).length).reverse().map(id=>{
-    const bo = B_FASES[id].bo;
-    const ms = f[id].matches.map(m=>{
-      const isMijn = S.ik && (m.a===S.ik || m.b===S.ik);
-      const naam = (x)=>{ const c=[]; if (S.ik&&x===S.ik) c.push('ik'); if (m.winnaar) c.push(x===m.winnaar?'winst':'verlies'); return `<div class="${c.join(' ')}">${esc(x)}</div>`; };
-      let a;
-      if (m.a) a = naam(m.a);
-      else if (m._wachtOpWedstrijd){ const rm=r1.find(x=>x.nr===m._wachtOpWedstrijd); a = `<div class="verlies">winnaar ${rm ? esc(rm.a)+' – '+esc(rm.b) : 'wedstrijd '+m._wachtOpWedstrijd}</div>`; }
-      else a = `<div class="verlies">nog onbekend</div>`;
-      const b = m.b ? naam(m.b) : `<div class="verlies">nog onbekend</div>`;
-      const link = m._wedstrijdId && veiligeLink(S.beker.links[m._wedstrijdId]);
-      const score = (m.scoreA!=null && m.scoreB!=null) ? `${m.scoreA}<br>${m.scoreB}` : '';
-      return `<div class="bm${isMijn?' mijn':''}"><div class="bn">${a}${b}</div><div class="bs">${score}${link?`<a class="verslag" href="${esc(link)}" target="_blank" rel="noopener">Verslag ›</a>`:''}${!score && !m.winnaar ? '<small>nog te spelen</small>' : ''}</div></div>`;
-    }).join('');
-    const byes = (f[id].bye||[]).length && id==='ronde1' ? `<div class="stand-noot" style="margin:2px 0 6px">${f[id].bye.length} spelers hadden een bye en stroomden direct door naar winnaarsronde 2.</div>` : '';
-    return `<div class="bfase"><h3>${esc(B_FASES[id].label)} · Bo${bo}</h3>${ms}${byes}</div>`;
+
+  // ── Fasekeuze ──
+  const chips = fasen.map(id=>{
+    const ms=f[id].matches, klaar=ms.filter(m=>m.winnaar).length;
+    return `<button data-bfase="${id}" class="${id===S.bekerFase?'actief':''}"><b>${esc(B_FASES[id].kort)}</b><span>${f[id].afgerond?'klaar ✓':`${klaar}/${ms.length} gespeeld`}</span></button>`;
   }).join('');
-  return `<div class="roadmap">${road}</div>${kamp}${fases}`;
+
+  // ── Duels van de gekozen fase: eerst nog te spelen, dan gespeeld ──
+  const fase = f[S.bekerFase];
+  const regel = m => {
+    const isMijn = S.ik && (m.a===S.ik || m.b===S.ik);
+    const cls = x => [S.ik&&x===S.ik?'ik':'', m.winnaar ? (x===m.winnaar?'winst':'verlies') : ''].join(' ');
+    const a = m.a ? `<span class="${cls(m.a)}">${esc(m.a)}</span>` : `<span class="verlies">${esc(naamA(m))}</span>`;
+    const b = m.b ? `<span class="${cls(m.b)}">${esc(m.b)}</span>` : `<span class="verlies">${esc(naamB(m))}</span>`;
+    const sc = m.scoreA!=null && m.scoreB!=null ? `${m.scoreA} – ${m.scoreB}` : 'vs';
+    const link = m._wedstrijdId && veiligeLink(S.beker.links[m._wedstrijdId]);
+    return `<div class="duel${isMijn?' mijn':''}"><div class="da">${a}</div><div class="dm">${sc}${link?`<a class="verslag" href="${esc(link)}" target="_blank" rel="noopener">Verslag ›</a>`:''}</div><div class="db">${b}</div></div>`;
+  };
+  const open = fase.matches.filter(m=>!m.winnaar), klaar = fase.matches.filter(m=>m.winnaar);
+  const byes = S.bekerFase==='ronde1' && (fase.bye||[]).length ? `<div class="stand-noot">${fase.bye.length} spelers hadden een bye en stroomden direct door naar winnaarsronde 2.</div>` : '';
+  const lijst = (open.length ? `<div class="bgroep">Nog te spelen (${open.length})</div>${open.map(regel).join('')}` : '')
+              + (klaar.length ? `<div class="bgroep">Gespeeld (${klaar.length})</div>${klaar.map(regel).join('')}` : '');
+
+  return `${kamp}${jouw}<div class="periodes bfasen">${chips}</div>
+    <div class="avond-titel"><h2 style="font-size:1rem">${esc(B_FASES[S.bekerFase].label)}</h2><span class="teller">best of ${B_FASES[S.bekerFase].bo}</span></div>
+    ${lijst}${byes}`;
 }
 
 function knoppen(attr, opties, actief){
@@ -1020,6 +1077,8 @@ function renderStand(){
   el.querySelectorAll('[data-div]').forEach(b=>b.addEventListener('click',()=>{ S.standDiv=b.dataset.div; renderStand(); }));
   el.querySelectorAll('[data-periode]').forEach(b=>b.addEventListener('click',()=>{ const v=b.dataset.periode; S.standPeriode = v==='eind' ? 'eind' : Number(v); renderStand(); }));
   el.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{ S.statsSort=b.dataset.sort; renderStand(); }));
+  el.querySelectorAll('[data-bfase]').forEach(b=>b.addEventListener('click',()=>{ S.bekerFase=b.dataset.bfase; renderStand(); }));
+  const af = el.querySelector('.bfasen .actief'); if (af) af.scrollIntoView({block:'nearest',inline:'center'});
 }
 function eersteHtml(){
   const per = [1,2,3,4].map(p=>`<button data-periode="${p}" class="${S.standPeriode===p?'actief':''}"><b>P${p}</b><span>${PERIODE_LABELS[p].replace('Ronde ','')}</span></button>`).join('')
