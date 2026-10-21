@@ -210,6 +210,69 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .stand-noot{color:var(--dim);font-size:.75rem;margin-top:10px;}
 
 /* ── TESTVERSIE ── */
+/* ── UITSLAGEN ── */
+.score{font-weight:700;font-size:.95rem;font-variant-numeric:tabular-nums;color:var(--text);white-space:nowrap;}
+.score b{color:#6ee7b7;}
+.verslag{display:inline-block;margin-top:4px;color:#93c5fd;font-size:.75rem;font-weight:700;text-decoration:none;white-space:nowrap;}
+.k-namen .winst{font-weight:800;}
+.k-namen .verlies{color:var(--muted);font-weight:500;}
+.kaart.gespeeld{opacity:.92;}
+.avond.verleden:not(.actief){opacity:.65;}
+.uitslagen{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 12px 6px;margin:16px 0 12px;}
+.uitslagen h3{margin:0 0 8px;font-size:1rem;}
+.vorm{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);}
+.vorm i{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:.72rem;}
+.vorm i.w{background:rgba(16,185,129,.2);color:#6ee7b7;border:1px solid rgba(16,185,129,.5);}
+.vorm i.v{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.45);}
+.res{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid rgba(42,58,86,.6);font-size:.9rem;}
+.res .rd{color:var(--muted);font-size:.75rem;min-width:46px;}
+.res .rt{flex:1;min-width:0;overflow-wrap:anywhere;}
+.res .rs{text-align:right;}
+.res .wv{display:inline-block;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:.66rem;font-weight:800;margin-right:4px;}
+.res .wv.w{background:rgba(16,185,129,.2);color:#6ee7b7;}
+.res .wv.v{background:rgba(239,68,68,.15);color:#fca5a5;}
+.meer{width:100%;border:0;background:none;color:#93c5fd;font-weight:700;font-size:.82rem;padding:8px;cursor:pointer;}
+
+/* ── BEKER ── */
+.roadmap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.roadmap span{font-size:.72rem;font-weight:800;padding:4px 8px;border-radius:8px;background:var(--s1);border:1px solid var(--border);color:var(--dim);}
+.roadmap span.klaar{border-color:rgba(16,185,129,.5);color:#6ee7b7;}
+.roadmap span.bezig{border-color:rgba(245,158,11,.5);color:#fcd34d;}
+.kampioen{background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.45);border-radius:12px;padding:10px 12px;margin-bottom:10px;color:#fde68a;font-weight:700;}
+.bfase{margin-bottom:14px;}
+.bfasen{overflow-x:auto;scrollbar-width:none;}
+.bfasen::-webkit-scrollbar{display:none;}
+.bfasen button{flex:0 0 auto;min-width:84px;}
+.bgroep{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:10px 0 6px;}
+.duel{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:9px 10px;margin-bottom:6px;font-size:.88rem;}
+.duel.mijn{background:var(--s2);border-color:#3b5584;}
+.duel .da{text-align:right;overflow-wrap:anywhere;}
+.duel .db{text-align:left;overflow-wrap:anywhere;}
+.duel .dm{text-align:center;font-weight:800;font-variant-numeric:tabular-nums;color:var(--muted);min-width:48px;white-space:nowrap;}
+.duel .dm .verslag{display:block;font-size:.68rem;margin-top:2px;}
+.duel .winst{font-weight:800;color:var(--text);}
+.duel .verlies{color:var(--muted);}
+.duel .ik{color:#93c5fd;}
+.bfase h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 6px;}
+.bm{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-left:4px solid var(--beker);border-radius:10px;padding:9px 12px;margin-bottom:6px;}
+.bm.mijn{background:var(--s2);}
+.bm .bn{flex:1;min-width:0;font-size:.92rem;}
+.bm .bn div{overflow-wrap:anywhere;}
+.bm .bn .winst{font-weight:800;}
+.bm .bn .verlies{color:var(--muted);}
+.bm .bn .ik{color:#93c5fd;}
+.bm .bs{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;}
+.bm .bs small{display:block;font-weight:600;color:var(--dim);font-size:.7rem;}
+
+/* ── SPONSORS & DELEN ── */
+.sponsors{margin-top:22px;text-align:center;}
+.sponsors h4{margin:0 0 10px;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);}
+.sp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.sp-grid div{background:var(--s1);border:1px solid var(--border);border-radius:10px;height:56px;display:flex;align-items:center;justify-content:center;padding:6px;}
+.sp-grid img{max-width:100%;max-height:44px;object-fit:contain;}
+.deel{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:16px;background:#25d366;color:#052e16;border:0;border-radius:10px;padding:11px;font-weight:800;font-size:.9rem;cursor:pointer;}
+.ik-knoppen{display:flex;gap:6px;}
+
 .testbalk{background:#7c3aed;color:#fff;text-align:center;font-size:.75rem;font-weight:800;letter-spacing:.06em;padding:4px;}
 
 .nnb-blok{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45);border-radius:12px;padding:12px 12px 6px;margin-bottom:14px;}
@@ -337,7 +400,7 @@ function zichtbaarTot(kantel){
 //  STAAT
 // ══════════════════════════════════════════
 const S = {
-  rijen: [], nnb: [], spelers: [],
+  rijen: [], byes: [], nnb: [], spelers: [],
   gekozenAvond: null,
   ik: null,
   view: 'mijn',
@@ -377,12 +440,27 @@ async function laad(){
     const I = Object.fromEntries(inst.map(r=>[r.sleutel, r.waarde]));
     S.kantel = parseInt(I.planning_kantel_dag,10) || 24;
     const tot = zichtbaarTot(S.kantel);
-    const velden='select=id,datum,tijdstip,divisie,thuis,uit,status,is_inhaal,originele_datum,bord,datum_nnb';
-    const [rijen, nnb] = await Promise.all([
-      sbGet('wedstrijden', `${velden}&datum=gte.${vandaag()}&datum=lte.${tot}&order=datum.asc,tijdstip.asc.nullslast,id.asc`),
-      sbGet('wedstrijden', `${velden}&datum_nnb=eq.true&status=neq.gespeeld&order=id.asc`)
+    const velden='select=id,datum,tijdstip,divisie,thuis,uit,status,is_inhaal,originele_datum,bord,datum_nnb,uitslag,legs_thuis,legs_uit,verslag_url';
+    const [rijen, nnb, bekerRij] = await Promise.all([
+      sbGet('wedstrijden', `${velden}&datum=lte.${tot}&order=datum.asc,tijdstip.asc.nullslast,id.asc`),
+      sbGet('wedstrijden', `${velden}&datum_nnb=eq.true&status=neq.gespeeld&order=id.asc`),
+      sbGet('beker_toernooi','select=staat&order=id.desc&limit=1').catch(()=>[])
     ]);
+    // Bekeruitslagen staan in het bekertoernooi (score per wedstrijd), gekoppeld via _wedstrijdId
+    S.bekerUitslag = {};
+    const fasen = (bekerRij[0] && bekerRij[0].staat && bekerRij[0].staat.fases) || {};
+    Object.values(fasen).forEach(f=>(f.matches||[]).forEach(m=>{ if (m._wedstrijdId && m.winnaar) S.bekerUitslag[m._wedstrijdId] = m; }));
+    rijen.forEach(w=>{
+      const m = S.bekerUitslag[w.id];
+      if (!m || (w.legs_thuis!=null && w.legs_uit!=null)) return;
+      if (m.scoreA!=null && m.scoreB!=null){
+        if (m.a===w.thuis){ w.legs_thuis=m.scoreA; w.legs_uit=m.scoreB; }
+        else if (m.b===w.thuis){ w.legs_thuis=m.scoreB; w.legs_uit=m.scoreA; }
+      }
+      if (!w.uitslag) w.uitslag = 'Winnaar: '+m.winnaar;
+    });
     S.rijen = rijen.filter(w=>!isBye(w));
+    S.byes = rijen.filter(w=>isBye(w) && w.status==='gespeeld');
     S.nnb = nnb.filter(w=>!isBye(w));
     const namen = new Set();
     [...S.rijen, ...S.nnb].forEach(w=>{ namen.add(w.thuis); namen.add(w.uit); });
@@ -393,7 +471,7 @@ async function laad(){
     if (String(I.app_mededeling_actief)==='true' && tekst){ mdd.textContent='📣 '+tekst; mdd.hidden=false; } else mdd.hidden=true;
 
     S.geladen=true; S.offline=false;
-    opslaan('kb_schema_cache', JSON.stringify({ t:Date.now(), rijen:S.rijen, nnb:S.nnb, kantel:S.kantel,
+    opslaan('kb_schema_cache', JSON.stringify({ t:Date.now(), rijen:S.rijen, byes:S.byes, nnb:S.nnb, kantel:S.kantel,
       mdd: mdd.hidden ? '' : mdd.textContent }));
     zetSync(true);
     render();
@@ -420,7 +498,8 @@ function zetSync(ok){
     const c = JSON.parse(lezen('kb_schema_cache') || 'null');
     if (!c || !Array.isArray(c.rijen)) return;
     const vd = vandaag();
-    S.rijen = c.rijen.filter(w=>w.datum >= vd);
+    S.rijen = c.rijen;
+    S.byes = c.byes || [];
     S.nnb = c.nnb || [];
     S.kantel = c.kantel || 24;
     const namen = new Set(); [...S.rijen, ...S.nnb].forEach(w=>{ namen.add(w.thuis); namen.add(w.uit); });
@@ -444,13 +523,38 @@ function render(){
   else if (S.view==='live') renderLive(); else renderStand();
 }
 
+// Uitslag van een gespeelde wedstrijd: winnaar uit de legstand, anders uit "Winnaar:/Verliezer: naam"
+function winnaarVan(w){
+  if (w.legs_thuis!=null && w.legs_uit!=null && w.legs_thuis!==w.legs_uit) return w.legs_thuis>w.legs_uit ? w.thuis : w.uit;
+  const m = String(w.uitslag||'').match(/^(Winnaar|Verliezer):\s*(.+)$/i);
+  if (!m) return null;
+  const n=m[2].trim();
+  return m[1].toLowerCase()==='winnaar' ? n : (n===w.thuis ? w.uit : w.thuis);
+}
+function veiligeLink(u){ return /^https:\/\/recap\.dartconnect\.com\/[A-Za-z0-9\/_.-]+$/.test(u||'') ? u : null; }
+function verslagHtml(w){
+  const u=veiligeLink(w.verslag_url);
+  return u ? `<a class="verslag" href="${esc(u)}" target="_blank" rel="noopener">Verslag ›</a>` : '';
+}
+
 function namenHtml(w){
-  const n = x => S.ik && x===S.ik ? `<span class="ik">${esc(x)}</span>` : esc(x);
+  const win = w.status==='gespeeld' ? winnaarVan(w) : null;
+  const n = x => {
+    const cls=[]; if (S.ik && x===S.ik) cls.push('ik'); if (win) cls.push(x===win?'winst':'verlies');
+    return cls.length ? `<span class="${cls.join(' ')}">${esc(x)}</span>` : esc(x);
+  };
   return `${n(w.thuis)}<span class="vs">vs</span>${n(w.uit)}`;
 }
 
 function rechtsHtml(w){
-  if (w.status==='gespeeld') return `<span class="vink">✓ gespeeld</span>`;
+  if (w.status==='gespeeld'){
+    if (w.legs_thuis!=null && w.legs_uit!=null){
+      const a = w.legs_thuis>w.legs_uit ? `<b>${w.legs_thuis}</b>` : w.legs_thuis;
+      const b = w.legs_uit>w.legs_thuis ? `<b>${w.legs_uit}</b>` : w.legs_uit;
+      return `<span class="score">${a}-${b}</span><br>${verslagHtml(w)}`;
+    }
+    return `<span class="vink">✓ gespeeld</span>${verslagHtml(w) ? '<br>'+verslagHtml(w) : ''}`;
+  }
   if (w.bord) return S.codes[w.bord]
     ? `<button class="bord" data-open-bord="${esc(w.bord)}">Bord ${esc(w.bord)}</button>`
     : `<span class="bord">Bord ${esc(w.bord)}</span>`;
@@ -512,12 +616,13 @@ function renderAlles(){
     el.innerHTML=`<div class="leeg"><span class="ico">🌙</span>Er staan nog geen wedstrijden gepland.</div>`;
     return;
   }
-  if (!S.gekozenAvond || !avonden.includes(S.gekozenAvond)) S.gekozenAvond = avonden[0];
   const vd=vandaag();
+  if (!S.gekozenAvond || !avonden.includes(S.gekozenAvond))
+    S.gekozenAvond = avonden.find(d=>d>=vd) || avonden[avonden.length-1];
 
   const chips = avonden.map(d=>{
     const dt=alsDatum(d);
-    const c=['avond']; if (d===S.gekozenAvond) c.push('actief'); if (d===vd) c.push('vandaag');
+    const c=['avond']; if (d===S.gekozenAvond) c.push('actief'); if (d===vd) c.push('vandaag'); if (d<vd) c.push('verleden');
     return `<button class="${c.join(' ')}" data-avond="${d}"><span>${d===vd?'vandaag':esc(fmtKort.format(dt))}</span><b>${esc(fmtDag.format(dt))}</b></button>`;
   }).join('');
 
@@ -541,8 +646,10 @@ function renderAlles(){
     ${beurtHtml()}
     <div class="avonden" id="avonden">${chips}</div>
     <div class="avond-titel"><h2>${esc(titel.charAt(0).toUpperCase()+titel.slice(1))}</h2>
-      <span class="teller">${rijen.length} wedstrijden${open<rijen.length ? ` · ${open} open` : ''}</span></div>
-    ${slots}`;
+      <span class="teller">${rijen.length} wedstrijden${open<rijen.length && open ? ` · ${open} open` : ''}</span></div>
+    ${slots}
+    <button class="deel" id="deelApp">📲 Stuur de app door</button>`;
+  el.querySelector('#deelApp').addEventListener('click', deelApp);
 
   el.querySelectorAll('[data-avond]').forEach(b=>b.addEventListener('click',()=>{ S.gekozenAvond=b.dataset.avond; renderAlles(); }));
   const actief=el.querySelector('.avond.actief'); if (actief) actief.scrollIntoView({block:'nearest',inline:'center'});
@@ -564,14 +671,15 @@ function renderMijn(){
     return;
   }
   const vd=vandaag();
-  const mijn=S.rijen.filter(w=>w.thuis===S.ik || w.uit===S.ik);
+  const mijnAlle=S.rijen.filter(w=>w.thuis===S.ik || w.uit===S.ik);
+  const mijn=mijnAlle.filter(w=>w.datum>=vd);
   const mijnNnb=S.nnb.filter(w=>w.thuis===S.ik || w.uit===S.ik);
   const volgende = mijn.find(w=>w.status!=='gespeeld');
 
-  let html = `<div class="ik-balk"><h2>${esc(S.ik)}</h2><button class="knop-klein" id="wissel">Andere speler</button></div>`;
+  let html = `<div class="ik-balk"><h2>${esc(S.ik)}</h2><div class="ik-knoppen"><button class="knop-klein" id="deelMijn">Delen</button><button class="knop-klein" id="wissel">Andere speler</button></div></div>`;
   html += beurtHtml();
   if (!mijn.length && !mijnNnb.length){
-    html += `<div class="leeg"><span class="ico">🎯</span>Geen wedstrijden in de vrijgegeven planning.</div>`;
+    html += `<div class="leeg"><span class="ico">🎯</span>Geen komende wedstrijden in de vrijgegeven planning.</div>`;
   } else {
     if (mijnNnb.length){
       const meer = mijnNnb.length>1;
@@ -589,12 +697,82 @@ function renderMijn(){
       html += perDag[d].map(w=>kaartHtml(w,{metTijd:true, volgende: w===volgende})).join('');
     });
   }
+  html += uitslagenHtml(mijnAlle);
   html += agendaHtml();
   el.innerHTML = html;
   el.querySelector('#wissel').addEventListener('click',()=>{ S.ik=null; S.ikId=null; opslaan('kb_schema_ik',null); render(); });
+  el.querySelector('#deelMijn').addEventListener('click',()=>deelMijn(mijn));
+  const meer = el.querySelector('#meerUitslagen');
+  if (meer) meer.addEventListener('click',()=>{ S.alleUitslagen=true; renderMijn(); });
   const ag = el.querySelector('.agenda');
   if (ag){ ag.open = lezen('kb_schema_agenda_open')==='1'; ag.addEventListener('toggle',()=>opslaan('kb_schema_agenda_open', ag.open?'1':'0')); }
   haalIkId();
+}
+
+// ── Mijn uitslagen + vorm ──
+function uitslagenHtml(mijnAlle){
+  const vd=vandaag();
+  const gespeeld = mijnAlle.filter(w=>w.status==='gespeeld')
+    .concat(S.byes.filter(w=>w.thuis===S.ik || w.uit===S.ik))
+    .sort((a,b)=> (b.datum+(b.tijdstip||'')).localeCompare(a.datum+(a.tijdstip||'')));
+  if (!gespeeld.length) return '';
+  const metUitslag = gespeeld.filter(w=>!isBye(w) && winnaarVan(w));
+  const w = metUitslag.filter(x=>winnaarVan(x)===S.ik).length, v = metUitslag.length - w;
+  const vorm = metUitslag.slice(0,5).reverse().map(x=>winnaarVan(x)===S.ik ? '<i class="w">W</i>' : '<i class="v">V</i>').join('');
+  const lijst = (S.alleUitslagen ? gespeeld : gespeeld.slice(0,5)).map(x=>{
+    const dt = esc(fmtDag.format(alsDatum(x.datum)));
+    if (isBye(x)) return `<div class="res"><span class="rd">${dt}</span><span class="rt">Vrije ronde</span><span class="rs"><span class="wv w">W</span><span class="score">3-0</span></span></div>`;
+    const tegen = x.thuis===S.ik ? x.uit : x.thuis;
+    const win = winnaarVan(x);
+    const mijnLegs = x.thuis===S.ik ? x.legs_thuis : x.legs_uit, hunLegs = x.thuis===S.ik ? x.legs_uit : x.legs_thuis;
+    const score = mijnLegs!=null && hunLegs!=null ? `<span class="score">${mijnLegs}-${hunLegs}</span>` : '';
+    const wv = win ? `<span class="wv ${win===S.ik?'w':'v'}">${win===S.ik?'W':'V'}</span>` : '';
+    const beker = divKey(x)==='beker' ? ' <span class="chip beker">Beker</span>' : '';
+    return `<div class="res"><span class="rd">${dt}</span><span class="rt">tegen ${esc(tegen)}${beker}</span><span class="rs">${wv}${score}${verslagHtml(x)?'<br>'+verslagHtml(x):''}</span></div>`;
+  }).join('');
+  return `<div class="uitslagen"><h3>Mijn uitslagen</h3>
+    ${metUitslag.length ? `<div class="vorm">Vorm ${vorm}<span style="margin-left:auto">${w} gewonnen · ${v} verloren</span></div>` : ''}
+    ${lijst}
+    ${!S.alleUitslagen && gespeeld.length>5 ? `<button class="meer" id="meerUitslagen">Toon alle ${gespeeld.length} uitslagen</button>` : ''}
+  </div>`;
+}
+
+// ── Delen ──
+function appUrl(){ return new URL('./', location.href).href; }
+async function deel(tekst, titel){
+  try{
+    if (navigator.share){ await navigator.share({ title:titel, text:tekst }); return; }
+  }catch(e){ if (e && e.name==='AbortError') return; }
+  window.open('https://wa.me/?text='+encodeURIComponent(tekst), '_blank', 'noopener');
+}
+function deelApp(){
+  deel(`🎯 Het speelschema van De Kaale Bull, altijd up-to-date: ${appUrl()}`, 'Kaale Bull Speelschema');
+}
+function deelMijn(komend){
+  const regels = komend.filter(w=>w.status!=='gespeeld').slice(0,8).map(w=>{
+    const tegen = w.thuis===S.ik ? w.uit : w.thuis;
+    return `• ${fmtKort.format(alsDatum(w.datum))} ${fmtDag.format(alsDatum(w.datum))}${w.tijdstip?' '+w.tijdstip:''} tegen ${tegen}`;
+  });
+  const tekst = `🎯 Mijn wedstrijden bij De Kaale Bull${regels.length ? ':\n'+regels.join('\n') : ': nog niets gepland'}\n\nHet hele schema: ${appUrl()}`;
+  deel(tekst, 'Mijn wedstrijden');
+}
+
+// ── Sponsors (zelfde lijst als op de TV) ──
+const SPONSORS = [
+  { naam:'Sportcafé Duyf', logo:'../sponsors/duyf.png' },
+  { naam:'Jonas Tweewielers Maasdam', logo:'../sponsors/jonas.svg' },
+  { naam:'Bouwer Installatie', logo:'../sponsors/bouwer.svg' },
+  { naam:'Ademar', logo:'../sponsors/ademar.png' },
+  { naam:'Scents', logo:'../sponsors/scents.svg' },
+  { naam:'Boerboom', logo:'../sponsors/boerboom.svg' },
+  { naam:'Magic Darts', logo:'../sponsors/magic-darts.png' },
+  { naam:'Nonstop Printing', logo:'../sponsors/Nonstop.svg' },
+  { naam:'Corvers & Van Veldhoven', logo:'../sponsors/corvers.png' },
+  { naam:'MR Solutions', logo:'../sponsors/mr-solutions.png' },
+];
+function sponsorsHtml(){
+  return `<div class="sponsors"><h4>Met dank aan onze sponsors</h4><div class="sp-grid">${
+    SPONSORS.map(s=>`<div><img src="${esc(s.logo)}" alt="${esc(s.naam)}" loading="lazy"></div>`).join('')}</div></div>`;
 }
 
 // ── Agenda-koppeling (zelfde links als in de mails) ──
@@ -721,14 +899,17 @@ async function laadStand(force){
   if (standBezig || (!force && S.stand && Date.now()-S.standTijd < 60000)) { renderStand(); return; }
   standBezig=true;
   try{
-    const [pst, ere, stats, volgende] = await Promise.all([
+    const [pst, ere, stats, volgende, bekerStaat, bekerLinks] = await Promise.all([
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
       sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
       sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300'),
-      sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`)
+      sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`),
+      sbGet('beker_toernooi','select=staat&order=id.desc&limit=1').catch(()=>[]),
+      sbGet('wedstrijden','select=id,verslag_url&divisie=ilike.Beker*&verslag_url=not.is.null').catch(()=>[])
     ]);
     // Statistieken: per divisie alleen de laatste peildatum
     const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
+    S.beker = { staat: bekerStaat[0]?.staat || null, links: Object.fromEntries(bekerLinks.map(r=>[r.id, r.verslag_url])) };
     S.stand = { pst, ere: berekenEre(ere), eind: berekenEind(pst),
                 stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
     S.standTijd = Date.now();
@@ -788,6 +969,92 @@ const STAT_SORT = {
   hoogste_finish: { kort:'HF', label:'Hoogste finish', kolommen:[['hoogste_finish','Hoogste finish']],     sorteer:[['hoogste_finish',true]] },
   beste_leg: { kort:'BL', label:'Beste leg',     kolommen:[['beste_leg','Beste leg (darts)']],             sorteer:[['beste_leg',false]] },
 };
+// ── Bekertoernooi (alleen bekijken; beheer in bekertoernooi.html) ──
+const B_FASES = {
+  ronde1:{label:'Ronde 1',kort:'Ronde 1',bo:5}, wr2:{label:'Winnaarsronde 2',kort:'WR 2',bo:5}, vr2:{label:'Verliezersronde 2',kort:'VR 2',bo:5},
+  vr3_tussen:{label:'Verliezersronde 3 — tussenronde',kort:'VR 3 tussen',bo:5}, vr3:{label:'Verliezersronde 3',kort:'VR 3',bo:5}, wr3:{label:'Winnaarsronde 3',kort:'WR 3',bo:5},
+  wr_kwart:{label:'Winnaarsronde — kwartfinale',kort:'WR kwart',bo:5}, vr_kwart:{label:'Verliezersronde — kwartfinale',kort:'VR kwart',bo:5},
+  wr_halve:{label:'Winnaarsronde — halve finale',kort:'WR halve',bo:7}, vr_halve:{label:'Verliezersronde — halve finale',kort:'VR halve',bo:7},
+  wr_finale:{label:'Winnaarsronde — finale',kort:'WR finale',bo:9}, vr_finale:{label:'Verliezersronde — finale',kort:'VR finale',bo:9},
+};
+const B_VOLGORDE = ['ronde1','wr2','vr2','vr3_tussen','vr3','wr3','wr_kwart','vr_kwart','wr_halve','vr_halve','wr_finale','vr_finale'];
+function bekerHtml(){
+  const st = S.beker && S.beker.staat;
+  if (!st || !st.fases) return `<div class="leeg"><span class="ico">🏆</span>Het bekertoernooi is nog niet geloot.</div>`;
+  const f = st.fases;
+  const r1 = (f.ronde1 && f.ronde1.matches) || [];
+  const fasen = B_VOLGORDE.filter(id=>f[id] && (f[id].matches||[]).length);
+  // Standaard de fase die nu loopt (eerste niet-afgeronde), anders de laatste
+  // Standaard de nieuwste fase die nog loopt, anders de laatste
+  if (!S.bekerFase || !fasen.includes(S.bekerFase)) S.bekerFase = fasen.filter(id=>!f[id].afgerond).pop() || fasen[fasen.length-1];
+
+  const wachtNaam = m => { const rm=r1.find(x=>x.nr===m._wachtOpWedstrijd); return rm ? `winnaar ${rm.a} / ${rm.b}` : 'nog onbekend'; };
+  const naamA = m => m.a || (m._wachtOpWedstrijd ? wachtNaam(m) : 'nog onbekend');
+  const naamB = m => m.b || 'nog onbekend';
+
+  // ── Jouw beker ──
+  let jouw = '';
+  if (S.ik){
+    const mijn = [];
+    B_VOLGORDE.forEach(id=>(f[id]?.matches||[]).forEach(m=>{ if (m.a===S.ik || m.b===S.ik) mijn.push({id,m}); }));
+    const bye = (f.ronde1?.bye||[]).includes(S.ik);
+    if (mijn.length || bye){
+      const open = mijn.find(x=>!x.m.winnaar);
+      const laatste = mijn.filter(x=>x.m.winnaar).pop();
+      let status;
+      if (st.kampioenWR===S.ik) status='🏆 Bekerwinnaar!';
+      else if (st.kampioenVR===S.ik) status='🥈 Winnaar verliezersronde!';
+      else if (open){
+        const tegen = open.m.a===S.ik ? naamB(open.m) : naamA(open.m);
+        status = `Volgende: <b>${esc(B_FASES[open.id].label)}</b> tegen <b>${esc(tegen)}</b>`;
+      } else if (laatste && laatste.m.winnaar!==S.ik){
+        // Toernooiregels: verliezers van ronde 1 → verliezersronde 2; bye-spelers die hun eerste duel (WR 2) verliezen
+        // krijgen één troostronde in de verliezersronde; verder is een nederlaag het einde.
+        const eersteDuel = mijn[0] === laatste;
+        if (laatste.id==='ronde1') status='Je gaat door in de <b>verliezersronde</b>. Je tegenstander volgt na de loting.';
+        else if (laatste.id==='wr2' && bye && eersteDuel) status='Je krijgt een troostronde in de <b>verliezersronde</b>. Je tegenstander volgt na de loting.';
+        else status='Je bent uitgeschakeld. Bedankt voor het meedoen!';
+      } else if (laatste) status='Gewonnen! Je tegenstander in de volgende ronde volgt na de loting.';
+      else status='Je wacht op de volgende loting.';
+      const res = mijn.filter(x=>x.m.winnaar).map(x=>{
+        const ikA = x.m.a===S.ik, tegen = ikA ? x.m.b : x.m.a, won = x.m.winnaar===S.ik;
+        const sc = x.m.scoreA!=null ? (ikA ? `${x.m.scoreA}-${x.m.scoreB}` : `${x.m.scoreB}-${x.m.scoreA}`) : '';
+        return `<div class="res"><span class="rd">${esc(B_FASES[x.id].kort)}</span><span class="rt">tegen ${esc(tegen)}</span><span class="rs"><span class="wv ${won?'w':'v'}">${won?'W':'V'}</span><span class="score">${sc}</span></span></div>`;
+      }).join('');
+      jouw = `<div class="uitslagen" style="margin-top:0"><h3>Jouw beker</h3><div style="font-size:.9rem;margin-bottom:6px">${status}</div>${bye && !mijn.some(x=>x.id==='ronde1') ? '<div class="stand-noot" style="margin:0 0 6px">Bye in ronde 1.</div>' : ''}${res}</div>`;
+    }
+  }
+
+  const kamp = [st.kampioenWR ? `🏆 Bekerwinnaar: ${esc(st.kampioenWR)}` : '', st.kampioenVR ? `🥈 Winnaar verliezersronde: ${esc(st.kampioenVR)}` : '']
+    .filter(Boolean).map(t=>`<div class="kampioen">${t}</div>`).join('');
+
+  // ── Fasekeuze ──
+  const chips = fasen.map(id=>{
+    const ms=f[id].matches, klaar=ms.filter(m=>m.winnaar).length;
+    return `<button data-bfase="${id}" class="${id===S.bekerFase?'actief':''}"><b>${esc(B_FASES[id].kort)}</b><span>${f[id].afgerond?'klaar ✓':`${klaar}/${ms.length} gespeeld`}</span></button>`;
+  }).join('');
+
+  // ── Duels van de gekozen fase: eerst nog te spelen, dan gespeeld ──
+  const fase = f[S.bekerFase];
+  const regel = m => {
+    const isMijn = S.ik && (m.a===S.ik || m.b===S.ik);
+    const cls = x => [S.ik&&x===S.ik?'ik':'', m.winnaar ? (x===m.winnaar?'winst':'verlies') : ''].join(' ');
+    const a = m.a ? `<span class="${cls(m.a)}">${esc(m.a)}</span>` : `<span class="verlies">${esc(naamA(m))}</span>`;
+    const b = m.b ? `<span class="${cls(m.b)}">${esc(m.b)}</span>` : `<span class="verlies">${esc(naamB(m))}</span>`;
+    const sc = m.scoreA!=null && m.scoreB!=null ? `${m.scoreA} – ${m.scoreB}` : 'vs';
+    const link = m._wedstrijdId && veiligeLink(S.beker.links[m._wedstrijdId]);
+    return `<div class="duel${isMijn?' mijn':''}"><div class="da">${a}</div><div class="dm">${sc}${link?`<a class="verslag" href="${esc(link)}" target="_blank" rel="noopener">Verslag ›</a>`:''}</div><div class="db">${b}</div></div>`;
+  };
+  const open = fase.matches.filter(m=>!m.winnaar), klaar = fase.matches.filter(m=>m.winnaar);
+  const byes = S.bekerFase==='ronde1' && (fase.bye||[]).length ? `<div class="stand-noot">${fase.bye.length} spelers hadden een bye en stroomden direct door naar winnaarsronde 2.</div>` : '';
+  const lijst = (open.length ? `<div class="bgroep">Nog te spelen (${open.length})</div>${open.map(regel).join('')}` : '')
+              + (klaar.length ? `<div class="bgroep">Gespeeld (${klaar.length})</div>${klaar.map(regel).join('')}` : '');
+
+  return `${kamp}${jouw}<div class="periodes bfasen">${chips}</div>
+    <div class="avond-titel"><h2 style="font-size:1rem">${esc(B_FASES[S.bekerFase].label)}</h2><span class="teller">best of ${B_FASES[S.bekerFase].bo}</span></div>
+    ${lijst}${byes}`;
+}
+
 function knoppen(attr, opties, actief){
   return opties.map(([w,l])=>`<button data-${attr}="${w}" class="${String(actief)===String(w)?'actief':''}">${l}</button>`).join('');
 }
@@ -795,11 +1062,12 @@ function renderStand(){
   const el=document.getElementById('viewStand');
   S.standSoort = S.standSoort || 'rang';
   S.statsSort = S.statsSort || 'gem';
-  const kop = `<div class="seg">${knoppen('soort',[['rang','Ranglijst'],['stats','Statistieken']],S.standSoort)}</div>
-    <div class="seg">${knoppen('div',[['ere','Eredivisie'],['eerste','Eerste Divisie']],S.standDiv)}</div>`;
+  const kop = `<div class="seg">${knoppen('soort',[['rang','Ranglijst'],['stats','Statistieken'],['beker','Beker']],S.standSoort)}</div>` +
+    (S.standSoort==='beker' ? '' : `<div class="seg">${knoppen('div',[['ere','Eredivisie'],['eerste','Eerste Divisie']],S.standDiv)}</div>`);
   let inhoud;
   if (!S.stand) inhoud = `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
   else if (S.stand.fout) inhoud = `<div class="leeg"><span class="ico">📡</span>Kan de standen nu niet ophalen.</div>`;
+  else if (S.standSoort==='beker') inhoud = bekerHtml();
   else if (S.standSoort==='stats') inhoud = statsHtml();
   else if (S.standDiv==='eerste') inhoud = eersteHtml();
   else inhoud = ereHtml();
@@ -808,6 +1076,8 @@ function renderStand(){
   el.querySelectorAll('[data-div]').forEach(b=>b.addEventListener('click',()=>{ S.standDiv=b.dataset.div; renderStand(); }));
   el.querySelectorAll('[data-periode]').forEach(b=>b.addEventListener('click',()=>{ const v=b.dataset.periode; S.standPeriode = v==='eind' ? 'eind' : Number(v); renderStand(); }));
   el.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{ S.statsSort=b.dataset.sort; renderStand(); }));
+  el.querySelectorAll('[data-bfase]').forEach(b=>b.addEventListener('click',()=>{ S.bekerFase=b.dataset.bfase; renderStand(); }));
+  const af = el.querySelector('.bfasen .actief'); if (af) af.scrollIntoView({block:'nearest',inline:'center'});
 }
 function eersteHtml(){
   const per = [1,2,3,4].map(p=>`<button data-periode="${p}" class="${S.standPeriode===p?'actief':''}"><b>P${p}</b><span>${PERIODE_LABELS[p].replace('Ronde ','')}</span></button>`).join('')
