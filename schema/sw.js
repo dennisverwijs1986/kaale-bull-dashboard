@@ -2,7 +2,7 @@
 // Eigen scope (alleen de map schema/), dus de WL-app (wl.html + ../sw.js) wordt niet geraakt.
 // Wedstrijddata uit Supabase wordt NOOIT gecachet — die komt altijd live van de server.
 
-const CACHE = 'kb-schema-v5';   // ophogen (v2, v3, ...) als iedereen de app-bestanden opnieuw moet ophalen
+const CACHE = 'kb-schema-v6';   // ophogen (v2, v3, ...) als iedereen de app-bestanden opnieuw moet ophalen
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-180.png', 'icons/favicon-48.png'];
 const shellUrls = SHELL.map(p => new URL(p, self.registration.scope).pathname);
 

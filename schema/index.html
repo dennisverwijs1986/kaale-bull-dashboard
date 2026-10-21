@@ -156,6 +156,10 @@ main{padding:12px 16px;max-width:640px;margin:0 auto;}
 .datumkop.vandaag{color:var(--green);}
 .kaart .tijd-groot{font-family:ui-monospace,monospace;font-weight:700;color:var(--orange);font-size:1rem;min-width:46px;}
 .volgende-kaart{box-shadow:0 0 0 2px var(--orange);}
+.nnb-blok{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45);border-radius:12px;padding:12px 12px 6px;margin-bottom:14px;}
+.nnb-kop{font-weight:800;color:#fcd34d;margin-bottom:4px;}
+.nnb-uitleg{font-size:.82rem;color:#fde68a;margin:0 0 10px;}
+.nnb-label{display:inline-block;background:rgba(245,158,11,.2);color:#fcd34d;font-weight:800;border-radius:7px;padding:4px 8px;font-size:.75rem;}
 
 .leeg{text-align:center;color:var(--muted);padding:36px 12px;}
 .leeg .ico{font-size:2rem;display:block;margin-bottom:6px;}
@@ -381,7 +385,7 @@ function kaartHtml(w, opties={}){
       <div class="k-namen">${namenHtml(w)}</div>
       <div class="k-info"><span class="chip ${k}">${esc(divLabel(w))}</span>${inhaal}</div>
     </div>
-    <div class="k-rechts">${rechtsHtml(w)}</div>
+    <div class="k-rechts">${opties.nnb ? '<span class="nnb-label">NNB</span>' : rechtsHtml(w)}</div>
   </div>`;
 }
 
@@ -453,6 +457,14 @@ function renderMijn(){
   if (!mijn.length && !mijnNnb.length){
     html += `<div class="leeg"><span class="ico">🎯</span>Geen wedstrijden in de vrijgegeven planning.</div>`;
   } else {
+    if (mijnNnb.length){
+      const meer = mijnNnb.length>1;
+      html += `<div class="nnb-blok">
+        <div class="nnb-kop">⚠️ ${meer ? `${mijnNnb.length} wedstrijden` : '1 wedstrijd'} nog in te plannen</div>
+        <p class="nnb-uitleg">Spreek samen met je tegenstander een datum af en geef die door aan de wedstrijdleiding.</p>
+        ${mijnNnb.map(w=>kaartHtml(w,{nnb:true})).join('')}
+      </div>`;
+    }
     const perDag={};
     mijn.forEach(w=>{ (perDag[w.datum]=perDag[w.datum]||[]).push(w); });
     Object.keys(perDag).forEach(d=>{
@@ -460,10 +472,6 @@ function renderMijn(){
       html += `<div class="datumkop${d===vd?' vandaag':''}">${d===vd?'Vandaag · ':''}${esc(t)}</div>`;
       html += perDag[d].map(w=>kaartHtml(w,{metTijd:true, volgende: w===volgende})).join('');
     });
-    if (mijnNnb.length){
-      html += `<div class="datumkop">Nog in te plannen</div>`;
-      html += mijnNnb.map(w=>kaartHtml(w)).join('');
-    }
   }
   el.innerHTML = html;
   el.querySelector('#wissel').addEventListener('click',()=>{ S.ik=null; opslaan('kb_schema_ik',null); render(); });
