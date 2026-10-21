@@ -221,15 +221,12 @@
     errEl.textContent = '';
     if (!input) return;
 
-    const { data, error } = await supabaseClient
-      .from('instellingen')
-      .select('waarde')
-      .eq('sleutel', 'spelerbeheer_wachtwoord')
-      .single();
+    const { data: ok, error } = await supabaseClient
+      .rpc('controleer_beheer_wachtwoord', { invoer: input });
 
-    if (error || !data) { errEl.textContent = 'Kon niet inloggen, probeer opnieuw.'; return; }
+    if (error || ok === null) { errEl.textContent = 'Kon niet inloggen, probeer opnieuw.'; return; }
 
-    if (input === data.waarde) {
+    if (ok === true) {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       sessionStorage.setItem('spelerbeheer_ok', '1');
