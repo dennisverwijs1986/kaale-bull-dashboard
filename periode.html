@@ -219,6 +219,17 @@
 
   // Kandidaten voor een naam uit de matchlog. Eerst de bekende afkortingen; lukt dat niet, dan
   // spelers uit die divisie wier naam begint met wat DartConnect schreef (lange namen worden soms afgekapt).
+  // Beker: spelers uit beide divisies kunnen tegen elkaar spelen
+  function kandidatenBeker(raw) {
+    const set = new Set();
+    IMPORT_DIVISIES.forEach(d => kandidaten(d, raw).forEach(n => set.add(n)));
+    return [...set];
+  }
+  // Verslaglink uit de matchlog, alleen als het echt een DartConnect-verslag is
+  function verslagUrl(v) {
+    v = String(v || '').trim();
+    return /^https:\/\/recap\.dartconnect\.com\/[A-Za-z0-9\/_.-]+$/.test(v) ? v : null;
+  }
   function kandidaten(div, raw) {
     const exact = abbrevMap[div][raw];
     if (exact && exact.length) return exact;
@@ -371,7 +382,8 @@
       matchup: findCol('Away/Guest @ Home/Host', 'Away @ Home', 'Away/Guest @ Home/Host '),
       legs: findCol('Legs Score'),
       leaguePoints: findCol('League Points'),
-      source: findCol('Source')
+      source: findCol('Source'),
+      report: findCol('Report Link')
     };
     if (idx.division === -1 || idx.date === -1 || idx.matchup === -1 || idx.legs === -1) {
       const gevonden = rawHeaders.map((h, i) => `${i}: "${h}"`).join(', ');
@@ -381,13 +393,16 @@
     }
 
     const normaal = [];
+    const beker = [];
     const byes = [];
     const problems = [];
 
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvLine(lines[i]);
       const div = cols[idx.division];
-      if (!div || !IMPORT_DIVISIES.includes(div)) continue;
+      const isBeker = /beker/i.test(div || '');
+      if (!div || (!IMPORT_DIVISIES.includes(div) && !isBeker)) continue;
+      const verslag = idx.report !== -1 ? verslagUrl(cols[idx.report]) : null;
 
       const matchup = cols[idx.matchup] || '';
       if (!matchup.includes('@')) continue;
@@ -395,6 +410,21 @@
       const datum = parseDartConnectDate(cols[idx.date]);
       const bron = idx.source !== -1 ? (cols[idx.source] || '') : '';
       const legsField = (cols[idx.legs] || '').trim();
+
+      if (isBeker) {
+        // Beker: alleen legstand + verslag; de uitslag zelf beheert bekertoernooi.html
+        if (!legsField) continue;
+        const homeCands = kandidatenBeker(homeRaw), awayCands = kandidatenBeker(awayRaw);
+        if (!homeCands.length || !awayCands.length) {
+          problems.push(`Onbekende speler-afkorting (Beker): "${!homeCands.length ? homeRaw : awayRaw}" (rij: ${matchup})`);
+          continue;
+        }
+        const [aL, hL] = legsField.split('@').map(s => parseInt(s.trim(), 10));
+        if (Number.isNaN(hL) || Number.isNaN(aL)) { problems.push(`Kon legscore niet lezen voor ${matchup}`); continue; }
+        beker.push({ datum, homeCands, awayCands, matchup, legs_thuis: hL, legs_uit: aL, verslag });
+        continue;
+      }
+
       const isBye = bron === 'League Portal' || !legsField;
 
       if (isBye) {
@@ -438,12 +468,12 @@
         const [awayLegs, homeLegs] = legsField.split('@').map(s => parseInt(s.trim(), 10));
         if (Number.isNaN(homeLegs) || Number.isNaN(awayLegs)) { problems.push(`Kon legscore niet lezen voor ${matchup}`); continue; }
 
-        normaal.push({ div, datum, homeCands, awayCands, matchup, legs_thuis: homeLegs, legs_uit: awayLegs });
+        normaal.push({ div, datum, homeCands, awayCands, matchup, legs_thuis: homeLegs, legs_uit: awayLegs, verslag });
       }
     }
 
-    if (!normaal.length && !byes.length && !problems.length) {
-      logEl.innerHTML = '<div class="log-line">Geen Eerste Divisie- of Eredivisie-wedstrijden gevonden in dit bestand.</div>';
+    if (!normaal.length && !beker.length && !byes.length && !problems.length) {
+      logEl.innerHTML = '<div class="log-line">Geen Eerste Divisie-, Eredivisie- of bekerwedstrijden gevonden in dit bestand.</div>';
       return;
     }
 
@@ -459,6 +489,7 @@
 
     const matched = {};
     IMPORT_DIVISIES.forEach(d => matched[d] = 0);
+    matched.Beker = 0;
     const unmatched = [];
     const updates = [];
     normaal.forEach(row => {
@@ -474,12 +505,34 @@
         return;
       }
       matched[row.div]++;
-      updates.push({ id: hits[0], legs_thuis: row.legs_thuis, legs_uit: row.legs_uit });
+      updates.push({ id: hits[0], legs_thuis: row.legs_thuis, legs_uit: row.legs_uit, verslag: row.verslag });
     });
 
-    const updateResults = await Promise.all(updates.map(u =>
-      supabaseClient.from('wedstrijden').update({ legs_thuis: u.legs_thuis, legs_uit: u.legs_uit }).eq('id', u.id)
-    ));
+    // ── Bekerwedstrijden: zoeken op datum + de twee spelers, in elke bekerronde, thuis/uit mag omgedraaid zijn ──
+    if (beker.length) {
+      const { data: bw, error: bErr } = await supabaseClient
+        .from('wedstrijden').select('id, datum, thuis, uit').ilike('divisie', 'Beker%');
+      if (bErr) problems.push('Kon bekerwedstrijden niet laden: ' + bErr.message);
+      else beker.forEach(row => {
+        const hits = [];
+        (bw || []).filter(w => w.datum === row.datum).forEach(w => {
+          if (row.homeCands.includes(w.thuis) && row.awayCands.includes(w.uit)) hits.push({ id: w.id, lt: row.legs_thuis, lu: row.legs_uit });
+          else if (row.homeCands.includes(w.uit) && row.awayCands.includes(w.thuis)) hits.push({ id: w.id, lt: row.legs_uit, lu: row.legs_thuis });
+        });
+        if (hits.length !== 1) {
+          unmatched.push(`Beker, ${row.datum}: ${row.homeCands.join('/')} vs ${row.awayCands.join('/')}${hits.length > 1 ? ' (meerdere mogelijkheden)' : ''}`);
+          return;
+        }
+        matched.Beker++;
+        updates.push({ id: hits[0].id, legs_thuis: hits[0].lt, legs_uit: hits[0].lu, verslag: row.verslag });
+      });
+    }
+
+    const updateResults = await Promise.all(updates.map(u => {
+      const velden = { legs_thuis: u.legs_thuis, legs_uit: u.legs_uit };
+      if (u.verslag) velden.verslag_url = u.verslag;
+      return supabaseClient.from('wedstrijden').update(velden).eq('id', u.id);
+    }));
     const updateFailed = updateResults.filter(r => r.error);
 
     // ── Bye-rijen: nieuwe wedstrijd aanmaken (bestaat nog niet in de planning) ──
@@ -555,8 +608,8 @@
     }
 
     // ── Logweergave ──
-    const perDiv = IMPORT_DIVISIES.map(d => `${d}: ${matched[d]}`).join(' · ');
-    const totaal = IMPORT_DIVISIES.reduce((t, d) => t + matched[d], 0);
+    const perDiv = [...IMPORT_DIVISIES, ...(matched.Beker ? ['Beker'] : [])].map(d => `${d}: ${matched[d]}`).join(' · ');
+    const totaal = IMPORT_DIVISIES.reduce((t, d) => t + matched[d], 0) + matched.Beker;
     let html = `<div class="log-summary">${totaal} wedstrijd(en) gekoppeld en bijgewerkt (${perDiv})${byesToegevoegd ? `, ${byesToegevoegd} bye-overwinning(en) toegevoegd` : ''}.</div>`;
     if (byesOversloegen) html += `<div class="log-line">${byesOversloegen} bye-uitslag(en) stonden al in de planning, overgeslagen.</div>`;
     if (updateFailed.length) html += `<div class="log-line log-err">${updateFailed.length} update(s) mislukt.</div>`;
