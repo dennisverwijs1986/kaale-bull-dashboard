@@ -584,8 +584,22 @@ function werkScorebordBij(){
 function openScorebord(b){
   if (!S.codes[b]) return;
   S.openBord=b; sb.el.hidden=false; document.body.style.overflow='hidden';
+  telScorebord(b);
   try{ history.pushState({scorebord:b}, ''); }catch(e){}
   werkScorebordBij();
+}
+// Anonieme telling: één seintje per apparaat per bord per dag (geen naam)
+function telScorebord(b){
+  try{
+    const id=lezen('kb_schema_apparaat'); if (!id) return;
+    const sleutel='kb_schema_bord_'+b;
+    if (lezen(sleutel)===vandaag()) return;
+    fetch(`${SB_URL}/rest/v1/app_scorebord_kijkers`, {
+      method:'POST',
+      headers:{ ...HDR, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
+      body: JSON.stringify({ apparaat:id, bord:b })
+    }).then(r=>{ if (r.ok || r.status===409) opslaan(sleutel, vandaag()); }).catch(()=>{});
+  }catch(e){}
 }
 function sluitScorebord(viaTerug){
   if (!S.openBord) return;
