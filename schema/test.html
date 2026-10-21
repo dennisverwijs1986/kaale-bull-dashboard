@@ -202,6 +202,11 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .zone-tag{font-size:.6rem;font-weight:800;text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;}
 .zone-tag.po{background:rgba(245,158,11,.2);color:#fcd34d;}
 .zone-tag.deg{background:rgba(239,68,68,.2);color:#fca5a5;}
+.zone-tag.prom{background:rgba(16,185,129,.2);color:#6ee7b7;margin-left:0;}
+.zone-tag.titel{background:rgba(245,197,24,.18);color:#fcd34d;}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
+.tags .zone-tag{margin-left:0;}
+.seg + .seg{margin-top:-4px;}
 .stand-noot{color:var(--dim);font-size:.75rem;margin-top:10px;}
 
 /* ── TESTVERSIE ── */
@@ -716,11 +721,16 @@ async function laadStand(force){
   if (standBezig || (!force && S.stand && Date.now()-S.standTijd < 60000)) { renderStand(); return; }
   standBezig=true;
   try{
-    const [pst, ere] = await Promise.all([
+    const [pst, ere, stats] = await Promise.all([
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
-      sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld')
+      sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
+      sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300')
     ]);
-    S.stand = { pst, ere: berekenEre(ere) }; S.standTijd = Date.now();
+    // Statistieken: per divisie alleen de laatste peildatum
+    const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
+    S.stand = { pst, ere: berekenEre(ere), eind: berekenEind(pst),
+                stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
+    S.standTijd = Date.now();
     if (!S.standPeriode){ const ps=[...new Set(pst.map(r=>r.periode))]; S.standPeriode = ps.length ? Math.max(...ps) : 1; }
   }catch(e){ if (!S.stand) S.stand = { fout:true }; }
   finally{ standBezig=false; }
@@ -747,37 +757,117 @@ function berekenEre(data){
   l.forEach((r,i)=>{ const v=l[i-1]; r.pos=(v&&v.p===r.p&&v.w===r.w&&v.v===r.v&&(v.lv-v.lt)===(r.lv-r.lt))?v.pos:i+1; });
   return l;
 }
+// Eindstand Eerste Divisie: totaal over de periodes, directe promotie (nr. 1 en 2),
+// periodetitels en play-off tickets — zelfde regels als periode.html
+function berekenEind(data){
+  const tot={};
+  data.forEach(r=>{ const t=tot[r.speler]||(tot[r.speler]={speler:r.speler,w:0,g:0,p:0});
+    t.w+=Number(r.wedstrijden_gespeeld); t.g+=Number(r.gewonnen); t.p+=Number(r.periodepunten); });
+  const lijst=Object.values(tot).sort((a,b)=>b.p-a.p||b.g-a.g||a.speler.localeCompare(b.speler));
+  lijst.forEach((t,i)=>t.pos=i+1);
+  const promo=new Set(lijst.slice(0,2).map(t=>t.speler));
+  const titels={}, tickets={};
+  [1,2,3,4].forEach(p=>{
+    const rijen=data.filter(r=>r.periode===p); if (!rijen.length) return;
+    (titels[rijen[0].speler]=titels[rijen[0].speler]||[]).push(p);
+    const k=rijen.find(r=>!tickets[r.speler] && !promo.has(r.speler)); if (k) tickets[k.speler]=p;
+  });
+  const vijfde=lijst.find(t=>!tickets[t.speler] && !promo.has(t.speler)); if (vijfde) tickets[vijfde.speler]='E';
+  lijst.forEach(t=>{ t.promo=promo.has(t.speler); t.titels=titels[t.speler]||[]; t.ticket=tickets[t.speler]||null; });
+  return lijst;
+}
+const STAT_SORT = {
+  gem:{label:'Gemiddelde', kort:'Gem', hoog:true}, s180:{label:"180's", kort:'180', hoog:true},
+  hoogste_finish:{label:'Hoogste finish', kort:'HF', hoog:true}, beste_leg:{label:'Beste leg', kort:'BL', hoog:false}
+};
+function knoppen(attr, opties, actief){
+  return opties.map(([w,l])=>`<button data-${attr}="${w}" class="${String(actief)===String(w)?'actief':''}">${l}</button>`).join('');
+}
 function renderStand(){
   const el=document.getElementById('viewStand');
-  const seg = `<div class="seg"><button data-div="eerste" class="${S.standDiv==='eerste'?'actief':''}">Eerste Divisie</button><button data-div="ere" class="${S.standDiv==='ere'?'actief':''}">Eredivisie</button></div>`;
+  S.standSoort = S.standSoort || 'rang';
+  S.statsSort = S.statsSort || 'gem';
+  const kop = `<div class="seg">${knoppen('soort',[['rang','Ranglijst'],['stats','Statistieken']],S.standSoort)}</div>
+    <div class="seg">${knoppen('div',[['eerste','Eerste Divisie'],['ere','Eredivisie']],S.standDiv)}</div>`;
   let inhoud;
-  if (!S.stand) inhoud = `<div class="leeg"><span class="ico">⏳</span>Standen laden…</div>`;
+  if (!S.stand) inhoud = `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
   else if (S.stand.fout) inhoud = `<div class="leeg"><span class="ico">📡</span>Kan de standen nu niet ophalen.</div>`;
-  else if (S.standDiv==='eerste'){
-    const per = [1,2,3,4].map(p=>`<button data-periode="${p}" class="${S.standPeriode===p?'actief':''}"><b>Periode ${p}</b><span>${PERIODE_LABELS[p]}</span></button>`).join('');
+  else if (S.standSoort==='stats') inhoud = statsHtml();
+  else if (S.standDiv==='eerste') inhoud = eersteHtml();
+  else inhoud = ereHtml();
+  el.innerHTML = `<div class="avond-titel"><h2>Standen</h2></div>${kop}${inhoud}`;
+  el.querySelectorAll('[data-soort]').forEach(b=>b.addEventListener('click',()=>{ S.standSoort=b.dataset.soort; renderStand(); }));
+  el.querySelectorAll('[data-div]').forEach(b=>b.addEventListener('click',()=>{ S.standDiv=b.dataset.div; renderStand(); }));
+  el.querySelectorAll('[data-periode]').forEach(b=>b.addEventListener('click',()=>{ const v=b.dataset.periode; S.standPeriode = v==='eind' ? 'eind' : Number(v); renderStand(); }));
+  el.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{ S.statsSort=b.dataset.sort; renderStand(); }));
+}
+function eersteHtml(){
+  const per = [1,2,3,4].map(p=>`<button data-periode="${p}" class="${S.standPeriode===p?'actief':''}"><b>P${p}</b><span>${PERIODE_LABELS[p].replace('Ronde ','')}</span></button>`).join('')
+    + `<button data-periode="eind" class="${S.standPeriode==='eind'?'actief':''}"><b>Eind</b><span>totaal</span></button>`;
+  let tabel;
+  if (S.standPeriode==='eind'){
+    const l=S.stand.eind;
+    tabel = l.length ? `<table class="stand"><thead><tr><th></th><th>Speler</th><th class="num">Wedstr.</th><th class="num">Winst</th><th class="num">Ptn</th></tr></thead><tbody>${
+      l.map(t=>{ const tags=[];
+        if (t.promo) tags.push('<span class="zone-tag prom">⬆ promotie</span>');
+        if (t.titels.length) tags.push(`<span class="zone-tag titel">🏆 P${t.titels.join(', P')}</span>`);
+        if (t.ticket) tags.push(`<span class="zone-tag po">🎟 ${t.ticket==='E'?'eindstand':'P'+t.ticket}</span>`);
+        return `<tr class="${t.promo?'leider':''}${t.speler===S.ik?' ik':''}"><td class="pos">${t.pos}</td><td>${esc(t.speler)}${tags.length?`<div class="tags">${tags.join('')}</div>`:''}</td><td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num"><b>${t.p}</b></td></tr>`;
+      }).join('')}</tbody></table>
+      <div class="stand-noot">⬆ Nr. 1 en 2 promoveren direct. 🏆 Periodetitel. 🎟 Play-off ticket: per periode de beste speler zonder ticket, plus één via de eindstand.</div>`
+      : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden.</div>`;
+  } else {
     const rijen = S.stand.pst.filter(r=>r.periode===S.standPeriode);
-    inhoud = `<div class="periodes">${per}</div>` + (rijen.length
+    tabel = rijen.length
       ? `<table class="stand"><thead><tr><th></th><th>Speler</th><th class="num">Wedstr.</th><th class="num">Winst</th><th class="num">Ptn</th></tr></thead><tbody>${
           rijen.map(r=>`<tr class="${r.positie==1?'leider':''}${r.speler===S.ik?' ik':''}"><td class="pos">${r.positie==1?'🏆':r.positie}</td><td>${esc(r.speler)}</td><td class="num">${r.wedstrijden_gespeeld}</td><td class="num">${r.gewonnen}</td><td class="num"><b>${r.periodepunten}</b></td></tr>`).join('')
-        }</tbody></table><div class="stand-noot">Punten = gewonnen legs. De periodewinnaar krijgt de periodetitel.</div>`
-      : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden in deze periode.</div>`);
-  } else {
-    const l=S.stand.ere;
-    const zonder = l.reduce((n,r)=>n+r.zonder,0)/2;
-    inhoud = l.length ? `<table class="stand"><thead><tr><th></th><th>Speler</th><th class="num">G</th><th class="num">W-V</th><th class="num">Ptn</th></tr></thead><tbody>${
-      l.map((r,i)=>{ const plek=i+1; let cls='', tag='';
-        if (ERE_PLAYOFF.includes(plek)){ cls='zone-po'; if (plek===ERE_PLAYOFF[0]) tag='<span class="zone-tag po">play-offs</span>'; }
-        if (ERE_DEGRADATIE.includes(plek)){ cls='zone-deg'; if (plek===ERE_DEGRADATIE[0]) tag='<span class="zone-tag deg">degradatie</span>'; }
-        if (plek===ERE_PLAYOFF[0]||plek===ERE_DEGRADATIE[0]) cls+=' streep';
-        if (r.speler===S.ik) cls+=' ik';
-        return `<tr class="${cls}"><td class="pos">${r.pos}</td><td>${esc(r.speler)}${tag}</td><td class="num">${r.g}</td><td class="num">${r.w}-${r.v}</td><td class="num"><b>${r.p}</b>${r.zonder?' *':''}</td></tr>`;
-      }).join('')}</tbody></table>
-      <div class="stand-noot">Punten = gewonnen legs.${zonder ? ` * ${Math.round(zonder)} gespeelde wedstrijd(en) hebben nog geen legstand en tellen nog niet mee voor de punten.` : ''}</div>`
-      : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden.</div>`;
+        }</tbody></table><div class="stand-noot">Punten = gewonnen legs. ${PERIODE_LABELS[S.standPeriode]}.</div>`
+      : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden in deze periode.</div>`;
   }
-  el.innerHTML = `<div class="avond-titel"><h2>Standen</h2></div>${seg}${inhoud}`;
-  el.querySelectorAll('[data-div]').forEach(b=>b.addEventListener('click',()=>{ S.standDiv=b.dataset.div; renderStand(); }));
-  el.querySelectorAll('[data-periode]').forEach(b=>b.addEventListener('click',()=>{ S.standPeriode=Number(b.dataset.periode); renderStand(); }));
+  return `<div class="periodes">${per}</div>${tabel}`;
+}
+function ereHtml(){
+  const l=S.stand.ere;
+  if (!l.length) return `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden.</div>`;
+  const zonder = l.reduce((n,r)=>n+r.zonder,0)/2;
+  const geenLegs = l.every(r=>r.lv===0 && r.lt===0);   // nog geen enkele legstand ingelezen: punten weglaten
+  const rij = (r,i)=>{ const plek=i+1; let cls='', tag='';
+    if (ERE_PLAYOFF.includes(plek)){ cls='zone-po'; if (plek===ERE_PLAYOFF[0]) tag='<span class="zone-tag po">play-offs</span>'; }
+    if (ERE_DEGRADATIE.includes(plek)){ cls='zone-deg'; if (plek===ERE_DEGRADATIE[0]) tag='<span class="zone-tag deg">degradatie</span>'; }
+    if (plek===ERE_PLAYOFF[0]||plek===ERE_DEGRADATIE[0]) cls+=' streep';
+    if (r.speler===S.ik) cls+=' ik';
+    return `<tr class="${cls}"><td class="pos">${r.pos}</td><td>${esc(r.speler)}${tag}</td><td class="num">${r.g}</td>` +
+      (geenLegs ? `<td class="num">${r.w}</td><td class="num">${r.v}</td>` : `<td class="num">${r.w}-${r.v}</td><td class="num"><b>${r.p}</b>${r.zonder?' *':''}</td>`) + `</tr>`;
+  };
+  const kop = geenLegs ? '<th class="num">G</th><th class="num">W</th><th class="num">V</th>' : '<th class="num">G</th><th class="num">W-V</th><th class="num">Ptn</th>';
+  const noot = geenLegs
+    ? 'Gesorteerd op winst en verlies. De punten (gewonnen legs) verschijnen zodra de legstanden zijn ingelezen.'
+    : `Punten = gewonnen legs.${zonder ? ` * ${Math.round(zonder)} gespeelde wedstrijd(en) hebben nog geen legstand en tellen nog niet mee voor de punten.` : ''}`;
+  return `<table class="stand"><thead><tr><th></th><th>Speler</th>${kop}</tr></thead><tbody>${l.map(rij).join('')}</tbody></table><div class="stand-noot">${noot}</div>`;
+}
+function statsHtml(){
+  const naam = S.standDiv==='eerste' ? 'Eerste Divisie' : 'Eredivisie';
+  const rijen = S.stand.stats.filter(r=>r.divisie===naam);
+  if (!rijen.length) return `<div class="leeg"><span class="ico">📊</span>Nog geen statistieken voor de ${naam}.</div>`;
+  const s=S.statsSort, def=STAT_SORT[s];
+  const waarde = r => r[s]===null || r[s]===undefined || r[s]==='' ? null : Number(r[s]);
+  const l = rijen.slice().sort((a,b)=>{
+    const x=waarde(a), y=waarde(b);
+    if (x===null && y===null) return a.speler.localeCompare(b.speler);
+    if (x===null) return 1; if (y===null) return -1;
+    return (def.hoog ? y-x : x-y) || a.speler.localeCompare(b.speler);
+  });
+  const fmt = (r,k)=>{ const v=r[k]; if (v===null||v===undefined||v==='') return '–'; return k==='gem' ? Number(v).toFixed(2).replace('.',',') : v; };
+  const cel = (r,k)=>`<td class="num">${k===s?`<b>${fmt(r,k)}</b>`:fmt(r,k)}</td>`;
+  const peil = S.stand.peil[naam];
+  return `<div class="periodes">${knoppenSort()}</div>
+    <table class="stand"><thead><tr><th></th><th>Speler</th>${Object.keys(STAT_SORT).map(k=>`<th class="num">${STAT_SORT[k].kort}</th>`).join('')}</tr></thead><tbody>${
+      l.map((r,i)=>`<tr class="${r.speler===S.ik?'ik':''}"><td class="pos">${i+1}</td><td>${esc(r.speler)}</td>${Object.keys(STAT_SORT).map(k=>cel(r,k)).join('')}</tr>`).join('')
+    }</tbody></table>
+    <div class="stand-noot">Stand van ${esc(fmtLang.format(alsDatum(peil)))} (DartConnect). Gem = gemiddelde per 3 darts, HF = hoogste finish, BL = beste leg (aantal darts).</div>`;
+}
+function knoppenSort(){
+  return Object.entries(STAT_SORT).map(([k,d])=>`<button data-sort="${k}" class="${S.statsSort===k?'actief':''}"><b>${d.kort}</b><span>${d.label}</span></button>`).join('');
 }
 
 // ── Scorebord groot in beeld ──
