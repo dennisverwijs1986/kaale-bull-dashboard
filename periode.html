@@ -215,6 +215,17 @@
   let activePeriode = 1;
   let abbrevMap = {};       // divisie -> { "Voornaam L" -> [mogelijke volledige namen] }  (Scoring App bron)
   let lastnameFirstMap = {}; // "Achternaam, Voornaam" -> "Volledige Naam"  (League Portal / bye bron)
+  let alleSpelers = [];     // [{naam, divisie}] voor het terugvallen op afgekapte namen
+
+  // Kandidaten voor een naam uit de matchlog. Eerst de bekende afkortingen; lukt dat niet, dan
+  // spelers uit die divisie wier naam begint met wat DartConnect schreef (lange namen worden soms afgekapt).
+  function kandidaten(div, raw) {
+    const exact = abbrevMap[div][raw];
+    if (exact && exact.length) return exact;
+    const kaal = String(raw || '').replace(/[.\u2026]+$/, '').trim().toLowerCase();
+    if (kaal.length < 3) return [];
+    return alleSpelers.filter(s => s.divisie === div && s.naam.toLowerCase().startsWith(kaal)).map(s => s.naam);
+  }
 
   // ── LOGIN (zelfde patroon als spelerbeheer.html) ──
   async function tryLogin() {
@@ -269,19 +280,22 @@
     abbrevMap = {};
     lastnameFirstMap = {};
     IMPORT_DIVISIES.forEach(d => abbrevMap[d] = {});
+    alleSpelers = spelers;
     spelers.forEach(s => {
       const parts = s.naam.trim().split(/\s+/);
       if (parts.length < 2) return;
-      const voornaam = parts[0];
-      const achternaam = parts.slice(1).join(' ');
-
-      // Twee spelers kunnen dezelfde afkorting hebben (bv. "Patrick v" = Patrick van Haren én Patrick van Andel).
-      // We bewaren dan beide en kiezen bij het importeren degene die op die datum echt die wedstrijd had.
-      const abbr = `${voornaam} ${achternaam[0]}`;
-      const lijst = abbrevMap[s.divisie][abbr] = abbrevMap[s.divisie][abbr] || [];
-      if (!lijst.includes(s.naam)) lijst.push(s.naam);
-
-      lastnameFirstMap[`${achternaam}, ${voornaam}`] = s.naam;
+      // Dubbele voornamen ("Jan Willem van Vark"): DartConnect kan de voornaam uit één of meer woorden
+      // laten bestaan. Daarom elke splitsing proberen: "Jan W", "Jan Willem v", "Jan Willem van V", ...
+      for (let k = 1; k < parts.length; k++) {
+        const voornaam = parts.slice(0, k).join(' ');
+        const achternaam = parts.slice(k).join(' ');
+        // Twee spelers kunnen dezelfde afkorting hebben (bv. "Patrick v" = Patrick van Haren én Patrick van Andel).
+        // We bewaren dan beide en kiezen bij het importeren degene die op die datum echt die wedstrijd had.
+        const abbr = `${voornaam} ${achternaam[0]}`;
+        const lijst = abbrevMap[s.divisie][abbr] = abbrevMap[s.divisie][abbr] || [];
+        if (!lijst.includes(s.naam)) lijst.push(s.naam);
+        lastnameFirstMap[`${achternaam}, ${voornaam}`] = s.naam;
+      }
     });
   }
 
@@ -415,8 +429,8 @@
           speler
         });
       } else {
-        const homeCands = abbrevMap[div][homeRaw] || [];
-        const awayCands = abbrevMap[div][awayRaw] || [];
+        const homeCands = kandidaten(div, homeRaw);
+        const awayCands = kandidaten(div, awayRaw);
         if (!homeCands.length || !awayCands.length) {
           problems.push(`Onbekende speler-afkorting (${div}): "${!homeCands.length ? homeRaw : awayRaw}" (rij: ${matchup})`);
           continue;
