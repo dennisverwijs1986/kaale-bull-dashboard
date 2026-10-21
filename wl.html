@@ -231,6 +231,13 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 .st-info{font-size:.75rem;color:var(--muted);margin:10px 2px 0;}
 .st-badges{display:block;font-size:.72rem;color:var(--orange);font-weight:700;margin-top:2px;}
 @media (min-width:700px){ .wrap,.sheet{max-width:640px;margin-left:auto;margin-right:auto;} .sheet{border-left:1px solid var(--border);border-right:1px solid var(--border);} }
+
+/* ── compacte kaart: namen links zonder losse vs-regel, chips rechts ── */
+.card{padding:7px 8px 7px 12px;margin-bottom:6px;border-radius:10px;}
+.names .n{line-height:1.22;}
+.names .vs{display:inline;font-size:.68rem;margin:0 5px 0 0;text-transform:uppercase;}
+.card-main .chips{margin-top:4px;gap:4px;}
+.card-main .chip{padding:1px 6px;}
 </style>
 </head>
 <body>
@@ -491,7 +498,7 @@ function kaart(w, opts={}){
   const uit = gespeeld && !scoreOpen;
   return `<button class="card ${divKey(w)} ${uit?'gespeeld':''} ${conflict?'conflict':''}" ${klik} ${uit?'disabled':''}>
     <div class="card-main">${wanneer}
-      <div class="names"><span class="n">${esc(w.thuis)}</span><span class="vs">VS</span><span class="n">${esc(w.uit)}</span></div>
+      <div class="names"><span class="n">${esc(w.thuis)}</span><span class="n"><span class="vs">vs</span>${esc(w.uit)}</span></div>
       <div class="chips">${chips}${scoreOpen?'<span class="chip beker">🏆 score invullen</span>':''}</div>
     </div>${uit?'':'<span class="card-go">›</span>'}</button>`;
 }
@@ -741,7 +748,7 @@ function renderSheet(){
   el.innerHTML = `
     <div class="sheet-kop">
       <div style="flex:1;min-width:0;">
-        <div class="names"><span class="n">${esc(m.thuis)}</span><span class="vs">VS</span><span class="n">${esc(m.uit)}</span></div>
+        <div class="names"><span class="n">${esc(m.thuis)}</span><span class="n"><span class="vs">vs</span>${esc(m.uit)}</span></div>
         <div class="chips">${divChip(m)}${m.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}${m.speelronde?`<span class="chip">SR ${esc(m.speelronde)}</span>`:''}</div>
         <div class="nu">${nu}</div>
       </div>
@@ -1011,7 +1018,7 @@ function bekerKaart({faseId, m, plan}){
   return `<button class="card beker" onclick="openScore('${faseId}',${m.nr})">
     <div class="card-main">
       <div class="card-when">${esc(B_FASES[faseId].kort)} · wedstrijd ${m.nr} · ${esc(wanneer)}</div>
-      <div class="names"><span class="n">${esc(m.a)}</span><span class="vs">VS</span><span class="n">${esc(m.b)}</span></div>
+      <div class="names"><span class="n">${esc(m.a)}</span><span class="n"><span class="vs">vs</span>${esc(m.b)}</span></div>
       <div class="chips"><span class="chip beker">Bo${bo}</span>${gespeeldPlan?'<span class="chip groen">✓ gespeeld · score invullen</span>':''}</div>
     </div><span class="card-go">›</span></button>`;
 }
@@ -1125,7 +1132,7 @@ function renderScoreSheet(){
   el.innerHTML = `
     <div class="sheet-kop">
       <div style="flex:1;min-width:0;">
-        <div class="names"><span class="n">${esc(m.a)}</span><span class="vs">VS</span><span class="n">${esc(m.b)}</span></div>
+        <div class="names"><span class="n">${esc(m.a)}</span><span class="n"><span class="vs">vs</span>${esc(m.b)}</span></div>
         <div class="chips"><span class="chip beker">${esc(B_FASES[ss.faseId].label)}</span><span class="chip">Bo${bo} · eerst tot ${n}</span></div>
         ${wanneer?`<div class="nu">${esc(wanneer)}</div>`:''}
       </div>
