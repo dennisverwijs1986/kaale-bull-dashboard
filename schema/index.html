@@ -25,7 +25,7 @@ html,body{margin:0;padding:0;}
 body{
   font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
   background:var(--bg);color:var(--text);font-size:16px;line-height:1.35;
-  min-height:100vh;padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  min-height:100vh;padding-bottom:calc(84px + env(safe-area-inset-bottom));
 }
 button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
 
@@ -42,9 +42,51 @@ button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
 .dot.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
 .dot.fout{background:var(--red);}
 
-.tabs{display:flex;gap:6px;margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px;}
-.tab{flex:1;border:0;background:none;padding:9px 8px;border-radius:8px;font-weight:600;font-size:.9rem;color:var(--muted);cursor:pointer;}
-.tab.actief{background:var(--s3);color:var(--text);}
+/* ── MENU ONDERIN ── */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--s1);border-top:1px solid var(--border);
+  display:flex;justify-content:center;padding:4px 4px calc(4px + env(safe-area-inset-bottom));}
+.nav-in{display:flex;width:100%;max-width:640px;}
+.nav button{flex:1;border:0;background:none;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:.72rem;font-weight:600;padding:7px 0 5px;cursor:pointer;position:relative;}
+.nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.nav button.actief{color:#93c5fd;}
+.nav .badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:17px;height:17px;border-radius:9px;background:var(--green);
+  color:#052e1f;font-size:.66rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+
+/* ── LIVE BORDEN ── */
+.live-intro{color:var(--muted);font-size:.85rem;margin:2px 0 12px;}
+.bordkaart{display:block;width:100%;text-align:left;background:var(--s1);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;margin-bottom:10px;cursor:default;}
+.bordkaart.live{border-color:rgba(16,185,129,.55);background:rgba(16,185,129,.07);cursor:pointer;}
+.bk-kop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+.bk-nr{font-weight:800;font-size:1rem;}
+.bk-status{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;border-radius:6px;padding:3px 7px;}
+.bk-status.live{background:var(--green);color:#052e1f;display:inline-flex;align-items:center;gap:5px;}
+.bk-status.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#052e1f;animation:puls 1.4s infinite;}
+.bk-status.wacht{background:var(--s3);color:var(--muted);}
+.bk-status.vrij{background:var(--s2);color:var(--dim);}
+.bk-namen{font-weight:700;font-size:1.05rem;overflow-wrap:anywhere;}
+.bk-namen .vs{color:var(--dim);font-weight:400;font-size:.8rem;margin:0 6px;}
+.bk-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px;font-size:.8rem;color:var(--muted);}
+.bk-actie{margin-top:8px;font-size:.82rem;font-weight:700;color:#6ee7b7;}
+.bk-leeg{color:var(--dim);font-size:.9rem;}
+button.bord{border:0;cursor:pointer;font-family:inherit;}
+
+/* ── SCOREBORD (volledig scherm) ── */
+.scorebord{position:fixed;inset:0;z-index:40;background:#000;display:flex;flex-direction:column;}
+.sb-kop{display:flex;align-items:center;gap:10px;background:var(--s1);border-bottom:1px solid var(--border);
+  padding:calc(8px + env(safe-area-inset-top)) 12px 8px;}
+.sb-terug{border:0;background:var(--s2);border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;}
+.sb-titel{flex:1;min-width:0;font-size:.85rem;line-height:1.25;}
+.sb-titel b{display:block;font-size:.95rem;}
+.sb-titel span{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+.sb-ext{color:#93c5fd;font-size:.78rem;text-decoration:none;white-space:nowrap;}
+.sb-vak{flex:1;position:relative;overflow:hidden;}
+.sb-vak iframe{position:absolute;top:0;left:0;width:1600px;height:900px;border:0;transform-origin:0 0;background:#000;}
+.sb-melding{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;color:var(--muted);padding:24px;gap:6px;}
+.sb-tip{text-align:center;color:var(--muted);font-size:.8rem;padding:10px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);}
+@media (orientation:landscape){ .sb-tip{display:none;} }
 
 main{padding:12px 16px;max-width:640px;margin:0 auto;}
 
@@ -120,7 +162,7 @@ main{padding:12px 16px;max-width:640px;margin:0 auto;}
 .voet{color:var(--dim);font-size:.75rem;text-align:center;margin-top:18px;}
 
 /* ── INSTALLEER-TIP ── */
-.installeer{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;
+.installeer{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:30;
   max-width:616px;margin:0 auto;background:var(--s3);border:1px solid #3b5584;border-radius:12px;
   padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:.88rem;}
 .installeer .tekst{flex:1;}
@@ -136,18 +178,40 @@ main{padding:12px 16px;max-width:640px;margin:0 auto;}
     <div class="logo">🎯 <div>De Kaale Bull<small>Speelschema</small></div></div>
     <div class="sync"><span class="dot" id="dot"></span><span id="syncTekst">laden…</span></div>
   </div>
-  <div class="tabs" role="tablist">
-    <button class="tab actief" id="tabAlles" role="tab">Alle wedstrijden</button>
-    <button class="tab" id="tabMijn" role="tab">Mijn wedstrijden</button>
-  </div>
 </header>
 
 <main>
   <div class="mededeling" id="mededeling" hidden></div>
   <section id="viewAlles"></section>
   <section id="viewMijn" hidden></section>
+  <section id="viewLive" hidden></section>
   <div class="voet">Ververst automatisch · wijzigingen van de wedstrijdleiding zie je direct</div>
 </main>
+
+<nav class="nav" aria-label="Menu">
+  <div class="nav-in">
+    <button id="tabAlles" data-view="alles" class="actief">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Alle wedstrijden
+    </button>
+    <button id="tabMijn" data-view="mijn">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Mijn wedstrijden
+    </button>
+    <button id="tabLive" data-view="live">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>Live borden
+      <span class="badge" id="liveBadge" hidden></span>
+    </button>
+  </div>
+</nav>
+
+<div class="scorebord" id="scorebord" hidden>
+  <div class="sb-kop">
+    <button class="sb-terug" id="sbTerug">‹ Terug</button>
+    <div class="sb-titel" id="sbTitel"></div>
+    <a class="sb-ext" id="sbExt" href="#" target="_blank" rel="noopener">DartConnect ↗</a>
+  </div>
+  <div class="sb-vak" id="sbVak"><iframe id="sbFrame" title="Live scorebord" allow="fullscreen"></iframe><div class="sb-melding" id="sbMelding" hidden></div></div>
+  <div class="sb-tip">Draai je telefoon voor een groter scorebord</div>
+</div>
 
 <div class="installeer" id="installeer" hidden>
   <div class="tekst" id="installeerTekst"></div>
@@ -215,14 +279,23 @@ const S = {
   view: 'alles',
   kantel: 24,
   geladen: false,
+  borden: {1:null,2:null,3:null,4:null},   // wedstrijd per bord
+  codes:  {1:'',2:'',3:'',4:''},           // DartConnect-link per bord
+  schrijvers: {1:'',2:'',3:'',4:''},
+  openBord: null,                          // bord dat nu groot in beeld staat
 };
+const BORDEN=[1,2,3,4];
 
 // ?speler=Naam in de link → meteen de eigen planning (handig om persoonlijk te delen)
 (function leesUrl(){
   const p=new URLSearchParams(location.search);
   const sp=p.get('speler');
   if (sp){ S.ik=sp.trim(); opslaan('kb_schema_ik', S.ik); S.view='mijn'; }
-  else { S.ik = lezen('kb_schema_ik'); if (p.get('view')==='mijn' || lezen('kb_schema_view')==='mijn') S.view='mijn'; }
+  else {
+    S.ik = lezen('kb_schema_ik');
+    const v = p.get('view') || lezen('kb_schema_view');
+    if (v==='mijn' || v==='live') S.view=v;
+  }
 })();
 
 // ══════════════════════════════════════════
@@ -273,11 +346,11 @@ function zetSync(ok){
 //  WEERGAVE
 // ══════════════════════════════════════════
 function render(){
-  document.getElementById('tabAlles').classList.toggle('actief', S.view==='alles');
-  document.getElementById('tabMijn').classList.toggle('actief', S.view==='mijn');
+  document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('actief', b.dataset.view===S.view));
   document.getElementById('viewAlles').hidden = S.view!=='alles';
   document.getElementById('viewMijn').hidden  = S.view!=='mijn';
-  if (S.view==='alles') renderAlles(); else renderMijn();
+  document.getElementById('viewLive').hidden  = S.view!=='live';
+  if (S.view==='alles') renderAlles(); else if (S.view==='mijn') renderMijn(); else renderLive();
 }
 
 function namenHtml(w){
@@ -287,7 +360,9 @@ function namenHtml(w){
 
 function rechtsHtml(w){
   if (w.status==='gespeeld') return `<span class="vink">✓ gespeeld</span>`;
-  if (w.bord) return `<span class="bord">Bord ${esc(w.bord)}</span>`;
+  if (w.bord) return S.codes[w.bord]
+    ? `<button class="bord" data-open-bord="${esc(w.bord)}">Bord ${esc(w.bord)}</button>`
+    : `<span class="bord">Bord ${esc(w.bord)}</span>`;
   return '';
 }
 
@@ -397,14 +472,137 @@ function renderMijn(){
 // ══════════════════════════════════════════
 //  TABS + VERVERSEN
 // ══════════════════════════════════════════
-document.getElementById('tabAlles').addEventListener('click',()=>{ S.view='alles'; opslaan('kb_schema_view','alles'); render(); });
-document.getElementById('tabMijn').addEventListener('click',()=>{ S.view='mijn'; opslaan('kb_schema_view','mijn'); render(); });
+document.querySelectorAll('.nav [data-view]').forEach(b=>b.addEventListener('click',()=>{
+  S.view=b.dataset.view; opslaan('kb_schema_view', S.view); render(); window.scrollTo(0,0);
+  if (S.view==='live') laadLive();
+}));
+// Een groen bordlabel in de wedstrijdlijst opent direct de livestand van dat bord
+document.addEventListener('click', e=>{
+  const b=e.target.closest('[data-open-bord]');
+  if (b) openScorebord(Number(b.dataset.openBord));
+});
+
+// ══════════════════════════════════════════
+//  LIVE BORDEN
+//  Zelfde bron als de TV: kolom `bord` in wedstrijden + DartConnect-link per bord
+//  (instellingen dartconnect_bord_<n>) + schrijver per bord (bord_schrijver_<n>).
+// ══════════════════════════════════════════
+const LIVE_REFRESH_MS = 10000;
+function dcUrl(code){
+  if (!code) return '';
+  code = String(code).replace(/["'<>\s]/g,'');
+  return /^live\//i.test(code) ? `https://tv.dartconnect.com/${code}` : `https://tv.dartconnect.com/tvscoreboard/${code}`;
+}
+let liveBezig=false;
+async function laadLive(){
+  if (liveBezig) return; liveBezig=true;
+  try{
+    const [rows, inst] = await Promise.all([
+      sbGet('wedstrijden','select=id,bord,thuis,uit,divisie,datum,is_inhaal&status=neq.gespeeld&bord=not.is.null&order=datum.desc,id.desc'),
+      sbGet('instellingen','select=sleutel,waarde&or=(sleutel.like.dartconnect_bord_*,sleutel.like.bord_schrijver_*)')
+    ]);
+    const borden={1:null,2:null,3:null,4:null}, codes={1:'',2:'',3:'',4:''}, schr={1:'',2:'',3:'',4:''};
+    rows.forEach(w=>{ if (borden.hasOwnProperty(w.bord) && !borden[w.bord]) borden[w.bord]=w; });
+    inst.forEach(r=>{
+      let m=r.sleutel.match(/^dartconnect_bord_(\d)$/); if (m && codes.hasOwnProperty(m[1])) codes[m[1]]=(r.waarde||'').trim();
+      m=r.sleutel.match(/^bord_schrijver_(\d)$/);        if (m && schr.hasOwnProperty(m[1]))  schr[m[1]]=(r.waarde||'').trim();
+    });
+    const gewijzigd = JSON.stringify([borden,codes,schr]) !== JSON.stringify([S.borden,S.codes,S.schrijvers]);
+    S.borden=borden; S.codes=codes; S.schrijvers=schr;
+    const aantalLive = BORDEN.filter(b=>S.borden[b]).length;
+    const badge=document.getElementById('liveBadge');
+    badge.textContent=aantalLive; badge.hidden=!aantalLive;
+    if (gewijzigd){
+      if (S.view==='live') renderLive(); else if (S.geladen) render();
+      if (S.openBord) werkScorebordBij();
+    }
+  }catch(e){ /* sync-stip toont de verbinding al */ }
+  finally{ liveBezig=false; }
+}
+
+function renderLive(){
+  const el=document.getElementById('viewLive');
+  const kaarten = BORDEN.map(b=>{
+    const w=S.borden[b], code=S.codes[b], schr=S.schrijvers[b];
+    const kanKijken=!!code;
+    let status, inhoud;
+    if (w){
+      const k=divKey(w);
+      status = kanKijken ? `<span class="bk-status live">Live</span>` : `<span class="bk-status wacht">Bezig</span>`;
+      inhoud = `<div class="bk-namen">${namenHtml(w)}</div>
+        <div class="bk-meta"><span class="chip ${k}">${esc(divLabel(w))}</span>${w.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}${schr?`<span>✍️ ${esc(schr)}</span>`:''}</div>
+        <div class="bk-actie">${kanKijken ? 'Tik voor de live stand ›' : '<span style="color:var(--dim);font-weight:600">Live stand nog niet beschikbaar</span>'}</div>`;
+    } else if (kanKijken){
+      status = `<span class="bk-status live">Live</span>`;
+      inhoud = `<div class="bk-leeg">Scorebord gekoppeld</div><div class="bk-actie">Tik voor de live stand ›</div>`;
+    } else {
+      status = `<span class="bk-status vrij">Vrij</span>`;
+      inhoud = `<div class="bk-leeg">Er wordt nu niet gegooid op dit bord.</div>`;
+    }
+    const tag = kanKijken ? 'button' : 'div';
+    return `<${tag} class="bordkaart${kanKijken?' live':''}"${kanKijken?` data-open-bord="${b}"`:''}>
+      <div class="bk-kop"><span class="bk-nr">Bord ${b}</span>${status}</div>${inhoud}</${tag}>`;
+  }).join('');
+  const niets = !BORDEN.some(b=>S.borden[b]||S.codes[b]);
+  el.innerHTML = `<div class="avond-titel"><h2>Live borden</h2></div>
+    <p class="live-intro">${niets ? 'Op dit moment wordt er nergens gegooid. Op de speelavond zie je hier welke wedstrijd op welk bord staat.' : 'Tik op een bord om de live stand te volgen.'}</p>
+    ${kaarten}`;
+}
+
+// ── Scorebord groot in beeld ──
+const sb = {
+  el: document.getElementById('scorebord'), vak: document.getElementById('sbVak'),
+  frame: document.getElementById('sbFrame'), melding: document.getElementById('sbMelding'),
+  titel: document.getElementById('sbTitel'), ext: document.getElementById('sbExt'),
+  geladenUrl: ''
+};
+function schaalScorebord(){
+  const w=sb.vak.clientWidth, h=sb.vak.clientHeight;
+  if (!w || !h) return;
+  const s=Math.min(w/1600, h/900);
+  const x=(w-1600*s)/2, y=Math.max(0,(h-900*s)/2);
+  sb.frame.style.transform=`translate(${x}px,${y}px) scale(${s})`;
+}
+new ResizeObserver(schaalScorebord).observe(sb.vak);
+
+function werkScorebordBij(){
+  const b=S.openBord, w=S.borden[b], url=dcUrl(S.codes[b]);
+  sb.titel.innerHTML = `<b>Bord ${b}</b><span>${w ? `${esc(w.thuis)} vs ${esc(w.uit)}` : 'Live stand'}</span>`;
+  if (url){
+    sb.melding.hidden=true; sb.frame.hidden=false;
+    sb.ext.href=url; sb.ext.hidden=false;
+    // Alleen opnieuw laden als de koppeling van dit bord echt veranderd is (zoals op de TV)
+    if (url!==sb.geladenUrl){ sb.frame.src=url; sb.geladenUrl=url; }
+  } else {
+    sb.frame.hidden=true; sb.frame.removeAttribute('src'); sb.geladenUrl='';
+    sb.ext.hidden=true;
+    sb.melding.innerHTML='<span style="font-size:2rem">🎯</span>De live stand van dit bord is niet (meer) beschikbaar.<br>Misschien is de wedstrijd net afgelopen.';
+    sb.melding.hidden=false;
+  }
+  schaalScorebord();
+}
+function openScorebord(b){
+  if (!S.codes[b]) return;
+  S.openBord=b; sb.el.hidden=false; document.body.style.overflow='hidden';
+  try{ history.pushState({scorebord:b}, ''); }catch(e){}
+  werkScorebordBij();
+}
+function sluitScorebord(viaTerug){
+  if (!S.openBord) return;
+  S.openBord=null; sb.el.hidden=true; document.body.style.overflow='';
+  sb.frame.removeAttribute('src'); sb.geladenUrl='';
+  if (!viaTerug){ try{ if (history.state && history.state.scorebord) history.back(); }catch(e){} }
+}
+document.getElementById('sbTerug').addEventListener('click',()=>sluitScorebord(false));
+window.addEventListener('popstate',()=>sluitScorebord(true));
 
 render();
 laad();
+laadLive();
 setInterval(()=>{ if (document.visibilityState==='visible') laad(); }, REFRESH_MS);
-document.addEventListener('visibilitychange',()=>{ if (document.visibilityState==='visible') laad(); });
-window.addEventListener('online', laad);
+setInterval(()=>{ if (document.visibilityState==='visible') laadLive(); }, LIVE_REFRESH_MS);
+document.addEventListener('visibilitychange',()=>{ if (document.visibilityState==='visible'){ laad(); laadLive(); } });
+window.addEventListener('online', ()=>{ laad(); laadLive(); });
 
 // ══════════════════════════════════════════
 //  PWA: service worker + installeer-tip
