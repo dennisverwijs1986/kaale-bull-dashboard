@@ -693,6 +693,7 @@ function renderMijn(){
         ${mijnNnb.map(w=>kaartHtml(w,{nnb:true})).join('')}
       </div>`;
     }
+    html += agendaHtml();
     const perDag={};
     mijn.forEach(w=>{ (perDag[w.datum]=perDag[w.datum]||[]).push(w); });
     Object.keys(perDag).forEach(d=>{
@@ -702,7 +703,7 @@ function renderMijn(){
     });
   }
   html += uitslagenHtml(mijnAlle);
-  html += agendaHtml();
+  if (!mijn.length && !mijnNnb.length) html += agendaHtml();
   el.innerHTML = html;
   el.querySelector('#wissel').addEventListener('click',()=>{ S.ik=null; S.ikId=null; opslaan('kb_schema_ik',null); render(); });
   el.querySelector('#deelMijn').addEventListener('click',()=>deelMijn(mijn));
