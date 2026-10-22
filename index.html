@@ -1879,7 +1879,7 @@ function vindRustConflicten() {
   });
   conflicten.sort((x, y) => x.datum.localeCompare(y.datum) || (x.a.tijdstip||'').localeCompare(y.a.tijdstip||''));
 
-  // Reeksen: een speler met 3 of meer wedstrijden in aaneengesloten tijdsloten
+  // Reeksen: een speler met 2 of meer wedstrijden in aaneengesloten tijdsloten
   // (steeds hooguit MIN_RUST_MIN = één tijdslot na elkaar) → zelfde stippellijn als een rustconflict.
   const reeksPerWedstrijd = new Map();
   perDatum.forEach(lijst => {
@@ -1896,7 +1896,9 @@ function vindRustConflicten() {
         const aaneen = i < items.length && items[i].t - items[i-1].t <= MIN_RUST_MIN;
         if (aaneen) continue;
         const reeks = items.slice(start, i);
-        if (reeks.length >= 3 && reeks.some(x => x.w.status !== 'gespeeld')) {
+        // 2 wedstrijden binnen MIN_RUST_MIN zijn al een rustconflict (eigen label), niet dubbel tonen
+        const alConflict = reeks.length === 2 && reeks[1].t - reeks[0].t < MIN_RUST_MIN;
+        if (reeks.length >= 2 && !alConflict && reeks.some(x => x.w.status !== 'gespeeld')) {
           const r = { speler, aantal: reeks.length, van: reeks[0].w.tijdstip, tot: reeks[reeks.length-1].w.tijdstip };
           reeks.forEach(x => { if (!reeksPerWedstrijd.has(x.w.id)) reeksPerWedstrijd.set(x.w.id, []); reeksPerWedstrijd.get(x.w.id).push(r); });
         }
