@@ -555,7 +555,7 @@ function rechtsHtml(w){
     }
     return `<span class="vink">✓ gespeeld</span>${verslagHtml(w) ? '<br>'+verslagHtml(w) : ''}`;
   }
-  if (w.bord) return S.codes[w.bord]
+  if (w.bord) return SCOREBORD_AAN && S.codes[w.bord]
     ? `<button class="bord" data-open-bord="${esc(w.bord)}">Bord ${esc(w.bord)}</button>`
     : `<span class="bord">Bord ${esc(w.bord)}</span>`;
   return '';
@@ -830,6 +830,10 @@ document.addEventListener('click', e=>{
 //  (instellingen dartconnect_bord_<n>) + schrijver per bord (bord_schrijver_<n>).
 // ══════════════════════════════════════════
 const LIVE_REFRESH_MS = 10000;
+// Live scorebord van DartConnect openen: UIT. Een koppelcode geldt maar voor één wedstrijd;
+// later opnieuw laden geeft bij DartConnect "Something went wrong". Weer aanzetten zodra er
+// een vaste (per bord/competitie) link is.
+const SCOREBORD_AAN = false;
 function dcUrl(code){
   if (!code) return '';
   code = String(code).replace(/["'<>\s]/g,'');
@@ -868,14 +872,14 @@ function renderLive(){
   const el=document.getElementById('viewLive');
   const kaarten = BORDEN.map(b=>{
     const w=S.borden[b], code=S.codes[b], schr=S.schrijvers[b];
-    const kanKijken=!!code;
+    const kanKijken = SCOREBORD_AAN && !!code;
     let status, inhoud;
     if (w){
       const k=divKey(w);
-      status = kanKijken ? `<span class="bk-status live">Live</span>` : `<span class="bk-status wacht">Bezig</span>`;
+      status = `<span class="bk-status live">Live</span>`;
       inhoud = `<div class="bk-namen">${namenHtml(w)}</div>
         <div class="bk-meta"><span class="chip ${k}">${esc(divLabel(w))}</span>${w.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}${schr?`<span>✍️ ${esc(schr)}</span>`:''}</div>
-        <div class="bk-actie">${kanKijken ? 'Tik voor de live stand ›' : '<span style="color:var(--dim);font-weight:600">Live stand nog niet beschikbaar</span>'}</div>`;
+        ${kanKijken ? '<div class="bk-actie">Tik voor de live stand ›</div>' : ''}`;
     } else if (kanKijken){
       status = `<span class="bk-status live">Live</span>`;
       inhoud = `<div class="bk-leeg">Scorebord gekoppeld</div><div class="bk-actie">Tik voor de live stand ›</div>`;
@@ -887,9 +891,9 @@ function renderLive(){
     return `<${tag} class="bordkaart${kanKijken?' live':''}"${kanKijken?` data-open-bord="${b}"`:''}>
       <div class="bk-kop"><span class="bk-nr">Bord ${b}</span>${status}</div>${inhoud}</${tag}>`;
   }).join('');
-  const niets = !BORDEN.some(b=>S.borden[b]||S.codes[b]);
+  const niets = !BORDEN.some(b=>S.borden[b]);
   el.innerHTML = `<div class="avond-titel"><h2>Live borden</h2></div>
-    <p class="live-intro">${niets ? 'Op dit moment wordt er nergens gegooid. Op de speelavond zie je hier welke wedstrijd op welk bord staat.' : 'Tik op een bord om de live stand te volgen.'}</p>
+    <p class="live-intro">${niets ? 'Op dit moment wordt er nergens gegooid. Op de speelavond zie je hier welke wedstrijd op welk bord staat.' : (SCOREBORD_AAN ? 'Tik op een bord om de live stand te volgen.' : 'Zo staan de borden nu. De live stand volg je op de tv in het café.')}</p>
     ${kaarten}`;
 }
 
@@ -1186,7 +1190,7 @@ function werkScorebordBij(){
   schaalScorebord();
 }
 function openScorebord(b){
-  if (!S.codes[b]) return;
+  if (!SCOREBORD_AAN || !S.codes[b]) return;
   S.openBord=b; sb.el.hidden=false; document.body.style.overflow='hidden';
   telScorebord(b);
   try{ history.pushState({scorebord:b}, ''); }catch(e){}
