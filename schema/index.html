@@ -70,6 +70,8 @@ button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
 .bk-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px;font-size:.8rem;color:var(--muted);}
 .bk-actie{margin-top:8px;font-size:.82rem;font-weight:700;color:#6ee7b7;}
 .bk-leeg{color:var(--dim);font-size:.9rem;}
+a.bordkaart{color:inherit;text-decoration:none;}
+.dc-knop{display:block;text-align:center;background:var(--eerste);color:#fff;text-decoration:none;font-weight:800;border-radius:10px;padding:11px;margin:0 0 12px;}
 button.bord{border:0;cursor:pointer;font-family:inherit;}
 
 /* ── SCOREBORD (volledig scherm) ── */
@@ -834,6 +836,9 @@ const LIVE_REFRESH_MS = 10000;
 // later opnieuw laden geeft bij DartConnect "Something went wrong". Weer aanzetten zodra er
 // een vaste (per bord/competitie) link is.
 const SCOREBORD_AAN = false;
+// Vaste DartConnect-pagina met alle wedstrijden van de competitie (seizoen 2026-27): blijft geldig,
+// spelers kiezen daar zelf de wedstrijd die ze willen volgen.
+const DC_WEDSTRIJDEN_URL = 'https://tv.dartconnect.com/league/KaalBHC/matches/22804';
 function dcUrl(code){
   if (!code) return '';
   code = String(code).replace(/["'<>\s]/g,'');
@@ -887,13 +892,19 @@ function renderLive(){
       status = `<span class="bk-status vrij">Vrij</span>`;
       inhoud = `<div class="bk-leeg">Er wordt nu niet gegooid op dit bord.</div>`;
     }
+    if (!kanKijken && w){
+      return `<a class="bordkaart live" href="${DC_WEDSTRIJDEN_URL}" target="_blank" rel="noopener">
+        <div class="bk-kop"><span class="bk-nr">Bord ${b}</span>${status}</div>${inhoud}
+        <div class="bk-actie">Live stand op DartConnect ›</div></a>`;
+    }
     const tag = kanKijken ? 'button' : 'div';
     return `<${tag} class="bordkaart${kanKijken?' live':''}"${kanKijken?` data-open-bord="${b}"`:''}>
       <div class="bk-kop"><span class="bk-nr">Bord ${b}</span>${status}</div>${inhoud}</${tag}>`;
   }).join('');
   const niets = !BORDEN.some(b=>S.borden[b]);
   el.innerHTML = `<div class="avond-titel"><h2>Live borden</h2></div>
-    <p class="live-intro">${niets ? 'Op dit moment wordt er nergens gegooid. Op de speelavond zie je hier welke wedstrijd op welk bord staat.' : (SCOREBORD_AAN ? 'Tik op een bord om de live stand te volgen.' : 'Zo staan de borden nu. De live stand volg je op de tv in het café.')}</p>
+    <p class="live-intro">${niets ? 'Op dit moment wordt er nergens gegooid. Op de speelavond zie je hier welke wedstrijd op welk bord staat.' : (SCOREBORD_AAN ? 'Tik op een bord om de live stand te volgen.' : 'Tik op een bord voor de live stand op DartConnect en kies daar de wedstrijd die je wilt volgen.')}</p>
+    <a class="dc-knop" href="${DC_WEDSTRIJDEN_URL}" target="_blank" rel="noopener">🎯 Alle wedstrijden live op DartConnect ›</a>
     ${kaarten}`;
 }
 
