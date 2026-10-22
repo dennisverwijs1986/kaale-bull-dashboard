@@ -94,7 +94,11 @@
   #import-log .log-err { color: var(--red); }
   #import-log .log-summary { font-weight: 700; margin-bottom: 6px; }
 
+  .seg { display: flex; gap: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px; margin-bottom: 14px; }
+  .seg button { flex: 1; border: 0; background: none; border-radius: 8px; padding: 9px 8px; font-weight: 700; font-size: 0.9rem; color: var(--muted); cursor: pointer; font-family: inherit; }
+  .seg button.active { background: var(--s3); color: var(--text); }
   .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tabs .tab-btn { flex: 1; min-width: 92px; text-align: center; }
   .tab-btn {
     padding: 9px 16px; background: var(--s2); border: 1px solid var(--border); color: var(--muted);
     border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.88rem;
@@ -128,7 +132,7 @@
 <body>
 
 <header>
-  <h1>🎯 Kaale Bull <span class="accent">— Periodestand Eerste Divisie</span></h1>
+  <h1>🎯 Kaale Bull <span class="accent">— Ranglijsten</span></h1>
 </header>
 
 <main>
@@ -172,23 +176,29 @@
 
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <h3 style="margin:0;">🏆 Periodestand</h3>
-        <button class="btn" style="width:auto;padding:9px 16px;background:var(--s2);color:var(--text);border:1px solid var(--border);" onclick="exportStandPDF(event)">🖨 PDF exporteren</button>
+        <h3 style="margin:0;">🏆 Ranglijsten</h3>
+        <button class="btn" id="pdf-btn" style="width:auto;padding:9px 16px;background:var(--s2);color:var(--text);border:1px solid var(--border);" onclick="exportStandPDF(event)">🖨 PDF periodestand</button>
       </div>
-      <div class="tabs" id="tabs" style="margin-top:14px;"></div>
-      <div id="stand-container"><div class="loading">Standen laden...</div></div>
-    </div>
+      <div class="seg" id="div-seg" style="margin-top:14px;">
+        <button data-div="ere" class="active" onclick="kiesDivisie('ere')">Eredivisie</button>
+        <button data-div="eerste" onclick="kiesDivisie('eerste')">Eerste Divisie</button>
+      </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 4px;">🎟 Eindoverzicht (voorlopig)</h3>
-      <div style="color:var(--muted);font-size:12px;margin-bottom:10px;">Seizoenstotaal over alle periodes. Play-offs: 5 spelers uit de Eerste Divisie (4 periodetickets + 1 via de eindstand) tegen nr. 17 t/m 19 van de Eredivisie.</div>
-      <div id="eind-container"><div class="loading">Laden...</div></div>
-    </div>
+      <div id="pane-ere">
+        <div style="color:var(--muted);font-size:12px;margin-bottom:10px;">Punten = gewonnen legs, net als in de Eerste Divisie. Nr. 17 t/m 19 spelen play-offs tegen 5 spelers uit de Eerste Divisie; nr. 20 en 21 degraderen.</div>
+        <div id="ere-container"><div class="loading">Laden...</div></div>
+      </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 4px;">🏅 Stand Eredivisie</h3>
-      <div style="color:var(--muted);font-size:12px;margin-bottom:10px;">Punten = gewonnen legs, net als in de Eerste Divisie. Nr. 17 t/m 19 spelen play-offs tegen 5 spelers uit de Eerste Divisie; nr. 20 en 21 degraderen.</div>
-      <div id="ere-container"><div class="loading">Laden...</div></div>
+      <div id="pane-eerste" style="display:none;">
+        <div class="tabs" id="tabs"></div>
+        <div id="pane-periode">
+          <div id="stand-container"><div class="loading">Standen laden...</div></div>
+        </div>
+        <div id="pane-eind" style="display:none;">
+          <div style="color:var(--muted);font-size:12px;margin-bottom:10px;">Seizoenstotaal over alle periodes. Play-offs: 5 spelers uit de Eerste Divisie (4 periodetickets + 1 via de eindstand) tegen nr. 17 t/m 19 van de Eredivisie.</div>
+          <div id="eind-container"><div class="loading">Laden...</div></div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -275,7 +285,10 @@
 
   async function init() {
     await buildNameMaps();
+    kiesDivisie('ere');
+    activePeriode = await bepaalHuidigePeriode().catch(() => 1);
     renderTabs();
+    toonPeriodePane();
     loadStand();
   }
 
@@ -632,16 +645,39 @@
   }
 
   // ── PERIODESTAND ──
+  let activeDivisie = 'ere';
+  function kiesDivisie(d) {
+    activeDivisie = d;
+    document.querySelectorAll('#div-seg button').forEach(b => b.classList.toggle('active', b.dataset.div === d));
+    document.getElementById('pane-ere').style.display = d === 'ere' ? '' : 'none';
+    document.getElementById('pane-eerste').style.display = d === 'eerste' ? '' : 'none';
+    document.getElementById('pdf-btn').style.display = d === 'eerste' ? '' : 'none';
+  }
   function renderTabs() {
     const tabsEl = document.getElementById('tabs');
     tabsEl.innerHTML = '';
-    [1,2,3,4].forEach(p => {
+    [1,2,3,4,'eind'].forEach(p => {
       const btn = document.createElement('div');
       btn.className = 'tab-btn' + (p === activePeriode ? ' active' : '');
-      btn.innerHTML = `Periode ${p}<span class="sub">${PERIODE_LABELS[p]}</span>`;
-      btn.onclick = () => { activePeriode = p; renderTabs(); loadStand(); };
+      btn.innerHTML = p === 'eind' ? `Eindstand<span class="sub">totaal + tickets</span>` : `Periode ${p}<span class="sub">${PERIODE_LABELS[p]}</span>`;
+      btn.onclick = () => { activePeriode = p; renderTabs(); toonPeriodePane(); if (p !== 'eind') loadStand(); };
       tabsEl.appendChild(btn);
     });
+  }
+  function toonPeriodePane() {
+    document.getElementById('pane-periode').style.display = activePeriode === 'eind' ? 'none' : '';
+    document.getElementById('pane-eind').style.display = activePeriode === 'eind' ? '' : 'none';
+  }
+  // Periode die nu loopt: die van de eerstvolgende speelronde Eerste Divisie in de planning
+  async function bepaalHuidigePeriode() {
+    const vandaag = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    const { data } = await supabaseClient.from('wedstrijden').select('speelronde')
+      .eq('divisie', 'Eerste Divisie').neq('status', 'gespeeld').eq('datum_nnb', false).gte('datum', vandaag)
+      .order('datum', { ascending: true }).limit(20);
+    const rondes = (data || []).map(w => parseInt(w.speelronde, 10)).filter(n => !isNaN(n));
+    if (!rondes.length) return 'eind';
+    const r = Math.min(...rondes);
+    return r <= 10 ? 1 : r <= 20 ? 2 : r <= 30 ? 3 : 4;
   }
 
   async function loadStand() {
@@ -649,6 +685,7 @@
     container.innerHTML = '<div class="loading">Standen laden...</div>';
     loadEind();
     loadEre();
+    if (activePeriode === 'eind') return;
 
     const { data, error } = await supabaseClient
       .from('periodestand_eerste_divisie')
