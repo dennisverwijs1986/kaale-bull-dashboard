@@ -1839,7 +1839,7 @@ function renderZoekResultaat(naam) {
       <span class="zk-tijd">${!m.datum_nnb && !isBeker && m.tijdstip ? escapeHtml(m.tijdstip) : '—'}</span>
       <div class="zk-info">
         <div class="zk-namen">${markeer(m.thuis)} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${markeer(m.uit)}</div>
-        <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}${(rustInfo.perWedstrijd.get(m.id)||[]).map(c=>{const a=c.a.id===m.id?c.b:c.a;return `<span class="rust-chip">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(a.tijdstip||'')}</span>`;}).join('')}</div>
+        <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}${(rustInfo.perWedstrijd.get(m.id)||[]).map(c=>{const a=c.a.id===m.id?c.b:c.a;return `<span class="rust-chip">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(a.tijdstip||'')}</span>`;}).join('')}${(rustInfo.reeksPerWedstrijd.get(m.id)||[]).map(r=>`<span class="rust-chip">⚠ ${escapeHtml(r.speler.split(' ')[0])} ${r.aantal}x op rij</span>`).join('')}</div>
       </div>
       <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>`;
     container.appendChild(kaart);
@@ -1850,7 +1850,7 @@ function renderZoekResultaat(naam) {
 //  RUSTCONFLICTEN — speler heeft 2 wedstrijden binnen MIN_RUST_MIN min op dezelfde avond
 //  Wordt bij elke render opnieuw berekend over alle komende avonden (vanaf vandaag).
 // ══════════════════════════════════════════
-let rustInfo = { conflicten: [], perWedstrijd: new Map() };
+let rustInfo = { conflicten: [], perWedstrijd: new Map(), reeksPerWedstrijd: new Map() };
 function vindRustConflicten() {
   const vandaag = zoekVandaag();
   const naarMin = t => { const d = /^(\d{1,2}):(\d{2})/.exec(t||''); return d ? (+d[1])*60+(+d[2]) : null; };
@@ -1878,7 +1878,33 @@ function vindRustConflicten() {
     }
   });
   conflicten.sort((x, y) => x.datum.localeCompare(y.datum) || (x.a.tijdstip||'').localeCompare(y.a.tijdstip||''));
-  return { conflicten, perWedstrijd };
+
+  // Reeksen: een speler met 3 of meer wedstrijden in aaneengesloten tijdsloten
+  // (steeds hooguit MIN_RUST_MIN = één tijdslot na elkaar) → zelfde stippellijn als een rustconflict.
+  const reeksPerWedstrijd = new Map();
+  perDatum.forEach(lijst => {
+    const perSpeler = new Map();
+    lijst.forEach(x => [x.w.thuis, x.w.uit].forEach(n => {
+      if (!n || n === 'Vrije Ronde') return;
+      if (!perSpeler.has(n)) perSpeler.set(n, []);
+      perSpeler.get(n).push(x);
+    }));
+    perSpeler.forEach((items, speler) => {
+      items.sort((p, q) => p.t - q.t);
+      let start = 0;
+      for (let i = 1; i <= items.length; i++) {
+        const aaneen = i < items.length && items[i].t - items[i-1].t <= MIN_RUST_MIN;
+        if (aaneen) continue;
+        const reeks = items.slice(start, i);
+        if (reeks.length >= 3 && reeks.some(x => x.w.status !== 'gespeeld')) {
+          const r = { speler, aantal: reeks.length, van: reeks[0].w.tijdstip, tot: reeks[reeks.length-1].w.tijdstip };
+          reeks.forEach(x => { if (!reeksPerWedstrijd.has(x.w.id)) reeksPerWedstrijd.set(x.w.id, []); reeksPerWedstrijd.get(x.w.id).push(r); });
+        }
+        start = i;
+      }
+    });
+  });
+  return { conflicten, perWedstrijd, reeksPerWedstrijd };
 }
 
 function renderQueue() {
@@ -2046,7 +2072,8 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
 
   const card = document.createElement('div');
   const rustC = rustInfo.perWedstrijd.get(m.id) || [];
-  card.className = `match-card div-${divKey} ${isBlocked?'blocked':''} ${rustC.length?'warn-rust':''}`;
+  const reeksC = rustInfo.reeksPerWedstrijd.get(m.id) || [];
+  card.className = `match-card div-${divKey} ${isBlocked?'blocked':''} ${(rustC.length||reeksC.length)?'warn-rust':''}`;
   card.draggable = !isBlocked;
   card.dataset.id = m.id;
   card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('matchId',m.id); e.dataTransfer.effectAllowed='move'; startSlotSleep(m); });
@@ -2085,9 +2112,10 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
   // Compacte weergave: rust- en inhaalinfo als één ⚠-icoon met uitleg bij aanwijzen
   const extraInfo = [
     ...rustC.map(c => { const ander = c.a.id === m.id ? c.b : c.a; return `${c.speler} ook om ${ander.tijdstip||''}`; }),
+    ...reeksC.map(r => `${r.speler} ${r.aantal}x achter elkaar (${r.van}–${r.tot})`),
     ...(m.originele_datum ? [`orig. datum ${fmtDatum(m.originele_datum)}`] : [])
   ];
-  const infoIcoon = rustC.length
+  const infoIcoon = (rustC.length || reeksC.length)
     ? `<span class="info-ic rust" title="${escapeHtml(extraInfo.join(' · '))}">⚠</span>`
     : (m.originele_datum ? `<span class="info-ic" title="${escapeHtml(extraInfo.join(' · '))}">↩</span>` : '');
 
@@ -2102,6 +2130,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
         ${origDatumBadge}
         ${isBlocked?'<span class="bezig-label" style="color:var(--red);font-size:0.65rem;">⛔ speler bezig</span>':''}
         ${rustC.map(c => { const ander = c.a.id === m.id ? c.b : c.a; return `<span class="rust-chip" title="${escapeHtml(c.speler)} heeft ook ${escapeHtml(ander.thuis)} – ${escapeHtml(ander.uit)} om ${escapeHtml(ander.tijdstip||'')}">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(ander.tijdstip||'')}</span>`; }).join('')}
+        ${reeksC.map(r => `<span class="rust-chip" title="${escapeHtml(r.speler)} speelt ${r.aantal} wedstrijden in aaneengesloten tijdsloten (${escapeHtml(r.van||'')}–${escapeHtml(r.tot||'')})">⚠ ${escapeHtml(r.speler.split(' ')[0])} ${r.aantal}x op rij</span>`).join('')}
       </div>
     </div>
     ${infoIcoon}
