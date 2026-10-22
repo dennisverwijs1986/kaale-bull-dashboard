@@ -617,8 +617,12 @@ function renderAlles(){
     return;
   }
   const vd=vandaag();
-  if (!S.gekozenAvond || !avonden.includes(S.gekozenAvond))
-    S.gekozenAvond = avonden.find(d=>d>=vd) || avonden[avonden.length-1];
+  // Op een speelavond: vandaag. Daarna, tot de volgende speelavond: de laatst gespeelde avond (uitslagen).
+  if (!S.gekozenAvond || !avonden.includes(S.gekozenAvond)){
+    const verleden = avonden.filter(d=>d<vd);
+    S.gekozenAvond = avonden.includes(vd) ? vd
+      : (verleden.length ? verleden[verleden.length-1] : (avonden.find(d=>d>vd) || avonden[avonden.length-1]));
+  }
 
   const chips = avonden.map(d=>{
     const dt=alsDatum(d);
@@ -645,7 +649,7 @@ function renderAlles(){
   el.innerHTML = `
     ${beurtHtml()}
     <div class="avonden" id="avonden">${chips}</div>
-    <div class="avond-titel"><h2>${esc(titel.charAt(0).toUpperCase()+titel.slice(1))}</h2>
+    <div class="avond-titel"><h2>${S.gekozenAvond<vd ? 'Uitslagen van '+esc(titel) : esc(titel.charAt(0).toUpperCase()+titel.slice(1))}</h2>
       <span class="teller">${rijen.length} wedstrijden${open<rijen.length && open ? ` · ${open} open` : ''}</span></div>
     ${slots}
     <button class="deel" id="deelApp">📲 Stuur de app door</button>`;
