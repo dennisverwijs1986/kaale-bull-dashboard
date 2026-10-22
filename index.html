@@ -535,6 +535,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
         <div class="nav-dropdown-item" id="navStats" onclick="switchNav('stats'); closeAdminDropdown();">📊 Stats</div>
         <div class="nav-dropdown-item" id="navSpelers" onclick="switchNav('spelers'); closeAdminDropdown();">🧑‍🤝‍🧑 Spelerbeheer</div>
         <div class="nav-dropdown-item" id="navLogboek" onclick="switchNav('logboek'); closeAdminDropdown();">📝 Logboek</div>
+        <div class="nav-dropdown-item" id="navUitslagen" onclick="switchNav('uitslagen'); closeAdminDropdown();">📜 Uitslagen</div>
         <div class="nav-dropdown-item" id="navPeriodestand" onclick="switchNav('periodestand'); closeAdminDropdown();">🏆 Periodestand</div>
       </div>
     </div>
@@ -760,6 +761,11 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 <!-- ── LOGBOEK VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
 <div class="external-view" id="logboekView">
   <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/logboek.html" title="Logboek"></iframe>
+</div>
+
+<!-- ── UITSLAGEN VIEW (iframe) ── -->
+<div class="external-view" id="uitslagenView">
+  <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/uitslagen.html" title="Uitslagen"></iframe>
 </div>
 
 <!-- ── PERIODESTAND VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
@@ -2944,18 +2950,20 @@ function toggleHistory() {
 //  NAVIGATIE
 // ══════════════════════════════════════════
 function switchNav(view) {
-  const adminViews = ['planning','stats','spelers','logboek','periodestand'];
+  const adminViews = ['planning','stats','spelers','logboek','uitslagen','periodestand'];
   document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
   document.getElementById('planningView').classList.toggle('active', view === 'planning');
   document.getElementById('statsView').classList.toggle('active', view === 'stats');
   document.getElementById('spelersView').classList.toggle('active', view === 'spelers');
   document.getElementById('logboekView').classList.toggle('active', view === 'logboek');
+  document.getElementById('uitslagenView').classList.toggle('active', view === 'uitslagen');
   document.getElementById('periodestandView').classList.toggle('active', view === 'periodestand');
   document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
   document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
   document.getElementById('navStats').classList.toggle('active', view === 'stats');
   document.getElementById('navSpelers').classList.toggle('active', view === 'spelers');
   document.getElementById('navLogboek').classList.toggle('active', view === 'logboek');
+  document.getElementById('navUitslagen').classList.toggle('active', view === 'uitslagen');
   document.getElementById('navPeriodestand').classList.toggle('active', view === 'periodestand');
   document.getElementById('navAdminBtn').classList.toggle('active', adminViews.includes(view));
   document.getElementById('navAdminBtn').classList.toggle('planning', view === 'planning');

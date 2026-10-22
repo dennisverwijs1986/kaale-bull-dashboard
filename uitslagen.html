@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Uitslagen - De Kaale Bull</title>
+<style>
+  :root {
+    --bg:#0f1520; --s1:#161f30; --s2:#1e2a40; --s3:#243350; --border:#2a3a56;
+    --text:#f1f5f9; --muted:#94a3b8; --dim:#64748b;
+    --green:#10b981; --red:#ef4444; --orange:#f59e0b; --blue:#3b82f6;
+    --ere:#a855f7; --eerste:#3b82f6; --beker:#f59e0b;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); margin:0; }
+  header { background:#080d16; padding:16px 18px; border-bottom:2px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  header h1 { font-size:1.1rem; margin:0; font-weight:800; }
+  header .accent { color:var(--orange); }
+  header a { color:var(--muted); font-size:.85rem; text-decoration:none; }
+  main { max-width:1000px; margin:0 auto; padding:16px; }
+  button, input, select { font-family:inherit; font-size:inherit; color:inherit; }
+
+  #login-screen { max-width:360px; margin:70px auto; background:var(--s1); border:1px solid var(--border); border-radius:10px; padding:28px; text-align:center; }
+  #login-screen h2 { margin-top:0; }
+  #login-screen input { width:100%; padding:12px; background:var(--s2); border:1px solid var(--border); border-radius:6px; margin:12px 0; font-size:1rem; }
+  #login-screen button { width:100%; padding:12px; background:var(--green); color:#000; border:0; border-radius:6px; font-weight:700; cursor:pointer; font-size:1rem; }
+  #login-error { color:var(--red); font-size:.85rem; min-height:18px; margin-top:4px; }
+  #app { display:none; }
+
+  .filters { display:grid; grid-template-columns:2fr 1fr 1fr; gap:8px; margin-bottom:10px; }
+  .filters input, .filters select { width:100%; background:var(--s1); border:1px solid var(--border); border-radius:8px; padding:10px; }
+  .toggles { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:14px; font-size:.85rem; color:var(--muted); }
+  .toggles label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .toggles input { width:16px; height:16px; accent-color:var(--blue); }
+  @media (max-width:640px){ .filters { grid-template-columns:1fr 1fr; } .filters .zoek { grid-column:1 / -1; } }
+
+  .tellers { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .teller { background:var(--s1); border:1px solid var(--border); border-radius:10px; padding:8px 12px; font-size:.8rem; color:var(--muted); }
+  .teller b { display:block; font-size:1.2rem; color:var(--text); }
+  .teller.let b { color:var(--red); }
+
+  .dag { font-size:.8rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:18px 0 8px; }
+  .w { background:var(--s1); border:1px solid var(--border); border-left:4px solid var(--dim); border-radius:10px; margin-bottom:6px; }
+  .w.ere { border-left-color:var(--ere); } .w.eerste { border-left-color:var(--eerste); } .w.beker { border-left-color:var(--beker); }
+  .w.afwijking { border-color:rgba(239,68,68,.6); }
+  .w-kop { display:grid; grid-template-columns:52px 1fr auto; gap:10px; align-items:center; padding:10px 12px; cursor:pointer; }
+  .tijd { font-family:ui-monospace,monospace; font-weight:700; color:var(--orange); }
+  .namen { overflow-wrap:anywhere; }
+  .namen .vs { color:var(--dim); font-size:.8rem; margin:0 6px; }
+  .winst { font-weight:800; } .verlies { color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+  .chip { font-size:.66rem; font-weight:800; border-radius:5px; padding:2px 6px; background:var(--s3); color:var(--muted); }
+  .chip.ere { background:rgba(168,85,247,.2); color:#d8b4fe; } .chip.eerste { background:rgba(59,130,246,.2); color:#93c5fd; } .chip.beker { background:rgba(245,158,11,.2); color:#fcd34d; }
+  .chip.inhaal { background:rgba(239,68,68,.15); color:#fca5a5; }
+  .chip.let { background:rgba(239,68,68,.2); color:#fca5a5; }
+  .chip.info { background:var(--s2); color:var(--dim); }
+  .score { text-align:right; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .score small { display:block; font-weight:600; color:var(--dim); font-size:.68rem; }
+  .w-details { display:none; border-top:1px solid var(--border); padding:10px 12px 12px; font-size:.85rem; }
+  .w.open .w-details { display:block; }
+  .rij { display:grid; grid-template-columns:150px 1fr; gap:8px; padding:4px 0; }
+  .rij span:first-child { color:var(--muted); }
+  @media (max-width:520px){ .rij { grid-template-columns:1fr; gap:0; } }
+  .verslag { color:#93c5fd; font-weight:700; text-decoration:none; }
+  .log { margin-top:8px; border-top:1px dashed var(--border); padding-top:8px; }
+  .log div { padding:3px 0; color:var(--muted); }
+  .log b { color:var(--text); font-weight:600; }
+  .melding { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.4); color:#fecaca; border-radius:8px; padding:8px 10px; margin-bottom:8px; }
+  .leeg { text-align:center; color:var(--muted); padding:40px 0; }
+  .meer { width:100%; background:var(--s1); border:1px solid var(--border); border-radius:8px; padding:10px; color:#93c5fd; font-weight:700; cursor:pointer; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎯 Kaale Bull <span class="accent">— Uitslagen</span></h1>
+  <a href="wl.html">← WL-app</a>
+</header>
+
+<main>
+  <div id="login-screen">
+    <h2>Inloggen</h2>
+    <p style="color:#777;font-size:.9rem;">Alleen voor wedstrijdleiding</p>
+    <input type="password" id="password-input" placeholder="Wachtwoord" autocomplete="off">
+    <button onclick="tryLogin()">Inloggen</button>
+    <div id="login-error"></div>
+  </div>
+
+  <div id="app">
+    <div class="filters">
+      <input class="zoek" id="fZoek" type="search" placeholder="Zoek speler…" list="spelerLijst" autocomplete="off">
+      <datalist id="spelerLijst"></datalist>
+      <select id="fAvond"><option value="">Alle avonden</option></select>
+      <select id="fComp">
+        <option value="">Alle competities</option>
+        <option value="ere">Eredivisie</option>
+        <option value="eerste">Eerste Divisie</option>
+        <option value="beker">Beker</option>
+      </select>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="fAfwijking"> Alleen afwijkingen</label>
+      <label><input type="checkbox" id="fByes"> Vrije rondes tonen</label>
+      <span id="bijgewerkt" style="margin-left:auto"></span>
+    </div>
+    <div class="tellers" id="tellers"></div>
+    <div id="lijst"><div class="leeg">Laden…</div></div>
+  </div>
+</main>
+
+<script>
+const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const HDR = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` };
+const sbGet = async (t,q='') => { const r = await fetch(`${SB_URL}/rest/v1/${t}?${q}`, { headers:HDR, cache:'no-store' }); if (!r.ok) throw new Error(await r.text()); return r.json(); };
+
+function esc(s){ return s==null ? '' : String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const fmtLang = new Intl.DateTimeFormat('nl-NL',{weekday:'long',day:'numeric',month:'long'});
+const fmtKort = new Intl.DateTimeFormat('nl-NL',{weekday:'short',day:'numeric',month:'short'});
+const fmtTijd = new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Amsterdam'});
+function alsDatum(iso){ const [y,m,d]=String(iso).split('-').map(Number); return new Date(y,m-1,d); }
+function datumTxt(iso){ return iso ? fmtKort.format(alsDatum(iso)) : 'NNB'; }
+function divKey(w){ const d=(w.divisie||'').toLowerCase(); return d.includes('beker') ? 'beker' : d.includes('ere') ? 'ere' : d.includes('eerste') ? 'eerste' : 'alg'; }
+const BYE = 'vrije ronde';
+const isBye = w => (w.thuis||'').toLowerCase()===BYE || (w.uit||'').toLowerCase()===BYE;
+const veiligeLink = u => /^https:\/\/recap\.dartconnect\.com\/[A-Za-z0-9\/_.-]+$/.test(u||'') ? u : null;
+
+// ── Login (zelfde wachtwoord en sessie als spelerbeheer, logboek en periodestand) ──
+async function tryLogin(){
+  const input = document.getElementById('password-input').value;
+  const err = document.getElementById('login-error'); err.textContent='';
+  if (!input) return;
+  try{
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/controleer_beheer_wachtwoord`, {
+      method:'POST', headers:{ ...HDR, 'Content-Type':'application/json' }, body: JSON.stringify({ invoer: input })
+    });
+    if (!r.ok) throw new Error();
+    if (await r.json() === true){ sessionStorage.setItem('spelerbeheer_ok','1'); start(); }
+    else err.textContent = 'Onjuist wachtwoord.';
+  }catch(e){ err.textContent = 'Kon niet inloggen, probeer opnieuw.'; }
+}
+document.getElementById('password-input').addEventListener('keydown', e=>{ if (e.key==='Enter') tryLogin(); });
+
+// ── Uitslag lezen ──
+// Dashboard: "Verliezer: X" / "Winnaar: X"; bekertoernooi: "a-b" (thuis-uit).
+function winnaarDashboard(w){
+  const u = String(w.uitslag||'').trim();
+  let m = u.match(/^(Winnaar|Verliezer):\s*(.+)$/i);
+  if (m){ const n=m[2].trim(); return m[1].toLowerCase()==='winnaar' ? n : (n===w.thuis ? w.uit : n===w.uit ? w.thuis : null); }
+  m = u.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (m && +m[1]!==+m[2]) return +m[1]>+m[2] ? w.thuis : w.uit;
+  return null;
+}
+function winnaarLegs(w){
+  if (w.legs_thuis==null || w.legs_uit==null || w.legs_thuis===w.legs_uit) return null;
+  return w.legs_thuis>w.legs_uit ? w.thuis : w.uit;
+}
+function analyse(w){
+  const wd = winnaarDashboard(w), wl = winnaarLegs(w);
+  const a = { wd, wl, winnaar: wl || wd, meldingen:[] };
+  if (isBye(w)) return a;
+  if (wd && wl && wd!==wl) a.meldingen.push(`In het dashboard is <b>${esc(wd)}</b> als winnaar ingevoerd, maar volgens DartConnect won <b>${esc(wl)}</b> (${w.legs_thuis}-${w.legs_uit}).`);
+  // Beker: score uit het bekertoernooi vergelijken met de legs uit DartConnect
+  const sm = String(w.uitslag||'').match(/^(\d+)\s*-\s*(\d+)$/);
+  if (sm && w.legs_thuis!=null && (+sm[1]!==w.legs_thuis || +sm[2]!==w.legs_uit) && !(wd && wl && wd!==wl))
+    a.meldingen.push(`Score in het bekertoernooi (${sm[1]}-${sm[2]}) wijkt af van DartConnect (${w.legs_thuis}-${w.legs_uit}).`);
+  return a;
+}
+
+// ── Data ──
+const S = { rijen:[], log:{}, dagen:3 };
+async function laad(){
+  try{
+    const [rijen, log] = await Promise.all([
+      sbGet('wedstrijden','select=id,datum,tijdstip,divisie,thuis,uit,status,uitslag,legs_thuis,legs_uit,schrijver,verslag_url,is_inhaal,originele_datum,speelronde&status=eq.gespeeld&order=datum.desc,tijdstip.desc,id.asc'),
+      sbGet('wijziging_log','select=wedstrijd_id,actie,oude_datum,nieuwe_datum,oude_tijdstip,nieuwe_tijdstip,gewijzigd_door,notitie,created_at&order=created_at.asc')
+    ]);
+    S.rijen = rijen.map(w=>({ ...w, _a: analyse(w) }));
+    S.log = {};
+    log.forEach(l=>{ if (l.wedstrijd_id) (S.log[l.wedstrijd_id]=S.log[l.wedstrijd_id]||[]).push(l); });
+    vulFilters();
+    render();
+    const n=new Date(); document.getElementById('bijgewerkt').textContent = `bijgewerkt ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  }catch(e){
+    document.getElementById('lijst').innerHTML = `<div class="leeg">Kon de uitslagen niet laden. Probeer het opnieuw.</div>`;
+  }
+}
+function vulFilters(){
+  const namen = new Set(); S.rijen.forEach(w=>{ namen.add(w.thuis); namen.add(w.uit); });
+  namen.delete('Vrije Ronde');
+  document.getElementById('spelerLijst').innerHTML = [...namen].filter(Boolean).sort((a,b)=>a.localeCompare(b,'nl')).map(n=>`<option value="${esc(n)}">`).join('');
+  const sel = document.getElementById('fAvond'), huidig = sel.value;
+  const datums = [...new Set(S.rijen.map(w=>w.datum).filter(Boolean))];
+  sel.innerHTML = `<option value="">Alle avonden</option>` + datums.map(d=>`<option value="${d}">${esc(fmtLang.format(alsDatum(d)))}</option>`).join('');
+  sel.value = datums.includes(huidig) ? huidig : '';
+}
+
+// ── Weergave ──
+function filterRijen(){
+  const zoek = document.getElementById('fZoek').value.trim().toLowerCase();
+  const avond = document.getElementById('fAvond').value;
+  const comp = document.getElementById('fComp').value;
+  const afw = document.getElementById('fAfwijking').checked;
+  const byes = document.getElementById('fByes').checked;
+  return S.rijen.filter(w=>{
+    if (!byes && isBye(w)) return false;
+    if (avond && w.datum!==avond) return false;
+    if (comp && divKey(w)!==comp) return false;
+    if (afw && !w._a.meldingen.length) return false;
+    if (zoek && !(`${w.thuis} ${w.uit}`.toLowerCase().includes(zoek))) return false;
+    return true;
+  });
+}
+function wedstrijdHtml(w){
+  const a=w._a, k=divKey(w), win=a.winnaar;
+  const naam = x => `<span class="${win ? (x===win?'winst':'verlies') : ''}">${esc(x)}</span>`;
+  const score = (w.legs_thuis!=null && w.legs_uit!=null) ? `${w.legs_thuis}-${w.legs_uit}` : (String(w.uitslag||'').match(/^\d+\s*-\s*\d+$/) ? esc(w.uitslag) : '–');
+  const chips = [`<span class="chip ${k}">${esc(w.divisie||'')}</span>`];
+  if (w.is_inhaal) chips.push(`<span class="chip inhaal">Inhaal</span>`);
+  if (a.meldingen.length) chips.push(`<span class="chip let">⚠ afwijking</span>`);
+  if (!isBye(w) && w.legs_thuis==null) chips.push(`<span class="chip info">nog geen legstand</span>`);
+  const link = veiligeLink(w.verslag_url);
+  const log = (S.log[w.id]||[]).map(l=>{
+    const van = l.oude_datum ? `${datumTxt(l.oude_datum)}${l.oude_tijdstip?' '+l.oude_tijdstip:''}` : 'NNB';
+    const naar = l.nieuwe_datum ? `${datumTxt(l.nieuwe_datum)}${l.nieuwe_tijdstip?' '+l.nieuwe_tijdstip:''}` : 'NNB';
+    const soort = {verzet:'Verzet', tijd_wissel:'Tijd gewisseld', correctie:'Correctie'}[l.actie] || l.actie;
+    return `<div>${esc(fmtTijd.format(new Date(l.created_at)))} · <b>${esc(soort)}</b> ${esc(van)} → ${esc(naar)}${l.gewijzigd_door?` · door ${esc(l.gewijzigd_door)}`:''}${l.notitie?` · <i>${esc(l.notitie)}</i>`:''}</div>`;
+  }).join('');
+  return `<div class="w ${k}${a.meldingen.length?' afwijking':''}" data-id="${esc(w.id)}">
+    <div class="w-kop">
+      <span class="tijd">${esc(w.tijdstip||'--:--')}</span>
+      <div><div class="namen">${naam(w.thuis)}<span class="vs">vs</span>${naam(w.uit)}</div><div class="chips">${chips.join('')}</div></div>
+      <div class="score">${score}<small>${w.schrijver?'✍️ '+esc(w.schrijver):''}</small></div>
+    </div>
+    <div class="w-details">
+      ${a.meldingen.map(m=>`<div class="melding">⚠ ${m}</div>`).join('')}
+      <div class="rij"><span>Winnaar (dashboard)</span><span>${a.wd ? esc(a.wd) : '<span class="verlies">niet ingevoerd</span>'}${w.uitslag ? ` <span class="verlies">(${esc(w.uitslag)})</span>` : ''}</span></div>
+      <div class="rij"><span>Legs (DartConnect)</span><span>${w.legs_thuis!=null ? `${esc(w.thuis)} ${w.legs_thuis} – ${w.legs_uit} ${esc(w.uit)}` : '<span class="verlies">nog niet ingelezen (matchlog)</span>'}</span></div>
+      <div class="rij"><span>Schrijver</span><span>${w.schrijver ? esc(w.schrijver) : '<span class="verlies">onbekend</span>'}</span></div>
+      <div class="rij"><span>Speelronde</span><span>${w.speelronde ? esc(w.speelronde) : '–'}${w.is_inhaal && w.originele_datum ? ` · oorspronkelijk ${esc(datumTxt(w.originele_datum))}` : ''}</span></div>
+      <div class="rij"><span>Verslag</span><span>${link ? `<a class="verslag" href="${esc(link)}" target="_blank" rel="noopener">Open in DartConnect ›</a>` : '<span class="verlies">geen verslag</span>'}</span></div>
+      ${log ? `<div class="log"><div style="color:var(--text);font-weight:700">Geschiedenis</div>${log}</div>` : ''}
+    </div>
+  </div>`;
+}
+function render(){
+  const rijen = filterRijen();
+  const echt = S.rijen.filter(w=>!isBye(w));
+  const afw = echt.filter(w=>w._a.meldingen.length).length;
+  const zonder = echt.filter(w=>w.legs_thuis==null).length;
+  document.getElementById('tellers').innerHTML =
+    `<div class="teller"><b>${echt.length}</b>gespeeld</div>` +
+    `<div class="teller${afw?' let':''}"><b>${afw}</b>afwijkingen</div>` +
+    `<div class="teller"><b>${zonder}</b>zonder legstand</div>`;
+  const el = document.getElementById('lijst');
+  if (!rijen.length){ el.innerHTML = `<div class="leeg">Geen uitslagen gevonden.</div>`; return; }
+  // Groeperen per avond; zonder filter de nieuwste avonden eerst, in stukjes
+  const perDag = []; let huidig=null;
+  rijen.forEach(w=>{ if (!huidig || huidig.datum!==w.datum){ huidig={datum:w.datum, lijst:[]}; perDag.push(huidig); } huidig.lijst.push(w); });
+  const beperk = !document.getElementById('fZoek').value.trim() && !document.getElementById('fAvond').value && !document.getElementById('fAfwijking').checked;
+  const dagen = beperk ? perDag.slice(0, S.dagen) : perDag;
+  let html = dagen.map(d=>`<div class="dag">${esc(d.datum ? fmtLang.format(alsDatum(d.datum)) : 'Zonder datum')} · ${d.lijst.length}</div>${d.lijst.map(wedstrijdHtml).join('')}`).join('');
+  if (beperk && dagen.length < perDag.length) html += `<button class="meer" id="meer">Oudere avonden tonen</button>`;
+  el.innerHTML = html;
+  el.querySelectorAll('.w-kop').forEach(k=>k.addEventListener('click',()=>k.parentElement.classList.toggle('open')));
+  const m = el.querySelector('#meer'); if (m) m.addEventListener('click',()=>{ S.dagen += 4; render(); });
+}
+
+['fZoek','fAvond','fComp','fAfwijking','fByes'].forEach(id=>{
+  const el=document.getElementById(id); el.addEventListener(id==='fZoek'?'input':'change', ()=>{ S.dagen=3; render(); });
+});
+
+// In het dashboard (iframe) geen terug-link naar de WL-app
+try{ if (window.top !== window.self) document.querySelector('header a').style.display='none'; }catch(e){}
+
+function start(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const p = new URLSearchParams(location.search);
+  if (p.get('speler')) document.getElementById('fZoek').value = p.get('speler');
+  laad();
+}
+if (sessionStorage.getItem('spelerbeheer_ok') === '1') start();
+</script>
+</body>
+</html>
