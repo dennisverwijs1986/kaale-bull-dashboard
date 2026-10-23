@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaale Bull — Avondplanner</title>
+<style>
+:root {
+  --bg:#0f1520; --s1:#161f30; --s2:#1e2a40; --s3:#243350; --border:#2a3a56;
+  --text:#f1f5f9; --muted:#94a3b8; --green:#10b981; --red:#ef4444; --orange:#f59e0b;
+  --blue:#3b82f6; --ere:#a855f7; --eerste:#3b82f6; --beker:#f59e0b; --warn:#f97316;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:#080d16;border-bottom:2px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:20;}
+.logo{font-size:1.1rem;font-weight:800;letter-spacing:1px;display:flex;align-items:center;gap:10px;}
+.badge{font-size:0.65rem;font-weight:800;padding:3px 8px;border-radius:10px;background:rgba(245,158,11,0.15);color:var(--orange);letter-spacing:1px;}
+.topbar a{color:var(--muted);font-size:0.85rem;text-decoration:none;}
+.topbar a:hover{color:var(--text);}
+.wrap{display:grid;grid-template-columns:260px 1fr;gap:16px;padding:16px 20px;max-width:1400px;margin:0 auto;}
+.panel{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.panel h2{font-size:0.7rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.avond{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;}
+.avond:hover{background:var(--s2);}
+.avond.actief{background:var(--s3);border-color:var(--blue);}
+.avond .d{font-weight:700;font-size:0.9rem;}
+.avond .n{font-size:0.72rem;color:var(--muted);}
+.pill{font-size:0.7rem;font-weight:800;padding:2px 8px;border-radius:10px;white-space:nowrap;}
+.pill.rood{background:rgba(239,68,68,0.15);color:var(--red);}
+.pill.oranje{background:rgba(245,158,11,0.15);color:var(--orange);}
+.pill.groen{background:rgba(16,185,129,0.15);color:var(--green);}
+.main{display:flex;flex-direction:column;gap:16px;min-width:0;}
+.samenvatting{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.stat{background:var(--s2);border-radius:10px;padding:12px;border:1px solid var(--border);}
+.stat .lbl{font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.stat .val{font-size:1.5rem;font-weight:800;margin-top:4px;font-family:monospace;}
+.stat .val small{font-size:0.85rem;color:var(--muted);font-weight:600;}
+.uitleg{font-size:0.82rem;color:var(--muted);line-height:1.5;}
+.knoppen{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+button{font-family:inherit;font-weight:700;font-size:0.85rem;border-radius:8px;padding:9px 14px;border:1px solid var(--border);background:var(--s2);color:var(--text);cursor:pointer;}
+button:hover{background:var(--s3);}
+button.primair{background:var(--blue);border-color:var(--blue);}
+button.primair:hover{filter:brightness(1.1);}
+button:disabled{opacity:0.45;cursor:not-allowed;filter:none;}
+label.check{display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;}
+.twee{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+table{width:100%;border-collapse:collapse;font-size:0.84rem;}
+th{font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);}
+td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+.tijd{font-family:monospace;font-weight:700;white-space:nowrap;}
+.oud{color:var(--muted);text-decoration:line-through;font-family:monospace;}
+.pijl{color:var(--muted);}
+.div-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+.slotrij td:first-child{width:62px;}
+.wcard{display:inline-block;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;margin:2px 4px 2px 0;font-size:0.8rem;}
+.wcard.verplaatst{border-color:var(--blue);background:rgba(59,130,246,0.12);}
+.wcard.vast{opacity:0.6;}
+.wcard .van{font-size:0.68rem;color:var(--muted);margin-left:4px;font-family:monospace;}
+.knelpunt{font-size:0.82rem;padding:5px 0;border-bottom:1px solid var(--border);}
+.knelpunt:last-child{border-bottom:none;}
+.leeg{color:var(--muted);font-size:0.85rem;padding:10px 0;}
+.melding{padding:10px 12px;border-radius:8px;font-size:0.85rem;line-height:1.45;}
+.melding.waarschuwing{background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);}
+.melding.fout{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);}
+.melding.ok{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.4);}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--s3);border:1px solid var(--border);padding:10px 16px;border-radius:8px;font-size:0.88rem;font-weight:600;display:none;z-index:50;max-width:90vw;}
+@media (max-width: 900px){
+  .wrap{grid-template-columns:1fr;padding:12px 16px;}
+  .twee{grid-template-columns:1fr;}
+  .samenvatting{grid-template-columns:repeat(2,1fr);}
+  .avonden-lijst{display:flex;overflow-x:auto;gap:6px;}
+  .avond{flex-direction:column;align-items:flex-start;min-width:120px;margin-bottom:0;}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">🎯 Avondplanner <span class="badge">TEST</span></div>
+  <a href="index.html">← Dashboard</a>
+</div>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>Komende avonden</h2>
+    <div class="avonden-lijst" id="avonden"><div class="leeg">Laden…</div></div>
+  </div>
+
+  <div class="main" id="main">
+    <div class="panel"><div class="leeg">Kies links een avond.</div></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  SUPABASE (zelfde koppeling als het dashboard)
+// ══════════════════════════════════════════
+const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation' };
+const sbGet   = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+const sbPost  = async (t,b)    => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+const sbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+
+function escapeHtml(str){
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display='none',4000); }
+function lokaleDatumVandaag(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fmtDatum(iso){ const d=new Date(iso+'T12:00:00'); return d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'}); }
+function divKleur(div=''){ if (/beker/i.test(div)) return 'var(--beker)'; if (/eredivisie/i.test(div)) return 'var(--ere)'; return 'var(--eerste)'; }
+
+// CORE-START ════════════════════════════════
+//  PLANNER-KERN
+//  Regel: tussen twee wedstrijden van dezelfde speler minstens 2 lege tijdsloten.
+//  Eén slot ertussen = spelen → schrijven → spelen (een uur aan het bord).
+//  Alleen schuiven binnen de avond, avond wordt niet later, slotcapaciteit blijft gelijk.
+// ═══════════════════════════════════════════
+const PT_SLOTS = [
+  {tijd:'19:30',cap:4},{tijd:'19:50',cap:4},{tijd:'20:10',cap:4},
+  {tijd:'20:30',cap:4},{tijd:'20:50',cap:4},{tijd:'21:10',cap:4},
+  {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3},
+  {tijd:'22:30',cap:3},{tijd:'22:50',cap:3}
+];
+const GEWICHT = { zelfde:1000, direct:10, eenErtussen:4, verschuiving:1 };
+
+function slotIndex(tijd){ return PT_SLOTS.findIndex(s => s.tijd === tijd); }
+function spelersVan(w){ return [w.thuis, w.uit].filter(n => n && n !== 'Vrije Ronde'); }
+
+// Knelpunten bij een gegeven slot-toewijzing (slots[i] hoort bij ms[i]).
+function knelpunten(ms, slots){
+  const per = new Map();
+  ms.forEach((w,i) => spelersVan(w).forEach(n => { if(!per.has(n)) per.set(n,[]); per.get(n).push(i); }));
+  const lijst = [];
+  for (const [speler, idx] of per){
+    idx.sort((a,b) => slots[a]-slots[b]);
+    for (let k=1;k<idx.length;k++){
+      const a=idx[k-1], b=idx[k], gap=slots[b]-slots[a]-1;
+      if (gap < 0) lijst.push({speler, soort:'zelfde', a, b});
+      else if (gap === 0) lijst.push({speler, soort:'direct', a, b});
+      else if (gap === 1) lijst.push({speler, soort:'eenErtussen', a, b});
+    }
+  }
+  return lijst;
+}
+function telKnelpunten(lijst){
+  const t={zelfde:0,direct:0,eenErtussen:0}; lijst.forEach(k=>t[k.soort]++); return t;
+}
+function kosten(ms, slots, orig){
+  let c=0; for (const k of knelpunten(ms, slots)) c += GEWICHT[k.soort];
+  for (let i=0;i<slots.length;i++) if (slots[i]!==orig[i]) c += GEWICHT.verschuiving;
+  return c;
+}
+function capaciteiten(orig, laatste){
+  const cnt = new Array(PT_SLOTS.length).fill(0); orig.forEach(s => cnt[s]++);
+  return PT_SLOTS.map((s,i) => i>laatste ? 0 : Math.max(s.cap, cnt[i]));
+}
+
+// Pseudo-random met seed, zodat dezelfde avond telkens hetzelfde voorstel geeft.
+function rng(seed){ let s = seed>>>0 || 1; return () => { s ^= s<<13; s>>>=0; s ^= s>>>17; s ^= s<<5; s>>>=0; return s/4294967296; }; }
+
+// ms: wedstrijden van één avond met .vast (boolean). Geeft nieuwe slot-indexen terug.
+function optimaliseer(ms, {iteraties=30000, pogingen=6} = {}){
+  const orig = ms.map(w => slotIndex(w.tijdstip));
+  const laatste = Math.max(...orig);
+  const cap = capaciteiten(orig, laatste);
+  const vrij = ms.map((w,i) => !w.vast).map((v,i)=>v?i:-1).filter(i=>i>=0);
+  let besteS = orig.slice(), besteC = kosten(ms, orig, orig);
+  if (!vrij.length) return besteS;
+  for (let p=0;p<pogingen;p++){
+    const r = rng(1234567 + p*7919 + ms.length);
+    let slots = orig.slice(), cur = kosten(ms, slots, orig);
+    const bezet = new Array(PT_SLOTS.length).fill(0); slots.forEach(s=>bezet[s]++);
+    for (let it=0; it<iteraties; it++){
+      const T = 5*(1-it/iteraties) + 0.01;
+      const i = vrij[Math.floor(r()*vrij.length)];
+      const t = Math.floor(r()*(laatste+1));
+      if (t === slots[i]) continue;
+      const nieuw = slots.slice();
+      let j = -1;
+      if (bezet[t] < cap[t] && r() < 0.5) {
+        nieuw[i] = t;
+      } else {
+        const kand = vrij.filter(k => slots[k] === t);
+        if (!kand.length) continue;
+        j = kand[Math.floor(r()*kand.length)];
+        nieuw[i] = t; nieuw[j] = slots[i];
+      }
+      const c = kosten(ms, nieuw, orig);
+      if (c <= cur || r() < Math.exp((cur-c)/T)){
+        if (j < 0){ bezet[slots[i]]--; bezet[t]++; }
+        slots = nieuw; cur = c;
+        if (c < besteC){ besteC = c; besteS = nieuw.slice(); }
+      }
+    }
+  }
+  return opruimen(ms, besteS, orig, cap);
+}
+
+// Opruimstap: zet verschuivingen terug (los, of als ruil-paar) zolang de uitkomst
+// daar niet slechter van wordt, zodat er niet meer schuift dan nodig.
+function opruimen(ms, slots, orig, cap){
+  slots = slots.slice();
+  let cur = kosten(ms, slots, orig), beter = true;
+  while (beter){
+    beter = false;
+    const bezet = new Array(PT_SLOTS.length).fill(0); slots.forEach(s=>bezet[s]++);
+    for (let i=0;i<slots.length;i++){
+      if (slots[i] === orig[i]) continue;
+      // 1) los terugzetten als er plek is
+      if (bezet[orig[i]] < cap[orig[i]]){
+        const n = slots.slice(); n[i] = orig[i];
+        const c = kosten(ms, n, orig);
+        if (c < cur){ slots = n; cur = c; beter = true; break; }
+      }
+      // 2) terugruilen met een wedstrijd die nu op het oude slot staat
+      for (let j=0;j<slots.length;j++){
+        if (j===i || slots[j] !== orig[i] || ms[j].vast) continue;
+        const n = slots.slice(); n[i] = orig[i]; n[j] = slots[i];
+        const c = kosten(ms, n, orig);
+        if (c < cur){ slots = n; cur = c; beter = true; break; }
+      }
+      if (beter) break;
+    }
+  }
+  return slots;
+}
+
+// Slots na het doorvoeren van alleen de aangevinkte verschuivingen.
+function slotsMetSelectie(orig, voorstel, gekozen){
+  return orig.map((s,i) => gekozen.has(i) ? voorstel[i] : s);
+}
+function overvol(slots, cap){
+  const cnt = new Array(PT_SLOTS.length).fill(0); slots.forEach(s=>cnt[s]++);
+  return cnt.map((n,i)=>({i,n,cap:cap[i]})).filter(x=>x.n>x.cap);
+}
+// CORE-END ══════════════════════════════════
+
+// ══════════════════════════════════════════
+//  STATE & UI
+// ══════════════════════════════════════════
+let alleWedstrijden = [];
+let huidige = null;   // { datum, ms, orig, voorstel, cap, gekozen:Set }
+
+async function laadAvonden(){
+  const vandaag = lokaleDatumVandaag();
+  alleWedstrijden = await sbGet('wedstrijden',
+    `datum=gte.${vandaag}&datum_nnb=not.is.true&tijdstip=not.is.null&select=id,datum,tijdstip,thuis,uit,divisie,status,bord,is_inhaal,datum_nnb&order=datum.asc,tijdstip.asc`);
+  const perDatum = groepeer();
+  const el = document.getElementById('avonden');
+  const datums = [...perDatum.keys()].slice(0, 12);
+  if (!datums.length){ el.innerHTML = '<div class="leeg">Geen komende avonden gevonden.</div>'; return; }
+  el.innerHTML = datums.map(d => {
+    const ms = perDatum.get(d);
+    const t = telKnelpunten(knelpunten(ms, ms.map(w=>slotIndex(w.tijdstip))));
+    const pill = t.zelfde ? `<span class="pill rood">${t.zelfde} dubbel</span>`
+      : (t.direct+t.eenErtussen) ? `<span class="pill ${t.direct?'rood':'oranje'}">${t.direct+t.eenErtussen} knelpunt${t.direct+t.eenErtussen>1?'en':''}</span>`
+      : `<span class="pill groen">✓</span>`;
+    return `<div class="avond" data-d="${d}" onclick="kiesAvond('${d}')"><div><div class="d">${escapeHtml(fmtDatum(d))}</div><div class="n">${ms.length} wedstrijden</div></div>${pill}</div>`;
+  }).join('');
+}
+
+function groepeer(){
+  const m = new Map();
+  for (const w of alleWedstrijden){
+    if (slotIndex(w.tijdstip) < 0) continue;   // afwijkende tijden laten we buiten de planner
+    if (!m.has(w.datum)) m.set(w.datum, []);
+    m.get(w.datum).push({...w, vast: w.status === 'gespeeld' || w.bord != null});
+  }
+  return m;
+}
+
+function kiesAvond(datum){
+  document.querySelectorAll('.avond').forEach(a => a.classList.toggle('actief', a.dataset.d === datum));
+  const ms = groepeer().get(datum) || [];
+  const orig = ms.map(w => slotIndex(w.tijdstip));
+  const laatste = Math.max(...orig);
+  document.getElementById('main').innerHTML = '<div class="panel"><div class="leeg">Rekenen…</div></div>';
+  setTimeout(() => {
+    const voorstel = optimaliseer(ms);
+    const gekozen = new Set(voorstel.map((s,i)=>s!==orig[i]?i:-1).filter(i=>i>=0));
+    huidige = { datum, ms, orig, voorstel, cap: capaciteiten(orig, laatste), gekozen };
+    render();
+  }, 20);
+}
+
+function render(){
+  const { datum, ms, orig, voorstel, cap, gekozen } = huidige;
+  const nu = telKnelpunten(knelpunten(ms, orig));
+  const naSlots = slotsMetSelectie(orig, voorstel, gekozen);
+  const naLijst = knelpunten(ms, naSlots);
+  const na = telKnelpunten(naLijst);
+  const vol = overvol(naSlots, cap);
+  const verschuivingen = voorstel.map((s,i)=>({i,s})).filter(x => x.s !== orig[x.i])
+    .sort((a,b) => orig[a.i]-orig[b.i]);
+  const isVandaag = datum === lokaleDatumVandaag();
+
+  const knelHtml = (lijst, slots) => lijst.length ? lijst.map(k => {
+    const t1 = PT_SLOTS[slots[k.a]].tijd, t2 = PT_SLOTS[slots[k.b]].tijd;
+    const soort = {zelfde:'2× in hetzelfde slot', direct:'direct achter elkaar', eenErtussen:'spelen → schrijven → spelen'}[k.soort];
+    return `<div class="knelpunt"><strong>${escapeHtml(k.speler)}</strong> · <span class="tijd">${t1}</span> en <span class="tijd">${t2}</span> <span class="pill ${k.soort==='eenErtussen'?'oranje':'rood'}">${soort}</span></div>`;
+  }).join('') : '<div class="leeg">Geen knelpunten 🎉</div>';
+
+  const schemaHtml = PT_SLOTS.map((s,si) => {
+    const hier = ms.map((w,i)=>({w,i})).filter(x => naSlots[x.i] === si);
+    if (!hier.length && si > Math.max(...orig)) return '';
+    return `<tr class="slotrij"><td class="tijd">${s.tijd}</td><td>${hier.map(({w,i}) => {
+      const verpl = naSlots[i] !== orig[i];
+      return `<span class="wcard ${verpl?'verplaatst':''} ${w.vast?'vast':''}"><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${verpl?`<span class="van">was ${PT_SLOTS[orig[i]].tijd}</span>`:''}</span>`;
+    }).join('') || '<span class="leeg">—</span>'}</td><td style="width:44px;color:var(--muted);font-size:0.75rem;text-align:right">${hier.length}/${cap[si]}</td></tr>`;
+  }).join('');
+
+  const verschHtml = verschuivingen.length ? `<table><thead><tr><th></th><th>Wedstrijd</th><th>Van</th><th></th><th>Naar</th></tr></thead><tbody>${
+    verschuivingen.map(({i,s}) => { const w = ms[i]; return `<tr>
+      <td style="width:28px"><input type="checkbox" ${gekozen.has(i)?'checked':''} onchange="toggle(${i}, this.checked)"></td>
+      <td><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${w.is_inhaal?' <span class="pill rood">inhaal</span>':''}</td>
+      <td class="tijd oud">${PT_SLOTS[orig[i]].tijd}</td><td class="pijl">→</td><td class="tijd">${PT_SLOTS[s].tijd}</td></tr>`; }).join('')
+  }</tbody></table>` : '<div class="leeg">Deze avond staat al goed, er hoeft niets te schuiven.</div>';
+
+  let melding = '';
+  if (vol.length) melding = `<div class="melding fout">Met deze selectie zit ${vol.map(v=>`${PT_SLOTS[v.i].tijd} (${v.n}/${v.cap})`).join(', ')} te vol. Vink de wedstrijd die erop past ook aan, of laat ze allebei staan.</div>`;
+  else if (gekozen.size && (na.zelfde+na.direct+na.eenErtussen)) melding = `<div class="melding waarschuwing">Met alleen deze selectie blijven er knelpunten over. De verschuivingen hangen samen: vaak lost een ruil pas iets op als beide wedstrijden meegaan.</div>`;
+
+  document.getElementById('main').innerHTML = `
+    <div class="panel">
+      <h2>${escapeHtml(fmtDatum(datum))} · ${ms.length} wedstrijden</h2>
+      <div class="samenvatting">
+        <div class="stat"><div class="lbl">Direct achter elkaar</div><div class="val">${nu.direct} <small>→ ${na.direct}</small></div></div>
+        <div class="stat"><div class="lbl">Eén slot ertussen</div><div class="val">${nu.eenErtussen} <small>→ ${na.eenErtussen}</small></div></div>
+        <div class="stat"><div class="lbl">Dubbel in één slot</div><div class="val">${nu.zelfde} <small>→ ${na.zelfde}</small></div></div>
+        <div class="stat"><div class="lbl">Te verschuiven</div><div class="val">${gekozen.size} <small>/ ${verschuivingen.length}</small></div></div>
+      </div>
+      <p class="uitleg" style="margin-top:10px">De planner zoekt een indeling waarin elke speler minstens twee tijdsloten rust heeft tussen zijn wedstrijden, zodat niemand spelen, schrijven en weer spelen achter elkaar heeft. Er wordt alleen binnen deze avond geschoven; de avond wordt niet later en de slotcapaciteit blijft gelijk. Gespeelde wedstrijden en wedstrijden die op een bord staan blijven waar ze zijn.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Voorgestelde verschuivingen</h2>
+      ${verschHtml}
+      ${melding ? `<div style="margin-top:12px">${melding}</div>` : ''}
+      ${verschuivingen.length ? `<div class="knoppen" style="margin-top:14px">
+        <label class="check"><input type="checkbox" id="mailen" ${isVandaag?'':'checked'} ${isVandaag?'disabled':''}> Spelers mailen over hun nieuwe tijd${isVandaag?' (niet op de speelavond zelf)':''}</label>
+        <span style="flex:1"></span>
+        <button onclick="alles(false)">Niets</button>
+        <button onclick="alles(true)">Alles</button>
+        <button class="primair" id="doorvoerKnop" onclick="doorvoeren()" ${(!gekozen.size||vol.length)?'disabled':''}>Doorvoeren (${gekozen.size})</button>
+      </div>` : ''}
+    </div>
+
+    <div class="twee">
+      <div class="panel"><h2>Knelpunten nu</h2>${knelHtml(knelpunten(ms, orig), orig)}</div>
+      <div class="panel"><h2>Knelpunten na selectie</h2>${knelHtml(naLijst, naSlots)}</div>
+    </div>
+
+    <div class="panel"><h2>Schema na selectie</h2><table><tbody>${schemaHtml}</tbody></table></div>`;
+}
+
+function toggle(i, aan){ aan ? huidige.gekozen.add(i) : huidige.gekozen.delete(i); render(); }
+function alles(aan){
+  const { orig, voorstel } = huidige;
+  huidige.gekozen = new Set(aan ? voorstel.map((s,i)=>s!==orig[i]?i:-1).filter(i=>i>=0) : []);
+  render();
+}
+
+async function doorvoeren(){
+  const { datum, ms, orig, voorstel, gekozen } = huidige;
+  const mailen = !!document.getElementById('mailen')?.checked;
+  const keuze = [...gekozen];
+  if (!confirm(`${keuze.length} wedstrijd(en) op ${fmtDatum(datum)} naar een ander tijdslot verplaatsen?${mailen?'\n\nDe betrokken spelers krijgen een mail met hun nieuwe tijd.':'\n\nEr worden geen mails verstuurd.'}`)) return;
+
+  const knop = document.getElementById('doorvoerKnop'); if (knop){ knop.disabled = true; knop.textContent = 'Bezig…'; }
+
+  // Veiligheidscheck: is de avond sinds het berekenen gewijzigd?
+  try {
+    const vers = await sbGet('wedstrijden', `datum=eq.${datum}&select=id,tijdstip,status,bord,datum_nnb`);
+    const perId = new Map(vers.map(w=>[w.id,w]));
+    const versInPlanner = vers.filter(v => !v.datum_nnb && slotIndex(v.tijdstip) >= 0);
+    const gewijzigd = versInPlanner.length !== ms.length
+      || ms.some((w,i) => { const v = perId.get(w.id); return !v || v.datum_nnb || v.tijdstip !== PT_SLOTS[orig[i]].tijd; })
+      || keuze.some(i => { const v = perId.get(ms[i].id); return v.status === 'gespeeld' || v.bord != null; });
+    if (gewijzigd){ toast('De planning van deze avond is intussen gewijzigd. Bereken opnieuw.'); await laadAvonden(); kiesAvond(datum); return; }
+  } catch(e){ toast(`Kon de avond niet controleren: ${e.message}`); if (knop){ knop.disabled=false; knop.textContent=`Doorvoeren (${keuze.length})`; } return; }
+
+  const door = 'Wedstrijdleiding (avondplanner)';
+  let gelukt = 0, mails = 0, fouten = [];
+  for (const i of keuze){
+    const w = ms[i], oudeTijd = PT_SLOTS[orig[i]].tijd, nieuweTijd = PT_SLOTS[voorstel[i]].tijd;
+    try {
+      await sbPatch('wedstrijden', w.id, { tijdstip: nieuweTijd });
+      gelukt++;
+      let logId = null;
+      try {
+        const logRow = await sbPost('wijziging_log', {
+          wedstrijd_id: w.id, thuis: w.thuis, uit: w.uit, divisie: w.divisie,
+          actie: 'verzet', oude_datum: datum, nieuwe_datum: datum,
+          oude_tijdstip: oudeTijd, nieuwe_tijdstip: nieuweTijd,
+          gewijzigd_door: door, notitie: 'Ander tijdslot (zelfde avond) – avondplanner', mail_verstuurd: false
+        });
+        logId = logRow?.[0]?.id || null;
+      } catch(logErr){ console.error('Kon verschuiving niet loggen:', logErr); }
+      if (mailen){
+        try {
+          const res = await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`, {
+            method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${SB_KEY}`, 'apikey':SB_KEY },
+            body: JSON.stringify({ type:'verzet', wedstrijd_id: w.id, gewijzigd_door: door, wijziging_log_id: logId, oude_tijdstip: oudeTijd, nieuwe_tijdstip: nieuweTijd })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Onbekende fout');
+          mails += data.verzonden_naar || 0;
+        } catch(mailErr){ fouten.push(`mail ${w.thuis} – ${w.uit}: ${mailErr.message}`); }
+      }
+    } catch(e){ fouten.push(`${w.thuis} – ${w.uit}: ${e.message}`); }
+  }
+  toast(`✓ ${gelukt} verschoven${mailen?`, ${mails} mail(s) verstuurd`:''}${fouten.length?` · ${fouten.length} fout(en), zie console`:''}`);
+  if (fouten.length) console.error('Avondplanner fouten:', fouten);
+  await laadAvonden();
+  kiesAvond(datum);
+}
+
+laadAvonden().catch(e => { document.getElementById('avonden').innerHTML = `<div class="melding fout">Laden mislukt: ${escapeHtml(e.message)}</div>`; });
+</script>
+</body>
+</html>
