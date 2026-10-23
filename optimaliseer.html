@@ -92,6 +92,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 <div id="toast"></div>
 
+<script src="planner-kern.js?v=1"></script>
 <script>
 // ══════════════════════════════════════════
 //  SUPABASE (zelfde koppeling als het dashboard)
@@ -112,131 +113,15 @@ function lokaleDatumVandaag(){ const d=new Date(); return `${d.getFullYear()}-${
 function fmtDatum(iso){ const d=new Date(iso+'T12:00:00'); return d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'}); }
 function divKleur(div=''){ if (/beker/i.test(div)) return 'var(--beker)'; if (/eredivisie/i.test(div)) return 'var(--ere)'; return 'var(--eerste)'; }
 
-// CORE-START ════════════════════════════════
-//  PLANNER-KERN
-//  Regel: tussen twee wedstrijden van dezelfde speler minstens 2 lege tijdsloten.
-//  Eén slot ertussen = spelen → schrijven → spelen (een uur aan het bord).
-//  Alleen schuiven binnen de avond, avond wordt niet later, slotcapaciteit blijft gelijk.
-// ═══════════════════════════════════════════
+// Rekenkern staat in planner-kern.js (gedeeld met de verzet-modal in index.html)
 const PT_SLOTS = [
   {tijd:'19:30',cap:4},{tijd:'19:50',cap:4},{tijd:'20:10',cap:4},
   {tijd:'20:30',cap:4},{tijd:'20:50',cap:4},{tijd:'21:10',cap:4},
   {tijd:'21:30',cap:4},{tijd:'21:50',cap:3},{tijd:'22:10',cap:3},
   {tijd:'22:30',cap:3},{tijd:'22:50',cap:3}
 ];
-const GEWICHT = { zelfde:1000, direct:10, eenErtussen:4, verschuiving:1 };
-
-function slotIndex(tijd){ return PT_SLOTS.findIndex(s => s.tijd === tijd); }
-function spelersVan(w){ return [w.thuis, w.uit].filter(n => n && n !== 'Vrije Ronde'); }
-
-// Knelpunten bij een gegeven slot-toewijzing (slots[i] hoort bij ms[i]).
-function knelpunten(ms, slots){
-  const per = new Map();
-  ms.forEach((w,i) => spelersVan(w).forEach(n => { if(!per.has(n)) per.set(n,[]); per.get(n).push(i); }));
-  const lijst = [];
-  for (const [speler, idx] of per){
-    idx.sort((a,b) => slots[a]-slots[b]);
-    for (let k=1;k<idx.length;k++){
-      const a=idx[k-1], b=idx[k], gap=slots[b]-slots[a]-1;
-      if (gap < 0) lijst.push({speler, soort:'zelfde', a, b});
-      else if (gap === 0) lijst.push({speler, soort:'direct', a, b});
-      else if (gap === 1) lijst.push({speler, soort:'eenErtussen', a, b});
-    }
-  }
-  return lijst;
-}
-function telKnelpunten(lijst){
-  const t={zelfde:0,direct:0,eenErtussen:0}; lijst.forEach(k=>t[k.soort]++); return t;
-}
-function kosten(ms, slots, orig){
-  let c=0; for (const k of knelpunten(ms, slots)) c += GEWICHT[k.soort];
-  for (let i=0;i<slots.length;i++) if (slots[i]!==orig[i]) c += GEWICHT.verschuiving;
-  return c;
-}
-function capaciteiten(orig, laatste){
-  const cnt = new Array(PT_SLOTS.length).fill(0); orig.forEach(s => cnt[s]++);
-  return PT_SLOTS.map((s,i) => i>laatste ? 0 : Math.max(s.cap, cnt[i]));
-}
-
-// Pseudo-random met seed, zodat dezelfde avond telkens hetzelfde voorstel geeft.
-function rng(seed){ let s = seed>>>0 || 1; return () => { s ^= s<<13; s>>>=0; s ^= s>>>17; s ^= s<<5; s>>>=0; return s/4294967296; }; }
-
-// ms: wedstrijden van één avond met .vast (boolean). Geeft nieuwe slot-indexen terug.
-function optimaliseer(ms, {iteraties=30000, pogingen=6} = {}){
-  const orig = ms.map(w => slotIndex(w.tijdstip));
-  const laatste = Math.max(...orig);
-  const cap = capaciteiten(orig, laatste);
-  const vrij = ms.map((w,i) => !w.vast).map((v,i)=>v?i:-1).filter(i=>i>=0);
-  let besteS = orig.slice(), besteC = kosten(ms, orig, orig);
-  if (!vrij.length) return besteS;
-  for (let p=0;p<pogingen;p++){
-    const r = rng(1234567 + p*7919 + ms.length);
-    let slots = orig.slice(), cur = kosten(ms, slots, orig);
-    const bezet = new Array(PT_SLOTS.length).fill(0); slots.forEach(s=>bezet[s]++);
-    for (let it=0; it<iteraties; it++){
-      const T = 5*(1-it/iteraties) + 0.01;
-      const i = vrij[Math.floor(r()*vrij.length)];
-      const t = Math.floor(r()*(laatste+1));
-      if (t === slots[i]) continue;
-      const nieuw = slots.slice();
-      let j = -1;
-      if (bezet[t] < cap[t] && r() < 0.5) {
-        nieuw[i] = t;
-      } else {
-        const kand = vrij.filter(k => slots[k] === t);
-        if (!kand.length) continue;
-        j = kand[Math.floor(r()*kand.length)];
-        nieuw[i] = t; nieuw[j] = slots[i];
-      }
-      const c = kosten(ms, nieuw, orig);
-      if (c <= cur || r() < Math.exp((cur-c)/T)){
-        if (j < 0){ bezet[slots[i]]--; bezet[t]++; }
-        slots = nieuw; cur = c;
-        if (c < besteC){ besteC = c; besteS = nieuw.slice(); }
-      }
-    }
-  }
-  return opruimen(ms, besteS, orig, cap);
-}
-
-// Opruimstap: zet verschuivingen terug (los, of als ruil-paar) zolang de uitkomst
-// daar niet slechter van wordt, zodat er niet meer schuift dan nodig.
-function opruimen(ms, slots, orig, cap){
-  slots = slots.slice();
-  let cur = kosten(ms, slots, orig), beter = true;
-  while (beter){
-    beter = false;
-    const bezet = new Array(PT_SLOTS.length).fill(0); slots.forEach(s=>bezet[s]++);
-    for (let i=0;i<slots.length;i++){
-      if (slots[i] === orig[i]) continue;
-      // 1) los terugzetten als er plek is
-      if (bezet[orig[i]] < cap[orig[i]]){
-        const n = slots.slice(); n[i] = orig[i];
-        const c = kosten(ms, n, orig);
-        if (c < cur){ slots = n; cur = c; beter = true; break; }
-      }
-      // 2) terugruilen met een wedstrijd die nu op het oude slot staat
-      for (let j=0;j<slots.length;j++){
-        if (j===i || slots[j] !== orig[i] || ms[j].vast) continue;
-        const n = slots.slice(); n[i] = orig[i]; n[j] = slots[i];
-        const c = kosten(ms, n, orig);
-        if (c < cur){ slots = n; cur = c; beter = true; break; }
-      }
-      if (beter) break;
-    }
-  }
-  return slots;
-}
-
-// Slots na het doorvoeren van alleen de aangevinkte verschuivingen.
-function slotsMetSelectie(orig, voorstel, gekozen){
-  return orig.map((s,i) => gekozen.has(i) ? voorstel[i] : s);
-}
-function overvol(slots, cap){
-  const cnt = new Array(PT_SLOTS.length).fill(0); slots.forEach(s=>cnt[s]++);
-  return cnt.map((n,i)=>({i,n,cap:cap[i]})).filter(x=>x.n>x.cap);
-}
-// CORE-END ══════════════════════════════════
+const AP = AvondPlanner.maak(PT_SLOTS);
+const { slotIndex, knelpunten, telKnelpunten, capaciteiten, optimaliseer, slotsMetSelectie, overvol } = AP;
 
 // ══════════════════════════════════════════
 //  STATE & UI
