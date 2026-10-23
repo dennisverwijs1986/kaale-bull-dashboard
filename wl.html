@@ -56,6 +56,7 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 .dchip .dn.knel{color:var(--orange);font-weight:800;}
 .dchip .dn.ok{color:var(--green);font-weight:800;}
 .dchip.sel .dn.knel,.dchip.sel .dn.ok{color:#fff;}
+.dchip.ongedeeld:not(.sel){border-style:dashed;opacity:.8;}
 .pl-uitleg{font-size:.8rem;color:var(--muted);margin:2px 2px 10px;line-height:1.45;}
 .pl-lijst{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
 .vrij{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border-top:1px solid var(--border);cursor:pointer;}
@@ -427,12 +428,15 @@ async function laadData(stil){
   if(laadBezig) return; laadBezig=true;
   zetDot('bezig');
   try{
-    [W, spelers, leiders] = await Promise.all([
+    let kantelRij;
+    [W, spelers, leiders, , kantelRij] = await Promise.all([
       sbGet('wedstrijden','select=id,datum,tijdstip,divisie,thuis,uit,speelronde,status,uitslag,datum_nnb,is_inhaal,originele_datum,notitie,bord&order=datum.asc,tijdstip.asc'),
       sbGet('spelers','select=naam&order=naam.asc'),
       sbGet('wedstrijdleiding','select=naam&actief=eq.true&order=naam.asc'),
-      laadBeker()
+      laadBeker(),
+      sbGet('instellingen','sleutel=eq.planning_kantel_dag&select=waarde').catch(()=>[])
     ]);
+    const k=parseInt(kantelRij?.[0]?.waarde,10); PL.kantel = k>=1 && k<=28 ? k : 24;
     geladen=true; laadFout='';
     zetDot('ok');
     if(!stil) toast('Bijgewerkt','');
@@ -456,7 +460,14 @@ function updateBadge(){
 //  PLANNER — avonden zonder spelen-schrijven-spelen (zelfde kern als optimaliseer.html)
 //  Alleen schuiven binnen een avond, geen mail: spelers zien het in de app en agenda.
 // ══════════════════════════════════════════
-const PL = { datum:null, cache:{}, bezig:false };
+const PL = { datum:null, cache:{}, bezig:false, kantel:24 };
+// Laatste datum die al met de leden gedeeld is (zelfde regel als de agenda-feed en de spelersapp):
+// vóór de kanteldag t/m eind volgende maand, vanaf de kanteldag t/m eind van de maand daarna.
+function plGedeeldTot(){
+  const n=new Date(); const extra = n.getDate() >= PL.kantel ? 3 : 2;
+  const e=new Date(n.getFullYear(), n.getMonth()+extra, 0);
+  return `${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,'0')}-${String(e.getDate()).padStart(2,'0')}`;
+}
 const PL_SOORT = { zelfde:['2× in hetzelfde slot','rood'], direct:['direct achter elkaar','rood'], eenErtussen:['spelen → schrijven → spelen','krap'] };
 
 function plWedstrijden(d){
@@ -471,7 +482,8 @@ function plTel(d){
 function updatePlanBadge(){
   const b=$('#planBadge'); if(!b || !geladen) return;
   const v=vandaag();
-  const n=avonden().filter(d=>d>=v && plTel(d)>0).length;
+  const tot=plGedeeldTot();
+  const n=avonden().filter(d=>d>=v && d<=tot && plTel(d)>0).length;
   b.hidden=!n; b.textContent=n;
 }
 function plKiesAvond(d){ PL.datum=d; render(); }
@@ -499,9 +511,9 @@ function plVoorstel(d){
 function plDatumChips(gekozen){
   const v=vandaag();
   return `<div class="datums" id="planDatums">` + avonden().filter(d=>d>=v).map(d=>{
-    const n=plTel(d);
-    return `<button class="dchip ${d===gekozen?'sel':''} ${d===v?'vandaag':''}" onclick="plKiesAvond(${jsAttr(d)})">
-      <div class="dw">${d===v?'vandaag':WD[dObj(d).getDay()]}</div>
+    const n=plTel(d), gedeeld=d<=plGedeeldTot();
+    return `<button class="dchip ${d===gekozen?'sel':''} ${d===v?'vandaag':''} ${gedeeld?'':'ongedeeld'}" onclick="plKiesAvond(${jsAttr(d)})">
+      <div class="dw">${d===v?'vandaag':WD[dObj(d).getDay()]}${gedeeld?'':' 🔒'}</div>
       <div class="dd">${dObj(d).getDate()} ${MND[dObj(d).getMonth()]}</div>
       <div class="dn ${n?'knel':'ok'}">${n?`${n} knelp.`:'✓ goed'}</div></button>`;
   }).join('') + `</div>`;
@@ -522,7 +534,7 @@ function htmlPlan(){
   if(!datums.length) return '<div class="leeg">Geen komende speelavonden.</div>';
   if(!PL.datum || !datums.includes(PL.datum)) PL.datum = datums.find(d=>plTel(d)>0) || datums[0];
   const d=PL.datum;
-  const kop = plDatumChips(d) + `<div class="pl-uitleg">Elke speler minstens twee tijdsloten rust, zodat niemand spelen, schrijven en weer spelen achter elkaar heeft. Alleen schuiven binnen de avond, geen mail.</div>`;
+  const kop = plDatumChips(d) + `<div class="pl-uitleg">Elke speler minstens twee tijdsloten rust, zodat niemand spelen, schrijven en weer spelen achter elkaar heeft. Alleen schuiven binnen de avond, geen mail.${d>plGedeeldTot()?'<br>🔒 Deze avond is nog niet met de leden gedeeld.':''}</div>`;
   const vs=plVoorstel(d);
   if(vs.rekenen) return kop + '<div class="leeg">🧩 Avond doorrekenen…</div>';
 
