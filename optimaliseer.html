@@ -53,6 +53,12 @@ tr:last-child td{border-bottom:none;}
 .pijl{color:var(--muted);}
 .div-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
 .slotrij td:first-child{width:62px;}
+.vrij{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.86rem;}
+.vrij:last-child{border-bottom:none;}
+.vrij input{width:18px;height:18px;flex-shrink:0;accent-color:var(--blue);}
+.vrij .wie{flex:1;min-width:0;}
+.vrij .tijden{display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.vrij.uit .wie,.vrij.uit .tijden{opacity:0.45;}
 .wcard{display:inline-block;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;margin:2px 4px 2px 0;font-size:0.8rem;}
 .wcard.verplaatst{border-color:var(--blue);background:rgba(59,130,246,0.12);}
 .wcard.vast{opacity:0.6;}
@@ -65,12 +71,29 @@ tr:last-child td{border-bottom:none;}
 .melding.fout{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);}
 .melding.ok{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.4);}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--s3);border:1px solid var(--border);padding:10px 16px;border-radius:8px;font-size:0.88rem;font-weight:600;display:none;z-index:50;max-width:90vw;}
+.wrap>*{min-width:0;}
 @media (max-width: 900px){
-  .wrap{grid-template-columns:1fr;padding:12px 16px;}
-  .twee{grid-template-columns:1fr;}
-  .samenvatting{grid-template-columns:repeat(2,1fr);}
-  .avonden-lijst{display:flex;overflow-x:auto;gap:6px;}
-  .avond{flex-direction:column;align-items:flex-start;min-width:120px;margin-bottom:0;}
+  .wrap{grid-template-columns:1fr;padding:12px 16px;gap:12px;}
+  .twee{grid-template-columns:1fr;gap:12px;}
+  .main{gap:12px;}
+  .samenvatting{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .stat{padding:10px;}
+  .stat .val{font-size:1.25rem;}
+  .avonden-lijst{display:flex;overflow-x:auto;gap:6px;margin:0 -14px;padding:0 14px 4px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;}
+  .avond{flex-direction:column;align-items:flex-start;gap:4px;min-width:112px;flex-shrink:0;margin-bottom:0;background:var(--s2);scroll-snap-align:start;}
+  .uitleg-lang{display:none;}
+  .vrij{align-items:flex-start;flex-wrap:wrap;}
+  .vrij .wie{flex-basis:calc(100% - 28px);}
+  .vrij .tijden{margin-left:28px;font-size:0.82rem;}
+  .knoppen.balk{position:sticky;bottom:0;background:var(--s1);margin:14px -14px -14px !important;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border);border-radius:0 0 12px 12px;z-index:5;}
+  .knoppen.balk .uitleg{flex-basis:100%;font-size:0.75rem;}
+  .knoppen.balk .spacer{display:none;}
+  .knoppen.balk button{flex:1;}
+  .knoppen.balk button.primair{flex:2;}
+  .wcard{font-size:0.76rem;}
+  .slotrij td{padding:6px 4px;}
+  table{font-size:0.8rem;}
+  .topbar{padding:0 16px;}
 }
 </style>
 </head>
@@ -196,12 +219,13 @@ function render(){
     }).join('') || '<span class="leeg">—</span>'}</td><td style="width:44px;color:var(--muted);font-size:0.75rem;text-align:right">${hier.length}/${cap[si]}</td></tr>`;
   }).join('');
 
-  const verschHtml = verschuivingen.length ? `<table><thead><tr><th></th><th>Wedstrijd</th><th>Van</th><th></th><th>Naar</th></tr></thead><tbody>${
-    verschuivingen.map(({i,s}) => { const w = ms[i]; return `<tr>
-      <td style="width:28px"><input type="checkbox" ${gekozen.has(i)?'checked':''} onchange="toggle(${i}, this.checked)"></td>
-      <td><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${w.is_inhaal?' <span class="pill rood">inhaal</span>':''}</td>
-      <td class="tijd oud">${PT_SLOTS[orig[i]].tijd}</td><td class="pijl">→</td><td class="tijd">${PT_SLOTS[s].tijd}</td></tr>`; }).join('')
-  }</tbody></table>` : '<div class="leeg">Deze avond staat al goed, er hoeft niets te schuiven.</div>';
+  const verschHtml = verschuivingen.length ? `<div>${
+    verschuivingen.map(({i,s}) => { const w = ms[i]; const aan = gekozen.has(i); return `<label class="vrij ${aan?'':'uit'}">
+      <input type="checkbox" ${aan?'checked':''} onchange="toggle(${i}, this.checked)">
+      <span class="wie"><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${w.is_inhaal?' <span class="pill rood">inhaal</span>':''}</span>
+      <span class="tijden"><span class="oud">${PT_SLOTS[orig[i]].tijd}</span><span class="pijl">→</span><span class="tijd">${PT_SLOTS[s].tijd}</span></span>
+    </label>`; }).join('')
+  }</div>` : '<div class="leeg">Deze avond staat al goed, er hoeft niets te schuiven.</div>';
 
   let melding = '';
   if (vol.length) melding = `<div class="melding fout">Met deze selectie zit ${vol.map(v=>`${PT_SLOTS[v.i].tijd} (${v.n}/${v.cap})`).join(', ')} te vol. Vink de wedstrijd die erop past ook aan, of laat ze allebei staan.</div>`;
@@ -216,16 +240,16 @@ function render(){
         <div class="stat"><div class="lbl">Dubbel in één slot</div><div class="val">${nu.zelfde} <small>→ ${na.zelfde}</small></div></div>
         <div class="stat"><div class="lbl">Te verschuiven</div><div class="val">${gekozen.size} <small>/ ${verschuivingen.length}</small></div></div>
       </div>
-      <p class="uitleg" style="margin-top:10px">De planner zoekt een indeling waarin elke speler minstens twee tijdsloten rust heeft tussen zijn wedstrijden, zodat niemand spelen, schrijven en weer spelen achter elkaar heeft. Er wordt alleen binnen deze avond geschoven; de avond wordt niet later en de slotcapaciteit blijft gelijk. Gespeelde wedstrijden en wedstrijden die op een bord staan blijven waar ze zijn.</p>
+      <p class="uitleg" style="margin-top:10px">Elke speler minstens twee tijdsloten rust, alleen schuiven binnen deze avond.<span class="uitleg-lang"> Zo heeft niemand spelen, schrijven en weer spelen achter elkaar. De avond wordt niet later en de slotcapaciteit blijft gelijk. Gespeelde wedstrijden en wedstrijden die op een bord staan blijven waar ze zijn.</span></p>
     </div>
 
     <div class="panel">
       <h2>Voorgestelde verschuivingen</h2>
       ${verschHtml}
       ${melding ? `<div style="margin-top:12px">${melding}</div>` : ''}
-      ${verschuivingen.length ? `<div class="knoppen" style="margin-top:14px">
+      ${verschuivingen.length ? `<div class="knoppen balk" style="margin-top:14px">
         <span class="uitleg">Spelers krijgen geen mail: de app en hun agenda passen zich vanzelf aan.</span>
-        <span style="flex:1"></span>
+        <span class="spacer" style="flex:1"></span>
         <button onclick="alles(false)">Niets</button>
         <button onclick="alles(true)">Alles</button>
         <button class="primair" id="doorvoerKnop" onclick="doorvoeren()" ${(!gekozen.size||vol.length)?'disabled':''}>Doorvoeren (${gekozen.size})</button>
