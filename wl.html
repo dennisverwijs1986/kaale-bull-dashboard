@@ -140,6 +140,7 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .slot .st{font-weight:800;font-size:1.02rem;font-variant-numeric:tabular-nums;}
 .slot .sl{font-size:.68rem;opacity:.9;margin-top:1px;}
 .slot.conflict{border-color:var(--red);background:rgba(239,68,68,.12);}
+.slot.krap{border-color:var(--orange);background:rgba(245,158,11,.10);}
 .slot.vol{border-color:var(--muted);background:rgba(148,163,184,.08);color:var(--muted);}
 .slot.sel{outline:3px solid var(--text);outline-offset:1px;}
 .slot-legenda{font-size:.72rem;color:var(--muted);margin-top:8px;}
@@ -153,6 +154,10 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .ctx-rij.rood{background:rgba(239,68,68,.12);}
 .ctx-rij.rood .t{color:#fca5a5;}
 .ctx-rij.nieuw{background:rgba(59,130,246,.12);}
+.ctx-rij.krap .t{color:var(--orange);}
+.ruimte{border:1px solid var(--blue);background:rgba(59,130,246,.10);border-radius:10px;padding:10px 12px;font-size:.86rem;margin-top:12px;line-height:1.45;}
+.ruimte .ctx{margin-top:8px;}
+.ruimte-knop{width:100%;margin-top:12px;padding:12px;border-radius:10px;border:1.5px solid var(--blue);background:rgba(59,130,246,.12);color:var(--text);font-weight:800;font-size:.92rem;}
 
 .warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45);color:#fde68a;border-radius:10px;padding:10px 12px;font-size:.86rem;margin-top:12px;}
 .warn div+div{margin-top:5px;}
@@ -245,6 +250,7 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 <header class="top">
   <div class="top-title">🎯 Kaale Bull <small>WL</small><span class="dot" id="dot"></span></div>
   <button class="icon-btn" id="verversBtn" onclick="laadData()" aria-label="Verversen">⟳</button>
+  <a class="icon-btn" href="optimaliseer.html" aria-label="Avondplanner" title="Avondplanner">🧩</a>
   <a class="icon-btn" href="uitslagen.html" aria-label="Uitslagen" title="Uitslagen">📜</a>
   <a class="icon-btn" href="index.html" aria-label="Volledig dashboard" title="Volledig dashboard">🖥</a>
 </header>
@@ -263,6 +269,7 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 <section class="sheet" id="sheet" aria-modal="true" role="dialog"></section>
 <div class="toast" id="toast"></div>
 
+<script src="planner-kern.js?v=1"></script>
 <script>
 // ══════════════════════════════════════════
 //  SUPABASE (zelfde project en sleutel als index.html)
@@ -333,24 +340,46 @@ function lsSet(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
 function avonden(){ return [...new Set(W.filter(w=>!w.datum_nnb && w.datum).map(w=>w.datum))].sort(); }
 function telAvond(d, zonderId){ return W.filter(w=>w.datum===d && !w.datum_nnb && w.id!==zonderId).length; }
 
+// Avondplanner-kern (planner-kern.js), gedeeld met index.html en optimaliseer.html
+let _ap=null;
+function ap(){ return _ap || (_ap = AvondPlanner.maak(PT_SLOTS)); }
+// Tijdstip zoals het wordt als het 'Ruimte maken'-voorstel in het verzet-scherm wordt doorgevoerd
+function tijdNaPlan(w){
+  const p=sheet?.plan; if(p){ const mv=p.moves.find(x=>x.id===w.id); if(mv) return mv.nieuw; }
+  return w.tijdstip;
+}
+
 // Status van één tijdslot voor een (nieuwe) wedstrijd — gelijk aan verzetSlotStatus() in index.html
+//  niveau: 'ok' (≥2 slots rust) · 'krap' (direct achter elkaar of één slot ertussen) · 'zelfde' (zelfde slot)
 function slotStatus(datum, tijd, paar, zonderId){
   const nieuw=naarMin(tijd);
   const def=PT_SLOTS.find(s=>s.tijd===tijd);
   const cap=def?def.cap:4;
-  const bezet=W.filter(w=>w.datum===datum && w.tijdstip===tijd && w.id!==zonderId && !w.datum_nnb).length;
-  const conflict = !!(paar && paar.thuis && paar.uit) && W.some(w=>{
-    if(w.id===zonderId || w.datum!==datum || w.datum_nnb || !w.tijdstip) return false;
-    const wm=naarMin(w.tijdstip); if(wm===null) return false;
-    return deelSpeler(w,paar) && Math.abs(wm-nieuw) < MIN_RUST_MIN;
-  });
-  return { bezet, cap, vol: bezet>=cap, conflict };
+  const bezet=W.filter(w=>w.datum===datum && tijdNaPlan(w)===tijd && w.id!==zonderId && !w.datum_nnb).length;
+  let niveau='ok';
+  if(paar && paar.thuis && paar.uit && nieuw!==null){
+    const andere=W.filter(w=>w.id!==zonderId && w.datum===datum && !w.datum_nnb && tijdNaPlan(w) && deelSpeler(w,paar))
+      .map(w=>naarMin(tijdNaPlan(w))).filter(x=>x!==null);
+    niveau=ap().rustNiveau(nieuw, andere);
+  }
+  return { bezet, cap, vol: bezet>=cap, conflict: niveau==='zelfde', niveau };
+}
+// Beste slot voor wedstrijd m op datum d: eerst groen, anders krap; nooit dubbel of vol.
+function besteSlot(d, m){
+  let krap=null;
+  for(const s of PT_SLOTS){
+    const x=slotStatus(d,s.tijd,m,m.id);
+    if(x.vol || x.conflict) continue;
+    if(x.niveau==='ok') return s.tijd;
+    if(!krap) krap=s.tijd;
+  }
+  return krap;
 }
 function rustConflicten(datum, tijd, paar, zonderId){
   const nieuw=naarMin(tijd); if(nieuw===null) return [];
   return W.filter(w=>{
-    if(w.id===zonderId || w.datum!==datum || w.datum_nnb || !w.tijdstip) return false;
-    const wm=naarMin(w.tijdstip); if(wm===null) return false;
+    if(w.id===zonderId || w.datum!==datum || w.datum_nnb || !tijdNaPlan(w)) return false;
+    const wm=naarMin(tijdNaPlan(w)); if(wm===null) return false;
     return deelSpeler(w,paar) && Math.abs(wm-nieuw) < MIN_RUST_MIN;
   });
 }
@@ -642,7 +671,7 @@ function openVerzet(id){
   sheet = {
     id, datum: m.datum_nnb ? '' : (m.datum||''), tijd: m.tijdstip||'',
     handmatig: !standaard, nnb: !!m.datum_nnb, inhaal: !eersteKeerBeker,
-    door: lsGet('wl_door'), andereDatum:false, bezig:false, tijdAangepast:false
+    door: lsGet('wl_door'), andereDatum:false, bezig:false, tijdAangepast:false, plan:null
   };
   renderSheet();
   $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
@@ -657,18 +686,50 @@ function sluitSheet(){
 
 function sheetKiesDatum(d){
   const m=W.find(w=>w.id===sheet.id); if(!m) return;
-  sheet.datum=d; sheet.nnb=false; sheet.tijdAangepast=false;
-  // Past de gekozen tijd niet op de nieuwe avond? Dan meteen het eerste vrije slot voorstellen.
+  sheet.datum=d; sheet.nnb=false; sheet.tijdAangepast=false; sheet.plan=null;
+  // Heeft de gekozen tijd op deze avond niet genoeg rust (of zit hij vol)? Dan het beste slot voorstellen.
   if(!sheet.handmatig){
     const st = sheet.tijd ? slotStatus(d, sheet.tijd, m, m.id) : null;
-    if(!st || st.conflict || st.vol){
-      const vrij = PT_SLOTS.find(s=>{ const x=slotStatus(d,s.tijd,m,m.id); return !x.conflict && !x.vol; });
-      if(vrij){ sheet.tijdAangepast = !!sheet.tijd && sheet.tijd!==vrij.tijd; sheet.tijd=vrij.tijd; }
+    if(!st || st.niveau!=='ok' || st.vol){
+      const beste = besteSlot(d, m);
+      if(beste){ sheet.tijdAangepast = !!sheet.tijd && sheet.tijd!==beste; sheet.tijd=beste; }
     }
   }
   renderSheet();
 }
-function sheetKiesSlot(t){ sheet.tijd=t; sheet.handmatig=false; sheet.tijdAangepast=false; renderSheet(); }
+function sheetKiesSlot(t){ sheet.tijd=t; sheet.handmatig=false; sheet.tijdAangepast=false; sheet.plan=null; renderSheet(); }
+
+// 'Ruimte maken': de avondplanner herschikt de avond met deze wedstrijd erbij.
+// Andere wedstrijden schuiven alleen binnen de avond (zonder mail); de verzet-mail gaat daarna met de definitieve tijd.
+function sheetMaakRuimte(){
+  const m=W.find(w=>w.id===sheet?.id); if(!m || !sheet.datum) return;
+  const d=sheet.datum;
+  sheet.plan=null; sheet.rekenen=true; renderSheet();
+  setTimeout(()=>{
+    if(!sheet || sheet.id!==m.id || sheet.datum!==d){ return; }
+    const AP=ap();
+    const andere=W.filter(w=>w.id!==m.id && w.datum===d && !w.datum_nnb && AP.slotIndex(w.tijdstip)>=0)
+      .map(w=>({ id:w.id, thuis:w.thuis, uit:w.uit, tijdstip:w.tijdstip, vast: w.status==='gespeeld' || w.bord!=null }));
+    const cnt=new Array(PT_SLOTS.length).fill(0); andere.forEach(w=>cnt[AP.slotIndex(w.tijdstip)]++);
+    const score={ok:0,krap:1,zelfde:2}; let start=-1, best=99;
+    PT_SLOTS.forEach((s,i)=>{ if(cnt[i]>=s.cap) return; const sc=score[slotStatus(d,s.tijd,m,m.id).niveau]; if(sc<best){best=sc;start=i;} });
+    sheet.rekenen=false;
+    if(start<0){ toast('Deze avond zit vol: alle tijdsloten zijn bezet','rood'); renderSheet(); return; }
+    const laatsteNu = andere.length ? Math.max(...andere.map(w=>AP.slotIndex(w.tijdstip))) : 0;
+    const ms=[...andere, { id:m.id, thuis:m.thuis, uit:m.uit, tijdstip:PT_SLOTS[start].tijd, vrijeKeuze:true }];
+    const orig=ms.map(w=>AP.slotIndex(w.tijdstip));
+    const na=AP.optimaliseer(ms,{ laatste: Math.max(laatsteNu,start) });
+    const tel=sl=>{ const t=AP.telKnelpunten(AP.knelpunten(ms,sl)); return t.zelfde+t.direct+t.eenErtussen; };
+    const mi=ms.length-1;
+    sheet.plan={
+      datum:d, mTijd:PT_SLOTS[na[mi]].tijd, voor:tel(orig), na:tel(na),
+      moves: ms.slice(0,mi).map((w,i)=>({ id:w.id, thuis:w.thuis, uit:w.uit, oud:w.tijdstip, nieuw:PT_SLOTS[na[i]].tijd }))
+               .filter(x=>x.oud!==x.nieuw).sort((a,b)=>a.oud.localeCompare(b.oud))
+    };
+    sheet.tijd=sheet.plan.mTijd; sheet.tijdAangepast=false;
+    renderSheet();
+  },30);
+}
 
 function sheetWaarschuwingen(m){
   const w=[];
@@ -690,6 +751,22 @@ function sheetWaarschuwingen(m){
   return w;
 }
 
+function ruimteHtml(m){
+  if(!sheet.datum || sheet.nnb || sheet.handmatig) return '';
+  if(sheet.rekenen) return `<div class="ruimte">🧩 Avond herschikken…</div>`;
+  const p=sheet.plan;
+  if(p && p.datum===sheet.datum){
+    const rij=p.moves.map(x=>`<div class="ctx-rij"><span class="t">${esc(x.oud)}→${esc(x.nieuw)}</span><span>${esc(x.thuis)} – ${esc(x.uit)}</span></div>`).join('');
+    return `<div class="ruimte"><b>🧩 Voorstel: deze wedstrijd om ${esc(p.mTijd)}</b>
+      ${p.moves.length ? `<div class="muted" style="margin-top:4px;">Daarvoor krijgen ${p.moves.length} andere wedstrijd${p.moves.length>1?'en':''} een ander tijdstip (zonder mail, ze zien het in de app en agenda):</div><div class="ctx">${rij}</div>`
+                       : `<div class="muted" style="margin-top:4px;">Er hoeven geen andere wedstrijden te schuiven.</div>`}
+      <div class="muted" style="margin-top:6px;">Knelpunten op deze avond: ${p.voor} → ${p.na}. Wordt doorgevoerd bij Opslaan.</div>
+      <button class="link-btn" onclick="sheet.plan=null;sheet.tijd=besteSlot(sheet.datum,W.find(w=>w.id===sheet.id))||'';renderSheet()">Voorstel wissen</button></div>`;
+  }
+  const geenGroen = !PT_SLOTS.some(s=>{ const x=slotStatus(sheet.datum,s.tijd,m,m.id); return x.niveau==='ok' && !x.vol; });
+  return geenGroen ? `<button class="ruimte-knop" onclick="sheetMaakRuimte()">🧩 Ruimte maken: avond herschikken zodat iedereen rust heeft</button>` : '';
+}
+
 function renderSheet(){
   if(!sheet) return;
   const m=W.find(w=>w.id===sheet.id);
@@ -704,16 +781,17 @@ function renderSheet(){
   let slotenHtml='';
   if(!sheet.nnb && sheet.datum){
     slotenHtml = sheet.handmatig
-      ? `<input class="inp" type="time" value="${esc(sheet.tijd)}" onchange="sheet.tijd=this.value;renderSheet()">
+      ? `<input class="inp" type="time" value="${esc(sheet.tijd)}" onchange="sheet.tijd=this.value;sheet.plan=null;renderSheet()">
          <button class="link-btn" onclick="sheet.handmatig=false;renderSheet()">← Terug naar tijdsloten</button>`
       : `<div class="sloten">${PT_SLOTS.map(s=>{
             const st=slotStatus(sheet.datum,s.tijd,m,m.id);
-            const cls=st.conflict?'conflict':st.vol?'vol':'';
-            const lbl=`${st.bezet}/${st.cap}${st.conflict?' · rust':st.vol?' · vol':''}`;
+            const cls=st.conflict?'conflict':st.vol?'vol':st.niveau==='krap'?'krap':'';
+            const lbl=`${st.bezet}/${st.cap}${st.conflict?' · dubbel':st.vol?' · vol':st.niveau==='krap'?' · krap':''}`;
             return `<button class="slot ${cls} ${s.tijd===sheet.tijd?'sel':''}" onclick="sheetKiesSlot('${s.tijd}')"><div class="st">${s.tijd}</div><div class="sl">${lbl}</div></button>`;
           }).join('')}</div>
-         <div class="slot-legenda">Groen = vrij · rood = minder dan ${MIN_RUST_MIN} min rust · grijs = vol</div>
-         <button class="link-btn" onclick="sheet.handmatig=true;renderSheet()">Andere tijd invullen…</button>`;
+         <div class="slot-legenda">Groen = beide spelers minstens 2 slots rust · oranje = krap (spelen-schrijven-spelen) · rood = al een wedstrijd in dat slot · grijs = vol</div>
+         ${ruimteHtml(m)}
+         <button class="link-btn" onclick="sheet.handmatig=true;sheet.plan=null;renderSheet()">Andere tijd invullen…</button>`;
   }
 
   // Wat spelen deze twee spelers nog meer op de gekozen avond?
@@ -721,11 +799,13 @@ function renderSheet(){
   if(!sheet.nnb && sheet.datum){
     const nieuw=naarMin(sheet.tijd);
     const anders=W.filter(w=>w.id!==m.id && w.datum===sheet.datum && !w.datum_nnb && deelSpeler(w,m))
+      .map(w=>{ const t=tijdNaPlan(w); return t===w.tijdstip ? w : {...w, tijdstip:t, _was:w.tijdstip}; })
       .sort((a,b)=>(a.tijdstip||'99').localeCompare(b.tijdstip||'99'));
     const rijen=anders.map(w=>{
       const wm=naarMin(w.tijdstip);
       const rood = nieuw!==null && wm!==null && Math.abs(wm-nieuw)<MIN_RUST_MIN;
-      return {t:w.tijdstip||'—', html:`<div class="ctx-rij ${rood?'rood':''}"><span class="t">${esc(w.tijdstip||'—')}</span><span>${esc(w.thuis)} – ${esc(w.uit)}${w.status==='gespeeld'?' <span class="muted">✓</span>':''}</span></div>`};
+      const krap = !rood && nieuw!==null && wm!==null && Math.abs(wm-nieuw)<60;
+      return {t:w.tijdstip||'—', html:`<div class="ctx-rij ${rood?'rood':krap?'krap':''}"><span class="t">${esc(w.tijdstip||'—')}</span><span>${esc(w.thuis)} – ${esc(w.uit)}${w._was?` <span class="muted">(was ${esc(w._was)})</span>`:''}${w.status==='gespeeld'?' <span class="muted">✓</span>':''}</span></div>`};
     });
     if(sheet.tijd) rijen.push({t:sheet.tijd, html:`<div class="ctx-rij nieuw"><span class="t">${esc(sheet.tijd)}</span><span><b>Deze wedstrijd</b></span></div>`});
     rijen.sort((a,b)=>a.t.localeCompare(b.t));
@@ -735,7 +815,7 @@ function renderSheet(){
 
   const warns=sheetWaarschuwingen(m);
   const warnHtml = warns.length ? `<div class="warn">${warns.map(x=>`<div>⚠ ${x}</div>`).join('')}</div>` : '';
-  const aangepast = sheet.tijdAangepast ? `<div class="info"><span>Tijd aangepast naar het eerste vrije slot: <b>${esc(sheet.tijd)}</b></span></div>` : '';
+  const aangepast = sheet.tijdAangepast ? `<div class="info"><span>Tijd aangepast naar het beste slot op deze avond: <b>${esc(sheet.tijd)}</b></span></div>` : '';
   const orig = m.originele_datum ? `<div class="info"><span>📌 Oorspronkelijke datum: <b>${esc(fmtKort(m.originele_datum))}</b></span><button class="btn-klein" onclick="herstelOrig()">Terugzetten</button></div>` : '';
 
   const leiderOpts = '<option value="">— kies —</option>' + leiders.map(l=>`<option ${l.naam===sheet.door?'selected':''}>${esc(l.naam)}</option>`).join('');
@@ -762,7 +842,7 @@ function renderSheet(){
       ${datumChips('sheetDatums', sheet.nnb?'':sheet.datum, 'sheetKiesDatum', m.id, true)}
       <div class="pill-rij">
         <button class="pill ${sheet.andereDatum||extraDatum?'act':''}" onclick="sheet.andereDatum=true;renderSheet()">📅 Andere datum</button>
-        <button class="pill nnb ${sheet.nnb?'act':''}" onclick="sheet.nnb=!sheet.nnb;if(sheet.nnb){sheet.datum='';sheet.tijd='';}renderSheet()">🕓 Nog niet bekend</button>
+        <button class="pill nnb ${sheet.nnb?'act':''}" onclick="sheet.nnb=!sheet.nnb;sheet.plan=null;if(sheet.nnb){sheet.datum='';sheet.tijd='';}renderSheet()">🕓 Nog niet bekend</button>
       </div>
       ${(sheet.andereDatum||extraDatum)&&!sheet.nnb ? `<input class="inp" style="margin-top:10px" type="date" value="${esc(sheet.datum)}" min="${v}" onchange="sheetKiesDatum(this.value)">` : ''}
       ${slotenHtml ? `<div class="sec-title">Tijdslot</div>${slotenHtml}` : ''}
@@ -798,6 +878,34 @@ async function slaVerzetOp(informeer){
   const door=sheet.door;
 
   sheet.bezig=true; renderSheet();
+  // 'Ruimte maken'-voorstel eerst doorvoeren (zonder mail), zodat de verzet-mail de definitieve tijd heeft
+  const plan = (!isNNB && sheet.plan && sheet.plan.datum===nieuweDatum && sheet.plan.mTijd===nieuweTijd) ? sheet.plan : null;
+  if(plan && plan.moves.length){
+    try{
+      const vers=await sbGet('wedstrijden',`datum=eq.${nieuweDatum}&select=id,tijdstip,status,bord,datum_nnb`);
+      const perId=new Map(vers.map(w=>[w.id,w]));
+      const verouderd=plan.moves.some(x=>{ const v=perId.get(x.id); return !v || v.datum_nnb || v.tijdstip!==x.oud || v.status==='gespeeld' || v.bord!=null; });
+      if(verouderd){
+        sheet.plan=null; sheet.bezig=false; renderSheet();
+        toast('De avond is intussen gewijzigd. Maak opnieuw ruimte of kies zelf een slot.','rood');
+        laadData(true); return;
+      }
+      for(const x of plan.moves){
+        await sbPatch('wedstrijden', x.id, { tijdstip:x.nieuw });
+        const lw=W.find(w=>w.id===x.id); if(lw) lw.tijdstip=x.nieuw;
+        try{
+          await sbPost('wijziging_log',{
+            wedstrijd_id:x.id, thuis:x.thuis, uit:x.uit, divisie:lw?.divisie||null, actie:'verzet',
+            oude_datum:nieuweDatum, nieuwe_datum:nieuweDatum, oude_tijdstip:x.oud, nieuwe_tijdstip:x.nieuw,
+            gewijzigd_door:door, notitie:`Ander tijdslot (zelfde avond) – ruimte gemaakt voor ${m.thuis} – ${m.uit}`, mail_verstuurd:false
+          });
+        }catch(e){ console.error('Kon herschikking niet loggen:',e); }
+      }
+    }catch(e){
+      if(sheet){ sheet.bezig=false; renderSheet(); }
+      toast(`Ruimte maken mislukt: ${e.message}`,'rood'); laadData(true); return;
+    }
+  }
   try{
     await sbPatch('wedstrijden', id, { datum:nieuweDatum, tijdstip:nieuweTijd, datum_nnb:isNNB, is_inhaal:sheet.inhaal, originele_datum:origDatum, status:'gepland' });
     Object.assign(m,{ datum:nieuweDatum, tijdstip:nieuweTijd, datum_nnb:isNNB, is_inhaal:sheet.inhaal, originele_datum:origDatum, status:'gepland' });
