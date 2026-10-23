@@ -295,7 +295,6 @@ function render(){
   const vol = overvol(naSlots, cap);
   const verschuivingen = voorstel.map((s,i)=>({i,s})).filter(x => x.s !== orig[x.i])
     .sort((a,b) => orig[a.i]-orig[b.i]);
-  const isVandaag = datum === lokaleDatumVandaag();
 
   const knelHtml = (lijst, slots) => lijst.length ? lijst.map(k => {
     const t1 = PT_SLOTS[slots[k.a]].tijd, t2 = PT_SLOTS[slots[k.b]].tijd;
@@ -340,7 +339,7 @@ function render(){
       ${verschHtml}
       ${melding ? `<div style="margin-top:12px">${melding}</div>` : ''}
       ${verschuivingen.length ? `<div class="knoppen" style="margin-top:14px">
-        <label class="check"><input type="checkbox" id="mailen" ${isVandaag?'':'checked'} ${isVandaag?'disabled':''}> Spelers mailen over hun nieuwe tijd${isVandaag?' (niet op de speelavond zelf)':''}</label>
+        <span class="uitleg">Spelers krijgen geen mail: de app en hun agenda passen zich vanzelf aan.</span>
         <span style="flex:1"></span>
         <button onclick="alles(false)">Niets</button>
         <button onclick="alles(true)">Alles</button>
@@ -365,9 +364,8 @@ function alles(aan){
 
 async function doorvoeren(){
   const { datum, ms, orig, voorstel, gekozen } = huidige;
-  const mailen = !!document.getElementById('mailen')?.checked;
   const keuze = [...gekozen];
-  if (!confirm(`${keuze.length} wedstrijd(en) op ${fmtDatum(datum)} naar een ander tijdslot verplaatsen?${mailen?'\n\nDe betrokken spelers krijgen een mail met hun nieuwe tijd.':'\n\nEr worden geen mails verstuurd.'}`)) return;
+  if (!confirm(`${keuze.length} wedstrijd(en) op ${fmtDatum(datum)} naar een ander tijdslot verplaatsen?\n\nSpelers krijgen geen mail; de app en hun agenda passen zich vanzelf aan.`)) return;
 
   const knop = document.getElementById('doorvoerKnop'); if (knop){ knop.disabled = true; knop.textContent = 'Bezig…'; }
 
@@ -383,7 +381,7 @@ async function doorvoeren(){
   } catch(e){ toast(`Kon de avond niet controleren: ${e.message}`); if (knop){ knop.disabled=false; knop.textContent=`Doorvoeren (${keuze.length})`; } return; }
 
   const door = 'Wedstrijdleiding (avondplanner)';
-  let gelukt = 0, mails = 0, fouten = [];
+  let gelukt = 0, fouten = [];
   for (const i of keuze){
     const w = ms[i], oudeTijd = PT_SLOTS[orig[i]].tijd, nieuweTijd = PT_SLOTS[voorstel[i]].tijd;
     try {
@@ -399,20 +397,9 @@ async function doorvoeren(){
         });
         logId = logRow?.[0]?.id || null;
       } catch(logErr){ console.error('Kon verschuiving niet loggen:', logErr); }
-      if (mailen){
-        try {
-          const res = await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`, {
-            method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${SB_KEY}`, 'apikey':SB_KEY },
-            body: JSON.stringify({ type:'verzet', wedstrijd_id: w.id, gewijzigd_door: door, wijziging_log_id: logId, oude_tijdstip: oudeTijd, nieuwe_tijdstip: nieuweTijd })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Onbekende fout');
-          mails += data.verzonden_naar || 0;
-        } catch(mailErr){ fouten.push(`mail ${w.thuis} – ${w.uit}: ${mailErr.message}`); }
-      }
     } catch(e){ fouten.push(`${w.thuis} – ${w.uit}: ${e.message}`); }
   }
-  toast(`✓ ${gelukt} verschoven${mailen?`, ${mails} mail(s) verstuurd`:''}${fouten.length?` · ${fouten.length} fout(en), zie console`:''}`);
+  toast(`✓ ${gelukt} verschoven${fouten.length?` · ${fouten.length} fout(en), zie console`:''}`);
   if (fouten.length) console.error('Avondplanner fouten:', fouten);
   await laadAvonden();
   kiesAvond(datum);
