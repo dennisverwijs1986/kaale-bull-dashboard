@@ -42,7 +42,7 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 
 /* ── BOTTOM NAV ── */
 .nav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:#080d16;border-top:1px solid var(--border);
-  display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot);}
+  display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:var(--bot);}
 .nav button{height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   font-size:.72rem;color:var(--muted);font-weight:600;position:relative;}
 .nav button .ic{font-size:1.25rem;line-height:1;}
@@ -51,6 +51,36 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 .badge{position:absolute;top:7px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;
   background:var(--nnb);color:#04222a;font-size:.68rem;font-weight:800;display:grid;place-items:center;}
 .badge[hidden]{display:none;}
+.badge.plan{background:var(--orange);color:#2b1a00;}
+/* ── PLANNER ── */
+.dchip .dn.knel{color:var(--orange);font-weight:800;}
+.dchip .dn.ok{color:var(--green);font-weight:800;}
+.dchip.sel .dn.knel,.dchip.sel .dn.ok{color:#fff;}
+.pl-uitleg{font-size:.8rem;color:var(--muted);margin:2px 2px 10px;line-height:1.45;}
+.pl-lijst{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.vrij{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border-top:1px solid var(--border);cursor:pointer;}
+.vrij:first-child{border-top:none;}
+.vrij input{width:20px;height:20px;flex-shrink:0;margin-top:1px;accent-color:var(--blue);}
+.vrij .wie{font-size:.9rem;font-weight:600;line-height:1.3;}
+.vrij .tijden{font-size:.85rem;margin-top:3px;font-variant-numeric:tabular-nums;}
+.vrij .tijden .oud{color:var(--muted);text-decoration:line-through;}
+.vrij .tijden .nw{font-weight:800;}
+.vrij.uit .wie,.vrij.uit .tijden{opacity:.45;}
+.pl-knel{font-size:.84rem;padding:8px 12px;border-top:1px solid var(--border);}
+.pl-knel:first-child{border-top:none;}
+.pl-knel .soort{font-size:.7rem;font-weight:800;padding:1px 6px;border-radius:6px;margin-left:4px;white-space:nowrap;}
+.pl-knel .soort.krap{background:rgba(245,158,11,.15);color:var(--orange);}
+.pl-knel .soort.rood{background:rgba(239,68,68,.15);color:var(--red);}
+.pl-balk{position:sticky;bottom:calc(66px + var(--bot));z-index:20;display:flex;gap:8px;margin:12px -16px 0;padding:10px 16px;background:rgba(15,21,32,.96);border-top:1px solid var(--border);backdrop-filter:blur(6px);}
+.pl-balk .btn{flex:1;min-height:46px;}
+.pl-balk .btn-pri{flex:2;}
+.pl-schema summary{cursor:pointer;font-size:.72rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:18px 0 8px;list-style:none;}
+.pl-schema summary::-webkit-details-marker{display:none;}
+.pl-slot{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--border);font-size:.82rem;}
+.pl-slot:first-child{border-top:none;}
+.pl-slot .t{font-weight:800;min-width:44px;font-variant-numeric:tabular-nums;}
+.pl-slot .w div{line-height:1.4;}
+.pl-slot .w .nieuw{color:#93c5fd;}
 
 /* ── ALGEMEEN ── */
 .wrap{padding:12px 16px 24px;}
@@ -250,7 +280,6 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 <header class="top">
   <div class="top-title">🎯 Kaale Bull <small>WL</small><span class="dot" id="dot"></span></div>
   <button class="icon-btn" id="verversBtn" onclick="laadData()" aria-label="Verversen">⟳</button>
-  <a class="icon-btn" href="optimaliseer.html" aria-label="Avondplanner" title="Avondplanner">🧩</a>
   <a class="icon-btn" href="uitslagen.html" aria-label="Uitslagen" title="Uitslagen">📜</a>
   <a class="icon-btn" href="index.html" aria-label="Volledig dashboard" title="Volledig dashboard">🖥</a>
 </header>
@@ -263,6 +292,7 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
   <button data-v="nnb"    onclick="naarView('nnb')"><span class="ic">🕓</span>NNB<span class="badge" id="nnbBadge" hidden></span></button>
   <button data-v="beker"  onclick="naarView('beker')"><span class="ic">🏆</span>Beker</button>
   <button data-v="stand"  onclick="naarView('stand')"><span class="ic">📊</span>Stand</button>
+  <button data-v="plan"   onclick="naarView('plan')"><span class="ic">🧩</span>Planner<span class="badge plan" id="planBadge" hidden></span></button>
 </nav>
 
 <div class="sheet-bg" id="sheetBg" onclick="sluitSheet()"></div>
@@ -417,8 +447,169 @@ async function laadData(stil){
   else if(scoreSheet && !scoreSheet.bezig) renderScoreSheet();
 }
 function updateBadge(){
+  updatePlanBadge();
   const n=W.filter(w=>w.datum_nnb && w.status!=='gespeeld').length;
   const b=$('#nnbBadge'); b.hidden=!n; b.textContent=n;
+}
+
+// ══════════════════════════════════════════
+//  PLANNER — avonden zonder spelen-schrijven-spelen (zelfde kern als optimaliseer.html)
+//  Alleen schuiven binnen een avond, geen mail: spelers zien het in de app en agenda.
+// ══════════════════════════════════════════
+const PL = { datum:null, cache:{}, bezig:false };
+const PL_SOORT = { zelfde:['2× in hetzelfde slot','rood'], direct:['direct achter elkaar','rood'], eenErtussen:['spelen → schrijven → spelen','krap'] };
+
+function plWedstrijden(d){
+  return W.filter(w=>w.datum===d && !w.datum_nnb && ap().slotIndex(w.tijdstip)>=0)
+    .map(w=>({...w, vast: w.status==='gespeeld' || w.bord!=null}));
+}
+function plTel(d){
+  const ms=plWedstrijden(d); const AP=ap();
+  const t=AP.telKnelpunten(AP.knelpunten(ms, ms.map(w=>AP.slotIndex(w.tijdstip))));
+  return t.zelfde+t.direct+t.eenErtussen;
+}
+function updatePlanBadge(){
+  const b=$('#planBadge'); if(!b || !geladen) return;
+  const v=vandaag();
+  const n=avonden().filter(d=>d>=v && plTel(d)>0).length;
+  b.hidden=!n; b.textContent=n;
+}
+function plKiesAvond(d){ PL.datum=d; render(); }
+
+// Voorstel voor een avond; opnieuw berekend zodra de planning van die avond verandert.
+function plVoorstel(d){
+  const ms=plWedstrijden(d);
+  const sig=ms.map(w=>w.id+'@'+w.tijdstip+(w.vast?'!':'')).sort().join('|');
+  const c=PL.cache[d];
+  if(c && c.sig===sig) return c;
+  if(c && c.rekenen) return c;
+  const nieuw={ sig, rekenen:true, ms };
+  PL.cache[d]=nieuw;
+  setTimeout(()=>{
+    const AP=ap();
+    const orig=ms.map(w=>AP.slotIndex(w.tijdstip));
+    const voorstel=AP.optimaliseer(ms);
+    const gekozen=new Set(voorstel.map((s,i)=>s!==orig[i]?i:-1).filter(i=>i>=0));
+    Object.assign(nieuw,{ rekenen:false, orig, voorstel, gekozen, cap:AP.capaciteiten(orig, Math.max(...orig)) });
+    if(S.view==='plan' && PL.datum===d) render();
+  },30);
+  return nieuw;
+}
+
+function plDatumChips(gekozen){
+  const v=vandaag();
+  return `<div class="datums" id="planDatums">` + avonden().filter(d=>d>=v).map(d=>{
+    const n=plTel(d);
+    return `<button class="dchip ${d===gekozen?'sel':''} ${d===v?'vandaag':''}" onclick="plKiesAvond(${jsAttr(d)})">
+      <div class="dw">${d===v?'vandaag':WD[dObj(d).getDay()]}</div>
+      <div class="dd">${dObj(d).getDate()} ${MND[dObj(d).getMonth()]}</div>
+      <div class="dn ${n?'knel':'ok'}">${n?`${n} knelp.`:'✓ goed'}</div></button>`;
+  }).join('') + `</div>`;
+}
+
+function plKnelHtml(ms, slots){
+  const AP=ap(); const lijst=AP.knelpunten(ms, slots);
+  if(!lijst.length) return '';
+  return `<div class="pl-lijst">${lijst.map(k=>{
+    const [txt,cls]=PL_SOORT[k.soort];
+    return `<div class="pl-knel"><b>${esc(k.speler)}</b> · ${PT_SLOTS[slots[k.a]].tijd} en ${PT_SLOTS[slots[k.b]].tijd}<span class="soort ${cls}">${txt}</span></div>`;
+  }).join('')}</div>`;
+}
+
+function htmlPlan(){
+  const v=vandaag();
+  const datums=avonden().filter(d=>d>=v);
+  if(!datums.length) return '<div class="leeg">Geen komende speelavonden.</div>';
+  if(!PL.datum || !datums.includes(PL.datum)) PL.datum = datums.find(d=>plTel(d)>0) || datums[0];
+  const d=PL.datum;
+  const kop = plDatumChips(d) + `<div class="pl-uitleg">Elke speler minstens twee tijdsloten rust, zodat niemand spelen, schrijven en weer spelen achter elkaar heeft. Alleen schuiven binnen de avond, geen mail.</div>`;
+  const vs=plVoorstel(d);
+  if(vs.rekenen) return kop + '<div class="leeg">🧩 Avond doorrekenen…</div>';
+
+  const AP=ap(); const { ms, orig, voorstel, gekozen, cap } = vs;
+  const nu=AP.telKnelpunten(AP.knelpunten(ms, orig));
+  const naSlots=AP.slotsMetSelectie(orig, voorstel, gekozen);
+  const na=AP.telKnelpunten(AP.knelpunten(ms, naSlots));
+  const vol=AP.overvol(naSlots, cap);
+  const versch=voorstel.map((s,i)=>({i,s})).filter(x=>x.s!==orig[x.i]).sort((a,b)=>orig[a.i]-orig[b.i]);
+  const totNu=nu.zelfde+nu.direct+nu.eenErtussen, totNa=na.zelfde+na.direct+na.eenErtussen;
+
+  const stats = `<div class="stats">
+    <div class="stat"><b style="color:${nu.direct?'var(--red)':'var(--green)'}">${nu.direct}${versch.length?`<span style="font-size:.75rem;color:var(--muted)"> → ${na.direct}</span>`:''}</b><span>achter elkaar</span></div>
+    <div class="stat"><b style="color:${nu.eenErtussen?'var(--orange)':'var(--green)'}">${nu.eenErtussen}${versch.length?`<span style="font-size:.75rem;color:var(--muted)"> → ${na.eenErtussen}</span>`:''}</b><span>1 slot ertussen</span></div>
+    <div class="stat"><b style="color:var(--blue)">${gekozen.size}</b><span>verschuiven</span></div>
+  </div>`;
+
+  if(!versch.length){
+    return kop + stats + (totNu
+      ? `<div class="warn"><div>⚠ Hier vindt de planner geen betere indeling binnen de avond. Kijk of een wedstrijd naar een andere avond kan.</div></div><div class="sec-title">Knelpunten</div>${plKnelHtml(ms, orig)}`
+      : '<div class="leeg">Deze avond staat goed 🎯<br>Iedereen heeft genoeg rust.</div>');
+  }
+
+  const rijen = versch.map(({i,s})=>{ const w=ms[i]; const aan=gekozen.has(i);
+    return `<label class="vrij ${aan?'':'uit'}"><input type="checkbox" ${aan?'checked':''} onchange="plToggle(${i},this.checked)">
+      <div><div class="wie">${esc(w.thuis)} – ${esc(w.uit)}</div>
+      <div class="tijden"><span class="oud">${PT_SLOTS[orig[i]].tijd}</span> → <span class="nw">${PT_SLOTS[s].tijd}</span> ${divChip(w)}${w.is_inhaal?' <span class="chip inhaal">Inhaal</span>':''}</div></div></label>`; }).join('');
+
+  let melding='';
+  if(vol.length) melding=`<div class="warn"><div>⚠ Met deze selectie zit ${vol.map(x=>`${PT_SLOTS[x.i].tijd} (${x.n}/${x.cap})`).join(', ')} te vol. Vink de wedstrijd die erop past ook aan.</div></div>`;
+  else if(gekozen.size && totNa) melding=`<div class="warn"><div>⚠ Met alleen deze selectie blijven er ${totNa} knelpunt${totNa>1?'en':''} over: de verschuivingen hangen samen.</div></div>`;
+
+  const schema = PT_SLOTS.map((sl,si)=>{
+    const hier=ms.map((w,i)=>({w,i})).filter(x=>naSlots[x.i]===si);
+    if(!hier.length) return '';
+    return `<div class="pl-slot"><span class="t">${sl.tijd}</span><div class="w">${hier.map(({w,i})=>`<div class="${naSlots[i]!==orig[i]?'nieuw':''}">${esc(w.thuis)} – ${esc(w.uit)}${naSlots[i]!==orig[i]?` <span class="muted">(was ${PT_SLOTS[orig[i]].tijd})</span>`:''}</div>`).join('')}</div></div>`;
+  }).join('');
+
+  return kop + stats + `
+    <div class="sec-title">Voorgestelde verschuivingen</div>
+    <div class="pl-lijst">${rijen}</div>
+    ${melding}
+    ${totNa ? `<div class="sec-title">Knelpunten na selectie</div>${plKnelHtml(ms, naSlots)}` : ''}
+    <details class="pl-schema"><summary>▸ Schema na selectie</summary><div class="pl-lijst">${schema}</div></details>
+    <div class="pl-balk">
+      <button class="btn btn-sec" onclick="plAlles(false)">Niets</button>
+      <button class="btn btn-sec" onclick="plAlles(true)">Alles</button>
+      <button class="btn btn-pri" ${(!gekozen.size||vol.length||PL.bezig)?'disabled':''} onclick="plDoorvoeren()">${PL.bezig?'Bezig…':`Doorvoeren (${gekozen.size})`}</button>
+    </div>`;
+}
+
+function plToggle(i,aan){ const c=PL.cache[PL.datum]; if(!c) return; aan?c.gekozen.add(i):c.gekozen.delete(i); const y=window.scrollY; render(); window.scrollTo(0,y); }
+function plAlles(aan){ const c=PL.cache[PL.datum]; if(!c) return; c.gekozen=new Set(aan?c.voorstel.map((s,i)=>s!==c.orig[i]?i:-1).filter(i=>i>=0):[]); const y=window.scrollY; render(); window.scrollTo(0,y); }
+
+async function plDoorvoeren(){
+  const d=PL.datum, c=PL.cache[d]; if(!c || PL.bezig) return;
+  const keuze=[...c.gekozen]; if(!keuze.length) return;
+  if(!confirm(`${keuze.length} wedstrijd(en) op ${fmtKort(d)} naar een ander tijdslot zetten?\n\nSpelers krijgen geen mail; de app en hun agenda passen zich vanzelf aan.`)) return;
+  PL.bezig=true; render();
+  try{
+    const vers=await sbGet('wedstrijden',`datum=eq.${d}&select=id,tijdstip,status,bord,datum_nnb`);
+    const perId=new Map(vers.map(w=>[w.id,w]));
+    const versIn=vers.filter(v=>!v.datum_nnb && ap().slotIndex(v.tijdstip)>=0);
+    const gewijzigd = versIn.length!==c.ms.length
+      || c.ms.some((w,i)=>{ const v=perId.get(w.id); return !v || v.datum_nnb || v.tijdstip!==PT_SLOTS[c.orig[i]].tijd; })
+      || keuze.some(i=>{ const v=perId.get(c.ms[i].id); return v.status==='gespeeld' || v.bord!=null; });
+    if(gewijzigd){ PL.bezig=false; delete PL.cache[d]; toast('De avond is intussen gewijzigd. Ik reken opnieuw.','rood'); await laadData(true); return; }
+
+    const door=lsGet('wl_door') || 'Wedstrijdleiding';
+    let gelukt=0, fouten=0;
+    for(const i of keuze){
+      const w=c.ms[i], oud=PT_SLOTS[c.orig[i]].tijd, nw=PT_SLOTS[c.voorstel[i]].tijd;
+      try{
+        await sbPatch('wedstrijden', w.id, { tijdstip:nw });
+        const lw=W.find(x=>x.id===w.id); if(lw) lw.tijdstip=nw;
+        gelukt++;
+        try{
+          await sbPost('wijziging_log',{ wedstrijd_id:w.id, thuis:w.thuis, uit:w.uit, divisie:w.divisie||null, actie:'verzet',
+            oude_datum:d, nieuwe_datum:d, oude_tijdstip:oud, nieuwe_tijdstip:nw,
+            gewijzigd_door:`${door} (avondplanner)`, notitie:'Ander tijdslot (zelfde avond) – avondplanner', mail_verstuurd:false });
+        }catch(e){ console.error('Kon verschuiving niet loggen:',e); }
+      }catch(e){ fouten++; console.error(e); }
+    }
+    toast(`✓ ${gelukt} verschoven${fouten?` · ${fouten} mislukt`:''}`, fouten?'rood':'groen');
+  }catch(e){ toast(`Fout: ${e.message}`,'rood'); }
+  PL.bezig=false; delete PL.cache[d];
+  await laadData(true);
 }
 
 // ══════════════════════════════════════════
@@ -441,6 +632,7 @@ function render(){
   if(S.view==='nnb')   el.innerHTML = `<div class="wrap">${fout}${htmlNNB()}</div>`;
   if(S.view==='beker') el.innerHTML = `<div class="wrap">${htmlBeker()}</div>`;
   if(S.view==='stand') { el.innerHTML = `<div class="wrap">${htmlStand()}</div>`; laadStand(); }
+  if(S.view==='plan')  { el.innerHTML = `<div class="wrap">${fout}${htmlPlan()}</div>`; centreerDatum('#planDatums'); }
   if(S.view==='avond') centreerDatum('#avondDatums');
 }
 
