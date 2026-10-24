@@ -146,6 +146,19 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 .chip.beker{background:rgba(245,158,11,.18);color:#fcd34d;} .chip.inhaal{background:rgba(239,68,68,.16);color:#fca5a5;}
 .chip.nnb{background:rgba(6,182,212,.16);color:#67e8f9;} .chip.rood{background:rgba(239,68,68,.2);color:#fecaca;}
 .chip.groen{background:rgba(16,185,129,.18);color:#6ee7b7;}
+.chip.oranje{background:rgba(245,158,11,.18);color:#fcd34d;}
+/* ── RUILEN ── */
+.ruil-knop{width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1.5px solid var(--blue);background:rgba(59,130,246,.10);color:var(--text);font-weight:800;font-size:.92rem;}
+.ruil-lijst{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.ruil-rij{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border-top:1px solid var(--border);border-left:4px solid var(--green);}
+.ruil-rij:first-child{border-top:none;}
+.ruil-rij.krap{border-left-color:var(--orange);}
+.ruil-rij.rood{border-left-color:var(--red);}
+.ruil-rij:active{background:var(--s2);}
+.ruil-rij .t{font-weight:800;min-width:46px;font-variant-numeric:tabular-nums;}
+.ruil-rij .w{flex:1;min-width:0;font-size:.9rem;font-weight:600;line-height:1.3;}
+.ruil-rij .w .chips{margin-top:4px;}
+.ruil-rij.uit{opacity:.45;pointer-events:none;border-left-color:var(--border);}
 .card-go{font-size:1.4rem;color:var(--muted);flex-shrink:0;}
 
 /* zoeken */
@@ -837,6 +850,110 @@ function sheetWaarschuwingen(m){
   return w;
 }
 
+// ══════════════════════════════════════════
+//  RUILEN — twee wedstrijden op dezelfde avond wisselen van tijdstip (zoals sleep-wissel in index.html)
+//  Geen mail: binnen één avond zien spelers het in de app en agenda.
+// ══════════════════════════════════════════
+const kanRuilen = m => !m.datum_nnb && !!m.datum && !!m.tijdstip && m.status!=='gespeeld' && m.bord==null;
+
+// Hoe valt de rust uit als a en b van tijd ruilen? niveau: ok/krap/zelfde (voor de 4 betrokken spelers),
+// plus het totaal aantal knelpunten op de avond voor en na.
+function ruilEffect(a, b){
+  const AP=ap();
+  const ms=W.filter(w=>w.datum===a.datum && !w.datum_nnb && AP.slotIndex(w.tijdstip)>=0).map(w=>({...w}));
+  const ia=ms.findIndex(w=>w.id===a.id), ib=ms.findIndex(w=>w.id===b.id);
+  const voorS=ms.map(w=>AP.slotIndex(w.tijdstip));
+  const naS=voorS.slice();
+  const kanTel = ia>=0 && ib>=0;
+  if(kanTel){ naS[ia]=voorS[ib]; naS[ib]=voorS[ia]; }
+  const tot=sl=>{ const t=AP.telKnelpunten(AP.knelpunten(ms,sl)); return t.zelfde+t.direct+t.eenErtussen; };
+  // Rustniveau op basis van minuten, zodat ook afwijkende tijden (bv. beker) meetellen
+  const niveauVoor=(wed, nieuweTijd, ander, anderTijd)=>{
+    const andere=W.filter(w=>w.id!==wed.id && w.datum===wed.datum && !w.datum_nnb && w.tijdstip && deelSpeler(w,wed))
+      .map(w=>naarMin(w.id===ander.id ? anderTijd : w.tijdstip)).filter(x=>x!==null);
+    return AP.rustNiveau(naarMin(nieuweTijd), andere);
+  };
+  const n1=niveauVoor(a, b.tijdstip, b, a.tijdstip), n2=niveauVoor(b, a.tijdstip, a, b.tijdstip);
+  const rang={ok:0,krap:1,zelfde:2};
+  const niveau = rang[n1]>=rang[n2] ? n1 : n2;
+  return { niveau, voor: kanTel?tot(voorS):null, na: kanTel?tot(naS):null };
+}
+
+function renderRuil(m, nu){
+  const el=$('#sheet');
+  const kandidaten=W.filter(w=>w.id!==m.id && w.datum===m.datum && !w.datum_nnb && w.tijdstip)
+    .sort((x,y)=>x.tijdstip.localeCompare(y.tijdstip) || x.thuis.localeCompare(y.thuis));
+  const effecten=new Map(kandidaten.filter(w=>kanRuilen(w) && w.tijdstip!==m.tijdstip).map(w=>[w.id, ruilEffect(m,w)]));
+  const huidig = effecten.size ? [...effecten.values()][0].voor : null;
+  const rijHtml = w=>{
+    const e=effecten.get(w.id);
+    const reden = w.status==='gespeeld' ? 'gespeeld' : w.bord!=null ? `op bord ${w.bord}` : w.tijdstip===m.tijdstip ? 'zelfde tijd' : '';
+    if(!e) return `<div class="ruil-rij uit"><span class="t">${esc(w.tijdstip)}</span><div class="w">${esc(w.thuis)} – ${esc(w.uit)}<div class="chips"><span class="chip">${esc(reden)}</span></div></div></div>`;
+    const cls = e.niveau==='zelfde' ? 'rood' : e.niveau==='krap' ? 'krap' : '';
+    const label = e.niveau==='zelfde' ? '<span class="chip rood">dubbel</span>' : e.niveau==='krap' ? '<span class="chip oranje">krap</span>' : '<span class="chip groen">rust ok</span>';
+    const delta = (e.voor!==null && e.na!==e.voor) ? `<span class="chip ${e.na<e.voor?'groen':'rood'}">knelpunten ${e.voor} → ${e.na}</span>` : '';
+    return `<button class="ruil-rij ${cls}" onclick="ruilMet(${jsAttr(w.id)})"><span class="t">${esc(w.tijdstip)}</span>
+      <div class="w">${esc(w.thuis)} – ${esc(w.uit)}<div class="chips">${label}${delta}${divChip(w)}${w.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}</div></div></button>`;
+  };
+  const rijen = kandidaten.map(rijHtml).join('');
+  // Beste opties: ruilen waarbij iedereen genoeg rust houdt, minste knelpunten op de avond eerst
+  const beste = kandidaten.filter(w=>effecten.get(w.id)?.niveau==='ok')
+    .sort((x,y)=>(effecten.get(x.id).na??0)-(effecten.get(y.id).na??0) || x.tijdstip.localeCompare(y.tijdstip)).slice(0,3);
+  const leiderOpts = '<option value="">— kies —</option>' + leiders.map(l=>`<option ${l.naam===sheet.door?'selected':''}>${esc(l.naam)}</option>`).join('');
+  el.innerHTML = `
+    <div class="sheet-kop">
+      <div style="flex:1;min-width:0;">
+        <div class="names"><span class="n">${esc(m.thuis)}</span><span class="n"><span class="vs">vs</span>${esc(m.uit)}</span></div>
+        <div class="chips">${divChip(m)}${m.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}</div>
+        <div class="nu">${nu}</div>
+      </div>
+      <button class="icon-btn" onclick="sluitSheet()" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="sheet-body">
+      <button class="link-btn" onclick="sheet.ruil=false;renderSheet()">← Terug naar verzetten</button>
+      <div class="sec-title" style="margin-top:6px">Ruilen met · ${esc(fmtKort(m.datum))}</div>
+      <div class="pl-uitleg" style="margin:0 2px 10px">Tik op een wedstrijd: die krijgt <b>${esc(m.tijdstip)}</b> en deze wedstrijd zijn tijd. Groen = iedereen houdt genoeg rust, oranje = krap, rood = iemand staat dan dubbel.${huidig?` Nu ${huidig} knelpunt${huidig>1?'en':''} op deze avond.`:''} Spelers krijgen geen mail.</div>
+      ${beste.length ? `<div class="sec-title">Beste opties</div><div class="ruil-lijst">${beste.map(rijHtml).join('')}</div><div class="sec-title">Alle wedstrijden</div>` : (kandidaten.length ? '<div class="warn" style="margin:0 0 10px"><div>Geen ruil waarbij iedereen genoeg rust houdt.</div></div>' : '')}
+      <div class="ruil-lijst">${rijen || '<div class="leeg">Geen andere wedstrijden op deze avond.</div>'}</div>
+      <div class="veld" style="margin-top:14px"><label>Gewijzigd door</label><select class="inp" onchange="sheet.door=this.value;lsSet('wl_door',this.value)">${leiderOpts}</select></div>
+    </div>`;
+}
+
+async function ruilMet(id2){
+  if(!sheet || sheet.bezig) return;
+  const a=W.find(w=>w.id===sheet.id), b=W.find(w=>w.id===id2);
+  if(!a || !b) return;
+  if(!sheet.door){ toast('Kies onderaan wie de wijziging doet','rood'); return; }
+  const e=ruilEffect(a,b);
+  const waarsch = e.niveau==='zelfde' ? '\n\n⚠ Daarna staat een speler dubbel in één tijdslot.' : e.niveau==='krap' ? '\n\n⚠ Daarna heeft een speler krappe rust.' : '';
+  if(!confirm(`Tijden ruilen op ${fmtKort(a.datum)}?\n\n${a.thuis} – ${a.uit}: ${a.tijdstip} → ${b.tijdstip}\n${b.thuis} – ${b.uit}: ${b.tijdstip} → ${a.tijdstip}${waarsch}\n\nSpelers krijgen geen mail.`)) return;
+  sheet.bezig=true;
+  const t1=a.tijdstip, t2=b.tijdstip, door=sheet.door;
+  try{
+    const vers=await sbGet('wedstrijden',`id=in.(${encodeURIComponent(a.id)},${encodeURIComponent(b.id)})&select=id,datum,tijdstip,status,bord,datum_nnb`);
+    const va=vers.find(x=>x.id===a.id), vb=vers.find(x=>x.id===b.id);
+    if(!va || !vb || va.tijdstip!==t1 || vb.tijdstip!==t2 || va.datum!==vb.datum || va.datum_nnb || vb.datum_nnb
+       || va.status==='gespeeld' || vb.status==='gespeeld' || va.bord!=null || vb.bord!=null){
+      sheet.bezig=false; toast('Een van beide wedstrijden is intussen gewijzigd. Probeer opnieuw.','rood'); await laadData(true); return;
+    }
+    await sbPatch('wedstrijden', a.id, { tijdstip:t2 });
+    await sbPatch('wedstrijden', b.id, { tijdstip:t1 });
+    a.tijdstip=t2; b.tijdstip=t1;
+    sluitSheet(); render();
+    toast(`⇄ Geruild: ${a.thuis} – ${a.uit} nu ${t2}`,'groen');
+    try{
+      await sbPost('wijziging_log',{ wedstrijd_id:a.id, thuis:a.thuis, uit:a.uit, divisie:a.divisie||null, actie:'tijd_wissel',
+        oude_tijdstip:t1, nieuwe_tijdstip:t2, gewijzigd_door:`${door} (WL-app wissel)`, mail_verstuurd:false });
+      await sbPost('wijziging_log',{ wedstrijd_id:b.id, thuis:b.thuis, uit:b.uit, divisie:b.divisie||null, actie:'tijd_wissel',
+        oude_tijdstip:t2, nieuwe_tijdstip:t1, gewijzigd_door:`${door} (WL-app wissel)`, mail_verstuurd:false });
+    }catch(err){ console.error('Kon wissel niet loggen:',err); }
+    laadData(true);
+  }catch(err){
+    if(sheet) sheet.bezig=false;
+    toast(`Fout: ${err.message}`,'rood');
+  }
+}
+
 function ruimteHtml(m){
   if(!sheet.datum || sheet.nnb || sheet.handmatig) return '';
   if(sheet.rekenen) return `<div class="ruimte">🧩 Avond herschikken…</div>`;
@@ -860,6 +977,7 @@ function renderSheet(){
   if(!m){ el.innerHTML=`<div class="sheet-body"><div class="leeg" style="margin-top:16px">Deze wedstrijd bestaat niet meer.</div></div>`; return; }
 
   const nu = m.datum_nnb ? 'Nu: datum nog niet bekend (NNB)' : `Nu: ${esc(fmtLang(m.datum))}${m.tijdstip?' · '+esc(m.tijdstip):''}`;
+  if(sheet.ruil){ renderRuil(m, nu); return; }
   const v=vandaag();
   const extraDatum = sheet.datum && !avonden().includes(sheet.datum);
 
@@ -924,6 +1042,7 @@ function renderSheet(){
     <div class="sheet-body">
       ${bkKnop}
       ${orig}
+      ${kanRuilen(m) ? `<button class="ruil-knop" onclick="sheet.ruil=true;renderSheet()">⇄ Tijd ruilen met een andere wedstrijd op ${esc(fmtKort(m.datum))}</button>` : ''}
       <div class="sec-title">Nieuwe datum</div>
       ${datumChips('sheetDatums', sheet.nnb?'':sheet.datum, 'sheetKiesDatum', m.id, true)}
       <div class="pill-rij">
