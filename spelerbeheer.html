@@ -455,6 +455,22 @@
   let allPlayers = [];
   let allContacts = {};
 
+  // Contactgegevens (e-mail/telefoon) staan achter slot: alleen via de functie contact-beheer,
+  // met het beheerwachtwoord. Het wachtwoord blijft alleen in deze browser-sessie bewaard.
+  const CONTACT_API = `${SUPABASE_URL}/functions/v1/contact-beheer`;
+  function beheerWw() { try { return sessionStorage.getItem('spelerbeheer_ww') || ''; } catch (e) { return ''; } }
+  async function contactApi(actie, extra = {}, ww = beheerWw()) {
+    const res = await fetch(CONTACT_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY, 'x-beheer-wachtwoord': ww },
+      body: JSON.stringify({ actie, ...extra })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) { const e = new Error('Onjuist wachtwoord'); e.status = 401; throw e; }
+    if (!res.ok) throw new Error(data.error || ('Fout ' + res.status));
+    return data;
+  }
+
   async function tryLogin() {
     const input = document.getElementById('password-input').value;
     const errEl = document.getElementById('login-error');
@@ -462,22 +478,21 @@
 
     if (!input) return;
 
-    const { data: ok, error } = await supabaseClient
-      .rpc('controleer_beheer_wachtwoord', { invoer: input });
-
-    if (error || ok === null) {
-      errEl.textContent = 'Kon niet inloggen, probeer opnieuw.';
+    let ok = false;
+    try {
+      await contactApi('controle', {}, input);
+      ok = true;
+    } catch (e) {
+      errEl.textContent = e.status === 401 ? 'Onjuist wachtwoord.' : 'Kon niet inloggen, probeer opnieuw.';
       return;
     }
 
     if (ok === true) {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
-      sessionStorage.setItem('spelerbeheer_ok', '1');
+      try { sessionStorage.setItem('spelerbeheer_ww', input); sessionStorage.removeItem('spelerbeheer_ok'); } catch (e) {}
       loadPlayers();
       loadSwapNamenlijst();
-    } else {
-      errEl.textContent = 'Onjuist wachtwoord.';
     }
   }
 
@@ -486,7 +501,7 @@
   });
 
   // Blijf ingelogd binnen deze browser-sessie
-  if (sessionStorage.getItem('spelerbeheer_ok') === '1') {
+  if (beheerWw()) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadPlayers();
@@ -514,13 +529,19 @@
       return;
     }
 
-    const { data: contacts, error: cErr } = await supabaseClient
-      .from('spelers_contact')
-      .select('*');
-
     allContacts = {};
-    if (!cErr && contacts) {
-      contacts.forEach(c => { allContacts[c.speler_id] = c; });
+    try {
+      const { contacten } = await contactApi('lijst');
+      (contacten || []).forEach(c => { allContacts[c.speler_id] = c; });
+    } catch (e) {
+      if (e.status === 401) {
+        try { sessionStorage.removeItem('spelerbeheer_ww'); } catch (x) {}
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('login-screen').style.display = '';
+        document.getElementById('login-error').textContent = 'Log opnieuw in.';
+        return;
+      }
+      showStatus('Contactgegevens konden niet geladen worden: ' + e.message, false);
     }
 
     allPlayers = spelers || [];
@@ -692,11 +713,9 @@
       return;
     }
 
-    const { error: contactErr } = await supabaseClient
-      .from('spelers_contact')
-      .upsert({ speler_id: id, email, telefoon }, { onConflict: 'speler_id' });
-
-    if (contactErr) {
+    try {
+      await contactApi('opslaan', { speler_id: id, email, telefoon });
+    } catch (contactErr) {
       showStatus('Fout bij opslaan contactgegevens: ' + contactErr.message, false);
       return;
     }
@@ -729,9 +748,11 @@
     }
 
     if (email || telefoon) {
-      await supabaseClient
-        .from('spelers_contact')
-        .insert({ speler_id: inserted.id, email, telefoon });
+      try {
+        await contactApi('opslaan', { speler_id: inserted.id, email, telefoon });
+      } catch (e) {
+        showStatus('Speler toegevoegd, maar contactgegevens niet opgeslagen: ' + e.message, false);
+      }
     }
 
     document.getElementById('new-naam').value = '';
@@ -748,16 +769,7 @@
       return;
     }
 
-    const { error: contactErr } = await supabaseClient
-      .from('spelers_contact')
-      .delete()
-      .eq('speler_id', id);
-
-    if (contactErr) {
-      showStatus('Fout bij verwijderen contactgegevens: ' + contactErr.message, false);
-      return;
-    }
-
+    // Contactgegevens verdwijnen automatisch mee met de speler (ON DELETE CASCADE).
     const { error: spelerErr } = await supabaseClient
       .from('spelers')
       .delete()
