@@ -3101,7 +3101,7 @@ async function h2hLaad(){
     try{
       const [rij, snap, sp, vorig] = await Promise.all([
         sbGet('wedstrijden','select=datum,tijdstip,thuis,uit,legs_thuis,legs_uit,divisie&status=eq.gespeeld&legs_thuis=not.is.null&legs_uit=not.is.null&order=datum.asc,tijdstip.asc.nullslast'),
-        sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
+        sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,s180,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
         sbGet('spelers','select=naam,divisie'),
         sbGet('historie_stats','select=seizoen,speler,gem&order=seizoen.desc').catch(()=>[]),
       ]);
@@ -3143,7 +3143,7 @@ function h2hBody(D, hist, m){
   const zelfde = D.div[A] && D.div[A]===D.div[B];
   const nr = v => v==null || v==='' ? null : Number(v);
   const st = n => { const s=D.st[n]||{gw:0,vl:0,lv:0,lt:0,vorm:[]}, x=D.snapVan[n]||{};
-    return { ...s, plek:D.plek[n]??null, gem:nr(x.gem), t100:nr(x.t100), t140:nr(x.t140), fin:nr(x.hoogste_finish), bl:nr(x.beste_leg), n:nr(x.wedstrijden), vj:D.vj[n]??null }; };
+    return { ...s, plek:D.plek[n]??null, gem:nr(x.gem), t100:nr(x.t100), t140:nr(x.t140), s180:nr(x.s180), fin:nr(x.hoogste_finish), bl:nr(x.beste_leg), n:nr(x.wedstrijden), vj:D.vj[n]??null }; };
   const a=st(A), b=st(B);
   const beter=(x,y,laag)=>x==null||y==null||x===y?null:((laag?x<y:x>y)?'l':'r');
   const per=(s,k)=>s[k]!=null&&s.n?s[k]/s.n:null;
@@ -3158,6 +3158,7 @@ function h2hBody(D, hist, m){
   if (a.vj!=null || b.vj!=null) r += `<div class="h2h-rij" style="color:var(--muted);font-size:0.8rem;"><div>${f(a.vj,2)}</div><div class="lb">Gem. vorig seizoen</div><div>${f(b.vj,2)}</div></div>`;
   r += rij(f(a.t100),'100+',f(b.t100),zelfde?beter(per(a,'t100'),per(b,'t100')):null);
   r += rij(f(a.t140),'140+',f(b.t140),zelfde?beter(per(a,'t140'),per(b,'t140')):null);
+  r += rij(f(a.s180),'180\'s',f(b.s180),zelfde?beter(per(a,'s180'),per(b,'s180')):null);
   r += rij(f(a.fin),'Hoogste finish',f(b.fin),beter(a.fin,b.fin));
   r += rij(f(a.bl),'Beste leg (darts)',f(b.bl),beter(a.bl,b.bl,true));
   r += `<div class="h2h-rij">${bol(a.vorm)}<div class="lb">Vorm (laatste 5)</div>${bol(b.vorm)}</div>`;

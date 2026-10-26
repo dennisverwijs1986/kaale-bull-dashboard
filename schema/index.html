@@ -1310,7 +1310,7 @@ async function h2hData(){
     try{
       const [rijen, snap, sp, pst, vorig] = await Promise.all([
         sbGet('wedstrijden','select=id,datum,tijdstip,thuis,uit,legs_thuis,legs_uit,divisie,uitslag,status&status=eq.gespeeld&order=datum.asc,tijdstip.asc.nullslast,id.asc'),
-        sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
+        sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,s180,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
         sbGet('spelers','select=naam,divisie'),
         sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
         sbGet('historie_stats','select=seizoen,speler,gem&order=seizoen.desc').catch(()=>[]),
@@ -1356,7 +1356,7 @@ function h2hStats(D, naam){
   });
   const s = D.snapVan[naam] || {};
   return { naam, div:D.div[naam]||null, plek:D.plek[naam] ?? null, gw, vl, lv, lt, vorm:vorm.slice(-5),
-    gem:nr(s.gem), t100:nr(s.t100), t140:nr(s.t140), finish:nr(s.hoogste_finish), bl:nr(s.beste_leg), n:nr(s.wedstrijden),
+    gem:nr(s.gem), t100:nr(s.t100), t140:nr(s.t140), s180:nr(s.s180), finish:nr(s.hoogste_finish), bl:nr(s.beste_leg), n:nr(s.wedstrijden),
     vj: D.vj ? (D.vj[naam] ?? null) : null };
 }
 
@@ -1394,6 +1394,7 @@ function h2hBody(D, hist, w, A, B){
     rijen += `<div class="h2h-rij vj"><div>${komma(a.vj,2)}</div><div class="lb">Gem. vorig seizoen</div><div>${komma(b.vj,2)}</div></div>`;
   rijen += h2hRij(komma(a.t100), '100+ scores', komma(b.t100), zelfde ? beter(per(a,'t100'),per(b,'t100')) : null);
   rijen += h2hRij(komma(a.t140), '140+ scores', komma(b.t140), zelfde ? beter(per(a,'t140'),per(b,'t140')) : null);
+  rijen += h2hRij(komma(a.s180), '180\'s', komma(b.s180), zelfde ? beter(per(a,'s180'),per(b,'s180')) : null);
   rijen += h2hRij(komma(a.finish), 'Hoogste finish', komma(b.finish), beter(a.finish,b.finish));
   rijen += h2hRij(komma(a.bl), 'Beste leg (darts)', komma(b.bl), beter(a.bl,b.bl,true));
   rijen += `<div class="h2h-rij">${h2hBol(a.vorm)}<div class="lb">Vorm (laatste 5)</div>${h2hBol(b.vorm)}</div>`;
