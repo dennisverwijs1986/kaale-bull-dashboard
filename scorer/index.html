@@ -194,6 +194,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 
 <!-- START -->
 <section id="setup" class="view" hidden>
+  <button class="btn" id="terugWacht2" style="align-self:flex-start">← Terug</button>
   <div>
     <div class="brand">Kaale <span>Bull</span> Scorer</div>
     <div class="tag" id="setupTag">Testmodus · uitslag telt nog niet mee</div>
@@ -589,7 +590,7 @@ $('zelfKiezen').onclick=async()=>{
 $('mList').onclick=e=>{const b=e.target.closest('button');if(!b)return;clearInterval(pollT);prepare(window._lijst[+b.dataset.i])};
 $('vrij').onclick=()=>{clearInterval(pollT);prepare(null)};
 $('anderBord').onclick=()=>{clearInterval(pollT);show('bordkeuze')};
-$('terugWacht').onclick=()=>wacht();
+$('terugWacht').onclick=$('terugWacht2').onclick=()=>wacht();
 
 function legsUit(divisie){const m=/Bo(\d+)/i.exec(divisie||'');return m?(+m[1]+1)/2:3}
 function prepare(w){
@@ -629,11 +630,17 @@ $('bordBadge').onclick=()=>{
   const mod=$('mod');
   mod.innerHTML=`<h2>Bord wijzigen</h2><p>Hangt deze iPad nu bij een ander bord? De lopende wedstrijd gaat mee.</p>
     <div class="darts">${[1,2,3,4].map(n=>`<button data-b="${n}" ${n===bord?'disabled':''}>${n}<small>bord</small></button>`).join('')}</div>
+    <button class="btn" data-x="stop" style="color:#ffb3a8">Wedstrijd afbreken</button>
     <button class="btn" data-x="cancel">Annuleren</button>`;
   mod.querySelector('.darts').style.gridTemplateColumns='repeat(4,1fr)';
   $('ov').hidden=false;
   mod.onclick=async e=>{
-    const b=e.target.closest('button');if(!b||b.disabled)return;closeOv();
+    const b=e.target.closest('button');if(!b||b.disabled)return;
+    if(b.dataset.x==='stop'){
+      if(b.dataset.zeker){closeOv();afbreken();return}
+      b.dataset.zeker='1';b.textContent='Zeker weten? Tik nog een keer';return;
+    }
+    closeOv();
     if(b.dataset.x)return;
     const oud=bord;bord=+b.dataset.b;ls.set('kb_bord',{bord,dag:dag()});
     if(st)st.bord=bord;
@@ -641,6 +648,12 @@ $('bordBadge').onclick=()=>{
     render();
   };
 };
+
+async function afbreken(){
+  if(st&&st.wedstrijd_id){const k=ls.get('kb_klaar',[]);k.push(st.wedstrijd_id);ls.set('kb_klaar',k.slice(-50))}
+  try{await rpc('scorer_live_bij',{p_code:code,p_bord:bord,p_wedstrijd:null,p_staat:null,p_apparaat:apparaat})}catch(_){}
+  wacht();
+}
 
 /* ---- uitslag opslaan (met wachtrij als de wifi wegvalt) ---- */
 function partij(){
