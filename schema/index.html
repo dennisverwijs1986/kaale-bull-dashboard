@@ -670,11 +670,16 @@ function renderAlles(){
     return;
   }
   const vd=vandaag();
-  // Op een speelavond: vandaag. Daarna, tot de volgende speelavond: de laatst gespeelde avond (uitslagen).
+  // Op een speelavond: vandaag. Daarna t/m zondag de laatst gespeelde avond (uitslagen),
+  // vanaf maandag (4 dagen na de speelavond) de volgende speelavond.
   if (!S.gekozenAvond || !avonden.includes(S.gekozenAvond)){
     const verleden = avonden.filter(d=>d<vd);
+    const laatste = verleden.length ? verleden[verleden.length-1] : null;
+    const volgende = avonden.find(d=>d>vd);
+    const dagenSinds = laatste ? Math.round((alsDatum(vd) - alsDatum(laatste)) / 86400000) : null;
     S.gekozenAvond = avonden.includes(vd) ? vd
-      : (verleden.length ? verleden[verleden.length-1] : (avonden.find(d=>d>vd) || avonden[avonden.length-1]));
+      : (laatste && (dagenSinds <= 3 || !volgende)) ? laatste
+      : (volgende || avonden[avonden.length-1]);
   }
 
   const chips = avonden.map(d=>{
