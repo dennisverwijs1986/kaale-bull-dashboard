@@ -381,7 +381,7 @@ function closeOv(){$('ov').hidden=true;$('mod').onclick=null}
 
 function finishLeg(p){
   st.legs[p]++;
-  st.done.push({winner:p,turns:st.leg,starter:st.legStarter});
+  st.done.push({winner:p,turns:st.leg,starter:st.legStarter});st.leg=[];
   if(st.legs[p]===st.legsToWin){st.over=true;showEnd();return}
   st.legStarter=1-st.legStarter;st.turn=st.legStarter;
   st.rem=[st.start,st.start];st.leg=[];buf='';render();
