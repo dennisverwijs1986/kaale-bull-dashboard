@@ -437,6 +437,8 @@ function divLabel(w){
   if (k==='eerste') return 'Eerste Divisie';
   return w.divisie || 'Wedstrijd';
 }
+// Speelronde als label (alleen competitie; de beker heeft geen speelronde)
+function rondeHtml(w){ const r=parseInt(w.speelronde,10); return isNaN(r) || divKey(w)==='beker' ? '' : `<span class="chip alg">Ronde ${r}</span>`; }
 function isBye(w){ return (w.thuis||'').toLowerCase()===BYE || (w.uit||'').toLowerCase()===BYE || !w.thuis || !w.uit; }
 
 // Planning wordt pas zichtbaar na het kantelmoment (instelling planning_kantel_dag, standaard 24):
@@ -491,7 +493,7 @@ async function laad(){
     const I = Object.fromEntries(inst.map(r=>[r.sleutel, r.waarde]));
     S.kantel = parseInt(I.planning_kantel_dag,10) || 24;
     const tot = zichtbaarTot(S.kantel);
-    const velden='select=id,datum,tijdstip,divisie,thuis,uit,status,is_inhaal,originele_datum,bord,datum_nnb,uitslag,legs_thuis,legs_uit,verslag_url';
+    const velden='select=id,datum,tijdstip,divisie,thuis,uit,status,is_inhaal,originele_datum,bord,datum_nnb,uitslag,legs_thuis,legs_uit,verslag_url,speelronde';
     const [rijen, nnb, bekerRij] = await Promise.all([
       sbGet('wedstrijden', `${velden}&datum=lte.${tot}&order=datum.asc,tijdstip.asc.nullslast,id.asc`),
       sbGet('wedstrijden', `${velden}&datum_nnb=eq.true&status=neq.gespeeld&order=id.asc`),
@@ -625,7 +627,7 @@ function kaartHtml(w, opties={}){
     ${tijd}
     <div class="k-midden">
       <div class="k-namen">${namenHtml(w)}</div>
-      <div class="k-info"><span class="chip ${k}">${esc(divLabel(w))}</span>${inhaal}</div>
+      <div class="k-info"><span class="chip ${k}">${esc(divLabel(w))}</span>${rondeHtml(w)}${inhaal}</div>
     </div>
     <div class="k-rechts">${opties.nnb ? '<span class="nnb-label">NNB</span>' : rechtsHtml(w)}</div>
   </div>`;
@@ -1364,7 +1366,7 @@ function h2hKop(w, A, B){
   const nm = n => { const [v,...r]=String(n).split(' '); return `<div class="nm${n===S.ik?' ik':''}">${esc(v)}<small>${esc(r.join(' '))}</small></div>`; };
   const [la,lb] = legsVan(w,A);
   const midden = w.status==='gespeeld' && la!==null ? `<div class="x score">${la} – ${lb}</div>` : `<div class="x">VS</div>`;
-  return `<div class="h2h-meta"><span>${esc(wanneer)}</span><span class="chip ${k}">${esc(divLabel(w))}</span>${inhaal}</div>
+  return `<div class="h2h-meta"><span>${esc(wanneer)}</span><span class="chip ${k}">${esc(divLabel(w))}</span>${rondeHtml(w)}${inhaal}</div>
     <div class="h2h-vs">${nm(A)}${midden}${nm(B)}</div>`;
 }
 
