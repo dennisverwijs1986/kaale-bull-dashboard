@@ -3099,11 +3099,13 @@ async function h2hLaad(){
   if (H2HD.data && Date.now()-H2HD.t < 120000) return H2HD.data;
   if (!H2HD.laden) H2HD.laden = (async()=>{
     try{
-      const [rij, snap, sp] = await Promise.all([
+      const [rij, snap, sp, vorig] = await Promise.all([
         sbGet('wedstrijden','select=datum,tijdstip,thuis,uit,legs_thuis,legs_uit,divisie&status=eq.gespeeld&legs_thuis=not.is.null&legs_uit=not.is.null&order=datum.asc,tijdstip.asc.nullslast'),
         sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
         sbGet('spelers','select=naam,divisie'),
+        sbGet('historie_stats','select=seizoen,speler,gem&order=seizoen.desc').catch(()=>[]),
       ]);
+      const vj={}; vorig.forEach(r=>{ if (!(r.speler in vj)) vj[r.speler]=r.gem==null?null:Number(r.gem); });
       const div={}; sp.forEach(r=>{ if (r.divisie) div[r.naam]=r.divisie; });
       const snapVan={}; snap.forEach(r=>{ if (!snapVan[r.speler]) snapVan[r.speler]=r; });
       const st={}, legs={};
@@ -3122,7 +3124,7 @@ async function h2hLaad(){
         const l=Object.entries(legs).filter(([n])=>div[n]===d).sort((a,b)=>(b[1].lv-a[1].lv)||((b[1].lv-b[1].lt)-(a[1].lv-a[1].lt)));
         l.forEach(([n,x],i)=>{ const v=l[i-1]; plek[n] = v && v[1].lv===x.lv && (v[1].lv-v[1].lt)===(x.lv-x.lt) ? plek[v[0]] : i+1; });
       });
-      H2HD.data={ rij, div, snapVan, st, plek, peil: snap.length ? snap[0].peildatum : null }; H2HD.t=Date.now();
+      H2HD.data={ rij, div, snapVan, st, plek, vj, peil: snap.length ? snap[0].peildatum : null }; H2HD.t=Date.now();
     } finally { H2HD.laden=null; }
   })();
   await H2HD.laden;
@@ -3141,7 +3143,7 @@ function h2hBody(D, hist, m){
   const zelfde = D.div[A] && D.div[A]===D.div[B];
   const nr = v => v==null || v==='' ? null : Number(v);
   const st = n => { const s=D.st[n]||{gw:0,vl:0,lv:0,lt:0,vorm:[]}, x=D.snapVan[n]||{};
-    return { ...s, plek:D.plek[n]??null, gem:nr(x.gem), t100:nr(x.t100), t140:nr(x.t140), fin:nr(x.hoogste_finish), bl:nr(x.beste_leg), n:nr(x.wedstrijden) }; };
+    return { ...s, plek:D.plek[n]??null, gem:nr(x.gem), t100:nr(x.t100), t140:nr(x.t140), fin:nr(x.hoogste_finish), bl:nr(x.beste_leg), n:nr(x.wedstrijden), vj:D.vj[n]??null }; };
   const a=st(A), b=st(B);
   const beter=(x,y,laag)=>x==null||y==null||x===y?null:((laag?x<y:x>y)?'l':'r');
   const per=(s,k)=>s[k]!=null&&s.n?s[k]/s.n:null;
@@ -3153,6 +3155,7 @@ function h2hBody(D, hist, m){
   r += rij(`${a.gw} – ${a.vl}`,'Gewonnen – verloren',`${b.gw} – ${b.vl}`,beter(a.gw-a.vl,b.gw-b.vl));
   r += rij(`${a.lv} – ${a.lt}`,'Legs voor – tegen',`${b.lv} – ${b.lt}`,beter(a.lv-a.lt,b.lv-b.lt));
   r += rij(f(a.gem,2),'Gemiddelde',f(b.gem,2),zelfde?beter(a.gem,b.gem):null);
+  if (a.vj!=null || b.vj!=null) r += `<div class="h2h-rij" style="color:var(--muted);font-size:0.8rem;"><div>${f(a.vj,2)}</div><div class="lb">Gem. vorig seizoen</div><div>${f(b.vj,2)}</div></div>`;
   r += rij(f(a.t100),'100+',f(b.t100),zelfde?beter(per(a,'t100'),per(b,'t100')):null);
   r += rij(f(a.t140),'140+',f(b.t140),zelfde?beter(per(a,'t140'),per(b,'t140')):null);
   r += rij(f(a.fin),'Hoogste finish',f(b.fin),beter(a.fin,b.fin));

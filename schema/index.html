@@ -322,6 +322,7 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .h2h-rij.namen{font-size:.75rem;font-weight:800;color:var(--muted);padding:7px 6px;}
 .h2h-rij .lb{font-size:.7rem;color:var(--muted);line-height:1.2;}
 .h2h-rij .best{color:#93c5fd;font-weight:800;}
+.h2h-rij.vj{color:var(--muted);font-size:.85rem;padding-top:6px;padding-bottom:6px;}
 .h2h-vorm{display:flex;justify-content:center;gap:3px;}
 .h2h-vorm i{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:.58rem;}
 .h2h-vorm i.w{background:rgba(16,185,129,.25);color:#6ee7b7;}
@@ -1307,11 +1308,12 @@ async function h2hData(){
   if (H.data && Date.now()-H.t < 120000) return H.data;
   if (!H.laden) H.laden = (async()=>{
     try{
-      const [rijen, snap, sp, pst] = await Promise.all([
+      const [rijen, snap, sp, pst, vorig] = await Promise.all([
         sbGet('wedstrijden','select=id,datum,tijdstip,thuis,uit,legs_thuis,legs_uit,divisie,uitslag,status&status=eq.gespeeld&order=datum.asc,tijdstip.asc.nullslast,id.asc'),
         sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
         sbGet('spelers','select=naam,divisie'),
         sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
+        sbGet('historie_stats','select=seizoen,speler,gem&order=seizoen.desc').catch(()=>[]),
       ]);
       // Bekeruitslagen staan soms alleen in het bekertoernooi (zelfde aanvulling als in laad())
       rijen.forEach(w=>{
@@ -1327,7 +1329,9 @@ async function h2hData(){
       const plek={};
       berekenEre(rijen.filter(w=>divKey(w)==='ere')).forEach(r=>{ plek[r.speler]=r.pos; });
       berekenEind(pst).forEach(r=>{ plek[r.speler]=r.pos; });
-      H.data = { echt: rijen.filter(w=>!isBye(w) && winnaarVan(w)), snapVan, div, plek, peil: snap.length ? snap[0].peildatum : null };
+      // Gemiddelde van het vorige seizoen (meest recente seizoen in historie_stats)
+      const vj={}; vorig.forEach(r=>{ if (!(r.speler in vj)) vj[r.speler]=nr(r.gem); });
+      H.data = { echt: rijen.filter(w=>!isBye(w) && winnaarVan(w)), snapVan, div, plek, vj, peil: snap.length ? snap[0].peildatum : null };
       H.t = Date.now();
     } finally { H.laden=null; }
   })();
@@ -1352,7 +1356,8 @@ function h2hStats(D, naam){
   });
   const s = D.snapVan[naam] || {};
   return { naam, div:D.div[naam]||null, plek:D.plek[naam] ?? null, gw, vl, lv, lt, vorm:vorm.slice(-5),
-    gem:nr(s.gem), t100:nr(s.t100), t140:nr(s.t140), finish:nr(s.hoogste_finish), bl:nr(s.beste_leg), n:nr(s.wedstrijden) };
+    gem:nr(s.gem), t100:nr(s.t100), t140:nr(s.t140), finish:nr(s.hoogste_finish), bl:nr(s.beste_leg), n:nr(s.wedstrijden),
+    vj: D.vj ? (D.vj[naam] ?? null) : null };
 }
 
 const beter = (a,b,laagIsBeter) => a===null || b===null || a===b ? null : ((laagIsBeter ? a<b : a>b) ? 'l' : 'r');
@@ -1385,6 +1390,8 @@ function h2hBody(D, hist, w, A, B){
   rijen += h2hRij(`${a.gw} – ${a.vl}`, 'Gewonnen – verloren', `${b.gw} – ${b.vl}`, beter(a.gw-a.vl, b.gw-b.vl));
   rijen += h2hRij(`${a.lv} – ${a.lt}`, 'Legs voor – tegen', `${b.lv} – ${b.lt}`, beter(a.lv-a.lt, b.lv-b.lt));
   rijen += h2hRij(komma(a.gem,2), 'Gemiddelde', komma(b.gem,2), zelfde ? beter(a.gem,b.gem) : null);
+  if (a.vj!==null || b.vj!==null)
+    rijen += `<div class="h2h-rij vj"><div>${komma(a.vj,2)}</div><div class="lb">Gem. vorig seizoen</div><div>${komma(b.vj,2)}</div></div>`;
   rijen += h2hRij(komma(a.t100), '100+ scores', komma(b.t100), zelfde ? beter(per(a,'t100'),per(b,'t100')) : null);
   rijen += h2hRij(komma(a.t140), '140+ scores', komma(b.t140), zelfde ? beter(per(a,'t140'),per(b,'t140')) : null);
   rijen += h2hRij(komma(a.finish), 'Hoogste finish', komma(b.finish), beter(a.finish,b.finish));
