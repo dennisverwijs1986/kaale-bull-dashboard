@@ -903,6 +903,16 @@ const sbDelete = async (t,id)      => { const r=await fetch(`${SB_URL}/rest/v1/$
 
 // Escaped invoegen van tekst uit de database in innerHTML — voorkomt dat een
 // speler- of teamnaam met HTML/JS erin als script wordt uitgevoerd.
+// Naam splitsen in voornaam(en) en achternaam: de achternaam begint bij het eerste tussenvoegsel
+// ('Jan Willem van Vark' -> 'Jan Willem' + 'van Vark'); zonder tussenvoegsel is het laatste woord de achternaam.
+const TUSSENVOEGSELS = new Set(['van','de','der','den','ter','ten','te','het',"'t",'vd','v.d.','la','le','du','da','di']);
+function naamDelen(n){
+  const d = String(n||'').trim().split(/\s+/);
+  if (d.length < 2) return [d.join(' '), ''];
+  let i = d.findIndex((w,k)=>k>0 && TUSSENVOEGSELS.has(w.toLowerCase()));
+  if (i < 0) i = d.length - 1;
+  return [d.slice(0,i).join(' '), d.slice(i).join(' ')];
+}
 function escapeHtml(str){
   if (str === null || str === undefined) return '';
   return String(str).replace(/[&<>"']/g, c => ({
@@ -1881,7 +1891,7 @@ function renderZoekResultaat(naam) {
       <span class="zk-tijd">${!m.datum_nnb && !isBeker && m.tijdstip ? escapeHtml(m.tijdstip) : '—'}</span>
       <div class="zk-info">
         <div class="zk-namen">${markeer(m.thuis)} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${markeer(m.uit)}</div>
-        <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}${(rustInfo.perWedstrijd.get(m.id)||[]).map(c=>{const a=c.a.id===m.id?c.b:c.a;return `<span class="rust-chip">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(a.tijdstip||'')}</span>`;}).join('')}${(rustInfo.reeksPerWedstrijd.get(m.id)||[]).map(r=>`<span class="rust-chip">⚠ ${escapeHtml(r.speler.split(' ')[0])} ${r.aantal}x op rij</span>`).join('')}</div>
+        <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}${(rustInfo.perWedstrijd.get(m.id)||[]).map(c=>{const a=c.a.id===m.id?c.b:c.a;return `<span class="rust-chip">⚠ ${escapeHtml(naamDelen(c.speler)[0])} ook om ${escapeHtml(a.tijdstip||'')}</span>`;}).join('')}${(rustInfo.reeksPerWedstrijd.get(m.id)||[]).map(r=>`<span class="rust-chip">⚠ ${escapeHtml(naamDelen(r.speler)[0])} ${r.aantal}x op rij</span>`).join('')}</div>
       </div>
       <button class="btn btn-ghost btn-xs" onclick="openH2H('${m.id}')" title="Head-to-head">⚔️</button>
       <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>`;
@@ -2174,8 +2184,8 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
         ${m.speelronde?`<span class="sr-label">SR ${m.speelronde}</span>`:''}
         ${origDatumBadge}
         ${isBlocked?'<span class="bezig-label" style="color:var(--red);font-size:0.65rem;">⛔ speler bezig</span>':''}
-        ${rustC.map(c => { const ander = c.a.id === m.id ? c.b : c.a; return `<span class="rust-chip" title="${escapeHtml(c.speler)} heeft ook ${escapeHtml(ander.thuis)} – ${escapeHtml(ander.uit)} om ${escapeHtml(ander.tijdstip||'')}">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(ander.tijdstip||'')}</span>`; }).join('')}
-        ${reeksC.map(r => `<span class="rust-chip" title="${escapeHtml(r.speler)} speelt ${r.aantal} wedstrijden in aaneengesloten tijdsloten (${escapeHtml(r.van||'')}–${escapeHtml(r.tot||'')})">⚠ ${escapeHtml(r.speler.split(' ')[0])} ${r.aantal}x op rij</span>`).join('')}
+        ${rustC.map(c => { const ander = c.a.id === m.id ? c.b : c.a; return `<span class="rust-chip" title="${escapeHtml(c.speler)} heeft ook ${escapeHtml(ander.thuis)} – ${escapeHtml(ander.uit)} om ${escapeHtml(ander.tijdstip||'')}">⚠ ${escapeHtml(naamDelen(c.speler)[0])} ook om ${escapeHtml(ander.tijdstip||'')}</span>`; }).join('')}
+        ${reeksC.map(r => `<span class="rust-chip" title="${escapeHtml(r.speler)} speelt ${r.aantal} wedstrijden in aaneengesloten tijdsloten (${escapeHtml(r.van||'')}–${escapeHtml(r.tot||'')})">⚠ ${escapeHtml(naamDelen(r.speler)[0])} ${r.aantal}x op rij</span>`).join('')}
       </div>
     </div>
     ${infoIcoon}
@@ -3139,7 +3149,7 @@ async function h2hHistorie(a,b){
   H2HD.hist[k]=r; return r;
 }
 function h2hBody(D, hist, m){
-  const A=m.thuis, B=m.uit, vn=n=>String(n||'').split(' ')[0];
+  const A=m.thuis, B=m.uit, vn=n=>naamDelen(n)[0];
   const zelfde = D.div[A] && D.div[A]===D.div[B];
   const nr = v => v==null || v==='' ? null : Number(v);
   const st = n => { const s=D.st[n]||{gw:0,vl:0,lv:0,lt:0,vorm:[]}, x=D.snapVan[n]||{};
@@ -3189,7 +3199,7 @@ function h2hBody(D, hist, m){
 async function openH2H(id){
   const m = wedstrijden.find(w=>String(w.id)===String(id)); if (!m) return;
   const el = document.getElementById('h2hInhoud');
-  const nm = n => { const [v,...r]=String(n).split(' '); return `<div class="nm">${escapeHtml(v)}<small>${escapeHtml(r.join(' '))}</small></div>`; };
+  const nm = n => { const [v,r]=naamDelen(n); return `<div class="nm">${escapeHtml(v)}<small>${escapeHtml(r)}</small></div>`; };
   const kop = `<div class="h2h-meta">${getDivChip(m)}${m.speelronde?`<span class="sr-label">SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.tijdstip?`<span>🕒 ${escapeHtml(m.tijdstip)}</span>`:''}</div>
     <div class="h2h-vs">${nm(m.thuis)}<div class="x">VS</div>${nm(m.uit)}</div>`;
   el.innerHTML = kop + '<div style="color:var(--muted);font-size:0.85rem;padding:14px 0;text-align:center;">Laden…</div>';

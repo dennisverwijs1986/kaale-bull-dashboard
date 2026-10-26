@@ -1298,7 +1298,17 @@ window.addEventListener('popstate',()=>sluitScorebord(true));
 const H = { data:null, t:0, laden:null, hist:{}, open:null };
 const h2hEl = document.getElementById('h2h'), h2hInhoud = document.getElementById('h2hInhoud');
 const isLiga = w => { const k=divKey(w); return k==='ere' || k==='eerste'; };
-const voorn = n => String(n||'').split(' ')[0];
+// Naam splitsen in voornaam(en) en achternaam: de achternaam begint bij het eerste tussenvoegsel
+// ('Jan Willem van Vark' -> 'Jan Willem' + 'van Vark'); zonder tussenvoegsel is het laatste woord de achternaam.
+const TUSSENVOEGSELS = new Set(['van','de','der','den','ter','ten','te','het',"'t",'vd','v.d.','la','le','du','da','di']);
+function naamDelen(n){
+  const d = String(n||'').trim().split(/\s+/);
+  if (d.length < 2) return [d.join(' '), ''];
+  let i = d.findIndex((w,k)=>k>0 && TUSSENVOEGSELS.has(w.toLowerCase()));
+  if (i < 0) i = d.length - 1;
+  return [d.slice(0,i).join(' '), d.slice(i).join(' ')];
+}
+const voorn = n => naamDelen(n)[0];
 const nr = v => v===null || v===undefined || v==='' || isNaN(Number(v)) ? null : Number(v);
 const komma = (v,d=0) => v===null ? '–' : Number(v).toFixed(d).replace('.',',');
 const legsVan = (w,naam) => w.legs_thuis==null || w.legs_uit==null ? [null,null]
@@ -1373,7 +1383,7 @@ function h2hKop(w, A, B){
   const k=divKey(w);
   const inhaal = w.is_inhaal && w.originele_datum && w.originele_datum!==w.datum ? '<span class="chip inhaal">Inhaal</span>' : '';
   const wanneer = w.datum_nnb ? 'Datum nog niet bekend' : `${fmtLang.format(alsDatum(w.datum))}${w.tijdstip ? ' · '+w.tijdstip : ''}`;
-  const nm = n => { const [v,...r]=String(n).split(' '); return `<div class="nm${n===S.ik?' ik':''}">${esc(v)}<small>${esc(r.join(' '))}</small></div>`; };
+  const nm = n => { const [v,r]=naamDelen(n); return `<div class="nm${n===S.ik?' ik':''}">${esc(v)}<small>${esc(r)}</small></div>`; };
   const [la,lb] = legsVan(w,A);
   const midden = w.status==='gespeeld' && la!==null ? `<div class="x score">${la} – ${lb}</div>` : `<div class="x">VS</div>`;
   return `<div class="h2h-meta"><span>${esc(wanneer)}</span><span class="chip ${k}">${esc(divLabel(w))}</span>${rondeHtml(w)}${inhaal}</div>

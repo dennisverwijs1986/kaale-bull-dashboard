@@ -632,6 +632,16 @@ async function laadBordInfo(){
 //  stonden toen de tv opstartte, krijgen geen head-to-head meer.
 //  Cijfers: zelfde bronnen als de mail en de spelers-app.
 // ══════════════════════════════════════════
+// Naam splitsen in voornaam(en) en achternaam: de achternaam begint bij het eerste tussenvoegsel
+// ('Jan Willem van Vark' -> 'Jan Willem' + 'van Vark'); zonder tussenvoegsel is het laatste woord de achternaam.
+const TUSSENVOEGSELS = new Set(['van','de','der','den','ter','ten','te','het',"'t",'vd','v.d.','la','le','du','da','di']);
+function naamDelen(n){
+  const d = String(n||'').trim().split(/\s+/);
+  if (d.length < 2) return [d.join(' '), ''];
+  let i = d.findIndex((w,k)=>k>0 && TUSSENVOEGSELS.has(w.toLowerCase()));
+  if (i < 0) i = d.length - 1;
+  return [d.slice(0,i).join(' '), d.slice(i).join(' ')];
+}
 const H2H_DUUR_MS = 180000;
 const H2H = { data:null, t:0, laden:null, hist:{}, start:{}, init:false, bordGeladen:false };
 try{ H2H.start = JSON.parse(localStorage.getItem('kb_tv_h2h') || '{}') || {}; }catch(e){ H2H.start = {}; }
@@ -683,7 +693,7 @@ async function h2hHist(a,b){
 }
 
 function h2hTvHtml(m, D, hist, restMs){
-  const A=m.thuis, B=m.uit, vn=n=>String(n||'').split(' ')[0];
+  const A=m.thuis, B=m.uit, vn=n=>naamDelen(n)[0];
   const zelfde = D.div[A] && D.div[A]===D.div[B];
   const s = n => D.st[n] || {gw:0,vl:0,vorm:[]};
   const a=s(A), b=s(B);
@@ -694,7 +704,7 @@ function h2hTvHtml(m, D, hist, restMs){
   const bWV   = beter(a.gw-a.vl, b.gw-b.vl);
   const cel = (w,l,best) => `<span><b class="${best?'best':''}">${escapeHtml(w)}</b>${l}</span>`;
   const kant = (n, x, kant) => {
-    const [v,...r] = String(n).split(' ');
+    const [v,rest] = naamDelen(n); const r=[rest];
     const k = kant==='l';
     const cijfers = (zelfde ? cel(D.plek[n] ? D.plek[n]+'e' : '–','plek', bPlek===kant) : '')
       + cel(komma(D.gem[n]),'gem.', bGem===kant) + cel(`${x.gw}-${x.vl}`,'W-V', bWV===kant);
