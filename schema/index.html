@@ -293,6 +293,46 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .installeer .tekst{flex:1;}
 .installeer .ja{background:var(--eerste);border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;}
 .installeer .nee{background:none;border:0;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:4px;}
+/* ── HEAD-TO-HEAD (tik op een wedstrijd) ── */
+.kaart[data-h2h]{cursor:pointer;}
+.kaart[data-h2h]:active{filter:brightness(1.18);}
+.h2h-hint{font-size:.8rem;color:var(--muted);margin:0 0 10px;}
+.h2h{position:fixed;inset:0;z-index:45;display:flex;align-items:flex-end;justify-content:center;}
+.h2h-achter{position:absolute;inset:0;background:rgba(0,0,0,.6);}
+.h2h-paneel{position:relative;width:100%;max-width:640px;max-height:88vh;overflow-y:auto;overscroll-behavior:contain;
+  background:var(--bg);border:1px solid var(--border);border-bottom:0;border-radius:16px 16px 0 0;
+  padding:6px 16px calc(18px + env(safe-area-inset-bottom));animation:h2hOmhoog .2s ease-out;}
+@keyframes h2hOmhoog{from{transform:translateY(32px);opacity:.5;}to{transform:none;opacity:1;}}
+@media (prefers-reduced-motion:reduce){.h2h-paneel{animation:none;}}
+.h2h-greep{width:40px;height:4px;border-radius:2px;background:var(--border);margin:4px auto 6px;}
+.h2h-kop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.h2h-kop b{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.h2h-sluit{border:0;background:var(--s2);border-radius:8px;width:36px;height:36px;font-size:1rem;cursor:pointer;}
+.h2h-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.8rem;color:var(--muted);margin-bottom:12px;}
+.h2h-vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:center;margin-bottom:12px;}
+.h2h-vs .nm{font-weight:800;font-size:1.08rem;line-height:1.2;overflow-wrap:anywhere;}
+.h2h-vs .nm small{display:block;font-weight:500;font-size:.75rem;color:var(--muted);}
+.h2h-vs .nm.ik{color:#93c5fd;}
+.h2h-vs .x{font-weight:800;color:var(--eerste);font-size:.9rem;}
+.h2h-vs .x.score{color:var(--text);font-size:1.2rem;font-variant-numeric:tabular-nums;}
+.h2h-tabel{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.h2h-rij{display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:center;padding:9px 6px;border-top:1px solid rgba(42,58,86,.6);
+  text-align:center;font-variant-numeric:tabular-nums;font-size:.95rem;}
+.h2h-rij:first-child{border-top:0;}
+.h2h-rij.namen{font-size:.75rem;font-weight:800;color:var(--muted);padding:7px 6px;}
+.h2h-rij .lb{font-size:.7rem;color:var(--muted);line-height:1.2;}
+.h2h-rij .best{color:#93c5fd;font-weight:800;}
+.h2h-vorm{display:flex;justify-content:center;gap:3px;}
+.h2h-vorm i{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:.58rem;}
+.h2h-vorm i.w{background:rgba(16,185,129,.25);color:#6ee7b7;}
+.h2h-vorm i.v{background:rgba(239,68,68,.2);color:#fca5a5;}
+.h2h-blok{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.88rem;}
+.h2h-blok b{display:block;margin-bottom:3px;}
+.h2h-blok div{color:var(--muted);padding:2px 0;}
+.h2h-tipblok{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:#bfdbfe;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.88rem;}
+.h2h-sub{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:14px 0 4px;}
+table.stand td.w{color:#6ee7b7;font-weight:700;}
+table.stand td.v{color:#fca5a5;font-weight:700;}
 [hidden]{display:none !important;}
 </style>
 </head>
@@ -340,6 +380,15 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
   </div>
   <div class="sb-vak" id="sbVak"><iframe id="sbFrame" title="Live scorebord" allow="fullscreen"></iframe><div class="sb-melding" id="sbMelding" hidden></div></div>
   <div class="sb-tip">Draai je telefoon voor een groter scorebord</div>
+</div>
+
+<div class="h2h" id="h2h" hidden>
+  <div class="h2h-achter" data-h2h-sluit></div>
+  <div class="h2h-paneel" role="dialog" aria-modal="true" aria-label="Head-to-head">
+    <div class="h2h-greep"></div>
+    <div class="h2h-kop"><b>⚔️ Head-to-head</b><button class="h2h-sluit" data-h2h-sluit aria-label="Sluiten">✕</button></div>
+    <div id="h2hInhoud"></div>
+  </div>
 </div>
 
 <div class="installeer" id="installeer" hidden>
@@ -570,9 +619,9 @@ function kaartHtml(w, opties={}){
   else if (w.bord) cls.push('opbord');
   if (S.ik && (w.thuis===S.ik || w.uit===S.ik)) cls.push('mijn');
   if (opties.volgende) cls.push('volgende-kaart');
-  const inhaal = w.is_inhaal ? `<span class="chip inhaal">Inhaal</span>` : '';
+  const inhaal = w.is_inhaal && w.originele_datum!==w.datum ? `<span class="chip inhaal">Inhaal</span>` : '';
   const tijd = opties.metTijd ? `<div class="tijd-groot">${esc(w.tijdstip||'--:--')}</div>` : '';
-  return `<div class="${cls.join(' ')}">
+  return `<div class="${cls.join(' ')}"${isBye(w) ? '' : ` data-h2h="${esc(w.id)}"`}>
     ${tijd}
     <div class="k-midden">
       <div class="k-namen">${namenHtml(w)}</div>
@@ -696,6 +745,8 @@ function renderMijn(){
       </div>`;
     }
     html += agendaHtml();
+    if (mijn.length && lezen('kb_schema_h2h_gezien')!=='1')
+      html += `<div class="h2h-hint">👆 Tik op een wedstrijd voor de head-to-head met je tegenstander</div>`;
     const perDag={};
     mijn.forEach(w=>{ (perDag[w.datum]=perDag[w.datum]||[]).push(w); });
     Object.keys(perDag).forEach(d=>{
@@ -850,7 +901,7 @@ async function laadLive(){
   if (liveBezig) return; liveBezig=true;
   try{
     const [rows, inst] = await Promise.all([
-      sbGet('wedstrijden','select=id,bord,thuis,uit,divisie,datum,is_inhaal&status=neq.gespeeld&bord=not.is.null&order=datum.desc,id.desc'),
+      sbGet('wedstrijden','select=id,bord,thuis,uit,divisie,datum,is_inhaal,originele_datum&status=neq.gespeeld&bord=not.is.null&order=datum.desc,id.desc'),
       sbGet('instellingen','select=sleutel,waarde&or=(sleutel.like.dartconnect_bord_*,sleutel.like.bord_schrijver_*)')
     ]);
     const borden={1:null,2:null,3:null,4:null}, codes={1:'',2:'',3:'',4:''}, schr={1:'',2:'',3:'',4:''};
@@ -884,7 +935,7 @@ function renderLive(){
       const k=divKey(w);
       status = `<span class="bk-status live">Live</span>`;
       inhoud = `<div class="bk-namen">${namenHtml(w)}</div>
-        <div class="bk-meta"><span class="chip ${k}">${esc(divLabel(w))}</span>${w.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}${schr?`<span>✍️ ${esc(schr)}</span>`:''}</div>
+        <div class="bk-meta"><span class="chip ${k}">${esc(divLabel(w))}</span>${w.is_inhaal && w.originele_datum!==w.datum?'<span class="chip inhaal">Inhaal</span>':''}${schr?`<span>✍️ ${esc(schr)}</span>`:''}</div>
         ${kanKijken ? '<div class="bk-actie">Tik voor de live stand ›</div>' : ''}`;
     } else if (kanKijken){
       status = `<span class="bk-status live">Live</span>`;
@@ -1230,6 +1281,203 @@ function sluitScorebord(viaTerug){
 }
 document.getElementById('sbTerug').addEventListener('click',()=>sluitScorebord(false));
 window.addEventListener('popstate',()=>sluitScorebord(true));
+
+// ══════════════════════════════════════════
+//  HEAD-TO-HEAD — tik op een wedstrijd. Zelfde cijfers als in de wedstrijdmail:
+//  uitslagen dit seizoen (wedstrijden), laatste DartConnect-upload (stats_snapshots),
+//  vorige seizoenen (historie_wedstrijden). Plek = zoals bij Standen.
+// ══════════════════════════════════════════
+const H = { data:null, t:0, laden:null, hist:{}, open:null };
+const h2hEl = document.getElementById('h2h'), h2hInhoud = document.getElementById('h2hInhoud');
+const isLiga = w => { const k=divKey(w); return k==='ere' || k==='eerste'; };
+const voorn = n => String(n||'').split(' ')[0];
+const nr = v => v===null || v===undefined || v==='' || isNaN(Number(v)) ? null : Number(v);
+const komma = (v,d=0) => v===null ? '–' : Number(v).toFixed(d).replace('.',',');
+const legsVan = (w,naam) => w.legs_thuis==null || w.legs_uit==null ? [null,null]
+  : (w.thuis===naam ? [w.legs_thuis,w.legs_uit] : [w.legs_uit,w.legs_thuis]);
+
+async function h2hData(){
+  if (H.data && Date.now()-H.t < 120000) return H.data;
+  if (!H.laden) H.laden = (async()=>{
+    try{
+      const [rijen, snap, sp, pst] = await Promise.all([
+        sbGet('wedstrijden','select=id,datum,tijdstip,thuis,uit,legs_thuis,legs_uit,divisie,uitslag,status&status=eq.gespeeld&order=datum.asc,tijdstip.asc.nullslast,id.asc'),
+        sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
+        sbGet('spelers','select=naam,divisie'),
+        sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
+      ]);
+      // Bekeruitslagen staan soms alleen in het bekertoernooi (zelfde aanvulling als in laad())
+      rijen.forEach(w=>{
+        const m = S.bekerUitslag && S.bekerUitslag[w.id]; if (!m) return;
+        if ((w.legs_thuis==null || w.legs_uit==null) && m.scoreA!=null && m.scoreB!=null){
+          if (m.a===w.thuis){ w.legs_thuis=m.scoreA; w.legs_uit=m.scoreB; }
+          else if (m.b===w.thuis){ w.legs_thuis=m.scoreB; w.legs_uit=m.scoreA; }
+        }
+        if (!w.uitslag) w.uitslag='Winnaar: '+m.winnaar;
+      });
+      const snapVan={}; snap.forEach(r=>{ if (!snapVan[r.speler]) snapVan[r.speler]=r; });
+      const div={}; sp.forEach(r=>{ if (r.divisie) div[r.naam]=r.divisie; });
+      const plek={};
+      berekenEre(rijen.filter(w=>divKey(w)==='ere')).forEach(r=>{ plek[r.speler]=r.pos; });
+      berekenEind(pst).forEach(r=>{ plek[r.speler]=r.pos; });
+      H.data = { echt: rijen.filter(w=>!isBye(w) && winnaarVan(w)), snapVan, div, plek, peil: snap.length ? snap[0].peildatum : null };
+      H.t = Date.now();
+    } finally { H.laden=null; }
+  })();
+  await H.laden;
+  return H.data;
+}
+
+async function h2hHist(a,b){
+  const k=[a,b].sort().join('|');
+  if (H.hist[k]) return H.hist[k];
+  const q = v => `"${String(v).replace(/["\\]/g,'')}"`;
+  const or = `(and(thuis.eq.${q(a)},uit.eq.${q(b)}),and(thuis.eq.${q(b)},uit.eq.${q(a)}))`;
+  const r = await sbGet('historie_wedstrijden', `select=seizoen,datum,thuis,uit,legs_thuis,legs_uit,winnaar&walkover=eq.false&or=${encodeURIComponent(or)}&order=datum.asc.nullsfirst`).catch(()=>[]);
+  H.hist[k]=r; return r;
+}
+
+function h2hStats(D, naam){
+  let gw=0, vl=0, lv=0, lt=0; const vorm=[];
+  D.echt.filter(w=>isLiga(w) && (w.thuis===naam || w.uit===naam)).forEach(w=>{
+    const won = winnaarVan(w)===naam; if (won) gw++; else vl++; vorm.push(won?'w':'v');
+    const [v,t]=legsVan(w,naam); if (v!==null){ lv+=v; lt+=t; }
+  });
+  const s = D.snapVan[naam] || {};
+  return { naam, div:D.div[naam]||null, plek:D.plek[naam] ?? null, gw, vl, lv, lt, vorm:vorm.slice(-5),
+    gem:nr(s.gem), t100:nr(s.t100), t140:nr(s.t140), finish:nr(s.hoogste_finish), bl:nr(s.beste_leg), n:nr(s.wedstrijden) };
+}
+
+const beter = (a,b,laagIsBeter) => a===null || b===null || a===b ? null : ((laagIsBeter ? a<b : a>b) ? 'l' : 'r');
+function h2hRij(l, label, r, best){
+  return `<div class="h2h-rij"><div class="${best==='l'?'best':''}">${l}</div><div class="lb">${esc(label)}</div><div class="${best==='r'?'best':''}">${r}</div></div>`;
+}
+function h2hBol(v){
+  return `<div class="h2h-vorm">${v.length ? v.map(x=>`<i class="${x}">${x==='w'?'W':'V'}</i>`).join('') : '<span style="color:var(--dim)">–</span>'}</div>`;
+}
+const wieNaam = n => n===S.ik ? 'Jij' : voorn(n);
+
+function h2hKop(w, A, B){
+  const k=divKey(w);
+  const inhaal = w.is_inhaal && w.originele_datum && w.originele_datum!==w.datum ? '<span class="chip inhaal">Inhaal</span>' : '';
+  const wanneer = w.datum_nnb ? 'Datum nog niet bekend' : `${fmtLang.format(alsDatum(w.datum))}${w.tijdstip ? ' · '+w.tijdstip : ''}`;
+  const nm = n => { const [v,...r]=String(n).split(' '); return `<div class="nm${n===S.ik?' ik':''}">${esc(v)}<small>${esc(r.join(' '))}</small></div>`; };
+  const [la,lb] = legsVan(w,A);
+  const midden = w.status==='gespeeld' && la!==null ? `<div class="x score">${la} – ${lb}</div>` : `<div class="x">VS</div>`;
+  return `<div class="h2h-meta"><span>${esc(wanneer)}</span><span class="chip ${k}">${esc(divLabel(w))}</span>${inhaal}</div>
+    <div class="h2h-vs">${nm(A)}${midden}${nm(B)}</div>`;
+}
+
+function h2hBody(D, hist, w, A, B){
+  const a=h2hStats(D,A), b=h2hStats(D,B);
+  const zelfde = !!a.div && a.div===b.div;
+  const per = (s,k) => s[k]!==null && s.n ? s[k]/s.n : null;
+  const plek = s => s.plek ? s.plek+'e' : '–';
+  let rijen = `<div class="h2h-rij namen"><div>${esc(wieNaam(A))}</div><div></div><div>${esc(wieNaam(B))}</div></div>`;
+  if (zelfde) rijen += h2hRij(plek(a), 'Plek ranglijst', plek(b), beter(a.plek,b.plek,true));
+  rijen += h2hRij(`${a.gw} – ${a.vl}`, 'Gewonnen – verloren', `${b.gw} – ${b.vl}`, beter(a.gw-a.vl, b.gw-b.vl));
+  rijen += h2hRij(`${a.lv} – ${a.lt}`, 'Legs voor – tegen', `${b.lv} – ${b.lt}`, beter(a.lv-a.lt, b.lv-b.lt));
+  rijen += h2hRij(komma(a.gem,2), 'Gemiddelde', komma(b.gem,2), zelfde ? beter(a.gem,b.gem) : null);
+  rijen += h2hRij(komma(a.t100), '100+ scores', komma(b.t100), zelfde ? beter(per(a,'t100'),per(b,'t100')) : null);
+  rijen += h2hRij(komma(a.t140), '140+ scores', komma(b.t140), zelfde ? beter(per(a,'t140'),per(b,'t140')) : null);
+  rijen += h2hRij(komma(a.finish), 'Hoogste finish', komma(b.finish), beter(a.finish,b.finish));
+  rijen += h2hRij(komma(a.bl), 'Beste leg (darts)', komma(b.bl), beter(a.bl,b.bl,true));
+  rijen += `<div class="h2h-rij">${h2hBol(a.vorm)}<div class="lb">Vorm (laatste 5)</div>${h2hBol(b.vorm)}</div>`;
+  let html = `<div class="h2h-tabel">${rijen}</div>`;
+
+  // ── Onderling: vorige seizoenen + dit seizoen (ook beker) ──
+  const oud = hist.map(x=>{ const [la,lb]=legsVan(x,A); return { label:`Seizoen ${x.seizoen}`, datum:x.datum, win:x.winnaar, la, lb }; });
+  const nu = D.echt.filter(x=>(x.thuis===A && x.uit===B) || (x.thuis===B && x.uit===A))
+    .map(x=>{ const [la,lb]=legsVan(x,A); return { label:`Dit seizoen${divKey(x)==='beker'?' (beker)':''}`, datum:x.datum, win:winnaarVan(x), la, lb }; });
+  const alle=[...oud, ...nu];
+  const ikSpeelt = A===S.ik || B===S.ik;
+  let kop;
+  if (!alle.length) kop = ikSpeelt ? '🆕 Jullie eerste onderlinge duel' : '🆕 Eerste onderlinge duel';
+  else if (alle.length===1) kop = 'Onderling';
+  else {
+    const wa=alle.filter(x=>x.win===A).length, wb=alle.length-wa;
+    const naar = n => n===S.ik ? 'jou' : voorn(n);
+    kop = wa===wb ? `Onderling: ${wa}-${wb}, gelijk op` : `Onderling: ${Math.max(wa,wb)}-${Math.min(wa,wb)} voor ${naar(wa>wb?A:B)}`;
+  }
+  const regel = x => {
+    const wie = x.win===S.ik ? 'Jij won' : `${voorn(x.win)} won`;
+    const sc = x.la===null ? '' : ` ${Math.max(x.la,x.lb)}-${Math.min(x.la,x.lb)}`;
+    return `<div>${esc(x.label)}${x.datum ? ' · '+esc(fmtDag.format(alsDatum(x.datum))) : ''}: ${esc(wie+sc)}</div>`;
+  };
+  html += `<div class="h2h-blok"><b>${esc(kop)}</b>${alle.map(regel).join('')}</div>`;
+
+  // ── Opvallend (alleen voor een wedstrijd die nog gespeeld moet worden) ──
+  if (w.status!=='gespeeld'){
+    const wins = s => s.vorm.filter(x=>x==='w').length;
+    const laatste = alle.length ? alle[alle.length-1].win : null;
+    let tip='';
+    for (const s of [b,a]) if (!tip && s.gw>=3 && s.vl===0) tip = `🔥 ${wieNaam(s.naam)} ${s.naam===S.ik?'bent':'is'} nog ongeslagen: ${s.gw} uit ${s.gw}`;
+    if (!tip && laatste){ const verl = laatste===A ? B : A; tip = `💥 Revanche voor ${verl===S.ik?'jou':voorn(verl)}: de vorige keer won ${laatste===S.ik?'jij':voorn(laatste)}`; }
+    for (const s of [a,b]) if (!tip && s.vorm.length===5 && wins(s)>=4) tip = `💪 ${wieNaam(s.naam)} zit in vorm: ${wins(s)} van de laatste 5 gewonnen`;
+    if (tip) html += `<div class="h2h-tipblok">${esc(tip)}</div>`;
+  }
+
+  // ── Zelfde tegenstanders (laatste uitslag per tegenstander, max. 5) ──
+  const laatstePer = naam => {
+    const m={};
+    D.echt.forEach(x=>{
+      if (!isLiga(x) || (x.thuis!==naam && x.uit!==naam)) return;
+      const t = x.thuis===naam ? x.uit : x.thuis;
+      if (t===A || t===B) return;
+      m[t] = { x, won: winnaarVan(x)===naam, legs: legsVan(x,naam) };
+    });
+    return m;
+  };
+  const ma=laatstePer(A), mb=laatstePer(B);
+  const gz = Object.keys(ma).filter(t=>mb[t])
+    .sort((p,q)=>{ const d=t=>[ma[t].x.datum, mb[t].x.datum].sort().pop(); return d(q).localeCompare(d(p)); }).slice(0,5);
+  if (gz.length>=2){
+    const cel = r => `<td class="num ${r.won?'w':'v'}">${r.legs[0]!==null ? `${r.legs[0]}-${r.legs[1]}` : (r.won?'W':'V')}</td>`;
+    html += `<div class="h2h-sub">Zelfde tegenstanders</div>
+      <table class="stand"><thead><tr><th>Tegen</th><th class="num">${esc(wieNaam(A))}</th><th class="num">${esc(wieNaam(B))}</th></tr></thead><tbody>${
+        gz.map(t=>`<tr><td>${esc(t)}</td>${cel(ma[t])}${cel(mb[t])}</tr>`).join('')}</tbody></table>`;
+  }
+
+  const noten = [];
+  if (!zelfde) noten.push('Deze spelers zitten in een andere divisie, dus de cijfers zijn niet een-op-een te vergelijken.');
+  noten.push(`Stats: DartConnect${D.peil ? ' t/m '+fmtDag.format(alsDatum(D.peil)) : ''}. Alleen competitie, beker telt niet mee. Plek zoals bij Standen. Vorm: oudste links, nieuwste rechts.`);
+  return html + `<div class="stand-noot">${noten.map(esc).join('<br>')}</div>`;
+}
+
+async function openH2H(id){
+  const w = [...S.rijen, ...S.nnb].find(x=>String(x.id)===String(id));
+  if (!w || isBye(w)) return;
+  const [A,B] = S.ik && w.uit===S.ik ? [w.uit, w.thuis] : [w.thuis, w.uit];
+  const eerder = !!H.open;
+  H.open = { w };
+  h2hEl.hidden=false; document.body.style.overflow='hidden';
+  if (!eerder){ try{ history.pushState({h2h:1}, ''); }catch(e){} }
+  if (lezen('kb_schema_h2h_gezien')!=='1'){ opslaan('kb_schema_h2h_gezien','1'); }
+  h2hInhoud.innerHTML = h2hKop(w,A,B) + `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
+  h2hEl.querySelector('.h2h-paneel').scrollTop = 0;
+  try{
+    const [D, hist] = await Promise.all([h2hData(), h2hHist(A,B)]);
+    if (!H.open || H.open.w!==w) return;
+    h2hInhoud.innerHTML = h2hKop(w,A,B) + h2hBody(D, hist, w, A, B);
+  }catch(e){
+    if (H.open && H.open.w===w) h2hInhoud.innerHTML = h2hKop(w,A,B) + `<div class="leeg"><span class="ico">📡</span>Kan de head-to-head nu niet ophalen.<br>Probeer het zo nog eens.</div>`;
+  }
+}
+function sluitH2H(viaTerug){
+  if (!H.open) return;
+  H.open=null; h2hEl.hidden=true;
+  if (!S.openBord) document.body.style.overflow='';
+  if (!viaTerug){ try{ if (history.state && history.state.h2h) history.back(); }catch(e){} }
+  if (S.view==='mijn') renderMijn();   // tip "tik op een wedstrijd" verdwijnt na de eerste keer
+}
+document.addEventListener('click', e=>{
+  if (e.target.closest('[data-h2h-sluit]')) { sluitH2H(false); return; }
+  if (e.target.closest('a,button')) return;
+  const k = e.target.closest('.kaart[data-h2h]');
+  if (k) openH2H(k.dataset.h2h);
+});
+window.addEventListener('popstate',()=>sluitH2H(true));
+document.addEventListener('keydown', e=>{ if (e.key==='Escape') sluitH2H(false); });
 
 render();
 laad();
