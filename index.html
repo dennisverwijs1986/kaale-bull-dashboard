@@ -291,6 +291,31 @@ body.compact .boards-grid{align-items:start;}
 .va-rij.nieuw{background:rgba(59,130,246,0.14);}
 .va-leeg{font-size:0.72rem;color:var(--muted);margin-bottom:12px;}
 .modal-title{font-size:1rem;font-weight:700;margin-bottom:14px;}
+/* ── HEAD-TO-HEAD (⚔️ op een wedstrijdkaart) ── */
+.modal.h2h-modal{max-width:540px;}
+.h2h-vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:center;margin:4px 0 12px;}
+.h2h-vs .nm{font-weight:800;font-size:1.05rem;line-height:1.2;}
+.h2h-vs .nm small{display:block;font-weight:500;font-size:0.72rem;color:var(--muted);}
+.h2h-vs .x{font-weight:800;color:var(--blue);font-size:0.9rem;}
+.h2h-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:0.75rem;color:var(--muted);margin-bottom:8px;}
+.h2h-tabel{border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.h2h-rij{display:grid;grid-template-columns:1fr 1.2fr 1fr;align-items:center;padding:7px 6px;border-top:1px solid var(--border);text-align:center;font-variant-numeric:tabular-nums;font-size:0.9rem;}
+.h2h-rij:first-child{border-top:none;}
+.h2h-rij .lb{font-size:0.68rem;color:var(--muted);}
+.h2h-rij .best{color:#93c5fd;font-weight:800;}
+.h2h-vorm{display:flex;justify-content:center;gap:3px;}
+.h2h-vorm i{width:17px;height:17px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:0.55rem;}
+.h2h-vorm i.w{background:rgba(16,185,129,0.25);color:#6ee7b7;}
+.h2h-vorm i.v{background:rgba(239,68,68,0.2);color:#fca5a5;}
+.h2h-blok{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-top:10px;font-size:0.82rem;}
+.h2h-blok b{display:block;margin-bottom:2px;}
+.h2h-blok div{color:var(--muted);padding:1px 0;}
+.h2h-gz{width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:4px;}
+.h2h-gz td,.h2h-gz th{padding:5px 6px;border-top:1px solid var(--border);text-align:left;}
+.h2h-gz th{font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;border-top:none;}
+.h2h-gz .num{text-align:center;font-weight:700;}
+.h2h-gz .w{color:#6ee7b7;} .h2h-gz .v{color:#fca5a5;}
+.h2h-noot{font-size:0.68rem;color:var(--muted);margin-top:10px;}
 .modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
 .score-inp{font-size:1.4rem;font-weight:700;text-align:center;background:var(--s2);border:2px solid var(--border);color:var(--text);border-radius:8px;padding:10px;width:100%;}
 .score-inp:focus{outline:none;border-color:var(--green);}
@@ -797,6 +822,13 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 </div>
 
 <!-- MODAL: verzetten -->
+<div class="overlay" id="h2hModal" onclick="if(event.target===this)sluitModal('h2hModal')">
+  <div class="modal h2h-modal">
+    <div class="modal-title">⚔️ Head-to-head</div>
+    <div id="h2hInhoud"></div>
+    <div class="modal-acts"><button class="btn btn-ghost" onclick="sluitModal('h2hModal')">Sluiten</button></div>
+  </div>
+</div>
 <div class="overlay" id="verzetModal">
   <div class="modal">
     <div class="modal-title">📅 Wedstrijd verzetten</div>
@@ -1851,6 +1883,7 @@ function renderZoekResultaat(naam) {
         <div class="zk-namen">${markeer(m.thuis)} <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">vs</span> ${markeer(m.uit)}</div>
         <div class="zk-sub">${getDivChip(m)}${m.speelronde?`<span>SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.originele_datum?`<span class="orig-datum">↩ orig: ${fmtDatum(m.originele_datum)}</span>`:''}${m.notitie?'<span>📝</span>':''}${(rustInfo.perWedstrijd.get(m.id)||[]).map(c=>{const a=c.a.id===m.id?c.b:c.a;return `<span class="rust-chip">⚠ ${escapeHtml(c.speler.split(' ')[0])} ook om ${escapeHtml(a.tijdstip||'')}</span>`;}).join('')}${(rustInfo.reeksPerWedstrijd.get(m.id)||[]).map(r=>`<span class="rust-chip">⚠ ${escapeHtml(r.speler.split(' ')[0])} ${r.aantal}x op rij</span>`).join('')}</div>
       </div>
+      <button class="btn btn-ghost btn-xs" onclick="openH2H('${m.id}')" title="Head-to-head">⚔️</button>
       <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>`;
     container.appendChild(kaart);
   });
@@ -2147,6 +2180,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
     </div>
     ${infoIcoon}
     <div class="match-acts">
+      <button class="btn btn-ghost btn-xs" onclick="openH2H('${m.id}')" title="Head-to-head">⚔️</button>
       <button class="btn btn-ghost btn-xs" onclick="openVerzetModal('${m.id}')" title="Verzetten">📅</button>
       ${isBeker?`<button class="btn btn-ghost btn-xs" onclick="verwijderBeker('${m.id}')" title="Verwijderen">🗑</button>`:''}
       <div class="bord-knoppen">${bordKnoppen}</div>
@@ -3054,6 +3088,116 @@ function getDivChip(m) {
 //  MODAL HELPERS
 // ══════════════════════════════════════════
 function sluitModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ══════════════════════════════════════════
+//  HEAD-TO-HEAD (⚔️ op een wedstrijdkaart) — zelfde cijfers als de mail, de spelers-app en de tv.
+//  Alleen lezen; raakt de planning niet.
+// ══════════════════════════════════════════
+const H2HD = { data:null, t:0, laden:null, hist:{} };
+const h2hLiga = d => d==='Eredivisie' || d==='Eerste Divisie';
+async function h2hLaad(){
+  if (H2HD.data && Date.now()-H2HD.t < 120000) return H2HD.data;
+  if (!H2HD.laden) H2HD.laden = (async()=>{
+    try{
+      const [rij, snap, sp] = await Promise.all([
+        sbGet('wedstrijden','select=datum,tijdstip,thuis,uit,legs_thuis,legs_uit,divisie&status=eq.gespeeld&legs_thuis=not.is.null&legs_uit=not.is.null&order=datum.asc,tijdstip.asc.nullslast'),
+        sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
+        sbGet('spelers','select=naam,divisie'),
+      ]);
+      const div={}; sp.forEach(r=>{ if (r.divisie) div[r.naam]=r.divisie; });
+      const snapVan={}; snap.forEach(r=>{ if (!snapVan[r.speler]) snapVan[r.speler]=r; });
+      const st={}, legs={};
+      rij.forEach(w=>{
+        if (!h2hLiga(w.divisie)) return;
+        [[w.thuis,w.legs_thuis,w.legs_uit,w.uit],[w.uit,w.legs_uit,w.legs_thuis,w.thuis]].forEach(([n,v,t,tgn])=>{
+          if (n==='Vrije Ronde') return;
+          const l=legs[n]||(legs[n]={lv:0,lt:0}); l.lv+=v; l.lt+=t;
+          if (tgn==='Vrije Ronde') return;
+          const s=st[n]||(st[n]={gw:0,vl:0,lv:0,lt:0,vorm:[]});
+          s.lv+=v; s.lt+=t; if (v>t){ s.gw++; s.vorm.push('w'); } else { s.vl++; s.vorm.push('v'); }
+        });
+      });
+      const plek={};
+      ['Eredivisie','Eerste Divisie'].forEach(d=>{
+        const l=Object.entries(legs).filter(([n])=>div[n]===d).sort((a,b)=>(b[1].lv-a[1].lv)||((b[1].lv-b[1].lt)-(a[1].lv-a[1].lt)));
+        l.forEach(([n,x],i)=>{ const v=l[i-1]; plek[n] = v && v[1].lv===x.lv && (v[1].lv-v[1].lt)===(x.lv-x.lt) ? plek[v[0]] : i+1; });
+      });
+      H2HD.data={ rij, div, snapVan, st, plek, peil: snap.length ? snap[0].peildatum : null }; H2HD.t=Date.now();
+    } finally { H2HD.laden=null; }
+  })();
+  await H2HD.laden;
+  return H2HD.data;
+}
+async function h2hHistorie(a,b){
+  const k=[a,b].sort().join('|');
+  if (H2HD.hist[k]) return H2HD.hist[k];
+  const q = v => `"${String(v).replace(/["\\]/g,'')}"`;
+  const or = `(and(thuis.eq.${q(a)},uit.eq.${q(b)}),and(thuis.eq.${q(b)},uit.eq.${q(a)}))`;
+  const r = await sbGet('historie_wedstrijden', `select=seizoen,datum,thuis,uit,legs_thuis,legs_uit,winnaar&walkover=eq.false&or=${encodeURIComponent(or)}&order=datum.asc.nullsfirst`).catch(()=>[]);
+  H2HD.hist[k]=r; return r;
+}
+function h2hBody(D, hist, m){
+  const A=m.thuis, B=m.uit, vn=n=>String(n||'').split(' ')[0];
+  const zelfde = D.div[A] && D.div[A]===D.div[B];
+  const nr = v => v==null || v==='' ? null : Number(v);
+  const st = n => { const s=D.st[n]||{gw:0,vl:0,lv:0,lt:0,vorm:[]}, x=D.snapVan[n]||{};
+    return { ...s, plek:D.plek[n]??null, gem:nr(x.gem), t100:nr(x.t100), t140:nr(x.t140), fin:nr(x.hoogste_finish), bl:nr(x.beste_leg), n:nr(x.wedstrijden) }; };
+  const a=st(A), b=st(B);
+  const beter=(x,y,laag)=>x==null||y==null||x===y?null:((laag?x<y:x>y)?'l':'r');
+  const per=(s,k)=>s[k]!=null&&s.n?s[k]/s.n:null;
+  const f=(v,d=0)=>v==null?'–':v.toFixed(d).replace('.',',');
+  const rij=(l,lb,r,best)=>`<div class="h2h-rij"><div class="${best==='l'?'best':''}">${l}</div><div class="lb">${escapeHtml(lb)}</div><div class="${best==='r'?'best':''}">${r}</div></div>`;
+  const bol=v=>`<div class="h2h-vorm">${v.length?v.slice(-5).map(x=>`<i class="${x}">${x==='w'?'W':'V'}</i>`).join(''):'–'}</div>`;
+  let r = `<div class="h2h-rij" style="font-size:0.7rem;font-weight:800;color:var(--muted)"><div>${escapeHtml(vn(A))}</div><div></div><div>${escapeHtml(vn(B))}</div></div>`;
+  if (zelfde) r += rij(a.plek?a.plek+'e':'–','Plek ranglijst',b.plek?b.plek+'e':'–',beter(a.plek,b.plek,true));
+  r += rij(`${a.gw} – ${a.vl}`,'Gewonnen – verloren',`${b.gw} – ${b.vl}`,beter(a.gw-a.vl,b.gw-b.vl));
+  r += rij(`${a.lv} – ${a.lt}`,'Legs voor – tegen',`${b.lv} – ${b.lt}`,beter(a.lv-a.lt,b.lv-b.lt));
+  r += rij(f(a.gem,2),'Gemiddelde',f(b.gem,2),zelfde?beter(a.gem,b.gem):null);
+  r += rij(f(a.t100),'100+',f(b.t100),zelfde?beter(per(a,'t100'),per(b,'t100')):null);
+  r += rij(f(a.t140),'140+',f(b.t140),zelfde?beter(per(a,'t140'),per(b,'t140')):null);
+  r += rij(f(a.fin),'Hoogste finish',f(b.fin),beter(a.fin,b.fin));
+  r += rij(f(a.bl),'Beste leg (darts)',f(b.bl),beter(a.bl,b.bl,true));
+  r += `<div class="h2h-rij">${bol(a.vorm)}<div class="lb">Vorm (laatste 5)</div>${bol(b.vorm)}</div>`;
+  let html = `<div class="h2h-tabel">${r}</div>`;
+  // Onderling: vorige seizoenen + dit seizoen (ook beker)
+  const sc = (x,y) => x==null ? '' : ` ${Math.max(x,y)}-${Math.min(x,y)}`;
+  const alle = [
+    ...hist.map(x=>({lbl:`Seizoen ${x.seizoen}`, datum:x.datum, win:x.winnaar, la:x.legs_thuis, lb:x.legs_uit})),
+    ...D.rij.filter(x=>(x.thuis===A&&x.uit===B)||(x.thuis===B&&x.uit===A)).map(x=>({lbl:`Dit seizoen${h2hLiga(x.divisie)?'':' (beker)'}`, datum:x.datum, win:x.legs_thuis>x.legs_uit?x.thuis:x.uit, la:x.legs_thuis, lb:x.legs_uit})),
+  ];
+  let kop = 'Eerste onderlinge duel';
+  if (alle.length>1){ const wa=alle.filter(x=>x.win===A).length, wb=alle.length-wa; kop = wa===wb ? `Onderling: ${wa}-${wb}, gelijk op` : `Onderling: ${Math.max(wa,wb)}-${Math.min(wa,wb)} voor ${vn(wa>wb?A:B)}`; }
+  else if (alle.length===1) kop = 'Onderling';
+  html += `<div class="h2h-blok"><b>${escapeHtml(kop)}</b>${alle.map(x=>`<div>${escapeHtml(x.lbl)}${x.datum?' · '+escapeHtml(fmtDatum(x.datum)):''}: ${escapeHtml(vn(x.win))} won${escapeHtml(sc(x.la,x.lb))}</div>`).join('')}</div>`;
+  // Zelfde tegenstanders (laatste uitslag per tegenstander, max. 5)
+  const laatste = naam => { const o={}; D.rij.forEach(x=>{ if(!h2hLiga(x.divisie)||(x.thuis!==naam&&x.uit!==naam)) return; const t=x.thuis===naam?x.uit:x.thuis; if(t===A||t===B||t==='Vrije Ronde') return;
+    o[t]={ v:x.thuis===naam?x.legs_thuis:x.legs_uit, w:x.thuis===naam?x.legs_uit:x.legs_thuis, d:x.datum }; }); return o; };
+  const la=laatste(A), lb=laatste(B);
+  const gz=Object.keys(la).filter(t=>lb[t]).sort((p,q)=>[la[q].d,lb[q].d].sort().pop().localeCompare([la[p].d,lb[p].d].sort().pop())).slice(0,5);
+  if (gz.length>=2){
+    const c=x=>`<td class="num ${x.v>x.w?'w':'v'}">${x.v}-${x.w}</td>`;
+    html += `<div class="h2h-blok"><b>Zelfde tegenstanders</b><table class="h2h-gz"><tr><th>Tegen</th><th class="num">${escapeHtml(vn(A))}</th><th class="num">${escapeHtml(vn(B))}</th></tr>${gz.map(t=>`<tr><td>${escapeHtml(t)}</td>${c(la[t])}${c(lb[t])}</tr>`).join('')}</table></div>`;
+  }
+  const noten=[]; if (!zelfde) noten.push('Andere divisies: cijfers niet een-op-een te vergelijken.');
+  noten.push(`Stats DartConnect${D.peil?' t/m '+fmtDatum(D.peil):''}. Alleen competitie; plek op gewonnen legs (vrije ronde telt mee).`);
+  return html + `<div class="h2h-noot">${noten.map(escapeHtml).join('<br>')}</div>`;
+}
+async function openH2H(id){
+  const m = wedstrijden.find(w=>String(w.id)===String(id)); if (!m) return;
+  const el = document.getElementById('h2hInhoud');
+  const nm = n => { const [v,...r]=String(n).split(' '); return `<div class="nm">${escapeHtml(v)}<small>${escapeHtml(r.join(' '))}</small></div>`; };
+  const kop = `<div class="h2h-meta">${getDivChip(m)}${m.speelronde?`<span class="sr-label">SR ${escapeHtml(String(m.speelronde))}</span>`:''}${m.tijdstip?`<span>🕒 ${escapeHtml(m.tijdstip)}</span>`:''}</div>
+    <div class="h2h-vs">${nm(m.thuis)}<div class="x">VS</div>${nm(m.uit)}</div>`;
+  el.innerHTML = kop + '<div style="color:var(--muted);font-size:0.85rem;padding:14px 0;text-align:center;">Laden…</div>';
+  document.getElementById('h2hModal').classList.add('open');
+  try{
+    const [D, hist] = await Promise.all([h2hLaad(), h2hHistorie(m.thuis, m.uit)]);
+    if (!document.getElementById('h2hModal').classList.contains('open')) return;
+    el.innerHTML = kop + h2hBody(D, hist, m);
+  }catch(e){
+    el.innerHTML = kop + '<div style="color:var(--red);font-size:0.85rem;padding:14px 0;text-align:center;">Kan de head-to-head nu niet ophalen.</div>';
+  }
+}
 
 document.addEventListener('keydown',e=>{
   // Enter disabled for winner modal (use button)
