@@ -1,0 +1,680 @@
+<title>Kaale Bull Scorer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Scorer">
+<meta name="theme-color" content="#0a1120">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: scorebord boven, beurtenlijst midden, invoerpaneel onder (iPad liggend: invoer rechts) */
+:root{
+  --bg:#0a1120; --panel:#121c31; --panel2:#1a2742; --line:#26365a;
+  --fg:#eef2fb; --muted:#8796b6; --blue:#2f7cf6; --blue-d:#1d5fd0;
+  --gold:#f5c542; --red:#d9483b; --green:#2b9a63;
+  --num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --ui:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:16px;margin:0;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overflow:hidden}
+button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.view{height:100%;box-sizing:border-box}
+
+/* ---------- start ---------- */
+#setup{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding-block:20px;overflow:auto}
+.brand{font-family:var(--num);font-weight:800;font-size:2.4rem;letter-spacing:.02em;text-transform:uppercase;text-align:center;line-height:1}
+.brand span{color:var(--blue)}
+.tag{font-size:.8rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;text-align:center;margin-top:6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;width:100%;max-width:560px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+.lbl{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--blue);border-color:var(--blue)}
+.names{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.names label{display:flex;flex-direction:column;gap:6px;min-width:0}
+.names input{background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:600 1.05rem var(--ui);padding:11px 12px;min-width:0}
+.starters{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.starter{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:14px 10px;display:flex;flex-direction:column;gap:2px;align-items:center}
+.starter small{color:var(--muted);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+.starter b{font-family:var(--num);font-size:1.4rem;font-weight:700;text-align:center}
+.starter[aria-pressed="true"]{border-color:var(--gold);background:#2a2a1f}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border-radius:12px;padding:14px 18px;font-weight:700;font-size:1.05rem;background:var(--panel2);border:1px solid var(--line)}
+.btn.primary{background:var(--blue);border-color:var(--blue);flex:1}
+.btn.primary:disabled{opacity:.4;cursor:default}
+.note{font-size:.8rem;color:var(--muted);text-align:center}
+
+/* ---------- spel ---------- */
+#game{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding-block:10px}
+.board{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:stretch}
+.pl{background:var(--panel);border:3px solid var(--line);border-radius:14px;padding:8px 10px 10px;display:flex;flex-direction:column;align-items:center;min-width:0;position:relative;container-type:inline-size}
+.pl.active{border-color:var(--blue);background:linear-gradient(180deg,#16264a,var(--panel))}
+.pl .nm{font-family:var(--num);font-weight:700;font-size:min(11cqw,5vh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pl .rem{font-family:var(--num);font-weight:800;font-size:min(52cqw,24vh);line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.pl.active .rem{color:#fff}
+.pl:not(.active) .rem{color:#b9c4dc}
+.pl .meta{display:flex;gap:14px;font-size:min(6cqw,2.4vh);color:var(--muted);font-variant-numeric:tabular-nums}
+.pl .co{font-family:var(--num);font-weight:700;font-size:min(10cqw,4.6vh);color:var(--gold);min-height:1.2em;letter-spacing:.04em;line-height:1.2}
+.pl .dot{position:absolute;top:9px;left:10px;width:10px;height:10px;border-radius:50%;background:var(--gold)}
+.mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding-inline:4px}
+.legs{font-family:var(--num);font-weight:800;font-size:clamp(2.4rem,9vh,5rem);background:var(--blue);border-radius:12px;padding:2px 14px;font-variant-numeric:tabular-nums;line-height:1.1}
+.fmt{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;text-align:center}
+
+.hist{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:auto;min-height:0}
+.hrow{display:grid;grid-template-columns:1fr clamp(56px,9vw,90px) 1fr;align-items:center;font-family:var(--num);font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line)}
+.hrow .s{font-size:clamp(2rem,6.5vh,3.6rem);font-weight:800;text-align:center;padding:2px 0;line-height:1.1}
+.hrow .s small{font-size:.5em;color:var(--muted);font-weight:600;margin-left:10px}
+.hrow .d{text-align:center;color:var(--muted);font-size:clamp(1.3rem,3.6vh,2rem);font-weight:700;border-inline:1px solid var(--line);align-self:stretch;display:flex;align-items:center;justify-content:center}
+.hrow .s.b{color:var(--red)}
+.hrow .s.hi{color:var(--gold)}
+.hhead{position:sticky;top:0;background:var(--panel2);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:var(--ui);font-weight:600;padding:6px 0}
+.hhead div{text-align:center}
+
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.pad button{background:#2a3858;border-radius:10px;font-family:var(--num);font-weight:700;font-size:clamp(1.5rem,4vw,2.2rem);min-height:clamp(48px,7.2vh,70px);font-variant-numeric:tabular-nums}
+.pad button:active{filter:brightness(1.35)}
+.pad .q{background:var(--panel);color:#b9c4dc;font-size:clamp(1.25rem,3.4vw,1.8rem)}
+.pad .big{background:#1f3a6e}
+.pad .k180{background:#7a2230}
+.pad .back{background:#5a4a14;color:var(--gold);font-family:var(--ui);font-size:1.05rem}
+.pad .act{background:#5c1f1a;color:#ffc2b8;font-family:var(--ui);font-size:1.15rem}
+.pad .act.ok{background:var(--green);color:#fff;font-size:1.3rem}
+.pad .tmode{background:#2a3858;color:var(--fg)}
+.disp{grid-column:span 3;background:#05080f;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--num);font-weight:800;font-size:clamp(2rem,6vw,2.8rem);color:var(--gold);min-height:clamp(48px,7.2vh,70px)}
+.disp.empty{color:var(--muted);font-size:1rem;font-family:var(--ui);font-weight:500}
+.disp.fls{justify-content:space-evenly;padding:4px}
+.fl{background:none;padding:0;width:min(30%,84px);aspect-ratio:1;position:relative;display:flex;align-items:center;justify-content:center}
+.fl svg{position:absolute;inset:0;width:100%;height:100%}
+.fl span{position:relative;font:800 clamp(1.6rem,4.6vh,2.6rem) var(--num);color:#fff}
+.fl:disabled{opacity:.18;cursor:default}
+.fl:not(:disabled):active{transform:scale(.94)}
+.pad .bustmode{background:#8a2a22;color:#fff;font-family:var(--ui);font-size:clamp(1.1rem,3vh,1.5rem);letter-spacing:.06em}
+.toast{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--red);color:#fff;font:800 2.4rem var(--num);padding:10px 28px;border-radius:14px;pointer-events:none;opacity:0;transition:opacity .2s}
+.toast.on{opacity:1}
+
+@media (min-width:900px) and (orientation:landscape){
+  #game{grid-template-columns:minmax(0,1fr) minmax(340px,36%);grid-template-rows:auto minmax(0,1fr);column-gap:14px}
+  .board{grid-column:1}
+  .hist{grid-column:1;grid-row:2}
+  .pad{grid-column:2;grid-row:1 / span 2;align-content:end}
+  .pad button,.disp{min-height:clamp(56px,11vh,92px)}
+}
+
+/* ---------- modal ---------- */
+.ov{position:fixed;inset:0;background:rgba(3,6,14,.78);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+.mod{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:16px;text-align:center}
+.mod h2{margin:0;font:800 1.8rem var(--num);letter-spacing:.02em;text-wrap:balance}
+.mod p{margin:0;color:var(--muted)}
+.darts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.darts button{background:var(--panel2);border:2px solid var(--line);border-radius:14px;padding:16px 0;font:800 2.6rem var(--num);display:flex;flex-direction:column;align-items:center}
+.darts button small{font:600 .75rem var(--ui);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.darts button:disabled{opacity:.2;cursor:default}
+.darts button:not(:disabled){border-color:var(--blue)}
+.bigscore{font:800 3.4rem var(--num);line-height:1}
+.bigscore b{color:var(--gold)}
+
+/* ---------- einde ---------- */
+#end{overflow:auto;padding-block:20px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.win{font:800 clamp(2rem,6vw,3rem) var(--num);text-align:center;line-height:1.05;text-wrap:balance}
+.win span{color:var(--gold)}
+.tbl{width:100%;max-width:620px;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:10px 8px;border-bottom:1px solid var(--line)}
+.tbl th{font:700 1.15rem var(--num);text-align:center}
+.tbl td{text-align:center;font:700 1.35rem var(--num)}
+.tbl td.k{font:500 .85rem var(--ui);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.tbl td.best{color:var(--gold)}
+/* ---------- koppeling ---------- */
+.screen{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding-block:20px;overflow:auto;text-align:center}
+.bigbord{font:800 clamp(4rem,14vh,8rem) var(--num);line-height:.9;color:var(--fg)}
+.bigbord small{display:block;font:600 .9rem var(--ui);color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px}
+.bordgrid{display:grid;grid-template-columns:repeat(2,minmax(0,170px));gap:14px}
+.bordgrid button{background:var(--panel2);border:2px solid var(--line);border-radius:18px;aspect-ratio:1;font:800 clamp(3.5rem,12vh,6rem) var(--num)}
+.bordgrid button:active{background:var(--blue)}
+.codein{background:var(--bg);border:1px solid var(--line);border-radius:12px;color:var(--fg);font:700 1.8rem var(--num);letter-spacing:.12em;text-align:center;padding:12px;width:100%;max-width:280px;text-transform:uppercase}
+.pulse{width:12px;height:12px;border-radius:50%;background:var(--blue);animation:pl 1.4s ease-in-out infinite}
+@keyframes pl{50%{opacity:.25}}
+.mlist{display:flex;flex-direction:column;gap:8px;width:100%;max-width:560px;max-height:46vh;overflow:auto}
+.mlist button{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;text-align:left;align-items:center}
+.mlist .t{font:700 1.1rem var(--num);color:var(--muted);grid-row:span 2}
+.mlist .w{font:700 1.25rem var(--num)}
+.mlist .dv{font-size:.8rem;color:var(--muted)}
+.linkbtn{background:none;color:var(--muted);text-decoration:underline;font-size:.95rem;padding:8px}
+.bordbadge{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font:700 1rem var(--ui);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sync{width:9px;height:9px;border-radius:50%;background:var(--green)}
+.sync.off{background:var(--red)}
+.sync.busy{background:var(--gold)}
+.matchinfo{font:700 clamp(1.6rem,4vh,2.2rem) var(--num);text-wrap:balance}
+.matchinfo small{display:block;font:600 .85rem var(--ui);color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.saved{color:var(--green);font-weight:700}
+.warn{color:var(--gold)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<!-- CODE (eenmalig per iPad) -->
+<section id="code" class="view screen" hidden>
+  <div class="brand">Kaale <span>Bull</span> Scorer</div>
+  <p class="note" style="max-width:340px">Voer eenmalig de clubcode in om deze iPad als scorer te gebruiken.</p>
+  <input id="codeIn" class="codein" placeholder="KB-…" autocomplete="off" autocapitalize="characters">
+  <button class="btn primary" id="codeGo" style="flex:0 0 auto;min-width:200px">Opslaan</button>
+  <div class="note warn" id="codeMsg"></div>
+</section>
+
+<!-- BORDKEUZE (dagelijks) -->
+<section id="bordkeuze" class="view screen" hidden>
+  <div class="brand">Welk bord is dit?</div>
+  <div class="bordgrid" id="bordGrid"><button data-b="1">1</button><button data-b="2">2</button><button data-b="3">3</button><button data-b="4">4</button></div>
+  <div class="note">Kies het bord waar deze iPad nu hangt. Morgen vraagt de scorer het opnieuw.</div>
+</section>
+
+<!-- WACHTEN OP WEDSTRIJD -->
+<section id="wacht" class="view screen" hidden>
+  <div class="bigbord"><small>Deze iPad is</small>Bord <span id="wBord">–</span></div>
+  <div class="row" style="align-items:center;justify-content:center"><span class="pulse"></span><span id="wTxt">Wacht tot de wedstrijdleiding een wedstrijd op dit bord zet…</span></div>
+  <div class="mlist" id="mList" hidden></div>
+  <div class="row" style="justify-content:center">
+    <button class="btn" id="zelfKiezen">Zelf wedstrijd kiezen</button>
+    <button class="btn" id="vrij">Vrije wedstrijd</button>
+  </div>
+  <button class="linkbtn" id="anderBord">Ander bord kiezen</button>
+  <div class="note" id="outboxTxt"></div>
+</section>
+
+<!-- START -->
+<section id="setup" class="view" hidden>
+  <div>
+    <div class="brand">Kaale <span>Bull</span> Scorer</div>
+    <div class="tag" id="setupTag">Testmodus · uitslag telt nog niet mee</div>
+  </div>
+  <div class="card">
+    <div class="matchinfo" id="matchInfo" hidden></div>
+    <div class="lbl" id="fmtLbl">Wedstrijd</div>
+    <div class="chips" id="fmtChips">
+      <button class="chip" data-legs="3" data-label="Competitie · best of 5" aria-pressed="true">Competitie · Bo5</button>
+      <button class="chip" data-legs="3" data-label="Beker · best of 5" aria-pressed="false">Beker · Bo5</button>
+      <button class="chip" data-legs="4" data-label="Beker halve finale · best of 7" aria-pressed="false">Beker · Bo7</button>
+      <button class="chip" data-legs="5" data-label="Beker finale · best of 9" aria-pressed="false">Beker · Bo9</button>
+    </div>
+    <div class="names" id="namesBox">
+      <label><span class="lbl">Thuis</span><input id="n0" value="Michael Legerstee" autocomplete="off"></label>
+      <label><span class="lbl">Uit</span><input id="n1" value="Dennis Verwijs" autocomplete="off"></label>
+    </div>
+    <div class="lbl">Wie begint? (na de bull)</div>
+    <div class="starters">
+      <button class="starter" id="st0" aria-pressed="false"><small>Thuis</small><b id="st0n"></b></button>
+      <button class="starter" id="st1" aria-pressed="false"><small>Uit</small><b id="st1n"></b></button>
+    </div>
+    <div class="row">
+      <button class="btn" id="lot">Loting</button>
+      <button class="btn primary" id="go" disabled>Start wedstrijd</button>
+    </div>
+    <button class="linkbtn" id="terugWacht">Terug</button>
+  </div>
+  <div class="note">501 · single in, double out · 1 punt per gewonnen leg</div>
+</section>
+
+<!-- SPEL -->
+<section id="game" class="view" hidden>
+  <div class="board">
+    <div class="pl" id="p0"><span class="dot" id="b0" hidden></span><div class="nm" id="nm0"></div><div class="rem" id="r0">501</div><div class="co" id="co0"></div><div class="meta"><span id="a0">gem. 0.00</span><span id="d0">0 pijlen</span></div></div>
+    <div class="mid"><button class="bordbadge" id="bordBadge"><span class="sync" id="syncDot"></span><span id="bordTxt">Bord –</span></button><div class="legs" id="legs">0-0</div><div class="fmt" id="fmt"></div></div>
+    <div class="pl" id="p1"><span class="dot" id="b1" hidden></span><div class="nm" id="nm1"></div><div class="rem" id="r1">501</div><div class="co" id="co1"></div><div class="meta"><span id="a1">gem. 0.00</span><span id="d1">0 pijlen</span></div></div>
+  </div>
+  <div class="hist" id="hist"></div>
+  <div class="pad" id="pad">
+    <button class="back" data-k="back" id="backBtn">Terug</button>
+    <div class="disp empty" id="disp">Score invoeren</div>
+    <button class="act" data-k="act" id="actBtn">Mis</button>
+    <button class="q" data-q="26">26</button><button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button><button class="q" data-q="45">45</button>
+    <button class="q" data-q="40">40</button><button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button><button class="q" data-q="60">60</button>
+    <button class="q" data-q="41">41</button><button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button><button class="q" data-q="81">81</button>
+    <button class="q" data-q="43">43</button>
+    <button class="big" data-q="100" data-t="100">100</button><button class="k180" data-q="180" data-t="180">180</button><button class="big" data-q="140" data-t="140">140</button>
+    <button class="q" data-q="85">85</button>
+  </div>
+</section>
+
+<!-- EINDE -->
+<section id="end" class="view" hidden>
+  <div class="tag">Wedstrijd afgelopen</div>
+  <div class="win" id="winTxt"></div>
+  <table class="tbl" id="statTbl"></table>
+  <div class="row" style="justify-content:center">
+    <button class="btn" id="undoEnd">Laatste leg terugdraaien</button>
+    <button class="btn primary" id="saveMatch" style="flex:0 1 auto">Uitslag opslaan</button>
+    <button class="btn primary" id="newMatch" style="flex:0 1 auto" hidden>Volgende wedstrijd</button>
+  </div>
+  <div class="note" id="saveTxt">Na opslaan bevestigt de wedstrijdleiding de uitslag in het dashboard.</div>
+</section>
+
+<div class="ov" id="ov" hidden><div class="mod" id="mod"></div></div>
+<div class="toast" id="toast">BUST</div>
+
+<script>
+/* ---------- uitgooi-rekenwerk ---------- */
+const PREF=[];
+for(let i=20;i>=10;i--)PREF.push({v:3*i,l:'T'+i});
+for(let i=20;i>=1;i--)PREF.push({v:i,l:String(i)});
+PREF.push({v:25,l:'25'},{v:50,l:'Bull'});
+for(let i=9;i>=1;i--)PREF.push({v:3*i,l:'T'+i});
+const DBL=[20,16,18,8,12,10,14,19,17,15,13,11,9,7,6,5,4,3,2,1].map(n=>({v:2*n,l:'D'+n}));
+DBL.push({v:50,l:'Bull'});
+const IMPOSSIBLE=new Set([163,166,169,172,173,175,176,178,179]);
+const coCache={};
+function checkout(r){
+  if(r in coCache)return coCache[r];
+  let res=null;
+  if(r>=2&&r<=170){
+    const one=DBL.find(d=>d.v===r);
+    if(one)res={darts:1,path:[one.l]};
+    else{
+      let best=null,bc=1e9;
+      DBL.forEach((d,j)=>PREF.forEach((a,i)=>{if(a.v+d.v===r){const c=i+j*3;if(c<bc){bc=c;best=[a.l,d.l]}}}));
+      if(best)res={darts:2,path:best};
+      else{
+        DBL.forEach((d,j)=>PREF.forEach((a,i)=>{if(a.v+d.v>=r)return;PREF.forEach((b,k)=>{if(a.v+b.v+d.v===r&&a.v>=b.v){const c=i+k+j*3;if(c<bc){bc=c;best=[a.l,b.l,d.l]}}})}));
+        if(best)res={darts:3,path:best};
+      }
+    }
+  }
+  return coCache[r]=res;
+}
+
+/* ---------- staat ---------- */
+const $=id=>document.getElementById(id);
+let st=null,hist=[],buf='',starterPick=null,fmtLegs=3,fmtLabel='Competitie · best of 5';
+const clone=o=>JSON.parse(JSON.stringify(o));
+function snap(){hist.push(clone(st));if(hist.length>400)hist.shift()}
+function undo(){if(!hist.length)return false;st=hist.pop();buf='';return true}
+
+function newMatch(names,legsToWin,starter,label){
+  st={id:uuid(),wedstrijd_id:pending?pending.id:null,divisie:pending?pending.divisie:'Vrij',bord,names,legsToWin,label,start:501,legStarter:starter,turn:starter,legs:[0,0],rem:[501,501],leg:[],done:[],over:false};
+  hist=[];buf='';
+}
+
+/* ---------- statistiek ---------- */
+function stats(p){
+  let pts=0,darts=0,f9p=0,f9d=0,t100=0,t140=0,t180=0,hi=0,best=null;
+  const all=[...st.done,{turns:st.leg,winner:null}];
+  all.forEach(L=>{
+    let n=0,ld=0;
+    L.turns.forEach(t=>{
+      if(t.p!==p)return;
+      pts+=t.s;darts+=t.darts;ld+=t.darts;
+      if(n<3){f9p+=t.s;f9d+=t.darts}n++;
+      if(t.s===180)t180++;else if(t.s>=140)t140++;else if(t.s>=100)t100++;
+    });
+    if(L.winner===p){hi=Math.max(hi,L.turns[L.turns.length-1].s);best=best===null?ld:Math.min(best,ld)}
+  });
+  return{avg:darts?pts/darts*3:0,f9:f9d?f9p/f9d*3:0,darts,t100,t140,t180,hi,best};
+}
+
+/* ---------- invoer ---------- */
+function flash(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(flash.t);flash.t=setTimeout(()=>el.classList.remove('on'),900)}
+function valid(s){return Number.isInteger(s)&&s>=0&&s<=180&&!IMPOSSIBLE.has(s)}
+
+function submit(score,forceBust){
+  if(st.over)return;
+  const p=st.turn,r=st.rem[p];
+  if(!forceBust&&!valid(score)){flash('Ongeldig');buf='';render();return}
+  let bust=!!forceBust;
+  if(!bust){
+    const left=r-score;
+    if(left<0||left===1)bust=true;
+    else if(left===0){if(checkout(r)){askDarts(p,score);return}bust=true}
+  }
+  snap();
+  st.leg.push({p,s:bust?0:score,bust,darts:3});
+  if(!bust)st.rem[p]-=score;
+  st.turn=1-p;buf='';render();
+  if(bust)flash('BUST');
+}
+
+function askDarts(p,score){
+  const min=checkout(score).darts;
+  const mod=$('mod');
+  mod.innerHTML=`<h2>Uitgegooid: ${score}</h2><p>Met welke pijl gooide ${esc(st.names[p])} uit?</p>
+    <div class="darts">${[1,2,3].map(n=>`<button data-n="${n}" ${n<min?'disabled':''}>${n}<small>${n===1?'1e':n===2?'2e':'3e'} pijl</small></button>`).join('')}</div>
+    <button class="btn" data-x="cancel">Annuleren</button>`;
+  $('ov').hidden=false;
+  mod.onclick=e=>{
+    const b=e.target.closest('button');if(!b||b.disabled)return;
+    if(b.dataset.x==='cancel'){closeOv();buf='';render();return}
+    const n=+b.dataset.n;
+    snap();
+    st.leg.push({p,s:score,bust:false,darts:n});
+    st.rem[p]=0;
+    confirmLeg(p);
+  };
+}
+
+function confirmLeg(p){
+  const l=[...st.legs];l[p]++;
+  const end=l[p]===st.legsToWin;
+  const mod=$('mod');
+  mod.innerHTML=`<h2>Leg voor ${esc(st.names[p])}</h2>
+    <div class="bigscore">${p===0?`<b>${l[0]}</b> - ${l[1]}`:`${l[0]} - <b>${l[1]}</b>`}</div>
+    ${end?'<p>Hiermee is de wedstrijd gewonnen.</p>':''}
+    <button class="btn primary" data-x="ok">Bevestigen</button>
+    <button class="btn" data-x="back">Wijzigen</button>`;
+  $('ov').hidden=false;
+  mod.onclick=e=>{
+    const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.x==='back'){undo();closeOv();render();return}
+    closeOv();finishLeg(p);
+  };
+}
+function closeOv(){$('ov').hidden=true;$('mod').onclick=null}
+
+function finishLeg(p){
+  st.legs[p]++;
+  st.done.push({winner:p,turns:st.leg,starter:st.legStarter});
+  if(st.legs[p]===st.legsToWin){st.over=true;showEnd();return}
+  st.legStarter=1-st.legStarter;st.turn=st.legStarter;
+  st.rem=[st.start,st.start];st.leg=[];buf='';render();
+}
+
+/* ---------- weergave ---------- */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function render(){
+  show('game');
+  for(const p of [0,1]){
+    $('nm'+p).textContent=st.names[p];
+    $('r'+p).textContent=st.rem[p];
+    $('p'+p).classList.toggle('active',st.turn===p);
+    $('b'+p).hidden=st.legStarter!==p;
+    const s=stats(p);
+    $('a'+p).textContent='gem. '+s.avg.toFixed(2);
+    const legDarts=st.leg.filter(t=>t.p===p).reduce((a,t)=>a+t.darts,0);
+    $('d'+p).textContent=legDarts+' pijlen';
+    const co=st.rem[p]<=170?checkout(st.rem[p]):null;
+    $('co'+p).textContent=co?co.path.join(' · '):'';
+  }
+  $('legs').textContent=st.legs[0]+'-'+st.legs[1];
+  $('fmt').textContent=`Leg ${st.done.length+1} · eerst tot ${st.legsToWin}`;
+  // beurtenlijst
+  const rows=[[],[]];st.leg.forEach(t=>rows[t.p].push(t));
+  const n=Math.max(rows[0].length,rows[1].length);
+  const remAt=[[],[]];[0,1].forEach(p=>{let r=st.start;rows[p].forEach(t=>{r-=t.s;remAt[p].push(r)})});
+  const cell=(p,i)=>{const t=rows[p][i];if(!t)return'<div class="s"></div>';
+    const cls=t.bust?'b':t.s>=100?'hi':'';
+    return`<div class="s ${cls}">${t.bust?'Bust':t.s}<small>${remAt[p][i]}</small></div>`};
+  let h=`<div class="hrow hhead"><div>${esc(st.names[0])}</div><div>Beurt</div><div>${esc(st.names[1])}</div></div>`;
+  for(let i=0;i<n;i++)h+=`<div class="hrow">${cell(0,i)}<div class="d">${i+1}</div>${cell(1,i)}</div>`;
+  const hb=$('hist');hb.innerHTML=h;hb.scrollTop=hb.scrollHeight;
+  const d=$('disp');
+  const fin=!buf&&st.rem[st.turn]<=170?checkout(st.rem[st.turn]):null;
+  d.classList.toggle('fls',!!fin);
+  if(buf){d.textContent=/[+x]/.test(buf)?buf.replace(/x/g,'×')+' = '+total():buf;d.classList.remove('empty')}
+  else if(fin){d.classList.remove('empty');d.innerHTML=[1,2,3].map(n=>`<button class="fl" data-f="${n}" ${n<fin.darts?'disabled':''} aria-label="Uitgegooid met pijl ${n}">${FLIGHT}<span>${n}</span></button>`).join('')}
+  else{d.textContent=st.names[st.turn]+' aan de beurt';d.classList.add('empty')}
+  $('backBtn').textContent=buf?'Wis':'Terug';
+  $('bordTxt').textContent='Bord '+(bord||'–');
+  persist();
+  const act=$('actBtn');act.textContent=buf?'OK':'Mis';act.classList.toggle('ok',!!buf);
+  const typing={100:'×',180:'0',140:'+'};
+  document.querySelectorAll('[data-t]').forEach(b=>{b.textContent=buf?typing[b.dataset.t]:b.dataset.t;b.classList.toggle('tmode',!!buf)});
+  const k180=document.querySelector('[data-t="180"]');
+  if(fin){k180.textContent='BUST';k180.classList.add('bustmode')}else k180.classList.remove('bustmode');
+}
+
+function showEnd(){
+  show('end');persist();
+  $('saveMatch').hidden=false;$('undoEnd').hidden=false;$('newMatch').hidden=true;
+  $('saveTxt').textContent='Controleer de uitslag. Na opslaan bevestigt de wedstrijdleiding hem in het dashboard.';
+  const w=st.legs[0]>st.legs[1]?0:1;
+  $('winTxt').innerHTML=`${esc(st.names[w])} wint <span>${st.legs[0]}-${st.legs[1]}</span>`;
+  const a=stats(0),b=stats(1);
+  const line=(k,x,y,fmt=v=>v,hiBetter=true)=>{
+    const bx=hiBetter?x>y:(x!==null&&(y===null||x<y)),by=hiBetter?y>x:(y!==null&&(x===null||y<x));
+    return`<tr><td class="${bx?'best':''}">${fmt(x)}</td><td class="k">${k}</td><td class="${by?'best':''}">${fmt(y)}</td></tr>`};
+  const f2=v=>v.toFixed(2),dash=v=>v===null||v===0?'–':v;
+  $('statTbl').innerHTML=`<tr><th>${esc(st.names[0])}</th><th></th><th>${esc(st.names[1])}</th></tr>`+
+    line('Legs',st.legs[0],st.legs[1])+
+    line('Gemiddelde',a.avg,b.avg,f2)+
+    line('First 9',a.f9,b.f9,f2)+
+    line('180',a.t180,b.t180)+
+    line('140+',a.t140,b.t140)+
+    line('100+',a.t100,b.t100)+
+    line('Hoogste finish',a.hi,b.hi,dash)+
+    line('Kortste leg',a.best,b.best,v=>v===null?'–':v+' pijlen',false)+
+    line('Pijlen',a.darts,b.darts,v=>v,false);
+}
+function show(id){for(const v of ['code','bordkeuze','wacht','setup','game','end'])$(v).hidden=v!==id}
+
+/* ---------- toetsen ---------- */
+const FLIGHT='<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 6 L84 22 L94 56 L72 92 L28 92 L6 56 L16 22 Z" fill="#b8262c" stroke="#e8565c" stroke-width="3"/><path d="M50 6 L50 92" stroke="#7a1418" stroke-width="5"/></svg>';
+function finishWith(n){
+  const p=st.turn,score=st.rem[p];
+  snap();st.leg.push({p,s:score,bust:false,darts:n});st.rem[p]=0;buf='';
+  confirmLeg(p);
+}
+function total(){return buf.split('+').filter(Boolean).reduce((a,p)=>a+p.split('x').filter(Boolean).reduce((m,x)=>m*(+x),1),0)}
+function addDigit(d){
+  if(buf.match(/(\d*)$/)[1].length>=3||(!buf&&d==='0'))return;
+  buf=(buf+d).replace(/(^|[+x])0+(?=\d)/g,'$1');render();
+}
+function addPlus(){if(!buf||/[+x]$/.test(buf)||buf.split('+').length>=3)return;buf+='+';render()}
+function addTimes(){if(!buf||/[+x]$/.test(buf)||buf.split('+').pop().includes('x'))return;buf+='x';render()}
+function enter(){if(buf){submit(total())}}
+function back(){if(buf){buf=buf.slice(0,-1);render()}else if(undo())render();else flash('Niets terug te zetten')}
+$('pad').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b||!st||st.over)return;
+  if(b.dataset.f){finishWith(+b.dataset.f);return}
+  if(b.classList.contains('bustmode')){submit(0,true);return}
+  if(b.dataset.d!==undefined){addDigit(b.dataset.d);return}
+  if(b.dataset.t&&buf){const t=b.dataset.t;if(t==='100')addTimes();else if(t==='180')addDigit('0');else addPlus();return}
+  if(b.dataset.q){submit(+b.dataset.q);return}
+  const k=b.dataset.k;
+  if(k==='act'){if(buf)enter();else submit(0);return}
+  if(k==='back')back();
+});
+document.addEventListener('keydown',e=>{
+  if($('game').hidden||!$('ov').hidden||!st||st.over)return;
+  if(/^\d$/.test(e.key))addDigit(e.key);
+  else if(e.key==='+')addPlus();
+  else if(e.key==='*'||e.key.toLowerCase()==='x')addTimes();
+  else if(e.key==='Enter'){if(buf)enter();else submit(0)}
+  else if(e.key==='Backspace')back();
+  else if(e.key==='Escape'){buf='';render()}
+});
+
+/* ---------- koppeling met Supabase ---------- */
+const SB='https://ctxurzqtglckairgbjno.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+async function rest(path){const r=await fetch(SB+'/rest/v1/'+path,{headers:H,cache:'no-store'});if(!r.ok)throw new Error(r.status);return r.json()}
+async function rpc(fn,body){const r=await fetch(SB+'/rest/v1/rpc/'+fn,{method:'POST',headers:H,body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null}
+
+const ls={get(k,d=null){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(_){return d}},
+          set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(_){}},
+          del(k){try{localStorage.removeItem(k)}catch(_){}}};
+function uuid(){try{return crypto.randomUUID()}catch(_){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)})}}
+// speeldag wisselt om 05:00, net als de DC-koppelcodes
+function dag(){return new Date(Date.now()-5*3600e3).toLocaleDateString('sv-SE',{timeZone:'Europe/Amsterdam'})}
+
+let code=ls.get('kb_code'),apparaat=ls.get('kb_apparaat'),bord=null,pending=null,pollT=null;
+if(!apparaat){apparaat=uuid();ls.set('kb_apparaat',apparaat)}
+
+/* ---- opstarten ---- */
+function init(){
+  if(!code){show('code');return}
+  const b=ls.get('kb_bord');
+  if(!b||b.dag!==dag()){show('bordkeuze');return}
+  bord=b.bord;
+  const saved=ls.get('kb_st');
+  if(saved&&saved.bord===bord&&!saved.saved){st=saved;hist=ls.get('kb_hist',[]);if(st.over)showEnd();else render();return}
+  claim(bord);
+}
+
+$('codeGo').onclick=async()=>{
+  const c=$('codeIn').value.trim().toUpperCase();if(!c)return;
+  $('codeMsg').textContent='Controleren…';
+  try{const ok=await rpc('scorer_code_ok',{p_code:c});
+    if(ok){code=c;ls.set('kb_code',c);$('codeMsg').textContent='';init()}
+    else $('codeMsg').textContent='Deze code klopt niet. Vraag de wedstrijdleiding om de clubcode.';
+  }catch(_){$('codeMsg').textContent='Geen verbinding. Controleer de wifi en probeer opnieuw.'}
+};
+
+$('bordGrid').onclick=e=>{const b=e.target.closest('button');if(!b)return;kiesBord(+b.dataset.b)};
+function kiesBord(n){ls.set('kb_bord',{bord:n,dag:dag()});bord=n;claim(n)}
+
+async function claim(n){
+  let res=null;
+  try{res=await rpc('scorer_claim_bord',{p_code:code,p_bord:n,p_apparaat:apparaat})}
+  catch(e){if(String(e).includes('ongeldige code')){ls.del('kb_code');code=null;show('code');return}}
+  if(res&&res.ander_apparaat){
+    return vraag(`Bord ${n} is in gebruik`,'Een andere iPad heeft dit bord de afgelopen minuten gebruikt. Weet je zeker dat deze iPad bord '+n+' is?',
+      [['Ja, dit is bord '+n,()=>naClaim(res)],['Ander bord kiezen',()=>show('bordkeuze')]]);
+  }
+  naClaim(res);
+}
+function naClaim(res){
+  const s=res&&res.staat;
+  if(s&&s.names&&!s.saved&&(s.leg.length||s.done.length)){
+    return vraag('Lopende wedstrijd hervatten?',`Op bord ${bord} loopt nog ${esc(s.names[0])} – ${esc(s.names[1])} (${s.legs[0]}-${s.legs[1]}).`,
+      [['Hervatten',()=>{st=s;st.bord=bord;hist=[];if(st.over)showEnd();else render()}],['Nee, nieuwe wedstrijd',()=>wacht()]]);
+  }
+  wacht();
+}
+function vraag(titel,tekst,knoppen){
+  const mod=$('mod');
+  mod.innerHTML=`<h2>${titel}</h2><p>${tekst}</p>`+knoppen.map((k,i)=>`<button class="btn ${i===0?'primary':''}" data-i="${i}">${esc(k[0])}</button>`).join('');
+  $('ov').hidden=false;
+  mod.onclick=e=>{const b=e.target.closest('button');if(!b)return;closeOv();knoppen[+b.dataset.i][1]()};
+}
+
+/* ---- wachten tot de WL een wedstrijd op dit bord zet ---- */
+function wacht(){
+  st=null;pending=null;ls.del('kb_st');ls.del('kb_hist');
+  $('wBord').textContent=bord;$('mList').hidden=true;
+  $('wTxt').textContent='Wacht tot de wedstrijdleiding een wedstrijd op dit bord zet…';
+  show('wacht');updOutbox();
+  clearInterval(pollT);poll();pollT=setInterval(poll,4000);
+}
+async function poll(){
+  if($('wacht').hidden){clearInterval(pollT);return}
+  try{
+    const r=await rest(`wedstrijden?select=id,thuis,uit,divisie,speelronde,tijdstip,is_inhaal&bord=eq.${bord}&status=neq.gespeeld&limit=1`);
+    if(r.length&&!(ls.get('kb_klaar',[]).includes(r[0].id))){clearInterval(pollT);prepare(r[0])}
+  }catch(_){$('wTxt').textContent='Geen verbinding met het dashboard. Opnieuw proberen…'}
+}
+$('zelfKiezen').onclick=async()=>{
+  const box=$('mList');box.hidden=false;box.innerHTML='<div class="note">Laden…</div>';
+  try{
+    let r=await rest(`wedstrijden?select=id,thuis,uit,divisie,speelronde,tijdstip,datum,is_inhaal&datum=eq.${dag()}&status=neq.gespeeld&order=tijdstip`);
+    let label='Vanavond';
+    if(!r.length){
+      const nx=await rest(`wedstrijden?select=datum&datum=gte.${dag()}&status=neq.gespeeld&datum_nnb=is.false&order=datum&limit=1`);
+      if(nx.length){r=await rest(`wedstrijden?select=id,thuis,uit,divisie,speelronde,tijdstip,datum,is_inhaal&datum=eq.${nx[0].datum}&status=neq.gespeeld&order=tijdstip`);
+        label='Eerstvolgende speelavond ('+new Date(nx[0].datum+'T12:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})+')'}
+    }
+    if(!r.length){box.innerHTML='<div class="note">Geen geplande wedstrijden gevonden.</div>';return}
+    window._lijst=r;
+    box.innerHTML=`<div class="lbl">${label}</div>`+r.map((w,i)=>`<button data-i="${i}"><span class="t">${esc(w.tijdstip||'')}</span><span class="w">${esc(w.thuis)} – ${esc(w.uit)}</span><span class="dv">${esc(w.divisie)}${w.speelronde?' · ronde '+esc(w.speelronde):''}</span></button>`).join('');
+  }catch(_){box.innerHTML='<div class="note warn">Geen verbinding. Probeer het opnieuw.</div>'}
+};
+$('mList').onclick=e=>{const b=e.target.closest('button');if(!b)return;clearInterval(pollT);prepare(window._lijst[+b.dataset.i])};
+$('vrij').onclick=()=>{clearInterval(pollT);prepare(null)};
+$('anderBord').onclick=()=>{clearInterval(pollT);show('bordkeuze')};
+$('terugWacht').onclick=()=>wacht();
+
+function legsUit(divisie){const m=/Bo(\d+)/i.exec(divisie||'');return m?(+m[1]+1)/2:3}
+function prepare(w){
+  pending=w;starterPick=null;$('go').disabled=true;pickReset();
+  const vast=!!w;
+  $('matchInfo').hidden=!vast;$('namesBox').hidden=vast;$('fmtChips').hidden=vast;$('fmtLbl').hidden=vast;
+  if(vast){
+    const lt=legsUit(w.divisie);
+    fmtLegs=lt;fmtLabel=w.divisie+' · best of '+(lt*2-1);
+    $('n0').value=w.thuis;$('n1').value=w.uit;
+    $('matchInfo').innerHTML=`<small>Bord ${bord} · ${esc(w.divisie)}${w.speelronde?' · ronde '+esc(w.speelronde):''}${w.is_inhaal?' · inhaal':''}</small>${esc(w.thuis)} – ${esc(w.uit)}<small>best of ${lt*2-1}</small>`;
+  }else{
+    const c=document.querySelector('.chip[aria-pressed="true"]');fmtLegs=+c.dataset.legs;fmtLabel=c.dataset.label;
+  }
+  syncNames();show('setup');
+}
+
+/* ---- tijdens de wedstrijd: stand bewaren en live doorsturen ---- */
+let pushT=null,pushBusy=false,pushAgain=false;
+function persist(){
+  if(!st)return;
+  ls.set('kb_st',st);ls.set('kb_hist',hist.slice(-60));
+  clearTimeout(pushT);pushT=setTimeout(push,500);
+}
+async function push(){
+  if(!st||!bord)return;
+  if(pushBusy){pushAgain=true;return}
+  pushBusy=true;setSync('busy');
+  try{await rpc('scorer_live_bij',{p_code:code,p_bord:bord,p_wedstrijd:st.wedstrijd_id,p_staat:st,p_apparaat:apparaat});setSync('ok')}
+  catch(_){setSync('off')}
+  pushBusy=false;if(pushAgain){pushAgain=false;push()}
+}
+function setSync(s){const d=$('syncDot');if(d)d.className='sync'+(s==='off'?' off':s==='busy'?' busy':'')}
+setInterval(()=>{if(st&&$('syncDot').classList.contains('off'))push()},10000);
+
+$('bordBadge').onclick=()=>{
+  const mod=$('mod');
+  mod.innerHTML=`<h2>Bord wijzigen</h2><p>Hangt deze iPad nu bij een ander bord? De lopende wedstrijd gaat mee.</p>
+    <div class="darts">${[1,2,3,4].map(n=>`<button data-b="${n}" ${n===bord?'disabled':''}>${n}<small>bord</small></button>`).join('')}</div>
+    <button class="btn" data-x="cancel">Annuleren</button>`;
+  mod.querySelector('.darts').style.gridTemplateColumns='repeat(4,1fr)';
+  $('ov').hidden=false;
+  mod.onclick=async e=>{
+    const b=e.target.closest('button');if(!b||b.disabled)return;closeOv();
+    if(b.dataset.x)return;
+    const oud=bord;bord=+b.dataset.b;ls.set('kb_bord',{bord,dag:dag()});
+    if(st)st.bord=bord;
+    try{await rpc('scorer_live_bij',{p_code:code,p_bord:oud,p_wedstrijd:null,p_staat:null,p_apparaat:apparaat})}catch(_){}
+    render();
+  };
+};
+
+/* ---- uitslag opslaan (met wachtrij als de wifi wegvalt) ---- */
+function partij(){
+  const w=st.legs[0]>st.legs[1]?0:1;
+  return{id:st.id,wedstrijd_id:st.wedstrijd_id||'',bord,divisie:st.divisie,thuis:st.names[0],uit:st.names[1],
+    legs_thuis:st.legs[0],legs_uit:st.legs[1],winnaar:st.names[w],
+    stats:{thuis:stats(0),uit:stats(1)},legs:st.done,apparaat};
+}
+async function flush(){
+  const box=ls.get('kb_outbox',[]);if(!box.length){updOutbox();return true}
+  const rest_=[];
+  for(const p of box){try{await rpc('scorer_opslaan',{p_code:code,p})}catch(_){rest_.push(p)}}
+  ls.set('kb_outbox',rest_);updOutbox();return !rest_.length;
+}
+function updOutbox(){const n=ls.get('kb_outbox',[]).length;$('outboxTxt').textContent=n?`${n} uitslag${n>1?'en':''} nog niet verstuurd, wordt opnieuw geprobeerd…`:''}
+setInterval(flush,15000);window.addEventListener('online',flush);
+
+$('saveMatch').onclick=async()=>{
+  const box=ls.get('kb_outbox',[]);box.push(partij());ls.set('kb_outbox',box);
+  st.saved=true;ls.set('kb_st',st);
+  if(st.wedstrijd_id){const k=ls.get('kb_klaar',[]);k.push(st.wedstrijd_id);ls.set('kb_klaar',k.slice(-50))}
+  $('saveMatch').hidden=true;$('undoEnd').hidden=true;$('newMatch').hidden=false;
+  $('saveTxt').textContent='Versturen…';
+  const ok=await flush();
+  $('saveTxt').innerHTML=ok?'<span class="saved">Uitslag opgeslagen.</span> De wedstrijdleiding bevestigt hem in het dashboard.':'<span class="warn">Nog geen verbinding.</span> De uitslag is op deze iPad bewaard en wordt vanzelf verstuurd.';
+};
+
+/* ---------- start ---------- */
+function syncNames(){$('st0n').textContent=$('n0').value||'Thuis';$('st1n').textContent=$('n1').value||'Uit'}
+function pickStarter(p){starterPick=p;$('st0').setAttribute('aria-pressed',p===0);$('st1').setAttribute('aria-pressed',p===1);$('go').disabled=false}
+$('n0').oninput=$('n1').oninput=syncNames;syncNames();
+$('st0').onclick=()=>pickStarter(0);$('st1').onclick=()=>pickStarter(1);
+$('lot').onclick=()=>pickStarter(Math.random()<.5?0:1);
+$('fmtChips').onclick=e=>{const b=e.target.closest('.chip');if(!b)return;
+  document.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));
+  fmtLegs=+b.dataset.legs;fmtLabel=b.dataset.label};
+$('go').onclick=()=>{
+  newMatch([$('n0').value.trim()||'Thuis',$('n1').value.trim()||'Uit'],fmtLegs,starterPick,fmtLabel);
+  try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(_){}
+  render();
+};
+$('newMatch').onclick=()=>wacht();
+function pickReset(){$('st0').setAttribute('aria-pressed',false);$('st1').setAttribute('aria-pressed',false)}
+$('undoEnd').onclick=()=>{if(undo()){st.over=false;render()}};
+init();
+</script>
