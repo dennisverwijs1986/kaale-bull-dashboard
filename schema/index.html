@@ -1481,6 +1481,48 @@ document.addEventListener('click', e=>{
 window.addEventListener('popstate',()=>sluitH2H(true));
 document.addEventListener('keydown', e=>{ if (e.key==='Escape') sluitH2H(false); });
 
+// Naar beneden vegen om te sluiten (zoals een gewoon onderpaneel op de telefoon).
+// Alleen als het paneel bovenaan staat (of als je aan de greep/kop trekt), zodat scrollen gewoon werkt.
+(function vegOmTeSluiten(){
+  const pan = h2hEl.querySelector('.h2h-paneel'), achter = h2hEl.querySelector('.h2h-achter');
+  let y0=null, dy=0, t0=0, actief=false;
+  const terug = () => { pan.style.transition=''; pan.style.transform=''; achter.style.transition=''; achter.style.opacity=''; };
+  pan.addEventListener('touchstart', e=>{
+    if (e.touches.length!==1) { y0=null; return; }
+    if (!e.target.closest('.h2h-greep, .h2h-kop') && pan.scrollTop>0) { y0=null; return; }
+    y0=e.touches[0].clientY; dy=0; t0=Date.now(); actief=false;
+  }, {passive:true});
+  pan.addEventListener('touchmove', e=>{
+    if (y0===null) return;
+    dy = e.touches[0].clientY - y0;
+    if (!actief){
+      if (dy > 8){ actief=true; pan.style.transition='none'; achter.style.transition='none'; }
+      else { if (dy < -4) y0=null; return; }
+    }
+    e.preventDefault();
+    const d = Math.max(0, dy);
+    pan.style.transform = `translateY(${d}px)`;
+    achter.style.opacity = String(Math.max(0.2, 1 - d/400));
+  }, {passive:false});
+  const eind = () => {
+    if (y0===null) return;
+    y0=null;
+    if (!actief) return;
+    actief=false;
+    const snel = dy / Math.max(1, Date.now()-t0) > 0.6;
+    pan.style.transition='transform .2s ease-out'; achter.style.transition='opacity .2s ease-out';
+    if (dy > 110 || (snel && dy > 40)){
+      pan.style.transform='translateY(100%)'; achter.style.opacity='0';
+      setTimeout(()=>{ sluitH2H(false); terug(); }, 190);
+    } else {
+      pan.style.transform=''; achter.style.opacity='';
+      setTimeout(terug, 220);
+    }
+  };
+  pan.addEventListener('touchend', eind);
+  pan.addEventListener('touchcancel', eind);
+})();
+
 render();
 laad();
 laadLive();
