@@ -361,7 +361,7 @@ function askDarts(p,score){
     if(b.dataset.x==='cancel'){closeOv();buf='';render();return}
     const n=+b.dataset.n;
     snap();
-    st.leg.push({p,s:score,bust:false,darts:n});
+    st.leg.push({p,in:score,s:score,bust:false,darts:n,t:Date.now()});
     st.rem[p]=0;
     confirmLeg(p);
   };
