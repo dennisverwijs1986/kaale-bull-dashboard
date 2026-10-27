@@ -978,18 +978,19 @@ async function laadStand(force){
   if (standBezig || (!force && S.stand && Date.now()-S.standTijd < 60000)) { renderStand(); return; }
   standBezig=true;
   try{
-    const [pst, ere, stats, volgende, bekerStaat, bekerLinks] = await Promise.all([
+    const [pst, ere, stats, volgende, bekerStaat, bekerLinks, eindRijen] = await Promise.all([
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
       sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
       sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300'),
       sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`),
       sbGet('beker_toernooi','select=staat&order=id.desc&limit=1').catch(()=>[]),
-      sbGet('wedstrijden','select=id,verslag_url&divisie=ilike.Beker*&verslag_url=not.is.null').catch(()=>[])
+      sbGet('wedstrijden','select=id,verslag_url&divisie=ilike.Beker*&verslag_url=not.is.null').catch(()=>[]),
+      sbGet('eindstand_eerste_divisie','select=*&order=positie.asc')
     ]);
     // Statistieken: per divisie alleen de laatste peildatum
     const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
     S.beker = { staat: bekerStaat[0]?.staat || null, links: Object.fromEntries(bekerLinks.map(r=>[r.id, r.verslag_url])) };
-    S.stand = { pst, ere: berekenEre(ere), eind: berekenEind(pst),
+    S.stand = { pst, ere: berekenEre(ere), eind: berekenEind(pst, eindRijen),
                 stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
     S.standTijd = Date.now();
     if (!S.standPeriode){
@@ -1025,12 +1026,9 @@ function berekenEre(data){
 }
 // Eindstand Eerste Divisie: totaal over de periodes, directe promotie (nr. 1 en 2),
 // periodetitels en play-off tickets — zelfde regels als periode.html
-function berekenEind(data){
-  const tot={};
-  data.forEach(r=>{ const t=tot[r.speler]||(tot[r.speler]={speler:r.speler,w:0,g:0,p:0});
-    t.w+=Number(r.wedstrijden_gespeeld); t.g+=Number(r.gewonnen); t.p+=Number(r.periodepunten); });
-  const lijst=Object.values(tot).sort((a,b)=>b.p-a.p||b.g-a.g||a.speler.localeCompare(b.speler));
-  lijst.forEach((t,i)=>t.pos=i+1);
+// Volgorde (incl. tiebreak: punten > minste wedstrijden > onderling > legsaldo) komt uit de view eindstand_eerste_divisie.
+function berekenEind(data, eind){
+  const lijst=(eind||[]).map(r=>({speler:r.speler,w:Number(r.wedstrijden_gespeeld),g:Number(r.gewonnen),p:Number(r.punten),pos:r.positie}));
   const promo=new Set(lijst.slice(0,2).map(t=>t.speler));
   const titels={}, tickets={};
   [1,2,3,4].forEach(p=>{
@@ -1318,12 +1316,13 @@ async function h2hData(){
   if (H.data && Date.now()-H.t < 120000) return H.data;
   if (!H.laden) H.laden = (async()=>{
     try{
-      const [rijen, snap, sp, pst, vorig] = await Promise.all([
+      const [rijen, snap, sp, pst, vorig, eindRijen] = await Promise.all([
         sbGet('wedstrijden','select=id,datum,tijdstip,thuis,uit,legs_thuis,legs_uit,divisie,uitslag,status&status=eq.gespeeld&order=datum.asc,tijdstip.asc.nullslast,id.asc'),
         sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,s180,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
         sbGet('spelers','select=naam,divisie'),
         sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
         sbGet('historie_stats','select=seizoen,speler,gem&order=seizoen.desc').catch(()=>[]),
+        sbGet('eindstand_eerste_divisie','select=speler,positie&order=positie.asc').catch(()=>[]),
       ]);
       // Bekeruitslagen staan soms alleen in het bekertoernooi (zelfde aanvulling als in laad())
       rijen.forEach(w=>{
@@ -1338,7 +1337,7 @@ async function h2hData(){
       const div={}; sp.forEach(r=>{ if (r.divisie) div[r.naam]=r.divisie; });
       const plek={};
       berekenEre(rijen.filter(w=>divKey(w)==='ere')).forEach(r=>{ plek[r.speler]=r.pos; });
-      berekenEind(pst).forEach(r=>{ plek[r.speler]=r.pos; });
+      eindRijen.forEach(r=>{ plek[r.speler]=r.positie; });
       // Gemiddelde van het vorige seizoen (meest recente seizoen in historie_stats)
       const vj={}; vorig.forEach(r=>{ if (!(r.speler in vj)) vj[r.speler]=nr(r.gem); });
       H.data = { echt: rijen.filter(w=>!isBye(w) && winnaarVan(w)), snapVan, div, plek, vj, peil: snap.length ? snap[0].peildatum : null };
