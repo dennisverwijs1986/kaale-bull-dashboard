@@ -971,7 +971,7 @@ function renderLive(){
 // ══════════════════════════════════════════
 //  STANDEN (alleen bekijken) — zelfde berekening als periode.html
 // ══════════════════════════════════════════
-const PERIODE_LABELS = {1:'Ronde 1–10', 2:'Ronde 11–20', 3:'Ronde 21–30', 4:'Ronde 31–42'};
+const PERIODE_LABELS = {1:'Ronde 1–10', 2:'Ronde 11–21', 3:'Ronde 22–31', 4:'Ronde 32–42'};
 const ERE_PLAYOFF = [17,18,19], ERE_DEGRADATIE = [20,21];
 let standBezig=false;
 async function laadStand(force){
@@ -993,10 +993,10 @@ async function laadStand(force){
                 stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
     S.standTijd = Date.now();
     if (!S.standPeriode){
-      // Periode die nu loopt: die van de eerstvolgende speelronde in de planning (1–10, 11–20, 21–30, 31–42)
+      // Periode die nu loopt: die van de eerstvolgende speelronde in de planning (1–10, 11–21, 22–31, 32–42)
       const rondes = volgende.map(w=>parseInt(w.speelronde,10)).filter(n=>!isNaN(n));
       const r = rondes.length ? Math.min(...rondes) : null;
-      S.standPeriode = r===null ? 'eind' : r<=10 ? 1 : r<=20 ? 2 : r<=30 ? 3 : 4;
+      S.standPeriode = r===null ? 'eind' : r<=10 ? 1 : r<=21 ? 2 : r<=31 ? 3 : 4;
     }
   }catch(e){ if (!S.stand) S.stand = { fout:true }; }
   finally{ standBezig=false; }
