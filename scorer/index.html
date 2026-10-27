@@ -78,6 +78,12 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 .hrow .d{text-align:center;color:var(--muted);font-size:clamp(1.3rem,3.6vh,2rem);font-weight:700;border-inline:1px solid var(--line);align-self:stretch;display:flex;align-items:center;justify-content:center}
 .hrow .s.b{color:var(--red)}
 .hrow .s.hi{color:var(--gold)}
+.hrow .s.tap{cursor:pointer;border-radius:8px}
+.hrow .s.tap:active{background:var(--panel2)}
+.hrow .s.edit{background:var(--gold);color:#111;border-radius:8px}
+.hrow .s.edit small{color:#3a3200}
+.disp.editing{background:#2a2410;border-color:var(--gold);color:var(--gold)}
+.disp.editing small{font:600 .9rem var(--ui);color:var(--muted);margin-right:12px}
 .hhead{position:sticky;top:0;background:var(--panel2);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:var(--ui);font-weight:600;padding:6px 0}
 .hhead div{text-align:center}
 
@@ -298,7 +304,7 @@ const $=id=>document.getElementById(id);
 let st=null,hist=[],buf='',starterPick=null,fmtLegs=3,fmtLabel='Competitie · best of 5';
 const clone=o=>JSON.parse(JSON.stringify(o));
 function snap(){hist.push(clone(st));if(hist.length>400)hist.shift()}
-function undo(){if(!hist.length)return false;st=hist.pop();buf='';return true}
+function undo(){if(!hist.length)return false;st=hist.pop();buf='';editIdx=null;return true}
 
 function newMatch(names,legsToWin,starter,label){
   st={id:uuid(),wedstrijd_id:pending?pending.id:null,divisie:pending?pending.divisie:'Vrij',bord,names,legsToWin,label,start:501,legStarter:starter,turn:starter,legs:[0,0],rem:[501,501],leg:[],done:[],over:false};
@@ -323,7 +329,7 @@ function stats(p){
 }
 
 /* ---------- invoer ---------- */
-function flash(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(flash.t);flash.t=setTimeout(()=>el.classList.remove('on'),900)}
+function flash(t,ok){const el=$('toast');el.textContent=t;el.style.background=ok?'var(--green)':'';el.classList.add('on');clearTimeout(flash.t);flash.t=setTimeout(()=>el.classList.remove('on'),900)}
 function valid(s){return Number.isInteger(s)&&s>=0&&s<=180&&!IMPOSSIBLE.has(s)}
 
 function submit(score,forceBust){
@@ -337,7 +343,7 @@ function submit(score,forceBust){
     else if(left===0){if(checkout(r)){askDarts(p,score);return}bust=true}
   }
   snap();
-  st.leg.push({p,s:bust?0:score,bust,darts:3});
+  st.leg.push({p,in:forceBust?null:score,s:bust?0:score,bust,darts:3});
   if(!bust)st.rem[p]-=score;
   st.turn=1-p;buf='';render();
   if(bust)flash('BUST');
@@ -406,25 +412,28 @@ function render(){
   $('legs').textContent=st.legs[0]+'-'+st.legs[1];
   $('fmt').textContent=`Leg ${st.done.length+1} · eerst tot ${st.legsToWin}`;
   // beurtenlijst
-  const rows=[[],[]];st.leg.forEach(t=>rows[t.p].push(t));
+  const rows=[[],[]],idx=[[],[]];st.leg.forEach((t,k)=>{rows[t.p].push(t);idx[t.p].push(k)});
   const n=Math.max(rows[0].length,rows[1].length);
   const remAt=[[],[]];[0,1].forEach(p=>{let r=st.start;rows[p].forEach(t=>{r-=t.s;remAt[p].push(r)})});
   const cell=(p,i)=>{const t=rows[p][i];if(!t)return'<div class="s"></div>';
-    const cls=t.bust?'b':t.s>=100?'hi':'';
-    return`<div class="s ${cls}">${t.bust?'Bust':t.s}<small>${remAt[p][i]}</small></div>`};
+    const k=idx[p][i],cls=(k===editIdx?'edit':t.bust?'b':t.s>=100?'hi':'')+' tap';
+    return`<div class="s ${cls}" data-e="${k}">${t.bust?'Bust':t.s}<small>${remAt[p][i]}</small></div>`};
   let h=`<div class="hrow hhead"><div>${esc(st.names[0])}</div><div>Beurt</div><div>${esc(st.names[1])}</div></div>`;
   for(let i=0;i<n;i++)h+=`<div class="hrow">${cell(0,i)}<div class="d">${i+1}</div>${cell(1,i)}</div>`;
-  const hb=$('hist');hb.innerHTML=h;hb.scrollTop=hb.scrollHeight;
+  const hb=$('hist');hb.innerHTML=h;if(editIdx===null)hb.scrollTop=hb.scrollHeight;
   const d=$('disp');
-  const fin=!buf&&st.rem[st.turn]<=170?checkout(st.rem[st.turn]):null;
-  d.classList.toggle('fls',!!fin);
-  if(buf){d.textContent=/[+x]/.test(buf)?buf.replace(/x/g,'×')+' = '+total():buf;d.classList.remove('empty')}
+  const fin=editIdx===null&&!buf&&st.rem[st.turn]<=170?checkout(st.rem[st.turn]):null;
+  d.classList.toggle('fls',!!fin);d.classList.toggle('editing',editIdx!==null);
+  if(editIdx!==null){const t=st.leg[editIdx];d.classList.remove('empty');
+    const nr=st.leg.slice(0,editIdx+1).filter(x=>x.p===t.p).length;
+    d.innerHTML=`<small>Beurt ${nr} aanpassen</small>${buf?esc(/[+x]/.test(buf)?buf.replace(/x/g,'×')+' = '+total():buf):(t.bust?'Bust':t.s)}`}
+  else if(buf){d.textContent=/[+x]/.test(buf)?buf.replace(/x/g,'×')+' = '+total():buf;d.classList.remove('empty')}
   else if(fin){d.classList.remove('empty');d.innerHTML=[1,2,3].map(n=>`<button class="fl" data-f="${n}" ${n<fin.darts?'disabled':''} aria-label="Uitgegooid met pijl ${n}">${FLIGHT}<span>${n}</span></button>`).join('')}
   else{d.textContent=st.names[st.turn]+' aan de beurt';d.classList.add('empty')}
-  $('backBtn').textContent=buf?'Wis':'Terug';
+  $('backBtn').textContent=buf?'Wis':editIdx!==null?'Annuleer':'Terug';
   $('bordTxt').textContent='Bord '+(bord||'–');
   persist();
-  const act=$('actBtn');act.textContent=buf?'OK':'Mis';act.classList.toggle('ok',!!buf);
+  const act=$('actBtn');act.textContent=buf?'OK':editIdx!==null?'0':'Mis';act.classList.toggle('ok',!!buf);
   const typing={100:'×',180:'0',140:'+'};
   document.querySelectorAll('[data-t]').forEach(b=>{b.textContent=buf?typing[b.dataset.t]:b.dataset.t;b.classList.toggle('tmode',!!buf)});
   const k180=document.querySelector('[data-t="180"]');
@@ -458,6 +467,7 @@ function show(id){for(const v of ['code','bordkeuze','wacht','setup','game','end
 /* ---------- toetsen ---------- */
 const FLIGHT='<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 6 L84 22 L94 56 L72 92 L28 92 L6 56 L16 22 Z" fill="#b8262c" stroke="#e8565c" stroke-width="3"/><path d="M50 6 L50 92" stroke="#7a1418" stroke-width="5"/></svg>';
 function finishWith(n){
+  editIdx=null;
   const p=st.turn,score=st.rem[p];
   snap();st.leg.push({p,s:score,bust:false,darts:n});st.rem[p]=0;buf='';
   confirmLeg(p);
@@ -469,17 +479,45 @@ function addDigit(d){
 }
 function addPlus(){if(!buf||/[+x]$/.test(buf)||buf.split('+').length>=3)return;buf+='+';render()}
 function addTimes(){if(!buf||/[+x]$/.test(buf)||buf.split('+').pop().includes('x'))return;buf+='x';render()}
-function enter(){if(buf){submit(total())}}
-function back(){if(buf){buf=buf.slice(0,-1);render()}else if(undo())render();else flash('Niets terug te zetten')}
+let editIdx=null;
+function startEdit(k){
+  editIdx=(editIdx===k)?null:k;buf='';render();
+}
+// herbereken de hele leg vanaf 501 met de ingevoerde scores
+function herbereken(leg){
+  const rem=[st.start,st.start];
+  for(const t of leg){
+    const inp=t.in===undefined?(t.bust?null:t.s):t.in;
+    t.in=inp;
+    if(inp===null){t.s=0;t.bust=true;continue}
+    const left=rem[t.p]-inp;
+    if(left<0||left===1){t.s=0;t.bust=true}
+    else if(left===0)return null;               // zou een uitgooi worden
+    else{t.s=inp;t.bust=false;rem[t.p]=left}
+  }
+  return rem;
+}
+function saveEdit(score){
+  if(!valid(score)){flash('Ongeldig');buf='';render();return}
+  const leg=clone(st.leg);leg[editIdx].in=score;
+  const rem=herbereken(leg);
+  if(!rem){flash('Dan is hij uit');buf='';render();return}
+  snap();st.leg=leg;st.rem=rem;editIdx=null;buf='';render();flash('Aangepast',true);
+}
+function enter(){if(!buf)return;if(editIdx!==null)saveEdit(total());else submit(total())}
+function back(){if(buf){buf=buf.slice(0,-1);render()}else if(editIdx!==null){editIdx=null;render()}else if(undo())render();else flash('Niets terug te zetten')}
+$('hist').addEventListener('click',e=>{
+  const c=e.target.closest('[data-e]');if(!c||!st||st.over)return;startEdit(+c.dataset.e);
+});
 $('pad').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||!st||st.over)return;
   if(b.dataset.f){finishWith(+b.dataset.f);return}
-  if(b.classList.contains('bustmode')){submit(0,true);return}
+  if(b.classList.contains('bustmode')&&editIdx===null){submit(0,true);return}
   if(b.dataset.d!==undefined){addDigit(b.dataset.d);return}
   if(b.dataset.t&&buf){const t=b.dataset.t;if(t==='100')addTimes();else if(t==='180')addDigit('0');else addPlus();return}
-  if(b.dataset.q){submit(+b.dataset.q);return}
+  if(b.dataset.q){if(editIdx!==null)saveEdit(+b.dataset.q);else submit(+b.dataset.q);return}
   const k=b.dataset.k;
-  if(k==='act'){if(buf)enter();else submit(0);return}
+  if(k==='act'){if(buf)enter();else if(editIdx!==null)saveEdit(0);else submit(0);return}
   if(k==='back')back();
 });
 document.addEventListener('keydown',e=>{
@@ -489,7 +527,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='*'||e.key.toLowerCase()==='x')addTimes();
   else if(e.key==='Enter'){if(buf)enter();else submit(0)}
   else if(e.key==='Backspace')back();
-  else if(e.key==='Escape'){buf='';render()}
+  else if(e.key==='Escape'){buf='';editIdx=null;render()}
 });
 
 /* ---------- koppeling met Supabase ---------- */
