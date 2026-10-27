@@ -307,7 +307,7 @@ function snap(){hist.push(clone(st));if(hist.length>400)hist.shift()}
 function undo(){if(!hist.length)return false;st=hist.pop();buf='';editIdx=null;return true}
 
 function newMatch(names,legsToWin,starter,label){
-  st={id:uuid(),wedstrijd_id:pending?pending.id:null,divisie:pending?pending.divisie:'Vrij',bord,names,legsToWin,label,start:501,legStarter:starter,turn:starter,legs:[0,0],rem:[501,501],leg:[],done:[],over:false};
+  st={id:uuid(),wedstrijd_id:pending?pending.id:null,divisie:pending?pending.divisie:'Vrij',bord,names,legsToWin,label,start:501,legStarter:starter,turn:starter,legs:[0,0],rem:[501,501],leg:[],done:[],over:false,begin:Date.now(),legBegin:Date.now()};
   hist=[];buf='';
 }
 
@@ -343,7 +343,7 @@ function submit(score,forceBust){
     else if(left===0){if(checkout(r)){askDarts(p,score);return}bust=true}
   }
   snap();
-  st.leg.push({p,in:forceBust?null:score,s:bust?0:score,bust,darts:3});
+  st.leg.push({p,in:forceBust?null:score,s:bust?0:score,bust,darts:3,t:Date.now()});
   if(!bust)st.rem[p]-=score;
   st.turn=1-p;buf='';render();
   if(bust)flash('BUST');
@@ -387,7 +387,7 @@ function closeOv(){$('ov').hidden=true;$('mod').onclick=null}
 
 function finishLeg(p){
   st.legs[p]++;
-  st.done.push({winner:p,turns:st.leg,starter:st.legStarter});st.leg=[];
+  st.done.push({winner:p,turns:st.leg,starter:st.legStarter,begin:st.legBegin,eind:Date.now()});st.leg=[];st.legBegin=Date.now();
   if(st.legs[p]===st.legsToWin){st.over=true;showEnd();return}
   st.legStarter=1-st.legStarter;st.turn=st.legStarter;
   st.rem=[st.start,st.start];st.leg=[];buf='';render();
@@ -469,7 +469,7 @@ const FLIGHT='<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 6 L84 2
 function finishWith(n){
   editIdx=null;
   const p=st.turn,score=st.rem[p];
-  snap();st.leg.push({p,s:score,bust:false,darts:n});st.rem[p]=0;buf='';
+  snap();st.leg.push({p,in:score,s:score,bust:false,darts:n,t:Date.now()});st.rem[p]=0;buf='';
   confirmLeg(p);
 }
 function total(){return buf.split('+').filter(Boolean).reduce((a,p)=>a+p.split('x').filter(Boolean).reduce((m,x)=>m*(+x),1),0)}
