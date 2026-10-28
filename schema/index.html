@@ -331,6 +331,19 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .h2h-blok b{display:block;margin-bottom:3px;}
 .h2h-blok div{color:var(--muted);padding:2px 0;}
 .h2h-tipblok{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:#bfdbfe;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.88rem;}
+table.stand tr[data-speler]{cursor:pointer;}
+table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
+.sp-tegels{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
+.sp-tegel{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:8px 6px;text-align:center;}
+.sp-tegel b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums;}
+.sp-tegel span{font-size:.68rem;color:var(--muted);}
+.sp-pijl{font-size:.7rem;font-weight:800;margin-left:3px;}
+.sp-pijl.op{color:#6ee7b7;} .sp-pijl.neer{color:#fca5a5;}
+.sp-grafiek{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:6px 4px 2px;}
+.sp-grafiek svg{display:block;width:100%;height:auto;}
+.sp-legenda{display:flex;flex-wrap:wrap;gap:12px;font-size:.72rem;color:var(--muted);margin:6px 2px 0;}
+.sp-legenda i{display:inline-block;width:14px;border-top:2px solid #93c5fd;vertical-align:middle;margin-right:5px;}
+.sp-legenda i.vj{border-top:2px dashed var(--muted);}
 .h2h-sub{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:14px 0 4px;}
 table.stand td.w{color:#6ee7b7;font-weight:700;}
 table.stand td.v{color:#fca5a5;font-weight:700;}
@@ -387,7 +400,7 @@ table.stand td.v{color:#fca5a5;font-weight:700;}
   <div class="h2h-achter" data-h2h-sluit></div>
   <div class="h2h-paneel" role="dialog" aria-modal="true" aria-label="Head-to-head">
     <div class="h2h-greep"></div>
-    <div class="h2h-kop"><b>⚔️ Head-to-head</b><button class="h2h-sluit" data-h2h-sluit aria-label="Sluiten">✕</button></div>
+    <div class="h2h-kop"><b id="h2hTitel">⚔️ Head-to-head</b><button class="h2h-sluit" data-h2h-sluit aria-label="Sluiten">✕</button></div>
     <div id="h2hInhoud"></div>
   </div>
 </div>
@@ -1167,7 +1180,7 @@ function eersteHtml(){
         if (t.promo) tags.push('<span class="zone-tag prom">⬆ promotie</span>');
         if (t.titels.length) tags.push(`<span class="zone-tag titel">🏆 P${t.titels.join(', P')}</span>`);
         if (t.ticket) tags.push(`<span class="zone-tag po">🎟 ${t.ticket==='E'?'eindstand':'P'+t.ticket}</span>`);
-        return `<tr class="${t.promo?'leider':''}${t.speler===S.ik?' ik':''}"><td class="pos">${t.pos}</td><td>${esc(t.speler)}${tags.length?`<div class="tags">${tags.join('')}</div>`:''}</td><td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num"><b>${t.p}</b></td></tr>`;
+        return `<tr class="${t.promo?'leider':''}${t.speler===S.ik?' ik':''}" data-speler="${esc(t.speler)}"><td class="pos">${t.pos}</td><td>${esc(t.speler)}${tags.length?`<div class="tags">${tags.join('')}</div>`:''}</td><td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num"><b>${t.p}</b></td></tr>`;
       }).join('')}</tbody></table>
       <div class="stand-noot">⬆ Nr. 1 en 2 promoveren direct. 🏆 Periodetitel. 🎟 Play-off ticket: per periode de beste speler zonder ticket, plus één via de eindstand.</div>`
       : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden.</div>`;
@@ -1175,7 +1188,7 @@ function eersteHtml(){
     const rijen = S.stand.pst.filter(r=>r.periode===S.standPeriode);
     tabel = rijen.length
       ? `<table class="stand"><thead><tr><th></th><th>Speler</th><th class="num">Wedstr.</th><th class="num">Winst</th><th class="num">Ptn</th></tr></thead><tbody>${
-          rijen.map(r=>`<tr class="${r.positie==1?'leider':''}${r.speler===S.ik?' ik':''}"><td class="pos">${r.positie==1?'🏆':r.positie}</td><td>${esc(r.speler)}</td><td class="num">${r.wedstrijden_gespeeld}</td><td class="num">${r.gewonnen}</td><td class="num"><b>${r.periodepunten}</b></td></tr>`).join('')
+          rijen.map(r=>`<tr class="${r.positie==1?'leider':''}${r.speler===S.ik?' ik':''}" data-speler="${esc(r.speler)}"><td class="pos">${r.positie==1?'🏆':r.positie}</td><td>${esc(r.speler)}</td><td class="num">${r.wedstrijden_gespeeld}</td><td class="num">${r.gewonnen}</td><td class="num"><b>${r.periodepunten}</b></td></tr>`).join('')
         }</tbody></table><div class="stand-noot">Punten = gewonnen legs. ${PERIODE_LABELS[S.standPeriode]}.</div>`
       : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden in deze periode.</div>`;
   }
@@ -1191,7 +1204,7 @@ function ereHtml(){
     if (ERE_DEGRADATIE.includes(plek)){ cls='zone-deg'; if (plek===ERE_DEGRADATIE[0]) tag='<span class="zone-tag deg">degradatie</span>'; }
     if (plek===ERE_PLAYOFF[0]||plek===ERE_DEGRADATIE[0]) cls+=' streep';
     if (r.speler===S.ik) cls+=' ik';
-    return `<tr class="${cls}"><td class="pos">${r.pos}</td><td>${esc(r.speler)}${tag}</td><td class="num">${r.g}</td>` +
+    return `<tr class="${cls}" data-speler="${esc(r.speler)}"><td class="pos">${r.pos}</td><td>${esc(r.speler)}${tag}</td><td class="num">${r.g}</td>` +
       (geenLegs ? `<td class="num">${r.w}</td><td class="num">${r.v}</td>` : `<td class="num">${r.w}-${r.v}</td><td class="num"><b>${r.p}</b>${r.zonder?' *':''}</td>`) + `</tr>`;
   };
   const kop = geenLegs ? '<th class="num">G</th><th class="num">W</th><th class="num">V</th>' : '<th class="num">G</th><th class="num">W-V</th><th class="num">Ptn</th>';
@@ -1217,10 +1230,10 @@ function statsHtml(){
   const peil = S.stand.peil[naam];
   return `<div class="periodes">${knoppenSort()}</div>
     <table class="stand"><thead><tr><th></th><th>Speler</th>${def.kolommen.map(([,t])=>`<th class="num">${t}</th>`).join('')}</tr></thead><tbody>${
-      l.map(r=>`<tr class="${r.speler===S.ik?'ik':''}"><td class="pos">${r._pos}</td><td>${esc(r.speler)}</td>${
+      l.map(r=>`<tr class="${r.speler===S.ik?'ik':''}" data-speler="${esc(r.speler)}"><td class="pos">${r._pos}</td><td>${esc(r.speler)}</td>${
         def.kolommen.map(([k],i)=>`<td class="num">${i===0?`<b>${fmt(r,k)}</b>`:fmt(r,k)}</td>`).join('')}</tr>`).join('')
     }</tbody></table>
-    <div class="stand-noot">Stand van ${esc(fmtLang.format(alsDatum(peil)))} (DartConnect).${S.statsSort==='gem' ? ' Gemiddelde per 3 darts.' : ''}${S.statsSort==='beste_leg' ? ' Minste aantal darts voor een leg.' : ''}</div>`;
+    <div class="stand-noot">Stand van ${esc(fmtLang.format(alsDatum(peil)))} (DartConnect).${S.statsSort==='gem' ? ' Gemiddelde per 3 darts.' : ''} Tik op een speler voor alle cijfers en de vergelijking met vorig seizoen.${S.statsSort==='beste_leg' ? ' Minste aantal darts voor een leg.' : ''}</div>`;
 }
 function knoppenSort(){
   return Object.entries(STAT_SORT).map(([k,d])=>`<button data-sort="${k}" class="${S.statsSort===k?'actief':''}"><b>${d.kort}</b><span>${d.label}</span></button>`).join('');
@@ -1477,6 +1490,7 @@ async function openH2H(id){
   h2hEl.hidden=false; document.body.style.overflow='hidden';
   if (!eerder){ try{ history.pushState({h2h:1}, ''); }catch(e){} }
   if (lezen('kb_schema_h2h_gezien')!=='1'){ opslaan('kb_schema_h2h_gezien','1'); }
+  document.getElementById('h2hTitel').textContent = '⚔️ Head-to-head';
   h2hInhoud.innerHTML = h2hKop(w,A,B) + `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
   h2hEl.querySelector('.h2h-paneel').scrollTop = 0;
   try{
@@ -1494,9 +1508,117 @@ function sluitH2H(viaTerug){
   if (!viaTerug){ try{ if (history.state && history.state.h2h) history.back(); }catch(e){} }
   if (S.view==='mijn') renderMijn();   // tip "tik op een wedstrijd" verdwijnt na de eerste keer
 }
+// ══════════════════════════════════════════
+//  SPELERSPANEEL — tik op een speler bij Standen/Statistieken.
+//  Eigen cijfers dit seizoen naast vorig seizoen (historie_stats + historie_wedstrijden),
+//  plus het verloop van het gemiddelde over de opgeslagen tussenstanden. Gebruikt het h2h-paneel.
+// ══════════════════════════════════════════
+const SP = { hist:{} };
+async function spelerExtra(naam){
+  if (SP.hist[naam]) return SP.hist[naam];
+  const e = encodeURIComponent(naam);
+  const q = `"${String(naam).replace(/["\\]/g,'')}"`;
+  const [reeks, vorig] = await Promise.all([
+    sbGet('stats_snapshots', `select=peildatum,gem,wedstrijden&speler=eq.${e}&order=peildatum.asc`),
+    sbGet('historie_stats', `select=*&speler=eq.${e}&order=seizoen.desc&limit=1`).catch(()=>[]),
+  ]);
+  const v = vorig[0] || null;
+  const uitsl = v ? await sbGet('historie_wedstrijden',
+      `select=thuis,uit,legs_thuis,legs_uit,winnaar,walkover&seizoen=eq.${encodeURIComponent(v.seizoen)}&or=${encodeURIComponent(`(thuis.eq.${q},uit.eq.${q})`)}`).catch(()=>[])
+    : [];
+  return (SP.hist[naam] = { reeks, v, uitsl });
+}
+function spGrafiek(reeks, vjGem){
+  const p = reeks.filter(r=>nr(r.gem)>0 && nr(r.wedstrijden)>0);
+  if (p.length < 2) return '';
+  const W=340, Hh=150, L=30, R=8, T=12, B=22;
+  const waarden = p.map(r=>Number(r.gem)).concat(vjGem ? [vjGem] : []);
+  let lo=Math.min(...waarden), hi=Math.max(...waarden); const m=Math.max(1,(hi-lo)*.15);
+  lo=Math.floor(lo-m); hi=Math.ceil(hi+m);
+  const x=i=>L+i*(W-L-R)/(p.length-1), y=g=>T+(hi-g)*(Hh-T-B)/(hi-lo);
+  const raster=[0,1,2,3].map(k=>{ const g=lo+k*(hi-lo)/3;
+    return `<line x1="${L}" x2="${W-R}" y1="${y(g)}" y2="${y(g)}" stroke="#2a3a56" stroke-width="1"/><text x="${L-5}" y="${y(g)+3.5}" text-anchor="end" font-size="9" fill="#64748b">${komma(g, hi-lo<8?1:0)}</text>`; }).join('');
+  const elke=Math.ceil(p.length/5);
+  const labels=p.map((r,i)=>(i%elke===0||i===p.length-1)?`<text x="${x(i)}" y="${Hh-6}" text-anchor="middle" font-size="9" fill="#64748b">${esc(fmtDag.format(alsDatum(r.peildatum)))}</text>`:'').join('');
+  const lijn=p.map((r,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(Number(r.gem)).toFixed(1)}`).join(' ');
+  const vj = vjGem ? `<line x1="${L}" x2="${W-R}" y1="${y(vjGem)}" y2="${y(vjGem)}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 4"/>` : '';
+  const laatst=p[p.length-1];
+  return `<div class="h2h-sub">Gemiddelde door het seizoen</div><div class="sp-grafiek"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Verloop gemiddelde">${raster}${vj}
+    <path d="${lijn}" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${p.map((r,i)=>`<circle cx="${x(i)}" cy="${y(Number(r.gem))}" r="3" fill="#93c5fd"/>`).join('')}
+    <text x="${x(p.length-1)}" y="${y(Number(laatst.gem))-8}" text-anchor="end" font-size="10" font-weight="800" fill="#93c5fd">${komma(laatst.gem,2)}</text>${labels}</svg></div>
+    <div class="sp-legenda"><span><i></i>Dit seizoen</span>${vjGem?`<span><i class="vj"></i>Vorig seizoen (${komma(vjGem,2)})</span>`:''}</div>`;
+}
+function spBody(naam, D, X){
+  const a = h2hStats(D, naam), v = X.v;
+  const div = a.div || '';
+  const pijl = (nu, toen, laag) => { if (nu===null || toen===null || nu===toen) return '';
+    const op = laag ? nu<toen : nu>toen; return `<span class="sp-pijl ${op?'op':'neer'}">${op?'▲':'▼'}</span>`; };
+  const vg = v ? nr(v.gem) : null;
+  let html = `<div class="h2h-vs" style="grid-template-columns:1fr"><div class="nm${naam===S.ik?' ik':''}">${esc(naam)}<small>${esc(div)}${a.plek?` · plek ${a.plek}`:''}</small></div></div>
+    <div class="sp-tegels">
+      <div class="sp-tegel"><b>${komma(a.gem,2)}${pijl(a.gem, vg)}</b><span>Gemiddelde</span></div>
+      <div class="sp-tegel"><b>${a.gw} – ${a.vl}</b><span>Gewonnen – verloren</span></div>
+      <div class="sp-tegel"><b>${komma(a.s180)}</b><span>180's</span></div>
+    </div>`;
+  if (!v){
+    html += `<div class="h2h-tipblok">🎯 Eerste seizoen bij De Kaale Bull, dus nog geen cijfers van vorig seizoen om mee te vergelijken.</div>`;
+  } else {
+    // Vorig seizoen: winst/verlies uit de matchlog, legs uit de leaderboard-export
+    let vgw=0, vvl=0;
+    X.uitsl.forEach(u=>{ if (u.winnaar===naam) vgw++; else if (u.winnaar) vvl++; });
+    const vlv = nr(v.legs_gewonnen), vlt = nr(v.legs)!==null && vlv!==null ? v.legs - v.legs_gewonnen : null;
+    const per = (t,n) => t===null || !n ? null : t/n;
+    const nNu = a.n, nVj = nr(v.wedstrijden);
+    const p2 = (t,n) => { const x=per(t,n); return x===null ? '–' : komma(x,2); };
+    let rijen = `<div class="h2h-rij namen"><div>Nu</div><div></div><div>${esc(v.seizoen)}</div></div>`;
+    rijen += h2hRij(komma(a.gw+a.vl), 'Wedstrijden', komma(nVj), null);
+    rijen += h2hRij(`${a.gw} – ${a.vl}`, 'Gewonnen – verloren', X.uitsl.length ? `${vgw} – ${vvl}` : '–',
+      X.uitsl.length && a.gw+a.vl ? beter(a.gw/(a.gw+a.vl), vgw/Math.max(1,vgw+vvl)) : null);
+    rijen += h2hRij(`${a.lv} – ${a.lt}`, 'Legs voor – tegen', vlv!==null ? `${vlv} – ${vlt}` : '–',
+      a.lv+a.lt && vlv!==null ? beter(a.lv/(a.lv+a.lt), vlv/Math.max(1,vlv+vlt)) : null);
+    rijen += h2hRij(komma(a.gem,2), 'Gemiddelde', komma(vg,2), beter(a.gem, vg));
+    rijen += h2hRij('–', 'First 9', komma(nr(v.first9),2), null);
+    rijen += h2hRij(p2(a.t100,nNu), '100+ per wedstrijd', p2(nr(v.t100),nVj), beter(per(a.t100,nNu), per(nr(v.t100),nVj)));
+    rijen += h2hRij(p2(a.t140,nNu), '140+ per wedstrijd', p2(nr(v.t140),nVj), beter(per(a.t140,nNu), per(nr(v.t140),nVj)));
+    rijen += h2hRij(`${komma(a.s180)}`, '180\'s totaal', komma(nr(v.s180)), null);
+    rijen += h2hRij(komma(a.finish), 'Hoogste finish', komma(nr(v.hoogste_finish)), beter(a.finish, nr(v.hoogste_finish)));
+    rijen += h2hRij(komma(a.bl), 'Beste leg (darts)', komma(nr(v.beste_leg)), beter(a.bl, nr(v.beste_leg), true));
+    rijen += h2hRij('–', 'Uitgooi-%', v.checkout_pct!=null ? komma(v.checkout_pct,1)+'%' : '–', null);
+    rijen += `<div class="h2h-rij">${h2hBol(a.vorm)}<div class="lb">Vorm (laatste 5)</div><div></div></div>`;
+    html += `<div class="h2h-sub">Dit seizoen vs. vorig seizoen</div><div class="h2h-tabel">${rijen}</div>`;
+    const s180vj = nr(v.s180);
+    if (s180vj) html += `<div class="h2h-blok"><b>${a.s180 >= s180vj ? `🎉 Al net zoveel 180's als heel vorig seizoen (${s180vj})` : `Nog ${s180vj - (a.s180||0)} × 180 om vorig seizoen (${s180vj}) te evenaren`}</b></div>`;
+  }
+  html += spGrafiek(X.reeks, vg);
+  const noten = [`Stats: DartConnect${D.peil ? ' t/m '+fmtDag.format(alsDatum(D.peil)) : ''}. Alleen competitie, beker telt niet mee.`];
+  if (v) noten.push('100+ en 140+ staan per wedstrijd, zodat je ook halverwege het seizoen eerlijk vergelijkt. Blauw = de betere van de twee. Vorig seizoen speelde iedereen in één divisie.');
+  return html + `<div class="stand-noot">${noten.map(esc).join('<br>')}</div>`;
+}
+async function openSpeler(naam){
+  if (!naam) return;
+  const eerder = !!H.open;
+  const open = { speler:naam };
+  H.open = open;
+  document.getElementById('h2hTitel').textContent = '📊 Spelersstats';
+  h2hEl.hidden=false; document.body.style.overflow='hidden';
+  if (!eerder){ try{ history.pushState({h2h:1}, ''); }catch(e){} }
+  h2hInhoud.innerHTML = `<div class="h2h-vs" style="grid-template-columns:1fr"><div class="nm">${esc(naam)}</div></div><div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
+  h2hEl.querySelector('.h2h-paneel').scrollTop = 0;
+  try{
+    const [D, X] = await Promise.all([h2hData(), spelerExtra(naam)]);
+    if (H.open!==open) return;
+    h2hInhoud.innerHTML = spBody(naam, D, X);
+  }catch(e){
+    if (H.open===open) h2hInhoud.innerHTML = `<div class="leeg"><span class="ico">📡</span>Kan de cijfers nu niet ophalen.<br>Probeer het zo nog eens.</div>`;
+  }
+}
+
 document.addEventListener('click', e=>{
   if (e.target.closest('[data-h2h-sluit]')) { sluitH2H(false); return; }
   if (e.target.closest('a,button')) return;
+  const sp = e.target.closest('tr[data-speler]');
+  if (sp) { openSpeler(sp.dataset.speler); return; }
   const k = e.target.closest('.kaart[data-h2h]');
   if (k) openH2H(k.dataset.h2h);
 });
