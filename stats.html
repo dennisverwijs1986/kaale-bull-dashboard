@@ -87,6 +87,51 @@
     .grid-3, .grid-2 { grid-template-columns: 1fr; }
   }
 
+  /* Klikbare spelersnaam */
+  .speler-link { cursor: pointer; border-bottom: 1px dotted var(--text-dim); }
+  .speler-link:hover { color: var(--green); border-bottom-color: var(--green); }
+
+  /* Spelerspaneel */
+  .sp-overlay { position: fixed; inset: 0; background: #000a; z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .sp-overlay.open { display: flex; }
+  .sp-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px #0008; transition: transform .2s; }
+  .sp-head { position: sticky; top: 0; background: var(--bg3); padding: 14px 16px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid var(--border); z-index: 1; }
+  .sp-head h2 { font-size: 18px; font-weight: 700; }
+  .sp-head .sp-sub { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+  .sp-close { margin-left: auto; background: transparent; border: none; color: var(--text-dim); font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 6px; }
+  .sp-close:hover { color: var(--green); }
+  .sp-grip { display: none; }
+  .sp-body { padding: 14px 16px 18px; }
+  .sp-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px; }
+  .sp-tile { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  .sp-tile .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sp-tile .l { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .sp-h3 { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: .08em; margin: 18px 0 8px; }
+  .sp-table { width: 100%; border-collapse: collapse; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .sp-table th, .sp-table td { padding: 7px 10px; font-size: 13px; }
+  .sp-table th { font-size: 10px; }
+  .sp-table td:first-child { color: var(--text-dim); }
+  .sp-table tr:hover td { background: transparent; }
+  .sp-up { color: var(--green); font-weight: 600; }
+  .sp-down { color: #ff7b7b; font-weight: 600; }
+  .sp-same { color: var(--text-dim); }
+  .sp-note { font-size: 11px; color: var(--text-dim); margin-top: 6px; line-height: 1.45; }
+  .sp-trend svg { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+  .sp-legend { display: flex; gap: 14px; font-size: 11px; color: var(--text-dim); margin-top: 6px; flex-wrap: wrap; }
+  .sp-legend i { display: inline-block; width: 14px; height: 0; border-top: 2px solid var(--green); vertical-align: middle; margin-right: 5px; }
+  .sp-legend i.vorig { border-top: 2px dashed var(--text-dim); }
+  .sp-leeg { color: var(--text-dim); font-size: 13px; padding: 10px; background: var(--bg); border: 1px dashed var(--border); border-radius: 8px; }
+  @media (max-width: 600px) {
+    .sp-overlay { align-items: flex-end; padding: 0; }
+    .sp-panel { max-width: 100%; max-height: 88vh; border-radius: 16px 16px 0 0; }
+    .sp-grip { display: block; flex-basis: 100%; padding-bottom: 8px; }
+    .sp-grip::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--text-dim); opacity: .5; margin: 0 auto; }
+    .sp-head { flex-wrap: wrap; padding-top: 8px; }
+    .sp-head .sp-titel { flex: 1; }
+    .sp-tile .v { font-size: 18px; }
+  }
+  @media print { .sp-overlay { display: none !important; } .speler-link { border: none; } }
+
   /* Print */
   .pdf-links { visibility: hidden; height: 0; overflow: hidden; margin: 0; }
 
@@ -151,6 +196,20 @@
   <div id="output"></div>
 </div>
 
+<div class="sp-overlay" id="spOverlay" onclick="if(event.target===this) sluitSpeler()">
+  <div class="sp-panel" id="spPanel" role="dialog" aria-modal="true" aria-labelledby="spNaam">
+    <div class="sp-head" id="spHead">
+      <div class="sp-grip"></div>
+      <div class="sp-titel">
+        <h2 id="spNaam"></h2>
+        <div class="sp-sub" id="spSub"></div>
+      </div>
+      <button class="sp-close" onclick="sluitSpeler()" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="sp-body" id="spBody"></div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.0/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -206,6 +265,8 @@ function render(rows, filename) {
 
 // Toont de tabellen voor een lijst spelers; bron = CSV-upload (opslaanbaar) of opgeslagen tussenstand
 function renderSpelers(players, label, opslaanbaar) {
+  huidigeSpelers = players;
+  huidigeBron = label.replace(/^\S+\s/, '');
 
   const divOrder = ['Eredivisie', 'Eerste Divisie'];
   const divisions = [...new Set(players.map(p => p.div))].sort((a, b) => {
@@ -230,7 +291,7 @@ function renderSpelers(players, label, opslaanbaar) {
 
     const rangRows = ranglijst.map((p,i) => `<tr>
       <td class="rank">${medalOrNum(i)}</td>
-      <td>${p.naam}</td>
+      <td>${naamLink(p.naam)}</td>
       <td class="num">${p.matches}</td>
       <td class="num green">${p.s180}</td>
       <td class="num">${p.hvPlus}</td>
@@ -243,7 +304,7 @@ function renderSpelers(players, label, opslaanbaar) {
     const top3da = [...pp].sort((a,b) => b.gem - a.gem).slice(0,10);
     const top3daRows = top3da.map((p,i) => `<tr>
       <td class="rank">${medalOrNum(i)}</td>
-      <td>${p.naam}</td>
+      <td>${naamLink(p.naam)}</td>
       <td class="num green">${f2(p.gem)}</td>
     </tr>`).join('');
 
@@ -252,7 +313,7 @@ function renderSpelers(players, label, opslaanbaar) {
     const finishRows = finishes.length > 0
       ? finishes.map((p,i) => `<tr>
           <td class="rank">${medalOrNum(i)}</td>
-          <td>${p.naam}</td>
+          <td>${naamLink(p.naam)}</td>
           <td class="num green">${p.hFinish}</td>
         </tr>`).join('')
       : '<tr><td colspan="3" style="color:var(--text-dim);padding:10px 12px">Geen 100+ finishes</td></tr>';
@@ -262,7 +323,7 @@ function renderSpelers(players, label, opslaanbaar) {
     const legRows = legUnder18.length > 0
       ? legUnder18.map((p,i) => `<tr>
           <td class="rank">${medalOrNum(i)}</td>
-          <td>${p.naam}</td>
+          <td>${naamLink(p.naam)}</td>
           <td class="num green">${p.bestLeg}</td>
         </tr>`).join('')
       : '<tr><td colspan="3" style="color:var(--text-dim);padding:10px 12px">Geen legs onder 18 darts</td></tr>';
@@ -435,6 +496,220 @@ async function opslaanTussenstand() {
     knop.disabled = false;
   }
 }
+
+// ── Spelerspaneel: tik op een naam voor eigen stats + vergelijking met vorig seizoen ──
+const VORIG_SEIZOEN = '2025-26';
+let huidigeSpelers = [];
+let huidigeBron = '';
+let histCache = null;      // historie_stats van vorig seizoen
+let snapCache = null;      // alle wekelijkse tussenstanden van dit seizoen
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function naamLink(naam) {
+  return `<span class="speler-link" data-naam="${esc(naam)}" role="button" tabindex="0">${esc(naam)}</span>`;
+}
+output.addEventListener('click', e => {
+  const el = e.target.closest('.speler-link');
+  if (el) openSpeler(el.dataset.naam);
+});
+output.addEventListener('keydown', e => {
+  const el = e.target.closest('.speler-link');
+  if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openSpeler(el.dataset.naam); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') sluitSpeler(); });
+
+const zelfde = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+const perWed = (tot, wed) => wed > 0 ? tot / wed : 0;
+
+async function laadHistorie() {
+  if (histCache) return histCache;
+  const { data, error } = await supabaseClient.from('historie_stats').select('*').eq('seizoen', VORIG_SEIZOEN);
+  if (error) throw error;
+  return (histCache = data || []);
+}
+async function laadSnapshots() {
+  if (snapCache) return snapCache;
+  const { data, error } = await supabaseClient.from('stats_snapshots')
+    .select('peildatum,speler,divisie,wedstrijden,gem,s180').order('peildatum', { ascending: true });
+  if (error) throw error;
+  return (snapCache = data || []);
+}
+async function laadVorigeUitslagen(naam) {
+  const [a, b] = await Promise.all([
+    supabaseClient.from('historie_wedstrijden').select('thuis,uit,legs_thuis,legs_uit,winnaar,walkover').eq('seizoen', VORIG_SEIZOEN).ilike('thuis', naam),
+    supabaseClient.from('historie_wedstrijden').select('thuis,uit,legs_thuis,legs_uit,winnaar,walkover').eq('seizoen', VORIG_SEIZOEN).ilike('uit', naam),
+  ]);
+  if (a.error) throw a.error;
+  if (b.error) throw b.error;
+  return [...(a.data || []), ...(b.data || [])];
+}
+
+async function openSpeler(naam) {
+  const p = huidigeSpelers.find(x => zelfde(x.naam, naam));
+  if (!p) return;
+  document.getElementById('spNaam').textContent = p.naam;
+  const divGenoten = huidigeSpelers.filter(x => x.div === p.div).sort((a, b) => b.gem - a.gem);
+  const plek = divGenoten.findIndex(x => zelfde(x.naam, p.naam)) + 1;
+  document.getElementById('spSub').textContent = `${p.div} · ${huidigeBron}`;
+  document.getElementById('spBody').innerHTML = `
+    <div class="sp-tiles">
+      <div class="sp-tile"><div class="v green">${f2(p.gem)}</div><div class="l">Gemiddelde (3DA)</div></div>
+      <div class="sp-tile"><div class="v">${plek}<span style="font-size:13px;color:var(--text-dim)">/${divGenoten.length}</span></div><div class="l">Plek op gemiddelde</div></div>
+      <div class="sp-tile"><div class="v">${p.matches}</div><div class="l">Wedstrijden</div></div>
+      <div class="sp-tile"><div class="v">${p.s180}</div><div class="l">180's</div></div>
+      <div class="sp-tile"><div class="v">${p.hFinish || '—'}</div><div class="l">Hoogste finish</div></div>
+      <div class="sp-tile"><div class="v">${p.bestLeg || '—'}</div><div class="l">Beste leg (darts)</div></div>
+    </div>
+    <div id="spRest"><div class="sp-note" style="padding:10px 0">Vorig seizoen ophalen…</div></div>`;
+  const ov = document.getElementById('spOverlay');
+  ov.classList.add('open');
+  document.getElementById('spPanel').style.transform = '';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('spPanel').scrollTop = 0;
+
+  try {
+    const [hist, snaps, uitslagen] = await Promise.all([laadHistorie(), laadSnapshots(), laadVorigeUitslagen(p.naam)]);
+    if (!zelfde(document.getElementById('spNaam').textContent, p.naam)) return; // ander paneel geopend intussen
+    const vorig = hist.find(h => zelfde(h.speler, p.naam));
+    const reeks = snaps.filter(s => zelfde(s.speler, p.naam) && (s.wedstrijden || 0) > 0);
+    document.getElementById('spRest').innerHTML =
+      vergelijkHtml(p, vorig) + trendHtml(reeks, vorig) + uitslagenHtml(p.naam, uitslagen, vorig);
+  } catch (e) {
+    document.getElementById('spRest').innerHTML = `<div class="sp-leeg">Kon vorig seizoen niet laden: ${esc(e.message || e)}</div>`;
+  }
+}
+
+function sluitSpeler() {
+  const ov = document.getElementById('spOverlay');
+  if (!ov.classList.contains('open')) return;
+  ov.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Vergelijkt een waarde met vorig seizoen; hogerBeter=false voor 'beste leg'
+function delta(nu, toen, decimalen, hogerBeter = true) {
+  if (!nu || !toen) return '<span class="sp-same">—</span>';
+  const d = nu - toen;
+  const drempel = decimalen ? 0.005 : 0.5;
+  if (Math.abs(d) < drempel) return '<span class="sp-same">=</span>';
+  const beter = hogerBeter ? d > 0 : d < 0;
+  const txt = (d > 0 ? '+' : '−') + Math.abs(d).toFixed(decimalen);
+  return `<span class="${beter ? 'sp-up' : 'sp-down'}">${beter ? '▲' : '▼'} ${txt}</span>`;
+}
+
+function vergelijkHtml(p, v) {
+  if (!v) return `<div class="sp-h3">📅 Vergelijking met vorig seizoen</div>
+    <div class="sp-leeg">Geen statistieken van seizoen ${VORIG_SEIZOEN} — dit is het eerste seizoen van ${esc(p.naam.split(' ')[0])} bij De Kaale Bull. 🎯</div>`;
+  const vw = v.wedstrijden || 0;
+  const rij = (label, nu, toen, dec, hogerBeter = true, nuTxt, toenTxt) => `<tr>
+    <td>${label}</td>
+    <td class="num">${nuTxt ?? (nu ? nu.toFixed(dec) : '—')}</td>
+    <td class="num">${toenTxt ?? (toen ? toen.toFixed(dec) : '—')}</td>
+    <td class="num">${delta(nu, toen, dec, hogerBeter)}</td>
+  </tr>`;
+  const vorigDiv = v.divisie && v.divisie !== p.div ? ` (toen ${esc(v.divisie)})` : '';
+  return `<div class="sp-h3">📅 Dit seizoen vs. ${VORIG_SEIZOEN}${vorigDiv}</div>
+    <table class="sp-table">
+      <thead><tr><th>Statistiek</th><th class="num">Nu</th><th class="num">${VORIG_SEIZOEN}</th><th class="num">Verschil</th></tr></thead>
+      <tbody>
+        ${rij('Gemiddelde (3DA)', p.gem, Number(v.gem) || 0, 2)}
+        ${rij("180's per wedstrijd", perWed(p.s180, p.matches), perWed(v.s180, vw), 2)}
+        ${rij('140+ per wedstrijd', perWed(p.hvPlus, p.matches), perWed(v.t140, vw), 2)}
+        ${rij('100+ per wedstrijd', perWed(p.hPlus, p.matches), perWed(v.t100, vw), 2)}
+        ${rij('Hoogste finish', p.hFinish || 0, v.hoogste_finish || 0, 0)}
+        ${rij('Beste leg (darts)', p.bestLeg || 0, v.beste_leg || 0, 0, false)}
+        <tr><td>180's totaal</td><td class="num">${p.s180}</td><td class="num">${v.s180 || 0}</td><td class="num sp-same">${!v.s180 ? '—' : p.s180 >= v.s180 ? '🎉 al geëvenaard' : 'nog ' + (v.s180 - p.s180) + ' te gaan'}</td></tr>
+      </tbody>
+    </table>
+    <div class="sp-note">180's, 140+ en 100+ staan per wedstrijd, zodat je ook halverwege het seizoen eerlijk vergelijkt (vorig seizoen ${vw} wedstrijden${v.first9 ? `, first 9: ${Number(v.first9).toFixed(2)}` : ''}${v.checkout_pct ? `, uitgooi-% ${Number(v.checkout_pct).toFixed(1)}%` : ''}). Vorig seizoen speelde iedereen in één divisie.</div>`;
+}
+
+function trendHtml(reeks, v) {
+  const titel = '<div class="sp-h3">📈 Gemiddelde door het seizoen</div>';
+  const punten = reeks.filter(r => Number(r.gem) > 0);
+  if (punten.length < 2) return titel + '<div class="sp-leeg">Na een paar opgeslagen tussenstanden zie je hier je gemiddelde door het seizoen heen.</div>';
+  const W = 520, H = 190, L = 38, R = 12, T = 14, B = 30;
+  const vorigGem = v ? Number(v.gem) || 0 : 0;
+  const waarden = punten.map(r => Number(r.gem)).concat(vorigGem ? [vorigGem] : []);
+  let min = Math.min(...waarden), max = Math.max(...waarden);
+  const marge = Math.max(1, (max - min) * 0.15);
+  min = Math.floor(min - marge); max = Math.ceil(max + marge);
+  const x = i => L + (punten.length === 1 ? 0 : i * (W - L - R) / (punten.length - 1));
+  const y = g => T + (max - g) * (H - T - B) / (max - min);
+  const lijn = punten.map((r, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(Number(r.gem)).toFixed(1)}`).join(' ');
+  const stappen = 4;
+  const raster = Array.from({ length: stappen + 1 }, (_, k) => {
+    const g = min + k * (max - min) / stappen;
+    return `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="#ffffff10"/>
+      <text x="${L - 6}" y="${y(g) + 4}" text-anchor="end" font-size="10" fill="#7a8a99">${g.toFixed(max - min < 8 ? 1 : 0)}</text>`;
+  }).join('');
+  const labelElke = Math.ceil(punten.length / 6);
+  const xLabels = punten.map((r, i) => (i % labelElke === 0 || i === punten.length - 1)
+    ? `<text x="${x(i)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="#7a8a99">${new Date(r.peildatum + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}</text>` : '').join('');
+  const stippen = punten.map((r, i) => `<circle cx="${x(i)}" cy="${y(Number(r.gem))}" r="3.5" fill="#00d4aa"><title>${datumNL(r.peildatum)}: ${Number(r.gem).toFixed(2)}</title></circle>`).join('');
+  const vorigLijn = vorigGem ? `<line x1="${L}" x2="${W - R}" y1="${y(vorigGem)}" y2="${y(vorigGem)}" stroke="#7a8a99" stroke-width="1.5" stroke-dasharray="5 4"/>` : '';
+  const laatste = punten[punten.length - 1];
+  return titel + `<div class="sp-trend"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Verloop gemiddelde">
+      ${raster}${vorigLijn}
+      <path d="${lijn}" fill="none" stroke="#00d4aa" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${stippen}${xLabels}
+      <text x="${x(punten.length - 1)}" y="${y(Number(laatste.gem)) - 9}" text-anchor="end" font-size="11" font-weight="700" fill="#00d4aa">${Number(laatste.gem).toFixed(2)}</text>
+    </svg>
+    <div class="sp-legend"><span><i></i>Dit seizoen (per tussenstand)</span>${vorigGem ? `<span><i class="vorig"></i>Eindgemiddelde ${VORIG_SEIZOEN}: ${vorigGem.toFixed(2)}</span>` : ''}</div></div>`;
+}
+
+function uitslagenHtml(naam, uitslagen, v) {
+  const titel = `<div class="sp-h3">⚔️ Uitslagen ${VORIG_SEIZOEN}</div>`;
+  if (!uitslagen.length) return v ? titel + '<div class="sp-leeg">Geen uitslagen van vorig seizoen gevonden.</div>' : '';
+  let w = 0, l = 0, voor = 0, tegen = 0;
+  const perTegenstander = new Map();
+  uitslagen.forEach(u => {
+    const thuis = zelfde(u.thuis, naam);
+    const tegenstander = thuis ? u.uit : u.thuis;
+    const mijn = thuis ? u.legs_thuis : u.legs_uit, hun = thuis ? u.legs_uit : u.legs_thuis;
+    const gewonnen = zelfde(u.winnaar, naam);
+    gewonnen ? w++ : l++;
+    if (!u.walkover) { voor += mijn || 0; tegen += hun || 0; }
+    const t = perTegenstander.get(tegenstander) || { w: 0, l: 0 };
+    gewonnen ? t.w++ : t.l++;
+    perTegenstander.set(tegenstander, t);
+  });
+  const pct = Math.round(100 * w / (w + l));
+  const lijst = [...perTegenstander.entries()];
+  // Toon de kortste lijst: van wie je won óf van wie je verloor
+  const wonVan = lijst.filter(([, t]) => t.w > 0).map(([n]) => n).sort((a, b) => a.localeCompare(b, 'nl'));
+  const verloorVan = lijst.filter(([, t]) => t.l > 0).map(([n]) => n).sort((a, b) => a.localeCompare(b, 'nl'));
+  const toonWinst = wonVan.length <= verloorVan.length;
+  const namen = toonWinst ? wonVan : verloorVan;
+  const saldo = voor - tegen;
+  return titel + `<div class="sp-tiles">
+      <div class="sp-tile"><div class="v">${w}–${l}</div><div class="l">Gewonnen–verloren</div></div>
+      <div class="sp-tile"><div class="v">${pct}%</div><div class="l">Winstpercentage</div></div>
+      <div class="sp-tile"><div class="v ${saldo >= 0 ? 'green' : ''}">${saldo > 0 ? '+' : saldo < 0 ? '−' : ''}${Math.abs(saldo)}</div><div class="l">Legsaldo (${voor}–${tegen})</div></div>
+    </div>
+    ${namen.length ? `<div class="sp-note">${toonWinst ? '✅ Gewonnen van' : '❌ Verloren van'}: ${namen.map(esc).join(', ')}</div>` : ''}`;
+}
+
+// Paneel op de telefoon naar beneden wegvegen
+(() => {
+  const panel = document.getElementById('spPanel');
+  let startY = null, dy = 0;
+  panel.addEventListener('touchstart', e => {
+    startY = (panel.scrollTop <= 0) ? e.touches[0].clientY : null; dy = 0;
+  }, { passive: true });
+  panel.addEventListener('touchmove', e => {
+    if (startY === null) return;
+    dy = e.touches[0].clientY - startY;
+    if (dy > 0) panel.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  panel.addEventListener('touchend', () => {
+    if (startY !== null && dy > 90) sluitSpeler();
+    panel.style.transform = '';
+    startY = null;
+  });
+})();
 
 function switchTab(idx) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===idx));
