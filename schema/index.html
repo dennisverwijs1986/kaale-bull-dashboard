@@ -341,6 +341,10 @@ table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
 .sp-pijl.op{color:#6ee7b7;} .sp-pijl.neer{color:#fca5a5;}
 .sp-grafiek{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:6px 4px 2px;}
 .sp-grafiek svg{display:block;width:100%;height:auto;}
+.gpunt{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.gpunt .glabel{display:none;pointer-events:none;}
+.gpunt.actief .glabel{display:inline;}
+.gpunt.actief .stip{stroke:#fff;stroke-width:2;}
 .sp-legenda{display:flex;flex-wrap:wrap;gap:12px;font-size:.72rem;color:var(--muted);margin:6px 2px 0;}
 .sp-legenda i{display:inline-block;width:14px;border-top:2px solid #93c5fd;vertical-align:middle;margin-right:5px;}
 .sp-legenda i.vj{border-top:2px dashed var(--muted);}
@@ -1528,6 +1532,25 @@ async function spelerExtra(naam){
     : [];
   return (SP.hist[naam] = { reeks, v, uitsl });
 }
+// Klikbaar punt in de lijngrafiek: tik op een bolletje voor het gemiddelde van die week (standaard de laatste)
+function grafiekPunt({cx, cy, tekst, r, raak, actief, W, L, R}){
+  const kleur='#93c5fd', bw=String(tekst).length*6+12, bh=17;
+  const boven = cy-r-5-bh >= 0;
+  const by = boven ? cy-r-5-bh : cy+r+5;
+  const bx = Math.min(Math.max(cx-bw/2, L-26), W-R-bw);
+  return `<g class="gpunt${actief?' actief':''}" data-gpunt>
+    <circle cx="${cx}" cy="${cy}" r="${raak}" fill="transparent"/>
+    <circle class="stip" cx="${cx}" cy="${cy}" r="${r}" fill="${kleur}"/>
+    <g class="glabel"><rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="5" fill="#0f1a2e" stroke="${kleur}" stroke-width="1"/>
+      <text x="${bx+bw/2}" y="${by+12}" text-anchor="middle" font-size="10" font-weight="800" fill="${kleur}">${tekst}</text></g>
+  </g>`;
+}
+document.addEventListener('click', e=>{
+  const g = e.target.closest && e.target.closest('[data-gpunt]'); if (!g) return;
+  e.stopPropagation();
+  g.parentNode.querySelectorAll('[data-gpunt]').forEach(n=>n.classList.toggle('actief', n===g));
+  g.parentNode.appendChild(g);
+});
 function spGrafiek(reeks, vjGem){
   const p = reeks.filter(r=>nr(r.gem)>0 && nr(r.wedstrijden)>0);
   if (p.length < 2) return '';
@@ -1542,11 +1565,10 @@ function spGrafiek(reeks, vjGem){
   const labels=p.map((r,i)=>(i%elke===0||i===p.length-1)?`<text x="${x(i)}" y="${Hh-6}" text-anchor="middle" font-size="9" fill="#64748b">${esc(fmtDag.format(alsDatum(r.peildatum)))}</text>`:'').join('');
   const lijn=p.map((r,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(Number(r.gem)).toFixed(1)}`).join(' ');
   const vj = vjGem ? `<line x1="${L}" x2="${W-R}" y1="${y(vjGem)}" y2="${y(vjGem)}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 4"/>` : '';
-  const laatst=p[p.length-1];
+  const raak=Math.max(8, Math.min(14, (W-L-R)/(p.length-1)/2));
   return `<div class="h2h-sub">Gemiddelde door het seizoen</div><div class="sp-grafiek"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Verloop gemiddelde">${raster}${vj}
     <path d="${lijn}" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-    ${p.map((r,i)=>`<circle cx="${x(i)}" cy="${y(Number(r.gem))}" r="3" fill="#93c5fd"/>`).join('')}
-    <text x="${x(p.length-1)}" y="${y(Number(laatst.gem))-8}" text-anchor="end" font-size="10" font-weight="800" fill="#93c5fd">${komma(laatst.gem,2)}</text>${labels}</svg></div>
+    ${labels}${p.map((r,i)=>grafiekPunt({cx:x(i), cy:y(Number(r.gem)), tekst:komma(r.gem,2), r:3, raak, actief:i===p.length-1, W, L, R})).join('')}</svg></div>
     <div class="sp-legenda"><span><i></i>Dit seizoen</span>${vjGem?`<span><i class="vj"></i>Vorig seizoen (${komma(vjGem,2)})</span>`:''}</div>`;
 }
 function spBody(naam, D, X){
