@@ -228,6 +228,26 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .sheet-kop .names .n{font-size:1.15rem;}
 .sheet-kop .nu{font-size:.8rem;color:var(--muted);margin-top:6px;font-weight:600;}
 .sheet-body{overflow-y:auto;padding:4px 16px 16px;-webkit-overflow-scrolling:touch;flex:1;}
+/* ── mededelingen (TV + spelers-app) ── */
+.mdd-btn{position:relative;}
+.mdd-btn .live{position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--green);border:2px solid var(--s2);}
+.mdd-btn .live[hidden]{display:none;}
+.mdd-blok{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px;}
+.mdd-blok-kop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+.mdd-blok-kop b{font-size:.98rem;}
+.mdd-stat{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:6px;background:var(--s3);color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.mdd-stat.live{background:var(--green);color:#022c1f;}
+.mdd-blok textarea{width:100%;min-height:84px;resize:vertical;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;color:var(--text);font-size:16px;}
+.mdd-blok textarea:focus{outline:none;border-color:var(--blue);}
+.mdd-onder{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;}
+.mdd-teller{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums;}
+.schakel{display:flex;align-items:center;gap:10px;font-size:.9rem;font-weight:700;cursor:pointer;}
+.schakel input{appearance:none;-webkit-appearance:none;width:46px;height:28px;border-radius:14px;background:var(--s3);position:relative;transition:background .15s;flex-shrink:0;}
+.schakel input::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s;}
+.schakel input:checked{background:var(--green);}
+.schakel input:checked::after{transform:translateX(18px);}
+.mdd-leeg{font-size:.8rem;color:var(--muted);margin-top:6px;}
+.mdd-wis{font-size:.8rem;font-weight:700;color:var(--red);padding:6px 0;}
 .sheet-voet{padding:10px 16px calc(10px + var(--bot));border-top:1px solid var(--border);background:var(--s1);display:grid;grid-template-columns:1fr 1.3fr;gap:10px;}
 
 /* installatie-hint */
@@ -280,6 +300,7 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 
 <header class="top">
   <div class="top-title">🎯 Kaale Bull <small>WL</small><span class="dot" id="dot"></span></div>
+  <button class="icon-btn mdd-btn" onclick="openMdd()" aria-label="Mededelingen" title="TV- en app-mededeling">📢<span class="live" id="mddLive" hidden></span></button>
   <button class="icon-btn" id="verversBtn" onclick="laadData()" aria-label="Verversen">⟳</button>
   <a class="icon-btn" href="uitslagen.html" aria-label="Uitslagen" title="Uitslagen">📜</a>
   <a class="icon-btn" href="index.html" aria-label="Volledig dashboard" title="Volledig dashboard">🖥</a>
@@ -778,7 +799,7 @@ function openVerzet(id){
   laadData(true); // verse stand ophalen zodat conflicten kloppen
 }
 function sluitSheet(){
-  sheet=null; scoreSheet=null;
+  sheet=null; scoreSheet=null; mddSheet=null;
   $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open');
   document.body.style.overflow='';
 }
@@ -1554,7 +1575,134 @@ if('serviceWorker' in navigator){
 //  START + AUTOMATISCH VERVERSEN
 // ══════════════════════════════════════════
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') laadData(true); });
-setInterval(()=>{ if(document.visibilityState==='visible' && !sheet && !scoreSheet) laadData(true); }, 60000);
+
+// ══════════════════════════════════════════
+//  MEDEDELINGEN — TV (tv.html) en spelers-app (schema/)
+//  Zelfde instellingen-sleutels als de mededelingblokken in index.html
+// ══════════════════════════════════════════
+let mddSheet = null; // { tv:{tekst,actief}, app:{tekst,actief}, orig, bezig, laden, fout }
+const MDD_MAX = { tv:140, app:300 };
+const MDD_SLEUTELS = ['tv_mededeling_tekst','tv_mededeling_actief','app_mededeling_tekst','app_mededeling_actief'];
+
+async function haalMdd(){
+  const rows = await sbGet('instellingen', `select=sleutel,waarde&sleutel=in.(${MDD_SLEUTELS.join(',')})`);
+  const v = k => rows.find(r=>r.sleutel===k)?.waarde || '';
+  return {
+    tv:  { tekst: v('tv_mededeling_tekst'),  actief: v('tv_mededeling_actief')==='true' },
+    app: { tekst: v('app_mededeling_tekst'), actief: v('app_mededeling_actief')==='true' }
+  };
+}
+const mddIsLive = x => x.actief && !!(x.tekst||'').trim();
+function zetMddLive(st){ const el=$('#mddLive'); if(el) el.hidden = !(st && (mddIsLive(st.tv) || mddIsLive(st.app))); }
+async function verversMddLive(){ try{ zetMddLive(await haalMdd()); }catch(e){} }
+
+async function openMdd(){
+  sheet = null; scoreSheet = null;
+  mddSheet = { laden:true, bezig:false, fout:'' };
+  renderMdd();
+  $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
+  document.body.style.overflow='hidden';
+  try{
+    const st = await haalMdd();
+    if(!mddSheet) return;
+    mddSheet = { ...st, orig: JSON.stringify(st), laden:false, bezig:false, fout:'' };
+    zetMddLive(st);
+  }catch(e){
+    if(!mddSheet) return;
+    mddSheet.laden=false; mddSheet.fout = navigator.onLine===false ? 'Geen internetverbinding.' : `Kan mededelingen niet laden: ${e.message}`;
+  }
+  renderMdd();
+}
+
+function mddBlok(soort){
+  const x = mddSheet[soort], live = mddIsLive(x);
+  const titel = soort==='tv' ? '📺 TV-mededeling' : '📱 App-mededeling';
+  const waar  = soort==='tv' ? 'Tonen op de TV' : 'Tonen in de spelers-app';
+  const ph    = soort==='tv' ? "Bijv. 'Volgende week de bekerloting!'" : "Bijv. 'Vanavond beginnen we 15 minuten later.'";
+  const uitleg = x.actief && !(x.tekst||'').trim() ? '<div class="mdd-leeg">Typ een tekst, anders wordt er niets getoond.</div>' : '';
+  return `
+    <div class="mdd-blok">
+      <div class="mdd-blok-kop"><b>${titel}</b><span class="mdd-stat ${live?'live':''}" id="mddStat_${soort}">${live?'live':'uit'}</span></div>
+      <textarea id="mddT_${soort}" maxlength="${MDD_MAX[soort]}" placeholder="${esc(ph)}" oninput="mddInvoer('${soort}')">${esc(x.tekst)}</textarea>
+      <div class="mdd-onder">
+        <label class="schakel"><input type="checkbox" id="mddA_${soort}" ${x.actief?'checked':''} onchange="mddInvoer('${soort}')"> ${waar}</label>
+        <span class="mdd-teller" id="mddN_${soort}">${(x.tekst||'').length}/${MDD_MAX[soort]}</span>
+      </div>
+      <div id="mddL_${soort}">${uitleg}</div>
+      ${x.tekst ? `<button class="mdd-wis" onclick="mddWis('${soort}')">Tekst wissen en uitzetten</button>` : ''}
+    </div>`;
+}
+
+function renderMdd(){
+  const ms = mddSheet; if(!ms) return;
+  const el = $('#sheet');
+  let body;
+  if(ms.laden) body = `<div class="leeg" style="margin-top:16px">Laden…</div>`;
+  else if(ms.fout && !ms.tv) body = `<div class="warn">${esc(ms.fout)}</div>`;
+  else body = `${ms.fout?`<div class="warn">${esc(ms.fout)}</div>`:''}${mddBlok('tv')}${mddBlok('app')}
+    <div class="info"><span>De TV haalt de mededeling binnen een halve minuut op; de spelers-app bij het openen of verversen.</span></div>`;
+  const gewijzigd = ms.tv && JSON.stringify({tv:ms.tv,app:ms.app})!==ms.orig;
+  el.innerHTML = `
+    <div class="sheet-kop">
+      <div style="flex:1;min-width:0;"><div class="names"><span class="n">📢 Mededelingen</span></div>
+      <div class="nu">Bericht op de TV en in de spelers-app</div></div>
+      <button class="icon-btn" onclick="sluitSheet()" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="sheet-body">${body}</div>
+    <div class="sheet-voet">
+      <button class="btn btn-sec" onclick="sluitSheet()">Sluiten</button>
+      <button class="btn btn-pri" id="mddOpslaan" ${gewijzigd && !ms.bezig?'':'disabled'} onclick="slaMddOp()">${ms.bezig?'Bezig…':'Opslaan'}</button>
+    </div>`;
+}
+
+// Bij typen alleen de kleine onderdelen bijwerken, zodat het toetsenbord en de cursor blijven staan
+function mddInvoer(soort){
+  const ms = mddSheet; if(!ms || !ms[soort]) return;
+  ms[soort].tekst = $('#mddT_'+soort).value;
+  ms[soort].actief = $('#mddA_'+soort).checked;
+  const live = mddIsLive(ms[soort]);
+  const st = $('#mddStat_'+soort); st.textContent = live?'live':'uit'; st.className = 'mdd-stat'+(live?' live':'');
+  $('#mddN_'+soort).textContent = `${ms[soort].tekst.length}/${MDD_MAX[soort]}`;
+  $('#mddL_'+soort).innerHTML = ms[soort].actief && !ms[soort].tekst.trim() ? '<div class="mdd-leeg">Typ een tekst, anders wordt er niets getoond.</div>' : '';
+  const knop = $('#mddOpslaan'); if(knop) knop.disabled = ms.bezig || JSON.stringify({tv:ms.tv,app:ms.app})===ms.orig;
+}
+function mddWis(soort){
+  if(!mddSheet || !mddSheet[soort]) return;
+  mddSheet[soort] = { tekst:'', actief:false };
+  renderMdd();
+}
+
+async function slaMddOp(){
+  const ms = mddSheet; if(!ms || ms.bezig || !ms.tv) return;
+  ms.bezig = true; ms.fout=''; renderMdd();
+  const tv = { tekst: ms.tv.tekst.trim(), actief: ms.tv.actief };
+  const app = { tekst: ms.app.tekst.trim(), actief: ms.app.actief };
+  try{
+    const res = await fetch(`${SB_URL}/rest/v1/instellingen?on_conflict=sleutel`, {
+      method:'POST',
+      headers:{ ...HDR, 'Prefer':'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify([
+        { sleutel:'tv_mededeling_tekst',  waarde: tv.tekst },
+        { sleutel:'tv_mededeling_actief', waarde: tv.actief ? 'true':'false' },
+        { sleutel:'app_mededeling_tekst',  waarde: app.tekst },
+        { sleutel:'app_mededeling_actief', waarde: app.actief ? 'true':'false' }
+      ])
+    });
+    if(!res.ok) throw new Error(await res.text());
+    zetMddLive({tv,app});
+    const delen = [mddIsLive(tv)&&'TV', mddIsLive(app)&&'spelers-app'].filter(Boolean);
+    sluitSheet();
+    toast(delen.length ? `📢 Live op: ${delen.join(' en ')}` : '📢 Opgeslagen — geen mededeling actief', delen.length?'groen':'');
+  }catch(e){
+    if(!mddSheet) return;
+    mddSheet.bezig=false;
+    mddSheet.fout = navigator.onLine===false ? 'Geen internetverbinding, niet opgeslagen.' : `Opslaan mislukt: ${e.message}`;
+    renderMdd();
+  }
+}
+verversMddLive();
+setInterval(()=>{ if(document.visibilityState==='visible' && !sheet && !scoreSheet && !mddSheet) laadData(true); }, 60000);
+setInterval(()=>{ if(document.visibilityState==='visible' && !mddSheet) verversMddLive(); }, 60000);
 window.addEventListener('online', ()=>laadData(true));
 naarView('avond');
 laadData(true);
