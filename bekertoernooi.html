@@ -1017,7 +1017,8 @@ function spelerPosities(){
   const res = {};
   Object.entries(pos).forEach(([naam, id])=>{
     const fase = f[id];
-    let status = 'wacht', txt = 'wacht op loting';
+    // Ronde nog niet geloot: wie hier staat heeft zich al geplaatst, dus is gewoon door.
+    let status = 'door', txt = 'geplaatst';
     if(fase){
       const m = fase.matches.find(x=>x.a===naam || x.b===naam);
       if((fase.bye||[]).includes(naam)){ status='door'; txt='bye'; }
