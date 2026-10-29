@@ -721,10 +721,10 @@ function h2hTvHtml(m, D, hist, restMs){
   if (!alle.length) ond = 'Eerste onderlinge duel';
   else if (alle.length===1){
     const x=alle[0], sc = x.la==null ? '' : ` ${Math.max(x.la,x.lb)}-${Math.min(x.la,x.lb)}`;
-    ond = `${x.oud?'Vorig seizoen':'Dit seizoen'}<br><b>${escapeHtml(vn(x.win))} won${sc}</b>`;
+    ond = `${x.oud?'Vorig seizoen':'Dit seizoen'}<br><b>${escapeHtml(x.win)} won${sc}</b>`;
   } else {
     const wa=alle.filter(x=>x.win===A).length, wb=alle.length-wa;
-    ond = wa===wb ? `Onderling<br><b>${wa}-${wb}, gelijk op</b>` : `Onderling<br><b>${Math.max(wa,wb)}-${Math.min(wa,wb)} voor ${escapeHtml(vn(wa>wb?A:B))}</b>`;
+    ond = wa===wb ? `Onderling<br><b>${wa}-${wb}, gelijk op</b>` : `Onderling<br><b>${Math.max(wa,wb)}-${Math.min(wa,wb)} voor ${escapeHtml(wa>wb?A:B)}</b>`;
   }
   if (!zelfde) ond += '<br><span style="font-size:1.4vh">andere divisies</span>';
   return `${kant(A,a,'l')}<div class="mid"><div class="vs">VS</div><div class="ond">${ond}</div></div>${kant(B,b,'r')}

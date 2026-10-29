@@ -3180,9 +3180,9 @@ function h2hBody(D, hist, m){
     ...D.rij.filter(x=>(x.thuis===A&&x.uit===B)||(x.thuis===B&&x.uit===A)).map(x=>({lbl:`Dit seizoen${h2hLiga(x.divisie)?'':' (beker)'}`, datum:x.datum, win:x.legs_thuis>x.legs_uit?x.thuis:x.uit, la:x.legs_thuis, lb:x.legs_uit})),
   ];
   let kop = 'Eerste onderlinge duel';
-  if (alle.length>1){ const wa=alle.filter(x=>x.win===A).length, wb=alle.length-wa; kop = wa===wb ? `Onderling: ${wa}-${wb}, gelijk op` : `Onderling: ${Math.max(wa,wb)}-${Math.min(wa,wb)} voor ${vn(wa>wb?A:B)}`; }
+  if (alle.length>1){ const wa=alle.filter(x=>x.win===A).length, wb=alle.length-wa; kop = wa===wb ? `Onderling: ${wa}-${wb}, gelijk op` : `Onderling: ${Math.max(wa,wb)}-${Math.min(wa,wb)} voor ${wa>wb?A:B}`; }
   else if (alle.length===1) kop = 'Onderling';
-  html += `<div class="h2h-blok"><b>${escapeHtml(kop)}</b>${alle.map(x=>`<div>${escapeHtml(x.lbl)}${x.datum?' · '+escapeHtml(fmtDatum(x.datum)):''}: ${escapeHtml(vn(x.win))} won${escapeHtml(sc(x.la,x.lb))}</div>`).join('')}</div>`;
+  html += `<div class="h2h-blok"><b>${escapeHtml(kop)}</b>${alle.map(x=>`<div>${escapeHtml(x.lbl)}${x.datum?' · '+escapeHtml(fmtDatum(x.datum)):''}: ${escapeHtml(x.win)} won${escapeHtml(sc(x.la,x.lb))}</div>`).join('')}</div>`;
   // Zelfde tegenstanders (laatste uitslag per tegenstander, max. 5)
   const laatste = naam => { const o={}; D.rij.forEach(x=>{ if(!h2hLiga(x.divisie)||(x.thuis!==naam&&x.uit!==naam)) return; const t=x.thuis===naam?x.uit:x.thuis; if(t===A||t===B||t==='Vrije Ronde') return;
     o[t]={ v:x.thuis===naam?x.legs_thuis:x.legs_uit, w:x.thuis===naam?x.legs_uit:x.legs_thuis, d:x.datum }; }); return o; };

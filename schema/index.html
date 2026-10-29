@@ -1398,6 +1398,7 @@ function h2hBol(v){
   return `<div class="h2h-vorm">${v.length ? v.map(x=>`<i class="${x}">${x==='w'?'W':'V'}</i>`).join('') : '<span style="color:var(--dim)">–</span>'}</div>`;
 }
 const wieNaam = n => n===S.ik ? 'Jij' : voorn(n);
+const wieVol = n => n===S.ik ? 'Jij' : n; // weetjes: volledige naam (twee Patricks e.d.)
 
 function h2hKop(w, A, B){
   const k=divKey(w);
@@ -1441,11 +1442,11 @@ function h2hBody(D, hist, w, A, B){
   else if (alle.length===1) kop = 'Onderling';
   else {
     const wa=alle.filter(x=>x.win===A).length, wb=alle.length-wa;
-    const naar = n => n===S.ik ? 'jou' : voorn(n);
+    const naar = n => n===S.ik ? 'jou' : n;
     kop = wa===wb ? `Onderling: ${wa}-${wb}, gelijk op` : `Onderling: ${Math.max(wa,wb)}-${Math.min(wa,wb)} voor ${naar(wa>wb?A:B)}`;
   }
   const regel = x => {
-    const wie = x.win===S.ik ? 'Jij won' : `${voorn(x.win)} won`;
+    const wie = x.win===S.ik ? 'Jij won' : `${x.win} won`;
     const sc = x.la===null ? '' : ` ${Math.max(x.la,x.lb)}-${Math.min(x.la,x.lb)}`;
     return `<div>${esc(x.label)}${x.datum ? ' · '+esc(fmtDag.format(alsDatum(x.datum))) : ''}: ${esc(wie+sc)}</div>`;
   };
@@ -1456,9 +1457,9 @@ function h2hBody(D, hist, w, A, B){
     const wins = s => s.vorm.filter(x=>x==='w').length;
     const laatste = alle.length ? alle[alle.length-1].win : null;
     let tip='';
-    for (const s of [b,a]) if (!tip && s.gw>=3 && s.vl===0) tip = `🔥 ${wieNaam(s.naam)} ${s.naam===S.ik?'bent':'is'} nog ongeslagen: ${s.gw} uit ${s.gw}`;
-    if (!tip && laatste){ const verl = laatste===A ? B : A; tip = `💥 Revanche voor ${verl===S.ik?'jou':voorn(verl)}: de vorige keer won ${laatste===S.ik?'jij':voorn(laatste)}`; }
-    for (const s of [a,b]) if (!tip && s.vorm.length===5 && wins(s)>=4) tip = `💪 ${wieNaam(s.naam)} zit in vorm: ${wins(s)} van de laatste 5 gewonnen`;
+    for (const s of [b,a]) if (!tip && s.gw>=3 && s.vl===0) tip = `🔥 ${wieVol(s.naam)} ${s.naam===S.ik?'bent':'is'} nog ongeslagen: ${s.gw} uit ${s.gw}`;
+    if (!tip && laatste){ const verl = laatste===A ? B : A; tip = `💥 Revanche voor ${verl===S.ik?'jou':verl}: de vorige keer won ${laatste===S.ik?'jij':laatste}`; }
+    for (const s of [a,b]) if (!tip && s.vorm.length===5 && wins(s)>=4) tip = `💪 ${wieVol(s.naam)} zit in vorm: ${wins(s)} van de laatste 5 gewonnen`;
     if (tip) html += `<div class="h2h-tipblok">${esc(tip)}</div>`;
   }
 
