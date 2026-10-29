@@ -104,6 +104,27 @@ body.heeft-savebar .toast{bottom:84px;}
 .roadmap .pill.voltooid{border-color:var(--green);color:var(--green);background:rgba(74,157,111,0.12);}
 .roadmap .pill.bezig{border-color:var(--orange);color:var(--orange);background:rgba(217,171,63,0.12);}
 .roadmap .pill.nog-niet{opacity:0.55;}
+.roadmap .pill .n{display:inline-block;margin-left:5px;padding:0 6px;border-radius:10px;background:rgba(255,255,255,0.08);font-weight:700;}
+/* Wie zit waar */
+.wzw-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+.wzw-top h2{margin:0;}
+.wzw-zoek{flex:0 1 220px;min-width:0;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font:inherit;font-size:0.85rem;}
+.wzw-ronde{margin-top:12px;}
+.wzw-kop{display:flex;align-items:baseline;gap:8px;font-size:0.8rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.wzw-kop .tel{color:var(--muted);font-weight:500;}
+.wzw-kop .badge{font-size:0.62rem;}
+.wzw-namen{display:flex;flex-wrap:wrap;gap:5px;}
+.wzw-naam{font-size:0.78rem;padding:4px 9px;border-radius:14px;background:var(--s2);border:1px solid var(--border);color:var(--text);white-space:nowrap;}
+.wzw-naam small{color:var(--muted);font-size:0.68rem;margin-left:4px;}
+.wzw-naam.wacht{border-style:dashed;}
+.wzw-naam.door{border-color:var(--green);}
+.wzw-naam.uit{opacity:0.55;text-decoration:line-through;text-decoration-thickness:1px;}
+.wzw-naam.hit{background:var(--orange);color:#1b1305;border-color:var(--orange);}
+.wzw-naam.hit small{color:#3d2c08;}
+.wzw-naam.dim{opacity:0.25;}
+.wzw-legenda{font-size:0.7rem;color:var(--muted);margin-top:4px;}
+.wzw-uit summary{cursor:pointer;font-size:0.8rem;font-weight:700;margin-top:14px;color:var(--muted);}
+.wzw-uit .wzw-namen{margin-top:6px;}
 
 /* Voortgangsbalken: groen = gespeeld, goud = ingepland met datum */
 .voortgang{margin:-4px 0 12px;}
@@ -290,19 +311,37 @@ function planningStatus(m){
 // "Ronde 3" is een nieuwe toernooifase: WR3 en VR3 worden pas geloot zodra
 // zowel WR2 als VR2 helemaal zijn uitgespeeld — WR3 wacht dus mee op VR2.
 const FASES = {
-  ronde1:        { label:'Ronde 1',                tak:'gemengd',       bo:5 },
-  wr2:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
-  vr2:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
-  vr3:           { label:'Verliezersronde 3',       tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
-  wr3:           { label:'Winnaarsronde 3',         tak:'winnaarsronde', bo:5, dependsOn:['wr2','vr2'] },
-  wr_kwart:      { label:'Winnaarsronde — kwartfinale', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
-  vr_kwart:      { label:'Verliezersronde — kwartfinale', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
-  wr_halve:      { label:'Winnaarsronde — halve finale', tak:'winnaarsronde', bo:7, dependsOn:['wr_kwart'] },
-  vr_halve:      { label:'Verliezersronde — halve finale', tak:'verliezersronde', bo:7, dependsOn:['vr_kwart'] },
-  wr_finale:     { label:'Winnaarsronde — FINALE',  tak:'winnaarsronde', bo:9, dependsOn:['wr_halve'] },
-  vr_finale:     { label:'Verliezersronde — FINALE',tak:'verliezersronde',bo:9, dependsOn:['vr_halve'] },
+  ronde1:        { label:'Voorronde',              kort:'Voorronde', tak:'gemengd',       bo:5 },
+  wr2:           { label:'Winnaarsronde 1',         kort:'WR 1',      tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
+  vr2:           { label:'Verliezersronde 1',       kort:'VR 1',      tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
+  vr3:           { label:'Verliezersronde 2',       kort:'VR 2',      tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
+  wr3:           { label:'Winnaarsronde 2',         kort:'WR 2',      tak:'winnaarsronde', bo:5, dependsOn:['wr2','vr2'] },
+  wr_kwart:      { label:'Winnaarsronde — kwartfinale', kort:'WR kwart', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
+  vr_kwart:      { label:'Verliezersronde — kwartfinale', kort:'VR kwart', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
+  wr_halve:      { label:'Winnaarsronde — halve finale', kort:'WR halve', tak:'winnaarsronde', bo:7, dependsOn:['wr_kwart'] },
+  vr_halve:      { label:'Verliezersronde — halve finale', kort:'VR halve', tak:'verliezersronde', bo:7, dependsOn:['vr_kwart'] },
+  wr_finale:     { label:'Winnaarsronde — FINALE',  kort:'WR finale', tak:'winnaarsronde', bo:9, dependsOn:['wr_halve'] },
+  vr_finale:     { label:'Verliezersronde — FINALE',kort:'VR finale', tak:'verliezersronde',bo:9, dependsOn:['vr_halve'] },
 };
 const FASE_VOLGORDE = ['ronde1','wr2','vr2','vr3','wr3','wr_kwart','vr_kwart','wr_halve','vr_halve','wr_finale','vr_finale'];
+
+// Namen (okt. 2026): de interne fase-id's (ronde1, wr2, vr2, ...) blijven gelijk,
+// alleen de getoonde namen zijn verschoven: ronde1 = Voorronde, wr2/vr2 = WR 1 /
+// VR 1, wr3/vr3 = WR 2 / VR 2. Moet de verliezersronde met bye's terug naar een
+// rond aantal spelers (pool geen macht van 2), dan heet vr2 "Tussenronde".
+function isTussenronde(faseId, fase){
+  if(faseId !== 'vr2') return false;
+  if(fase) return !!(fase.bye && fase.bye.length && fase.matches && fase.matches.length);
+  const tl = state && bepaalTeLoten(state);
+  return !!(tl && tl.type === 'tussenronde');
+}
+function faseLabel(faseId, fase){
+  if(isTussenronde(faseId, fase === undefined && state && state.fases ? state.fases[faseId] : fase)) return 'Tussenronde';
+  return FASES[faseId].label;
+}
+function faseKort(faseId){
+  return faseLabel(faseId) === 'Tussenronde' ? 'Tussenronde' : FASES[faseId].kort;
+}
 
 async function init(){
   document.getElementById('seizoenLbl').textContent = '— seizoen ' + SEIZOEN;
@@ -390,7 +429,7 @@ function openPdfView(){
     if(!fase) return;
     const meta = FASES[faseId];
     const statusTxt = fase.afgerond ? 'afgerond' : 'bezig';
-    html += `<div class="print-fase"><h2>${escapeHtml(meta.label)} — ${statusTxt}</h2>`;
+    html += `<div class="print-fase"><h2>${escapeHtml(faseLabel(faseId))} — ${statusTxt}</h2>`;
     if(fase.matches.length){
       html += fase.matches.map(pdfMatchRow).join('');
     } else {
@@ -521,7 +560,7 @@ function genereerRonde1(spelers42){
   };
   bewaarState();
   render();
-  toast(`Ronde 1 geloot: ${x} wedstrijden, ${bye.length} bye's.`,'green');
+  toast(`Voorronde geloot: ${x} wedstrijden, ${bye.length} bye's.`,'green');
 }
 
 function alleGespeeld(matches){ return matches.every(m => m.winnaar); }
@@ -882,24 +921,154 @@ function faseCardHtml(faseId){
   const byeNote = fase.bye && fase.bye.length
     ? `<div class="desc">➕ ${fase.bye.length} speler${fase.bye.length===1?'':'s'} kreeg automatisch een bye door naar de volgende fase.</div>` : '';
   return `<div class="card">
-    <h2>${meta.label} ${badgeTak} ${badgeStatus}</h2>
+    <h2>${escapeHtml(faseLabel(faseId))} ${badgeTak} ${badgeStatus}</h2>
     ${voortgangHtml(faseVoortgang(fase))}
-    ${meta.label.includes('tussenronde') ? '<div class="desc">Extra tussenronde om terug te komen op een rond aantal spelers.</div>' : ''}
+    ${isTussenronde(faseId, fase) ? '<div class="desc">Extra tussenronde om in de verliezersronde terug te komen op een rond aantal spelers.</div>' : ''}
     <div class="matches">${matchesHtml}</div>
     ${byeNote}
   </div>`;
 }
 
+// ══════════════════════════════════════════
+//  WIE ZIT WAAR — per ronde welke spelers er al in zitten
+// ══════════════════════════════════════════
+// Per ronde de spelers die er (nu al) zeker in zitten. Voor een ronde die nog
+// geloot moet worden is dat de lijst die tot nu toe bekend is: bv. de
+// verliezersronde vult zich al met voorronde-verliezers en bye-spelers die hun
+// eerste duel verloren, ook al is die loting pas als WR 1 helemaal klaar is.
+function verliezerVan(m){ return m.winnaar ? (m.winnaar===m.a ? m.b : m.a) : null; }
+function spelersIn(fase){
+  const n = [];
+  (fase.matches||[]).forEach(m=>{ if(m.a) n.push(m.a); if(m.b) n.push(m.b); });
+  (fase.bye||[]).forEach(x=>n.push(x));
+  return n;
+}
+function deelnemersPerRonde(){
+  const f = state.fases || {};
+  const uit = {};   // ronde -> Set
+  const zet = (id, namen)=>{ uit[id] = new Set(namen.filter(Boolean)); };
+  const winnaars = id => f[id] ? f[id].matches.map(m=>m.winnaar).filter(Boolean) : [];
+  const doorNaVolgende = id => f[id] ? [...winnaars(id), ...(f[id].bye||[])] : [];
+
+  if(f.ronde1) zet('ronde1', spelersIn(f.ronde1));
+  if(f.wr2) zet('wr2', spelersIn(f.wr2));
+  else if(f.ronde1) zet('wr2', [...(f.ronde1.bye||[]), ...winnaars('ronde1')]);
+
+  if(f.vr2) zet('vr2', spelersIn(f.vr2));
+  else if(f.ronde1){
+    const r1Winnaars = new Set(winnaars('ronde1'));
+    const r1Verliezers = f.ronde1.matches.map(verliezerVan);
+    const troost = f.wr2 ? f.wr2.matches.map(verliezerVan).filter(v=>v && !r1Winnaars.has(v)) : [];
+    zet('vr2', [...r1Verliezers, ...troost]);
+  }
+  zet('vr3', f.vr3 ? spelersIn(f.vr3) : doorNaVolgende('vr2'));
+  zet('wr3', f.wr3 ? spelersIn(f.wr3) : winnaars('wr2'));
+  [['wr3','wr_kwart'],['vr3','vr_kwart'],['wr_kwart','wr_halve'],['vr_kwart','vr_halve'],['wr_halve','wr_finale'],['vr_halve','vr_finale']]
+    .forEach(([van,naar])=>zet(naar, f[naar] ? spelersIn(f[naar]) : winnaars(van)));
+  return uit;
+}
+
+// Per speler: de verste ronde waarin hij zit, en hoe hij daar staat.
+function spelerPosities(){
+  const f = state.fases || {};
+  const per = deelnemersPerRonde();
+  const pos = {};
+  FASE_VOLGORDE.forEach(id=>{ (per[id]||new Set()).forEach(n=>{ pos[n] = id; }); });
+  const res = {};
+  Object.entries(pos).forEach(([naam, id])=>{
+    const fase = f[id];
+    let status = 'wacht', txt = 'wacht op loting';
+    if(fase){
+      const m = fase.matches.find(x=>x.a===naam || x.b===naam);
+      if((fase.bye||[]).includes(naam)){ status='door'; txt='bye'; }
+      else if(!m){ status='wacht'; txt=''; }
+      else if(m.winnaar===naam){ status='door'; txt='gewonnen'; }
+      else if(m.winnaar){ status='uit'; txt='uitgeschakeld'; }
+      else if(!m.a || !m.b){ status='wacht'; txt='wacht op tegenstander'; }
+      else { status='open'; txt='nog spelen'; }
+    }
+    if(id==='wr_finale' && state.kampioenWR===naam){ status='door'; txt='🏆 bekerwinnaar'; }
+    if(id==='vr_finale' && state.kampioenVR===naam){ status='door'; txt='🥈 winnaar VR'; }
+    res[naam] = { id, status, txt };
+  });
+  // Spelers uit de lijst die nergens (meer) in zitten zijn er definitief uit
+  (state.spelers||[]).forEach(n=>{ if(!res[n]) res[n] = { id:null, status:'uit', txt:'' }; });
+  return res;
+}
+
+// Ronde waarin een uitgeschakelde speler zijn laatste wedstrijd verloor
+function laatsteRondeVan(naam){
+  let laatst = null;
+  FASE_VOLGORDE.forEach(id=>{
+    const fase = state.fases[id];
+    if(fase && fase.matches.some(m=>m.a===naam || m.b===naam)) laatst = id;
+  });
+  return laatst;
+}
+
+let wzwZoek = '';
+function wieZitWaarHtml(){
+  const posities = spelerPosities();
+  const perRonde = {};
+  const uitgeschakeld = [];
+  Object.entries(posities).forEach(([naam,p])=>{
+    if(p.status==='uit'){ uitgeschakeld.push(naam); return; }
+    (perRonde[p.id] = perRonde[p.id] || []).push({ naam, ...p });
+  });
+  const sorteer = (a,b)=>a.localeCompare(b,'nl');
+  const chip = (naam, cls, txt) => `<span class="wzw-naam ${cls}" data-naam="${escapeHtml(naam.toLowerCase())}">${escapeHtml(naam)}${txt?`<small>${escapeHtml(txt)}</small>`:''}</span>`;
+
+  let rondes = '';
+  FASE_VOLGORDE.forEach(id=>{
+    const lijst = perRonde[id];
+    if(!lijst || !lijst.length) return;
+    const meta = FASES[id];
+    const tak = meta.tak === 'winnaarsronde' ? 'wr' : meta.tak === 'verliezersronde' ? 'vr' : '';
+    const geloot = !!state.fases[id];
+    lijst.sort((a,b)=>sorteer(a.naam,b.naam));
+    rondes += `<div class="wzw-ronde">
+      <div class="wzw-kop">${escapeHtml(faseLabel(id))}${tak?` <span class="badge ${tak}">${tak.toUpperCase()}</span>`:''}
+        <span class="tel">${lijst.length} speler${lijst.length===1?'':'s'}${geloot?'':' · nog niet geloot'}</span></div>
+      <div class="wzw-namen">${lijst.map(x=>chip(x.naam, x.status, geloot ? x.txt : '')).join('')}</div>
+    </div>`;
+  });
+
+  uitgeschakeld.sort(sorteer);
+  const uitHtml = uitgeschakeld.length ? `<details class="wzw-uit"${wzwZoek?' open':''}><summary>Uitgeschakeld (${uitgeschakeld.length})</summary>
+    <div class="wzw-namen">${uitgeschakeld.map(n=>{ const r = laatsteRondeVan(n); return chip(n,'uit', r ? 'in '+faseKort(r) : ''); }).join('')}</div></details>` : '';
+
+  return `<div class="card" id="wzwCard">
+    <div class="wzw-top"><h2>👥 Wie zit waar</h2>
+      <input type="search" class="wzw-zoek" id="wzwZoek" placeholder="Zoek speler…" value="${escapeHtml(wzwZoek)}" oninput="zoekWzw(this.value)"></div>
+    <div class="wzw-legenda">Elke speler staat bij de verste ronde waarin hij nu zit. Gestippeld = wacht nog op loting of tegenstander.</div>
+    ${rondes}${uitHtml}
+  </div>`;
+}
+
+function zoekWzw(q){
+  wzwZoek = q;
+  const t = q.trim().toLowerCase();
+  document.querySelectorAll('#wzwCard .wzw-naam').forEach(el=>{
+    const hit = t && el.dataset.naam.includes(t);
+    el.classList.toggle('hit', !!hit);
+    el.classList.toggle('dim', !!t && !hit);
+  });
+  if(t){ const d = document.querySelector('#wzwCard .wzw-uit'); if(d) d.open = true; }
+}
+window.zoekWzw = zoekWzw;
+
 function roadmapHtml(){
   if(!state) return '';
   const fases = state.fases || {};
+  const per = deelnemersPerRonde();
   const pills = FASE_VOLGORDE.map(faseId=>{
     const meta = FASES[faseId];
     const fase = fases[faseId];
     let statusCls = 'nog-niet', statusLbl = 'nog niet begonnen';
     if(fase && fase.afgerond){ statusCls = 'voltooid'; statusLbl = 'voltooid'; }
     else if(fase){ statusCls = 'bezig'; statusLbl = 'bezig'; }
-    return `<span class="pill ${statusCls}" title="${escapeHtml(statusLbl)}">${escapeHtml(meta.label)}</span>`;
+    const n = (per[faseId]||new Set()).size;
+    return `<span class="pill ${statusCls}" title="${escapeHtml(statusLbl)}${n?` · ${n} speler${n===1?'':'s'}`:''}">${escapeHtml(faseLabel(faseId))}${n?`<span class="n">${n}</span>`:''}</span>`;
   }).join('');
   return `<div class="roadmap">${pills}</div>`;
 }
@@ -911,7 +1080,7 @@ function render(){
   if(!state){
     app.innerHTML = `<div class="empty-state">
       <h2>🏆 Nog geen bekertoernooi gestart</h2>
-      <p>De loting van ronde 1 (bye's en eerste wedstrijden) gebeurt via het rad van namen. Zodra die loting daar is afgerond, verschijnt het volledige schema hier automatisch.</p>
+      <p>De loting van de voorronde (bye's en eerste wedstrijden) gebeurt via het rad van namen. Zodra die loting daar is afgerond, verschijnt het volledige schema hier automatisch.</p>
       <a class="link-btn" href="bekerloting.html">🎡 Ga naar de bekerloting</a>
     </div>`;
     return;
@@ -929,7 +1098,7 @@ function render(){
 
   const teLoten = bepaalTeLoten(state);
   if(teLoten){
-    const label = teLoten.type==='ronde1' ? FASES.ronde1.label : FASES[teLoten.faseId].label;
+    const label = teLoten.type==='ronde1' ? FASES.ronde1.label : faseLabel(teLoten.faseId);
     const aantal = teLoten.type==='ronde1' ? '' : ` (${teLoten.pool.length} spelers)`;
     html += `<div class="card" style="border-color:var(--orange);">
       <h2>🎡 Klaar om te loten: ${escapeHtml(label)}${aantal}</h2>
@@ -937,6 +1106,8 @@ function render(){
       <a class="link-btn" href="bekerloting.html">🎡 Ga naar de bekerloting</a>
     </div>`;
   }
+
+  html += wieZitWaarHtml();
 
   FASE_VOLGORDE.forEach(faseId=>{
     if(state.fases[faseId]) html += faseCardHtml(faseId);
@@ -960,6 +1131,7 @@ function render(){
   app.querySelectorAll('.match[data-fase]').forEach(r=>{
     if(foutRijen.has(r.dataset.fase+'-'+r.dataset.idx)) r.classList.add('fout');
   });
+  if(wzwZoek) zoekWzw(wzwZoek);
   updateSaveBar();
 }
 

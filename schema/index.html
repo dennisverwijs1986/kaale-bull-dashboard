@@ -1065,8 +1065,8 @@ const STAT_SORT = {
 };
 // ── Bekertoernooi (alleen bekijken; beheer in bekertoernooi.html) ──
 const B_FASES = {
-  ronde1:{label:'Ronde 1',kort:'Ronde 1',bo:5}, wr2:{label:'Winnaarsronde 2',kort:'WR 2',bo:5}, vr2:{label:'Verliezersronde 2',kort:'VR 2',bo:5},
-  vr3_tussen:{label:'Verliezersronde 3 — tussenronde',kort:'VR 3 tussen',bo:5}, vr3:{label:'Verliezersronde 3',kort:'VR 3',bo:5}, wr3:{label:'Winnaarsronde 3',kort:'WR 3',bo:5},
+  ronde1:{label:'Voorronde',kort:'Voorronde',bo:5}, wr2:{label:'Winnaarsronde 1',kort:'WR 1',bo:5}, vr2:{label:'Verliezersronde 1',kort:'VR 1',bo:5},
+  vr3_tussen:{label:'Tussenronde',kort:'Tussenronde',bo:5}, vr3:{label:'Verliezersronde 2',kort:'VR 2',bo:5}, wr3:{label:'Winnaarsronde 2',kort:'WR 2',bo:5},
   wr_kwart:{label:'Winnaarsronde — kwartfinale',kort:'WR kwart',bo:5}, vr_kwart:{label:'Verliezersronde — kwartfinale',kort:'VR kwart',bo:5},
   wr_halve:{label:'Winnaarsronde — halve finale',kort:'WR halve',bo:7}, vr_halve:{label:'Verliezersronde — halve finale',kort:'VR halve',bo:7},
   wr_finale:{label:'Winnaarsronde — finale',kort:'WR finale',bo:9}, vr_finale:{label:'Verliezersronde — finale',kort:'VR finale',bo:9},
@@ -1076,6 +1076,10 @@ function bekerHtml(){
   const st = S.beker && S.beker.staat;
   if (!st || !st.fases) return `<div class="leeg"><span class="ico">🏆</span>Het bekertoernooi is nog niet geloot.</div>`;
   const f = st.fases;
+  // vr2 heet "Tussenronde" als die met bye's terug moet naar een rond aantal spelers
+  const vrTussen = f.vr2 && (f.vr2.bye||[]).length && (f.vr2.matches||[]).length;
+  B_FASES.vr2.label = vrTussen ? 'Tussenronde' : 'Verliezersronde 1';
+  B_FASES.vr2.kort  = vrTussen ? 'Tussenronde' : 'VR 1';
   const r1 = (f.ronde1 && f.ronde1.matches) || [];
   const fasen = B_VOLGORDE.filter(id=>f[id] && (f[id].matches||[]).length);
   // Standaard de fase die nu loopt (eerste niet-afgeronde), anders de laatste
@@ -1115,7 +1119,7 @@ function bekerHtml(){
         const sc = x.m.scoreA!=null ? (ikA ? `${x.m.scoreA}-${x.m.scoreB}` : `${x.m.scoreB}-${x.m.scoreA}`) : '';
         return `<div class="res"><span class="rd">${esc(B_FASES[x.id].kort)}</span><span class="rt">tegen ${esc(tegen)}</span><span class="rs"><span class="wv ${won?'w':'v'}">${won?'W':'V'}</span><span class="score">${sc}</span></span></div>`;
       }).join('');
-      jouw = `<div class="uitslagen" style="margin-top:0"><h3>Jouw beker</h3><div style="font-size:.9rem;margin-bottom:6px">${status}</div>${bye && !mijn.some(x=>x.id==='ronde1') ? '<div class="stand-noot" style="margin:0 0 6px">Bye in ronde 1.</div>' : ''}${res}</div>`;
+      jouw = `<div class="uitslagen" style="margin-top:0"><h3>Jouw beker</h3><div style="font-size:.9rem;margin-bottom:6px">${status}</div>${bye && !mijn.some(x=>x.id==='ronde1') ? '<div class="stand-noot" style="margin:0 0 6px">Bye in de voorronde.</div>' : ''}${res}</div>`;
     }
   }
 
@@ -1140,7 +1144,7 @@ function bekerHtml(){
     return `<div class="duel${isMijn?' mijn':''}"><div class="da">${a}</div><div class="dm">${sc}${link?`<a class="verslag" href="${esc(link)}" target="_blank" rel="noopener">Verslag ›</a>`:''}</div><div class="db">${b}</div></div>`;
   };
   const open = fase.matches.filter(m=>!m.winnaar), klaar = fase.matches.filter(m=>m.winnaar);
-  const byes = S.bekerFase==='ronde1' && (fase.bye||[]).length ? `<div class="stand-noot">${fase.bye.length} spelers hadden een bye en stroomden direct door naar winnaarsronde 2.</div>` : '';
+  const byes = S.bekerFase==='ronde1' && (fase.bye||[]).length ? `<div class="stand-noot">${fase.bye.length} spelers hadden een bye en stroomden direct door naar winnaarsronde 1.</div>` : '';
   const lijst = (open.length ? `<div class="bgroep">Nog te spelen (${open.length})</div>${open.map(regel).join('')}` : '')
               + (klaar.length ? `<div class="bgroep">Gespeeld (${klaar.length})</div>${klaar.map(regel).join('')}` : '');
 
