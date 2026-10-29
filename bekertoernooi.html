@@ -136,8 +136,6 @@ body.heeft-savebar .toast{bottom:84px;}
 .wzw-ronde.leeg{display:none;}
 .wzw-uit summary{cursor:pointer;list-style:none;}
 .wzw-uit summary::-webkit-details-marker{display:none;}
-.wzw-uit summary .titel::before{content:'▸ ';}
-.wzw-uit[open] summary .titel::before{content:'▾ ';}
 .wzw-uit summary .titel{color:var(--muted);}
 .wzw-legenda{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:0.66rem;color:var(--muted);padding:8px 14px;border-top:1px solid var(--border);}
 .wzw-legenda span{display:inline-flex;align-items:center;gap:5px;}
@@ -148,6 +146,24 @@ body.heeft-savebar .toast{bottom:84px;}
   .wzw-lijst{overflow:visible;}
 }
 @media print{ .wzw{display:none;} }
+/* Inklapbare rondes (zijkolom en wedstrijdkaarten) */
+details.wzw-ronde > summary{cursor:pointer;list-style:none;margin-bottom:0;padding:2px 0;}
+details.wzw-ronde > summary::-webkit-details-marker{display:none;}
+details.wzw-ronde > summary .titel::before{content:'▸';display:inline-block;width:14px;color:var(--muted);}
+details.wzw-ronde[open] > summary .titel::before{content:'▾';}
+details.wzw-ronde[open] > summary{margin-bottom:6px;}
+.wzw-ronde{padding:8px 14px;}
+.wzw-knoppen{display:flex;gap:6px;margin-top:8px;}
+.wzw-knoppen button{flex:1;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 6px;font:inherit;font-size:0.7rem;cursor:pointer;}
+.wzw-knoppen button:hover{color:var(--text);background:var(--s2);}
+details.fase-card > summary{cursor:pointer;list-style:none;}
+details.fase-card > summary::-webkit-details-marker{display:none;}
+details.fase-card > summary h2::before{content:'▸';display:inline-block;width:16px;color:var(--muted);font-size:0.85rem;}
+details.fase-card[open] > summary h2::before{content:'▾';}
+details.fase-card > summary .voortgang{margin-bottom:0;}
+.fase-knoppen button{flex:0 0 auto;padding:4px 10px;}
+details.fase-card[open] > summary{margin-bottom:12px;}
+.fase-knoppen{display:flex;justify-content:flex-end;gap:6px;margin:-6px 0 10px;}
 
 /* Voortgangsbalken: groen = gespeeld, goud = ingepland met datum */
 .voortgang{margin:-4px 0 12px;}
@@ -943,13 +959,14 @@ function faseCardHtml(faseId){
     : '<div class="desc">Alle spelers hadden een bye deze ronde.</div>';
   const byeNote = fase.bye && fase.bye.length
     ? `<div class="desc">➕ ${fase.bye.length} speler${fase.bye.length===1?'':'s'} kreeg automatisch een bye door naar de volgende fase.</div>` : '';
-  return `<div class="card">
-    <h2>${escapeHtml(faseLabel(faseId))} ${badgeTak} ${badgeStatus}</h2>
-    ${voortgangHtml(faseVoortgang(fase))}
+  const key = 'fase-' + faseId;
+  return `<details class="card fase-card" data-key="${key}"${isOpen(key, !fase.afgerond)?' open':''}>
+    <summary><h2>${escapeHtml(faseLabel(faseId))} ${badgeTak} ${badgeStatus}</h2>
+    ${voortgangHtml(faseVoortgang(fase))}</summary>
     ${isTussenronde(faseId, fase) ? '<div class="desc">Extra tussenronde om in de verliezersronde terug te komen op een rond aantal spelers.</div>' : ''}
     <div class="matches">${matchesHtml}</div>
     ${byeNote}
-  </div>`;
+  </details>`;
 }
 
 // ══════════════════════════════════════════
@@ -1030,6 +1047,25 @@ function laatsteRondeVan(naam){
 }
 
 let wzwZoek = '';
+// Welke rondes open/dicht staan (zijkolom en wedstrijdkaarten); blijft bewaard
+// in deze browser zodat het na herladen en na elke render hetzelfde blijft.
+let openStaat = {};
+try{ openStaat = JSON.parse(localStorage.getItem('beker_open') || '{}') || {}; }catch(e){ openStaat = {}; }
+function isOpen(key, standaard){ return key in openStaat ? !!openStaat[key] : standaard; }
+function bewaarOpen(){ try{ localStorage.setItem('beker_open', JSON.stringify(openStaat)); }catch(e){} }
+document.addEventListener('toggle', e=>{
+  const d = e.target;
+  if(!d || !d.dataset || !d.dataset.key) return;
+  if(d.closest('#wzwCard') && wzwZoek.trim()) return; // openklappen door zoeken niet onthouden
+  openStaat[d.dataset.key] = d.open; bewaarOpen();
+}, true);
+function klapAlles(scope, open){
+  document.querySelectorAll(scope === 'wzw' ? '#wzwCard details[data-key]' : 'details.fase-card[data-key]').forEach(d=>{
+    d.open = open; openStaat[d.dataset.key] = open;
+  });
+  bewaarOpen();
+}
+window.klapAlles = klapAlles;
 function wieZitWaarHtml(){
   const posities = spelerPosities();
   const perRonde = {};
@@ -1050,16 +1086,17 @@ function wieZitWaarHtml(){
     const tak = meta.tak === 'winnaarsronde' ? 'wr' : meta.tak === 'verliezersronde' ? 'vr' : '';
     const geloot = !!state.fases[id];
     lijst.sort((a,b)=>sorteer(a.naam,b.naam));
-    rondes += `<div class="wzw-ronde">
-      <div class="wzw-kop"><span class="titel">${escapeHtml(faseLabel(id))}</span>${tak?`<span class="badge ${tak}">${tak.toUpperCase()}</span>`:''}<span class="tel">${lijst.length}</span></div>
+    const key = 'wzw-' + id;
+    rondes += `<details class="wzw-ronde" data-key="${key}"${isOpen(key,false)?' open':''}>
+      <summary class="wzw-kop"><span class="titel">${escapeHtml(faseLabel(id))}</span>${tak?`<span class="badge ${tak}">${tak.toUpperCase()}</span>`:''}<span class="tel">${lijst.length}</span></summary>
       ${geloot ? '' : '<div class="wzw-sub">nog niet geloot — tot nu toe zeker</div>'}
       ${lijst.map(x=>rij(x.naam, x.status, geloot ? (kortTxt[x.txt] ?? x.txt) : '')).join('')}
-    </div>`;
+    </details>`;
   });
 
   uitgeschakeld.sort(sorteer);
   if(uitgeschakeld.length){
-    rondes += `<details class="wzw-ronde wzw-uit"${wzwZoek?' open':''}>
+    rondes += `<details class="wzw-ronde wzw-uit" data-key="wzw-uit"${isOpen('wzw-uit',false)?' open':''}>
       <summary class="wzw-kop"><span class="titel">Uitgeschakeld</span><span class="tel">${uitgeschakeld.length}</span></summary>
       ${uitgeschakeld.map(n=>{ const r = laatsteRondeVan(n); return rij(n,'uit', r ? 'in '+faseKort(r) : ''); }).join('')}
     </details>`;
@@ -1067,7 +1104,8 @@ function wieZitWaarHtml(){
 
   return `<aside class="wzw" id="wzwCard">
     <div class="wzw-kopbalk"><h2>👥 Wie zit waar</h2>
-      <input type="search" class="wzw-zoek" id="wzwZoek" placeholder="Zoek speler…" value="${escapeHtml(wzwZoek)}" oninput="zoekWzw(this.value)"></div>
+      <input type="search" class="wzw-zoek" id="wzwZoek" placeholder="Zoek speler…" value="${escapeHtml(wzwZoek)}" oninput="zoekWzw(this.value)">
+      <div class="wzw-knoppen"><button type="button" onclick="klapAlles('wzw',true)">Alles open</button><button type="button" onclick="klapAlles('wzw',false)">Alles dicht</button></div></div>
     <div class="wzw-lijst">${rondes}</div>
     <div class="wzw-legenda">
       <span class="wzw-rij open"><span class="stip"></span>speelt nog</span>
@@ -1087,9 +1125,10 @@ function zoekWzw(q){
     el.classList.toggle('dim', !!t && !hit);
   });
   document.querySelectorAll('#wzwCard .wzw-ronde').forEach(r=>{
-    r.classList.toggle('leeg', !!t && !r.querySelector('.wzw-rij.hit'));
+    const raak = !!r.querySelector('.wzw-rij.hit');
+    r.classList.toggle('leeg', !!t && !raak);
+    r.open = t ? raak : isOpen(r.dataset.key, false);
   });
-  if(t){ const d = document.querySelector('#wzwCard .wzw-uit'); if(d) d.open = true; }
 }
 window.zoekWzw = zoekWzw;
 
@@ -1144,6 +1183,9 @@ function render(){
     </div>`;
   }
 
+  if(FASE_VOLGORDE.filter(id=>state.fases[id]).length > 1){
+    html += `<div class="fase-knoppen wzw-knoppen"><button type="button" onclick="klapAlles('fase',true)">Alle rondes open</button><button type="button" onclick="klapAlles('fase',false)">Alle rondes dicht</button></div>`;
+  }
   FASE_VOLGORDE.forEach(faseId=>{
     if(state.fases[faseId]) html += faseCardHtml(faseId);
   });
