@@ -1825,6 +1825,9 @@
       if(!hadSaved2){
         state.baseNames = teLoten.pool.slice();
         state.remaining = teLoten.pool.slice();
+        // Wegschrijven naar de planning volgt de instelling van het toernooi,
+        // zodat het vinkje bij een nieuwe loting niet vergeten kan worden.
+        state.syncEnabled = !!(toernooiState && toernooiState.syncEnabled);
         if(teLoten.type === "fase"){
           state.byeTarget = 0;
           state.matchesTarget = teLoten.pool.length / 2;

@@ -1,0 +1,1872 @@
+<title>Bekerloting Kaale Bull</title>
+<script src="beker-proef.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg: #0d241b;
+    --bg-deep: #081712;
+    --surface: #16352a;
+    --surface-2: #1c4231;
+    --line: #2c5c46;
+    --ink: #f3ead6;
+    --ink-dim: #a9c2b4;
+    --gold: #d9ab3f;
+    --gold-bright: #f0c25f;
+    --red: #9c2b3b;
+    --red-bright: #c23a4e;
+    --wedge-a: #17392b;
+    --wedge-b: #14201a;
+    --wedge-text-a: #f3ead6;
+    --wedge-text-b: #d9ab3f;
+    --shadow: 0 20px 45px rgba(0,0,0,0.45);
+    --radius: 18px;
+  }
+
+  *{box-sizing:border-box;}
+  html, body{ height:100%; }
+  body{
+    background:
+      radial-gradient(1400px 900px at 50% -10%, var(--surface-2), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Work Sans", system-ui, sans-serif;
+    padding-inline: 2.4vw;
+    padding-block: 2vh 2vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+
+  a{ color: var(--gold-bright); }
+
+  .wrap{
+    max-width: 2200px;
+    width:100%;
+    margin-inline: auto;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+
+  header{
+    text-align:center;
+    margin-bottom: 0.6vh;
+    flex: 0 0 auto;
+  }
+
+  .eyebrow{
+    font-family:"Oswald", sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.3em;
+    font-size: clamp(11px, 0.8vw, 16px);
+    color: var(--gold);
+    margin: 0 0 0.2vh;
+  }
+
+  h1{
+    font-family:"Anton", "Oswald", sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+    font-size: clamp(24px, 3vw, 46px);
+    line-height:1;
+    margin: 0;
+    text-wrap: balance;
+    color: var(--ink);
+    text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+  }
+
+  .sub{
+    color: var(--ink-dim);
+    font-size: clamp(14px, 1.15vw, 24px);
+    margin:0;
+  }
+
+  .board{
+    display:grid;
+    grid-template-columns: minmax(0,1fr) minmax(380px, 1fr);
+    gap: 2.6vw;
+    flex: 1 1 auto;
+    min-height:0;
+  }
+
+  @media (max-width: 760px){
+    body{ overflow:auto; }
+    .wrap{ height:auto; }
+    .board{ grid-template-columns: 1fr; }
+  }
+
+  /* Eén regel wanneer een loting compleet is: geen aparte grote kaart meer
+     (die zorgde met de andere kant voor dubbele/overlappende knoppen), gewoon
+     een compacte statusregel boven de wedstrijden. */
+  .board.is-done{ grid-template-columns: 1fr; flex: 0 0 auto; }
+  .board.is-done .matches-card{ flex: 0 0 auto; }
+  .board.is-done .matches-card .matches{ flex: 0 0 auto; overflow-y: visible; }
+  body.is-done{ overflow: auto; }
+  .wrap.is-done{ height: auto; min-height: 100%; }
+  /* Met de hele pagina scrollbaar hoeft dit blok niet meer zijn eigen interne
+     scrollbalk te forceren — dat gaf een onnodige dubbele scroll-ervaring. */
+  .board.is-done ~ .wr2-prep-card{ max-height: none; }
+
+  .done-line{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:center;
+    gap: 0.5em 1em;
+    background: linear-gradient(180deg, var(--surface), var(--bg-deep));
+    border: 1px solid var(--gold);
+    border-radius: 999px;
+    padding: 1vh 1.6vw;
+    margin-bottom: 1.8vh;
+    font-family:"Oswald", sans-serif;
+    font-size: clamp(13px, 1.05vw, 19px);
+    color: var(--ink);
+    text-align:center;
+  }
+  .done-line-check{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width: 1.6em; height: 1.6em;
+    border-radius:50%;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: var(--bg-deep);
+    font-weight:700;
+    font-size: 0.8em;
+    flex: 0 0 auto;
+  }
+  .done-line-link{
+    background:transparent;
+    border: 1px solid var(--line);
+    color: var(--gold-bright);
+    font-family:"Work Sans", sans-serif;
+    font-size: 0.72em;
+    text-decoration:none;
+    border-radius: 999px;
+    padding: 0.5em 1.1em;
+    cursor:pointer;
+  }
+  .done-line-link:hover{ color: var(--ink); border-color: var(--gold); }
+
+  /* "Niets te loten"/"toernooi afgerond"-melding hergebruikt dit kaart-uiterlijk;
+     position:relative voorkomt dat de knop erin naar de hoek van het scherm springt. */
+  .done-panel{
+    position:relative;
+    background: linear-gradient(180deg, var(--surface), var(--bg-deep));
+    border: 1px solid var(--gold);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 3vh 1.6vw;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap: 1.4vh;
+    min-height:0;
+  }
+  .done-badge{
+    width: clamp(48px, 4.4vw, 68px);
+    height: clamp(48px, 4.4vw, 68px);
+    border-radius:50%;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: var(--bg-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: clamp(20px, 1.9vw, 30px);
+    font-weight:700;
+  }
+  .done-panel h2{
+    font-family:"Oswald", sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color: var(--gold-bright);
+    font-size: clamp(17px, 1.5vw, 25px);
+    margin:0;
+  }
+  .done-panel p{
+    color: var(--ink-dim);
+    font-size: clamp(12px, 0.95vw, 16px);
+    margin:0;
+    max-width: 34ch;
+  }
+
+  .wheel-panel{
+    position:relative;
+    background: linear-gradient(180deg, var(--surface), var(--bg-deep));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 2vh 1.6vw;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap: 2.2vh;
+    min-height:0;
+  }
+
+  .wheel-stage{
+    position:relative;
+    width: min(70vh, 44vw);
+    max-width: 100%;
+    aspect-ratio: 1/1;
+    flex: 0 1 auto;
+  }
+
+  .pointer{
+    position:absolute;
+    top: -1.6%;
+    left:50%;
+    transform: translateX(-50%);
+    width:0; height:0;
+    border-left: clamp(12px, 1.6vw, 30px) solid transparent;
+    border-right: clamp(12px, 1.6vw, 30px) solid transparent;
+    border-top: clamp(24px, 3vw, 54px) solid var(--gold-bright);
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
+    z-index: 5;
+  }
+
+  .hub-ring{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border: clamp(7px, 0.9vw, 16px) solid var(--gold);
+    box-shadow:
+      0 0 0 3px var(--bg-deep),
+      inset 0 0 25px rgba(0,0,0,0.55),
+      var(--shadow);
+    pointer-events:none;
+  }
+
+  #wheelSvg{
+    width:100%;
+    height:100%;
+    display:block;
+    border-radius:50%;
+    transform-origin: 50% 50%;
+    transition: transform 4.2s cubic-bezier(0.14,0.67,0.1,1);
+  }
+
+  .hub{
+    position:absolute;
+    top:50%; left:50%;
+    transform: translate(-50%,-50%);
+    width: clamp(64px, 9vw, 150px);
+    height: clamp(64px, 9vw, 150px);
+    border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 55%, #8a6a1f 100%);
+    border: 3px solid var(--bg-deep);
+    display:flex; align-items:center; justify-content:center;
+    font-family:"Anton", sans-serif;
+    font-size: clamp(16px, 2vw, 34px);
+    color: #241a04;
+    letter-spacing:0.03em;
+    z-index:4;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+  }
+
+  .spin-btn{
+    font-family:"Oswald", sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    font-size: clamp(17px, 1.7vw, 30px);
+    font-weight:600;
+    color:#241a04;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    border: none;
+    border-radius: 999px;
+    padding: 1.5vh 3.4vw;
+    cursor:pointer;
+    box-shadow: 0 8px 0 #8a6a1f, 0 14px 24px rgba(0,0,0,0.4);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .spin-btn:hover{ transform: translateY(-1px); }
+  .spin-btn:active{ transform: translateY(4px); box-shadow: 0 4px 0 #8a6a1f, 0 8px 14px rgba(0,0,0,0.4); }
+  .spin-btn:disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+    box-shadow: 0 8px 0 #6b552088, 0 14px 24px rgba(0,0,0,0.25);
+    transform:none;
+  }
+  .spin-btn:focus-visible, button:focus-visible, summary:focus-visible, textarea:focus-visible{
+    outline: 2px solid var(--gold-bright);
+    outline-offset: 2px;
+  }
+
+  .status-line{
+    font-family:"Oswald", sans-serif;
+    font-size: clamp(15px, 1.5vw, 26px);
+    color: var(--ink-dim);
+    letter-spacing:0.02em;
+    text-align:center;
+    min-height: 1.4em;
+  }
+  .status-line strong{ color: var(--gold-bright); }
+
+  .ghost-btn{
+    position:absolute;
+    bottom: 1.6vh;
+    left: 1.6vw;
+    background:transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-family:"Work Sans", sans-serif;
+    font-size: clamp(11px, 0.8vw, 15px);
+    border-radius: 999px;
+    padding: 0.5em 1.1em;
+    cursor:pointer;
+  }
+  .ghost-btn:hover{ color: var(--ink); border-color: var(--gold); }
+
+  .side{
+    display:flex;
+    flex-direction:column;
+    gap: 1.8vh;
+    min-height:0;
+  }
+
+  .card{
+    background: linear-gradient(180deg, var(--surface), var(--bg-deep));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.8vh 1.4vw;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+
+  /* De kolom "Nog op het rad" is vervallen (overbodig — het rad zelf en de
+     statusregel laten al zien hoeveel namen er nog te gaan zijn), dus de
+     wedstrijden- en bye-kaart delen nu samen de hele hoogte van de zijkolom. */
+  .matches-card{ flex: 1 1 0; min-height:0; }
+  .bye-card{ flex: 1 1 0; min-height:0; }
+  .wr2-prep-card{ flex: 0 0 auto; max-height: 34vh; margin-top: 1.6vh; }
+
+  .card h2{
+    font-family:"Oswald", sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    font-size: clamp(14px, 1.2vw, 22px);
+    color: var(--gold);
+    margin: 0 0 1.2vh;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex: 0 0 auto;
+  }
+
+  .count-pill{
+    font-family:"Work Sans";
+    font-size: clamp(11px, 0.85vw, 16px);
+    background: var(--surface-2);
+    color: var(--ink-dim);
+    border-radius:999px;
+    padding: 0.2em 0.8em;
+    letter-spacing:0;
+  }
+
+  .matches{
+    list-style:none;
+    margin:0; padding:0 4px 4px 0;
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+    align-content:start;
+    gap: 0.7vh 0.7vw;
+    overflow-y:auto;
+    flex: 1 1 auto;
+    min-height:0;
+  }
+
+  .matches li{
+    display:grid;
+    grid-template-columns: auto 1fr auto 1fr auto;
+    align-items:center;
+    gap: 0.35em;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.5em 0.6em;
+    font-size: clamp(11px, 0.85vw, 15px);
+    animation: pop .35s ease;
+  }
+  @keyframes pop{ from{ opacity:0; transform: scale(0.92);} to{opacity:1; transform:scale(1);} }
+
+  .sync-badge{
+    font-size: 0.6em;
+    white-space:nowrap;
+    border-radius:999px;
+    padding: 0.25em 0.6em;
+    font-family:"Work Sans";
+    font-weight:600;
+    border: 1px solid transparent;
+  }
+  .sync-badge.ok{ color:#7fd99a; background:rgba(87,199,133,0.12); border-color:rgba(87,199,133,0.3); }
+  .sync-badge.pending{ color: var(--ink-dim); background: rgba(255,255,255,0.06); }
+  .sync-badge.error{
+    color:#e07a86;
+    background:rgba(194,58,78,0.15);
+    border-color:rgba(194,58,78,0.4);
+    cursor:pointer;
+  }
+  .sync-badge.error:hover{ background:rgba(194,58,78,0.28); }
+  .sync-badge.off{ display:none; }
+
+  .matches li .num{
+    font-family:"Oswald";
+    color: var(--gold);
+    font-size: 0.72em;
+    text-align:center;
+  }
+  .matches li .vs{
+    font-family:"Oswald";
+    font-size: 0.62em;
+    color: var(--ink-dim);
+    text-transform:uppercase;
+    text-align:center;
+  }
+  .matches li .home{ text-align:right; }
+  .matches li .away{ text-align:left; }
+
+  .empty-note{
+    color: var(--ink-dim);
+    font-size: clamp(13px, 1vw, 18px);
+    font-style:italic;
+  }
+
+  .remaining-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap: 0.5em;
+    overflow-y:auto;
+    flex: 1 1 auto;
+    min-height:0;
+  }
+  .remaining-list span{
+    font-size: clamp(11px, 0.85vw, 15px);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    padding: 0.3em 0.7em;
+    border-radius: 999px;
+  }
+
+  .settings{
+    position:fixed;
+    top: 1.4vh;
+    right: 1.4vw;
+    z-index: 10;
+    display:flex;
+    align-items:center;
+    gap: 0.6vw;
+  }
+  .icon-btn{
+    width: clamp(30px, 2.2vw, 42px);
+    height: clamp(30px, 2.2vw, 42px);
+    border-radius:50%;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: clamp(14px, 1.1vw, 20px);
+    cursor:pointer;
+    padding:0;
+  }
+  .icon-btn:hover{ color: var(--ink); border-color: var(--gold); }
+  .icon-btn.active{ color: var(--gold-bright); border-color: var(--gold); }
+  .icon-btn svg{ width: 52%; height:52%; }
+
+  .fs-btn{
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 0.5em 0.9em;
+    font-size: clamp(12px, 0.85vw, 15px);
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    gap: 6px;
+    font-family: inherit;
+  }
+  .fs-btn:hover{ background: var(--surface); }
+  details.editor{
+    position:relative;
+  }
+  details.editor summary{
+    list-style:none;
+    cursor:pointer;
+    width: clamp(30px, 2.2vw, 42px);
+    height: clamp(30px, 2.2vw, 42px);
+    border-radius:50%;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: clamp(14px, 1.1vw, 20px);
+  }
+  details.editor summary::-webkit-details-marker{ display:none; }
+  details.editor summary:hover{ color: var(--ink); border-color: var(--gold); }
+  details.editor[open] summary{ color: var(--gold-bright); border-color: var(--gold); }
+  details.editor .panel{
+    position:absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: min(360px, 80vw);
+    background: linear-gradient(180deg, var(--surface), var(--bg-deep));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 14px 16px 16px;
+  }
+  .panel-label{
+    font-family:"Oswald";
+    font-size:12px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 8px;
+  }
+  .panel-sublabel{
+    font-family:"Work Sans";
+    font-size:11px;
+    color: var(--ink-dim);
+    margin-right:2px;
+  }
+  .panel-divider{
+    border:none;
+    border-top:1px solid var(--line);
+    margin: 14px 0;
+  }
+  .sync-toggle{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    font-size:12.5px;
+    line-height:1.4;
+    color: var(--ink);
+    cursor:pointer;
+    margin-bottom:12px;
+  }
+  .sync-toggle input{
+    margin-top:2px;
+    width:15px;
+    height:15px;
+    accent-color: var(--gold);
+    flex:0 0 auto;
+    cursor:pointer;
+  }
+  details.editor textarea{
+    width:100%;
+    min-height:200px;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 12.5px;
+    line-height:1.6;
+    resize: vertical;
+  }
+  .editor-actions{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+  .editor-actions button{
+    font-family:"Work Sans";
+    font-size:13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor:pointer;
+  }
+  .apply-btn{
+    background: var(--gold);
+    color: #241a04;
+    border:none;
+    font-weight:600;
+  }
+  .cancel-btn{
+    background:transparent;
+    border:1px solid var(--line);
+    color: var(--ink-dim);
+  }
+
+  .complete-banner{
+    display:none;
+    text-align:center;
+    font-family:"Anton";
+    letter-spacing:0.02em;
+    text-transform:uppercase;
+    color: var(--gold-bright);
+    font-size: clamp(20px, 2.4vw, 40px);
+    margin-top: -0.4vh;
+  }
+  .complete-banner.show{ display:block; }
+
+  /* ── ONTHULLINGSSCHERM ── */
+  .reveal-overlay{
+    position:fixed;
+    inset:0;
+    background:
+      radial-gradient(1200px 800px at 50% 40%, var(--surface-2), transparent 65%),
+      rgba(5,15,11,0.94);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity .25s ease;
+  }
+  .reveal-overlay.show{ opacity:1; pointer-events:auto; }
+
+  .reveal-inner{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: 2.4vh;
+    padding: 4vh 4vw;
+    text-align:center;
+  }
+
+  .reveal-eyebrow{
+    font-family:"Oswald", sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.32em;
+    font-size: clamp(14px, 1.6vw, 26px);
+    color: var(--gold);
+    opacity:0;
+    animation: revealFadeUp .4s ease forwards;
+  }
+
+  .reveal-name{
+    font-family:"Anton", sans-serif;
+    text-transform:uppercase;
+    line-height:1.02;
+    font-size: clamp(46px, 9vw, 148px);
+    color: var(--ink);
+    text-wrap: balance;
+    text-shadow: 0 6px 0 rgba(0,0,0,0.35);
+    transform: scale(0.6);
+    opacity:0;
+    animation: revealPop .6s cubic-bezier(.2,1.7,.35,1) forwards;
+  }
+  .reveal-name.gold{ color: var(--gold-bright); }
+
+  .reveal-vs-row{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 3vw;
+    flex-wrap:wrap;
+  }
+  .reveal-vs-row .reveal-name{
+    font-size: clamp(34px, 6vw, 96px);
+    flex: 0 1 auto;
+  }
+  .reveal-vs-row .reveal-name:first-child{ animation-delay: 0s; }
+  .reveal-vs-row .reveal-name:last-child{ animation-delay: .18s; }
+
+  .reveal-vs-label{
+    font-family:"Oswald", sans-serif;
+    font-weight:700;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    font-size: clamp(18px, 2.4vw, 38px);
+    color: var(--gold);
+    opacity:0;
+    animation: revealFadeUp .4s ease .32s forwards;
+  }
+
+  .reveal-match-label{
+    font-family:"Oswald", sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    font-size: clamp(13px, 1.3vw, 20px);
+    color: var(--ink-dim);
+    opacity:0;
+    animation: revealFadeUp .4s ease .5s forwards;
+  }
+
+  /* Twee namen van een nog te spelen ronde-1-wedstrijd, op de plek waar
+     normaal één (bekende) tegenstandernaam zou staan — vervangt het label
+     "Winnaar wedstrijd N". */
+  .reveal-vs-row .reveal-name.reveal-name-pair{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: 0.15em;
+    font-size: clamp(22px, 3.6vw, 52px);
+    line-height:1.12;
+  }
+  .reveal-pair-sep{
+    font-family:"Oswald", sans-serif;
+    font-weight:600;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    font-size: clamp(11px, 1.3vw, 16px);
+    color: var(--ink-dim);
+    opacity:0.75;
+  }
+
+  @keyframes revealPop{
+    to{ transform: scale(1); opacity:1; }
+  }
+  @keyframes revealFadeUp{
+    from{ opacity:0; transform: translateY(8px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .reveal-name, .reveal-eyebrow, .reveal-vs-label, .reveal-match-label{
+      animation-duration: .01ms !important;
+      animation-delay: 0s !important;
+    }
+  }
+</style>
+
+<div class="settings">
+  <button class="fs-btn" id="fsBtn" onclick="toggleFullscreen()">&#10530; Fullscreen</button>
+  <details class="editor" id="editorDetails">
+    <summary aria-label="Instellingen" title="Instellingen">&#9881;</summary>
+    <div class="panel">
+      <p class="panel-label">Wegschrijven naar dashboard</p>
+      <label class="sync-toggle">
+        <input type="checkbox" id="syncToggle">
+        <span>Elke geloot wedstrijd meteen als bekerwedstrijd (NNB) in Supabase zetten</span>
+      </label>
+
+      <p class="panel-sublabel">De voorronde is altijd Best of 5.</p>
+
+      <div id="namesEditSection">
+        <hr class="panel-divider">
+        <p class="panel-label">Namen aanpassen</p>
+        <textarea id="namesTextarea" spellcheck="false"></textarea>
+        <div class="editor-actions">
+          <button class="apply-btn" id="applyNamesBtn" type="button">Toepassen &amp; opnieuw beginnen</button>
+          <button class="cancel-btn" id="cancelNamesBtn" type="button">Annuleren</button>
+        </div>
+      </div>
+      <p class="panel-sublabel" id="namesLockedNote" style="display:none;">Bij deze loting ligt de spelerspool al vast op basis van de uitslagen — namen aanpassen kan alleen bij de ronde-1-loting.</p>
+    </div>
+  </details>
+</div>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow" id="eyebrowText">De Kaale Bull &middot; Bekercompetitie</p>
+    <h1>Bekerloting</h1>
+  </header>
+
+  <p class="done-line" id="doneLine" style="display:none;">
+    <span class="done-line-check" aria-hidden="true">&#10003;</span>
+    <span id="doneLineText">Loting compleet</span>
+    <a href="bekertoernooi.html" class="done-line-link" id="doneLineCta">🏆 Naar het bekertoernooi &rarr;</a>
+    <button type="button" class="done-line-link" id="resetBtnCompact">&#8630; Opnieuw beginnen</button>
+  </p>
+
+  <div class="board" id="board">
+    <section class="wheel-panel" id="wheelPanel">
+      <div class="wheel-stage">
+        <div class="pointer" aria-hidden="true"></div>
+        <div class="hub-ring" aria-hidden="true"></div>
+        <svg id="wheelSvg" viewBox="0 0 400 400" role="img" aria-label="Loting rad met spelersnamen"></svg>
+        <div class="hub" aria-hidden="true">KB</div>
+      </div>
+
+      <button class="spin-btn" id="spinBtn" type="button">Draai het rad</button>
+      <p class="status-line" id="statusLine">Klaar om te loten &mdash; <strong id="remainingCount">42</strong> namen op het rad.</p>
+      <p class="complete-banner" id="completeBanner">Loting compleet! Alle wedstrijden zijn geloot.</p>
+      <button class="ghost-btn" id="resetBtn" type="button">Opnieuw beginnen</button>
+    </section>
+
+    <aside class="side">
+      <div class="card matches-card">
+        <h2><span id="matchesCardTitle">Voorronde</span> <span class="count-pill" id="matchCountPill">0 wedstrijden</span></h2>
+        <ul class="matches" id="matchesList"></ul>
+        <p class="empty-note" id="emptyNote">Nog geen wedstrijden geloot. Draai het rad om te beginnen.</p>
+      </div>
+
+      <div class="card bye-card" id="byeCard" style="display:none;">
+        <h2><span id="byeCardTitle">Bye — direct naar winnaarsronde 1</span> <span class="count-pill" id="byeCountPill">0</span></h2>
+        <div class="remaining-list" id="byeList"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="card wr2-prep-card" id="wr2PrepCard" style="display:none;">
+    <h2>Voorbereiding winnaarsronde 1</h2>
+    <p class="empty-note" style="margin-bottom:1vh;">Deze bye-spelers spelen straks tegen elkaar of tegen de winnaar van een voorronde-wedstrijd — zo kunnen twee voorronde-winnaars elkaar nooit in winnaarsronde 1 treffen.</p>
+    <ul class="matches" id="wr2PrepList"></ul>
+  </div>
+
+  <section class="done-panel" id="geenLotingPanel" style="display:none; max-width:640px; margin:4vh auto 0;">
+    <div class="done-badge" aria-hidden="true">&#9733;</div>
+    <h2 id="geenLotingHeading">Niets te loten op dit moment</h2>
+    <p id="geenLotingDesc"></p>
+    <a class="ghost-btn" href="bekertoernooi.html" style="text-decoration:none;">🏆 Naar het bekertoernooi &rarr;</a>
+  </section>
+</div>
+
+<div class="reveal-overlay" id="revealOverlay" aria-live="polite">
+  <div class="reveal-inner" id="revealInner"></div>
+</div>
+
+<script>
+// Veiligheid: met ?proef=1 maar zonder geladen proefmodus nooit verder gaan,
+// anders zou een proef in het echte toernooi terechtkomen.
+if(!window.BEKER_PROEF){ // proefmap: zonder proefmodus nooit verder
+  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif;color:#f3ead6;background:#0d241b">Proefmodus kon niet laden. Herlaad de pagina; er is niets opgeslagen.</p>';
+  throw new Error('Proefmodus niet geladen');
+}
+(function(){
+  "use strict";
+
+  var DEFAULT_NAMES = [
+    "Cretienne Godschalk","Dennis Verwijs","Edwin Braal","Edwin Stooker","Elbert Ouwens",
+    "Johan van der Waal","John Appeldoorn","John Helderop","Marcel Goedhart","Marieke van der Waal",
+    "Michael Legerstee","Nico Vermeulen","Peter Vermaas","Phylicia Kramer","Ralph Bouwer",
+    "Remon Kranendonk","Rianne van der Heiden","Roel Derksen","Ruud Krijne","Sascha van der Meer",
+    "Wessel van Haren",
+    "Allard Ottens","Arjan van Verk","Bart Luijendijk","Bas Delvoije","Chris Slooter",
+    "Dennis Heijkoop","Diana Appeldoorn","Dick de Jong","Jan Willem van Vark","Lennart Buitendijk",
+    "Marcel Koolmees","Marcel van Verk","Mark van der Voorden","Martijn Vermaas","Michael van Beek",
+    "Michel van Roon","Patrick Grisnigt","Patrick van Andel","Patrick van Haren","Petra de Crom",
+    "Winston van de Graaf"
+  ];
+
+  // In proefmodus een eigen sleutel, zodat een proefloting nooit een echte loting raakt.
+  var STORAGE_KEY_BASE = window.BEKER_PROEF ? "kaalebull-bekerloting-v1-proef" : "kaalebull-bekerloting-v1";
+
+  // ── Supabase (zelfde project/anon key als index.html) ──
+  var SB_URL = "https://ctxurzqtglckairgbjno.supabase.co";
+  var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ";
+  var SB_HDR = { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json", "Prefer": "return=representation" };
+  // Zelfde seizoen-sleutel als bekertoernooi.html gebruikt voor de rij in beker_toernooi.
+  var SEIZOEN = "2026-2027";
+
+  // Vaste bracket-structuur — identiek aan bekertoernooi.html (byte-identiek object).
+  // VR2 bestaat uit de 10 ronde1-verliezers ÉN de bye-spelers die hun eerste
+  // wedstrijd (in WR2) verliezen (hun ene troostronde) — die pool is pas
+  // compleet zodra WR2 helemaal is uitgespeeld, dus VR2 wordt pas dán geloot.
+  // "Ronde 3" is een nieuwe toernooifase: WR3 en VR3 worden pas geloot zodra
+  // zowel WR2 als VR2 helemaal zijn uitgespeeld (dus niet zodra WR2 alleen
+  // klaar is — WR3 wacht dan nog even op VR2).
+  var FASES = {
+    ronde1:        { label:'Voorronde',                tak:'gemengd',       bo:5 },
+    wr2:           { label:'Winnaarsronde 1',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
+    vr2:           { label:'Verliezersronde 1',       tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
+    vr3:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
+    wr3:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['wr2','vr2'] },
+    wr_kwart:      { label:'Winnaarsronde — kwartfinale', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
+    vr_kwart:      { label:'Verliezersronde — kwartfinale', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
+    wr_halve:      { label:'Winnaarsronde — halve finale', tak:'winnaarsronde', bo:7, dependsOn:['wr_kwart'] },
+    vr_halve:      { label:'Verliezersronde — halve finale', tak:'verliezersronde', bo:7, dependsOn:['vr_kwart'] },
+    wr_finale:     { label:'Winnaarsronde — FINALE',  tak:'winnaarsronde', bo:9, dependsOn:['wr_halve'] },
+    vr_finale:     { label:'Verliezersronde — FINALE',tak:'verliezersronde',bo:9, dependsOn:['vr_halve'] },
+  };
+  var FASE_VOLGORDE = ['ronde1','wr2','vr2','vr3','wr3','wr_kwart','vr_kwart','wr_halve','vr_halve','wr_finale','vr_finale'];
+
+  // Bepaalt welke fase nu klaar is om geloot te worden, op basis van de laatst
+  // bekende toernooi-staat uit Supabase. Identiek aan bepaalTeLoten() in
+  // bekertoernooi.html.
+  function bepaalTeLoten(toernooiState){
+    if(!toernooiState || !toernooiState.fases || !toernooiState.fases.ronde1){
+      return { type:'ronde1' };
+    }
+    var fases = toernooiState.fases;
+    var ronde1Winnaars = {};
+    fases.ronde1.matches.forEach(function(m){ ronde1Winnaars[m.winnaar] = true; });
+
+    if(fases.wr2 && fases.wr2.afgerond && !fases.vr2){
+      var ronde1Verliezers = fases.ronde1.matches.map(function(m){ return m.winnaar===m.a ? m.b : m.a; });
+      var wr2Doorstromers = fases.wr2.matches
+        .map(function(m){ return m.winnaar===m.a ? m.b : m.a; })
+        .filter(function(verliezer){ return !ronde1Winnaars[verliezer]; });
+      var pool = ronde1Verliezers.concat(wr2Doorstromers);
+      var doel = powerOf2LE(pool.length);
+      var x = pool.length - doel;
+      if(x > 0){
+        return { type:'tussenronde', faseId:'vr2', pool:pool, x:x };
+      }
+      // x === 0: geen loting nodig, bekertoernooi.html vult dit automatisch
+    }
+
+    if(fases.vr2 && fases.vr2.afgerond && !fases.vr3){
+      var poolVr3 = fases.vr2.matches.map(function(m){ return m.winnaar; }).concat(fases.vr2.bye || []);
+      return { type:'fase', faseId:'vr3', pool:poolVr3 };
+    }
+
+    // WR3 wacht — net als VR3 — tot VR2 helemaal is uitgespeeld, zodat "ronde 3"
+    // in zijn geheel als nieuwe fase klaarstaat (in plaats van dat WR3 al eerder
+    // los zou kunnen lopen terwijl VR2 nog bezig is).
+    if(fases.wr2 && fases.wr2.afgerond && fases.vr2 && fases.vr2.afgerond && !fases.wr3){
+      var poolWr3 = fases.wr2.matches.map(function(m){ return m.winnaar; });
+      return { type:'fase', faseId:'wr3', pool:poolWr3 };
+    }
+
+    var generiek = [
+      ['wr3','wr_kwart'], ['vr3','vr_kwart'],
+      ['wr_kwart','wr_halve'], ['vr_kwart','vr_halve'],
+      ['wr_halve','wr_finale'], ['vr_halve','vr_finale'],
+    ];
+    for(var i = 0; i < generiek.length; i++){
+      var van = generiek[i][0], naar = generiek[i][1];
+      if(fases[van] && fases[van].afgerond && !fases[naar]){
+        var poolGeneriek = fases[van].matches.map(function(m){ return m.winnaar; });
+        return { type:'fase', faseId:naar, pool:poolGeneriek };
+      }
+    }
+
+    return null; // niets te loten op dit moment
+  }
+
+  async function postWedstrijd(thuis, uit, divisie){
+    var body = [{
+      datum: new Date().toISOString().slice(0, 10),
+      tijdstip: null,
+      divisie: divisie,
+      thuis: thuis,
+      uit: uit,
+      speelronde: null,
+      status: "gepland",
+      uitslag: null,
+      is_inhaal: false,
+      datum_nnb: true
+    }];
+    var res = await fetch(SB_URL + "/rest/v1/wedstrijden", { method: "POST", headers: SB_HDR, body: JSON.stringify(body) });
+    if(!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+  function schrijfBekerwedstrijd(thuis, uit){
+    return postWedstrijd(thuis, uit, "Beker voorronde (Bo5)");
+  }
+  function schrijfWinnaarsrondeWedstrijd(thuis, uit){
+    return postWedstrijd(thuis, uit, "Beker winnaarsronde (Bo5)");
+  }
+
+  function powerOf2LE(n){ var p = 1; while(p * 2 <= n) p *= 2; return p; }
+  // Paart namen twee aan twee, in de volgorde waarin ze worden meegegeven — voor
+  // als die volgorde al willekeurig is doordat hij rechtstreeks uit een trekking
+  // via het rad komt (bv. de WR2-bye's, in de volgorde waarin ze zijn getrokken).
+  function pairSequential(namen){
+    var matches = [];
+    for(var i = 0; i < namen.length; i += 2) matches.push({ a: namen[i], b: namen[i + 1], winnaar: null, sync: null });
+    return matches;
+  }
+  // De doelen (hoeveel bye's, hoeveel wedstrijden) worden bij het starten van
+  // een loting vastgelegd op state.byeTarget/state.matchesTarget — deze
+  // functie leest ze alleen terug, zodat elke plek die vroeger computeTargets()
+  // aanriep blijft werken, voor elk type loting (ronde1, fase, tussenronde).
+  function computeTargets(){
+    return { matchesTarget: state.matchesTarget, byeTarget: state.byeTarget };
+  }
+  // Berekent de doelen voor een gegeven namenpool en faseType. Voor 'ronde1'
+  // (en als generieke fallback bij het handmatig aanpassen van namen) wordt de
+  // powerOf2LE-methode gebruikt; voor 'fase' is er geen bye-fase (byeTarget 0);
+  // voor 'tussenronde' wordt x opnieuw afgeleid uit de poolgrootte.
+  function computeTargetsForFaseType(namen, faseType){
+    if(faseType === "fase"){
+      return { byeTarget: 0, matchesTarget: namen.length / 2 };
+    }
+    var doel = powerOf2LE(namen.length);
+    var x = namen.length - doel;
+    if(faseType === "tussenronde"){
+      return { byeTarget: namen.length - x * 2, matchesTarget: x };
+    }
+    // ronde1
+    return { byeTarget: namen.length - x * 2, matchesTarget: x };
+  }
+
+  var svg = document.getElementById("wheelSvg");
+  var spinBtn = document.getElementById("spinBtn");
+  var resetBtn = document.getElementById("resetBtn");
+  var resetBtnCompact = document.getElementById("resetBtnCompact");
+  var boardEl = document.getElementById("board");
+  var wrapEl = document.querySelector(".wrap");
+  var wheelPanel = document.getElementById("wheelPanel");
+  var doneLine = document.getElementById("doneLine");
+  var doneLineText = document.getElementById("doneLineText");
+  var statusLine = document.getElementById("statusLine");
+  var remainingCountEl = document.getElementById("remainingCount");
+  var matchesList = document.getElementById("matchesList");
+  var matchCountPill = document.getElementById("matchCountPill");
+  var emptyNote = document.getElementById("emptyNote");
+  var completeBanner = document.getElementById("completeBanner");
+  var namesTextarea = document.getElementById("namesTextarea");
+  var applyNamesBtn = document.getElementById("applyNamesBtn");
+  var cancelNamesBtn = document.getElementById("cancelNamesBtn");
+  var editorDetails = document.getElementById("editorDetails");
+  var revealOverlay = document.getElementById("revealOverlay");
+  var revealInner = document.getElementById("revealInner");
+  var syncToggle = document.getElementById("syncToggle");
+  var byeCard = document.getElementById("byeCard");
+  var byeList = document.getElementById("byeList");
+  var byeCountPill = document.getElementById("byeCountPill");
+  var wr2PrepCard = document.getElementById("wr2PrepCard");
+  var wr2PrepList = document.getElementById("wr2PrepList");
+
+  var state = {
+    faseId: "ronde1",
+    faseType: "ronde1",
+    baseNames: DEFAULT_NAMES.slice(),
+    remaining: DEFAULT_NAMES.slice(),
+    pending: null,
+    matches: [],
+    bye: [],
+    rotation: 0,
+    syncEnabled: false,
+    afgerond: false,
+    wr2Prep: null,
+    byeTarget: 0,
+    matchesTarget: 0
+  };
+
+  function storageKeyFor(faseId){
+    return STORAGE_KEY_BASE + ":" + faseId;
+  }
+
+  // Geeft true terug als er al een lopende/afgeronde loting in localStorage stond
+  // voor deze specifieke fase (dan wordt er verder gegaan i.p.v. een nieuwe pool
+  // op te halen). Elke fase heeft zijn eigen storage-sleutel zodat een lopende
+  // ronde1-loting en een lopende vr2-loting (weken later) elkaar nooit overschrijven.
+  function loadState(faseId){
+    try{
+      var raw = localStorage.getItem(storageKeyFor(faseId));
+      if(!raw) return false;
+      var saved = JSON.parse(raw);
+      if(saved && Array.isArray(saved.baseNames) && saved.baseNames.length){
+        state.faseId = faseId;
+        state.faseType = saved.faseType || (faseId === "ronde1" ? "ronde1" : "fase");
+        state.baseNames = saved.baseNames;
+        state.remaining = Array.isArray(saved.remaining) ? saved.remaining : saved.baseNames.slice();
+        state.pending = saved.pending || null;
+        state.matches = Array.isArray(saved.matches) ? saved.matches : [];
+        state.bye = Array.isArray(saved.bye) ? saved.bye : [];
+        state.rotation = typeof saved.rotation === "number" ? saved.rotation : 0;
+        state.syncEnabled = !!saved.syncEnabled;
+        state.afgerond = !!saved.afgerond;
+        state.wr2Prep = saved.wr2Prep || null;
+        state.byeTarget = typeof saved.byeTarget === "number" ? saved.byeTarget : 0;
+        state.matchesTarget = typeof saved.matchesTarget === "number" ? saved.matchesTarget : 0;
+        return true;
+      }
+    }catch(e){ /* localStorage unavailable, use defaults */ }
+    return false;
+  }
+
+  function saveState(){
+    try{
+      localStorage.setItem(storageKeyFor(state.faseId), JSON.stringify(state));
+    }catch(e){ /* ignore */ }
+  }
+
+  function polar(cx, cy, r, angleDeg){
+    var rad = (angleDeg) * Math.PI / 180;
+    return { x: cx + r * Math.sin(rad), y: cy - r * Math.cos(rad) };
+  }
+
+  function buildWheel(){
+    var n = state.remaining.length;
+    svg.innerHTML = "";
+    if(n === 0) return;
+    var cx = 200, cy = 200, r = 196;
+    var seg = 360 / n;
+    var ns = "http://www.w3.org/2000/svg";
+
+    for(var i = 0; i < n; i++){
+      var startA = i * seg;
+      var endA = (i + 1) * seg;
+      var p1 = polar(cx, cy, r, startA);
+      var p2 = polar(cx, cy, r, endA);
+      var largeArc = seg > 180 ? 1 : 0;
+      var path = document.createElementNS(ns, "path");
+      var d = "M " + cx + " " + cy + " L " + p1.x.toFixed(2) + " " + p1.y.toFixed(2) +
+              " A " + r + " " + r + " 0 " + largeArc + " 1 " + p2.x.toFixed(2) + " " + p2.y.toFixed(2) + " Z";
+      path.setAttribute("d", d);
+      path.setAttribute("fill", i % 2 === 0 ? "var(--wedge-a)" : "var(--wedge-b)");
+      path.setAttribute("stroke", "#0a1a13");
+      path.setAttribute("stroke-width", "1");
+      svg.appendChild(path);
+
+      var midA = startA + seg / 2;
+      // Anker altijd vlak bij de rand; tekst loopt naar binnen maar mag nooit
+      // voorbij de binnenrand (rond de naaf) komen — zie compressie hieronder.
+      var outerTextR = r * 0.93;
+      var innerBoundR = 44;
+      var tp = polar(cx, cy, outerTextR, midA);
+      var text = document.createElementNS(ns, "text");
+      text.setAttribute("x", tp.x.toFixed(2));
+      text.setAttribute("y", tp.y.toFixed(2));
+      text.setAttribute("fill", i % 2 === 0 ? "var(--wedge-text-a)" : "var(--wedge-text-b)");
+      text.setAttribute("font-family", "Oswald, sans-serif");
+      text.setAttribute("font-size", n > 30 ? "10.5" : (n > 18 ? "12" : "14"));
+      text.setAttribute("font-weight", "500");
+      text.setAttribute("text-anchor", "end");
+      text.setAttribute("dominant-baseline", "middle");
+      var rot = midA - 90;
+      text.setAttribute("transform", "rotate(" + rot.toFixed(2) + " " + tp.x.toFixed(2) + " " + tp.y.toFixed(2) + ")");
+      text.textContent = state.remaining[i];
+      svg.appendChild(text);
+
+      // Namen die te lang zijn voor hun partje comprimeren we horizontaal zodat
+      // het einde van de tekst nooit voorbij de naaf in het midden terechtkomt.
+      var beschikbaar = outerTextR - innerBoundR;
+      try{
+        var natuurlijkeLengte = text.getComputedTextLength();
+        if(natuurlijkeLengte > beschikbaar){
+          text.setAttribute("textLength", beschikbaar.toFixed(1));
+          text.setAttribute("lengthAdjust", "spacingAndGlyphs");
+        }
+      }catch(e){ /* getComputedTextLength niet beschikbaar, tekst blijft ongewijzigd */ }
+    }
+  }
+
+  function renderRemaining(){
+    // De losse "Nog op het rad"-kaart is vervallen (overbodig naast het rad
+    // zelf en de statusregel) — dit werkt alleen nog het aantal bij dat in de
+    // allereerste (statische) statusregel-tekst stond, voor het geval die nog
+    // zichtbaar is vóór de eerste updateStatus()-aanroep.
+    if(remainingCountEl) remainingCountEl.textContent = state.remaining.length;
+  }
+
+  function renderBye(){
+    byeCountPill.textContent = state.bye.length;
+    byeList.innerHTML = "";
+
+    if(state.faseId === "ronde1"){
+      // Toon meteen de twee herkenbare groepen uit de trekking: eerst de
+      // tegenstanders voor de wedstrijdwinnaars, dan de directe ronde-2-koppels.
+      byeList.className = "";
+      var ul = document.createElement("ul");
+      ul.className = "matches";
+      var matchesTarget = state.matchesTarget || 0;
+
+      for(var i = 0; i < Math.min(matchesTarget, state.bye.length); i++){
+        var li = document.createElement("li");
+        li.innerHTML =
+          '<span class="num">&mdash;</span>' +
+          '<span class="home">' + escapeHtml(state.bye[i]) + '</span>' +
+          '<span class="vs">tegen winnaar</span>' +
+          '<span class="away">wedstrijd ' + (i + 1) + '</span>';
+        ul.appendChild(li);
+      }
+
+      for(var j = matchesTarget; j < state.bye.length; j += 2){
+        var eerste = state.bye[j];
+        var tweede = state.bye[j + 1];
+        var pairNr = Math.floor((j - matchesTarget) / 2) + 1;
+        var li2 = document.createElement("li");
+        if(tweede === undefined){
+          li2.innerHTML =
+            '<span class="num">' + pairNr + '</span>' +
+            '<span class="home">' + escapeHtml(eerste) + '</span>' +
+            '<span class="vs">wacht op&hellip;</span>' +
+            '<span class="away">&mdash;</span>';
+        } else {
+          li2.innerHTML =
+            '<span class="num">' + pairNr + '</span>' +
+            '<span class="home">' + escapeHtml(eerste) + '</span>' +
+            '<span class="vs">vs</span>' +
+            '<span class="away">' + escapeHtml(tweede) + '</span>';
+        }
+        ul.appendChild(li2);
+      }
+
+      byeList.appendChild(ul);
+    } else {
+      byeList.className = "remaining-list";
+      state.bye.forEach(function(name){
+        var s = document.createElement("span");
+        s.textContent = name;
+        byeList.appendChild(s);
+      });
+    }
+
+    byeCard.style.display = state.bye.length > 0 ? "flex" : "none";
+  }
+
+  function renderWr2Prep(){
+    if(!state.wr2Prep){
+      wr2PrepCard.style.display = "none";
+      return;
+    }
+    wr2PrepList.innerHTML = "";
+    state.wr2Prep.byeMatches.forEach(function(m, idx){
+      var li = document.createElement("li");
+      li.innerHTML =
+        '<span class="num">' + (idx + 1) + '</span>' +
+        '<span class="home">' + escapeHtml(m.a) + '</span>' +
+        '<span class="vs">vs</span>' +
+        '<span class="away">' + escapeHtml(m.b) + '</span>' +
+        '<span class="sync-badge off"></span>';
+      wr2PrepList.appendChild(li);
+    });
+    state.wr2Prep.slots.forEach(function(slot){
+      var ronde1Match = state.matches[slot.winnaarVanWedstrijd - 1];
+      var vsText = ronde1Match ? (escapeHtml(ronde1Match.home) + " vs " + escapeHtml(ronde1Match.away)) : "";
+      var li = document.createElement("li");
+      li.innerHTML =
+        '<span class="num">&mdash;</span>' +
+        '<span class="home">' + escapeHtml(slot.byeSpeler) + '</span>' +
+        '<span class="vs">wacht op</span>' +
+        '<span class="away">winnaar wedstrijd ' + slot.winnaarVanWedstrijd + (vsText ? " (" + vsText + ")" : "") + '</span>' +
+        '<span class="sync-badge off"></span>';
+      wr2PrepList.appendChild(li);
+    });
+    wr2PrepCard.style.display = "block";
+  }
+
+  function badgeHtml(m, idx){
+    if(!m.away) return '<span class="sync-badge off"></span>'; // bye wordt niet weggeschreven
+    if(!state.syncEnabled && !m.sync) return '<span class="sync-badge off"></span>';
+    if(m.sync === "ok") return '<span class="sync-badge ok">&#9729; opgeslagen</span>';
+    if(m.sync === "error") return '<span class="sync-badge error" data-retry="' + idx + '" title="Klik om opnieuw te proberen">&#9888; mislukt &mdash; opnieuw</span>';
+    return '<span class="sync-badge pending">&#9729; bezig&hellip;</span>';
+  }
+
+  function renderMatches(){
+    matchesList.innerHTML = "";
+    matchCountPill.textContent = state.matches.length + " wedstrijd" + (state.matches.length === 1 ? "" : "en");
+    emptyNote.style.display = state.matches.length === 0 ? "block" : "none";
+    state.matches.forEach(function(m, idx){
+      var li = document.createElement("li");
+      var isBye = !m.away;
+      li.innerHTML =
+        '<span class="num">' + (idx + 1) + '</span>' +
+        '<span class="home">' + escapeHtml(m.home) + '</span>' +
+        '<span class="vs">' + (isBye ? "bye" : "vs") + '</span>' +
+        '<span class="away">' + (isBye ? "&mdash;" : escapeHtml(m.away)) + '</span>' +
+        badgeHtml(m, idx);
+      matchesList.appendChild(li);
+    });
+  }
+
+  matchesList.addEventListener("click", function(ev){
+    var badge = ev.target.closest(".sync-badge[data-retry]");
+    if(!badge) return;
+    var idx = parseInt(badge.getAttribute("data-retry"), 10);
+    var m = state.matches[idx];
+    if(!m || !m.away) return;
+    syncMatch(m, idx);
+  });
+
+  async function syncMatch(m, idx){
+    m.sync = "pending";
+    renderMatches();
+    try{
+      var rows = await schrijfBekerwedstrijd(m.home, m.away);
+      m.sync = "ok";
+      if(rows && rows[0]) m._wedstrijdId = rows[0].id;
+    }catch(e){
+      m.sync = "error";
+    }
+    saveState();
+    renderMatches();
+  }
+
+  function updateStatus(){
+    var targets = computeTargets();
+    var byeDone = state.bye.length >= targets.byeTarget;
+    var matchesDone = state.remaining.length === 0 && !state.pending && state.matches.length === targets.matchesTarget;
+
+    var done = state.afgerond || (byeDone && matchesDone);
+    boardEl.classList.toggle("is-done", done);
+    document.body.classList.toggle("is-done", done);
+    if(wrapEl) wrapEl.classList.toggle("is-done", done);
+    wheelPanel.style.display = done ? "none" : "flex";
+    doneLine.style.display = done ? "flex" : "none";
+    if(done){
+      var faseVoorLabel = FASES[state.faseId];
+      if(faseVoorLabel && doneLineText) doneLineText.textContent = "Loting compleet — " + faseNaam();
+    }
+
+    // Zodra de loting compleet is, staat alles al overzichtelijk verwerkt in de
+    // ronde-2-voorbereiding hieronder — de bye-kaart nog los tonen zou de namen
+    // dubbel op het scherm zetten en gaat ten koste van de ruimte voor de
+    // daadwerkelijke ronde-1-wedstrijden, dus die verbergen we dan.
+    byeCard.style.display = done ? "none" : (state.bye.length > 0 ? "flex" : "none");
+
+    if(done){
+      completeBanner.classList.add("show");
+      statusLine.style.display = "none";
+      spinBtn.disabled = true;
+      return;
+    }
+
+    completeBanner.classList.remove("show");
+    statusLine.style.display = "block";
+    spinBtn.disabled = state.remaining.length === 0;
+
+    // Eerst de wedstrijden (paren), dan pas de losse bye-namen — zie spin().
+    var matchenKlaarVoorStatus = state.matches.length >= targets.matchesTarget && !state.pending;
+    if(!matchenKlaarVoorStatus){
+      if(state.pending){
+        statusLine.innerHTML = "<strong>" + escapeHtml(state.pending) + "</strong> is getrokken &mdash; wacht op de tegenstander.";
+      } else {
+        statusLine.innerHTML = "Trek een wedstrijd &mdash; <strong>" + state.remaining.length + "</strong> namen op het rad.";
+      }
+    } else if(!byeDone){
+      var resterendBye = targets.byeTarget - state.bye.length;
+      if(state.faseId === "ronde1" && state.bye.length < targets.matchesTarget){
+        statusLine.innerHTML = "Trek de tegenstander voor de winnaar van wedstrijd <strong>" + (state.bye.length + 1) + "</strong> &mdash; nog <strong>" + resterendBye + "</strong> bye-spelers te gaan.";
+      } else if(state.faseId === "ronde1"){
+        statusLine.innerHTML = "Trek de spelers voor de directe koppels in winnaarsronde 1 &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
+      } else {
+        statusLine.innerHTML = "Trek een bye-speler &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
+      }
+    }
+  }
+
+  function renderAll(){
+    buildWheel();
+    renderRemaining();
+    renderMatches();
+    renderBye();
+    renderWr2Prep();
+    updateStatus();
+  }
+
+  function sleep(ms){
+    return new Promise(function(resolve){ setTimeout(resolve, ms); });
+  }
+
+  function showReveal(innerHTML){
+    revealInner.innerHTML = innerHTML;
+    revealOverlay.classList.add("show");
+  }
+
+  function hideReveal(){
+    revealOverlay.classList.remove("show");
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c];
+    });
+  }
+
+  async function revealSingleName(name, eyebrow){
+    showReveal(
+      '<p class="reveal-eyebrow">' + escapeHtml(eyebrow) + '</p>' +
+      '<p class="reveal-name gold">' + escapeHtml(name) + '</p>'
+    );
+    await sleep(1900);
+    hideReveal();
+    await sleep(300);
+  }
+
+  async function revealMatch(matchNumber, home, away, eyebrowOverride, bottomLabelOverride){
+    showReveal(
+      '<p class="reveal-eyebrow">' + escapeHtml(eyebrowOverride || ("Wedstrijd " + matchNumber)) + '</p>' +
+      '<div class="reveal-vs-row">' +
+        '<p class="reveal-name">' + escapeHtml(home) + '</p>' +
+        '<p class="reveal-vs-label">vs</p>' +
+        '<p class="reveal-name">' + escapeHtml(away) + '</p>' +
+      '</div>' +
+      '<p class="reveal-match-label">' + escapeHtml(bottomLabelOverride || "wordt toegevoegd aan het schema ↓") + '</p>'
+    );
+    await sleep(2600);
+    hideReveal();
+    await sleep(300);
+  }
+
+  // Toont de zojuist getrokken bye-speler tegenover de twee spelers van de
+  // ronde-1-wedstrijd waarvan hij/zij de winnaar treft — met beide namen
+  // prominent in beeld in plaats van een "Winnaar wedstrijd N"-label.
+  async function revealTegenstander(wedstrijdNr, byeSpeler, ronde1Match){
+    var thuis = ronde1Match ? ronde1Match.home : null;
+    var uit = ronde1Match ? ronde1Match.away : null;
+    var awayHtml = (thuis && uit)
+      ? '<span class="reveal-pair-name">' + escapeHtml(thuis) + '</span>' +
+        '<span class="reveal-pair-sep">/</span>' +
+        '<span class="reveal-pair-name">' + escapeHtml(uit) + '</span>'
+      : escapeHtml("wedstrijd " + wedstrijdNr);
+    showReveal(
+      '<p class="reveal-eyebrow">Winnaarsronde 1 — tegenstander bekend</p>' +
+      '<div class="reveal-vs-row">' +
+        '<p class="reveal-name gold">' + escapeHtml(byeSpeler) + '</p>' +
+        '<p class="reveal-vs-label">vs</p>' +
+        '<div class="reveal-name reveal-name-pair">' + awayHtml + '</div>' +
+      '</div>'
+    );
+    await sleep(2600);
+    hideReveal();
+    await sleep(300);
+  }
+
+  function spin(){
+    if(spinBtn.disabled || state.remaining.length === 0) return;
+    spinBtn.disabled = true;
+
+    var n = state.remaining.length;
+    var winnerIndex = Math.floor(Math.random() * n);
+    var seg = 360 / n;
+    var midA = winnerIndex * seg + seg / 2;
+    var jitter = (Math.random() - 0.5) * seg * 0.5;
+    var targetWorld = midA + jitter;
+
+    var targetMod = ((360 - (targetWorld % 360)) + 360) % 360;
+    var currentMod = ((state.rotation % 360) + 360) % 360;
+    var delta = targetMod - currentMod;
+    if(delta < 0) delta += 360;
+    var extraSpins = 6 + Math.floor(Math.random() * 3);
+    var newRotation = state.rotation + extraSpins * 360 + delta;
+
+    state.rotation = newRotation;
+    svg.style.transform = "rotate(" + newRotation + "deg)";
+
+    var winnerName = state.remaining[winnerIndex];
+
+    async function onDone(){
+      svg.removeEventListener("transitionend", onDone);
+
+      // Naam meteen van het rad halen en het rad zelf laten bijwerken,
+      // maar de lijsten rechts pas na de onthulling aanpassen.
+      state.remaining.splice(winnerIndex, 1);
+      renderRemaining();
+      buildWheel();
+
+      var targets = computeTargets();
+      // Eerst worden de wedstrijden getrokken (paren), pas als die allemaal
+      // compleet zijn schakelt de trekking om naar losse bye-namen. Zo zijn
+      // de wedstrijden (en dus wie waar wint) altijd als eerste bekend, en
+      // bepaalt de trekkingsvolgorde van de bye's daarna direct (in
+      // voltooiRonde1/voltooiFaseLoting) wie tegen wie in de volgende ronde
+      // komt — geen aparte onzichtbare shuffle meer achteraf.
+      var matchenKlaar = state.matches.length >= targets.matchesTarget && !state.pending;
+      var inByePhase = matchenKlaar;
+
+      if(!inByePhase){
+        // Fase 1: de namen worden per twee getrokken tot wedstrijden.
+        var wasPending = state.pending;
+        await revealSingleName(winnerName, wasPending ? "Tegenstander" : "Getrokken");
+
+        var newMatchIndex = -1;
+        if(wasPending){
+          var matchNumber = state.matches.length + 1;
+          await revealMatch(matchNumber, wasPending, winnerName);
+          state.pending = null;
+          state.matches.push({ home: wasPending, away: winnerName, sync: state.syncEnabled ? "pending" : null });
+          newMatchIndex = state.matches.length - 1;
+        } else {
+          state.pending = winnerName;
+        }
+
+        saveState();
+        renderMatches();
+
+        // Ronde 1 schrijft elke wedstrijd meteen individueel weg tijdens het
+        // trekken; andere fases synchroniseren pas in bulk zodra de hele
+        // loting van die fase klaar is (zie voltooiFaseLoting()).
+        if(newMatchIndex >= 0 && state.syncEnabled && state.faseId === "ronde1"){
+          syncMatch(state.matches[newMatchIndex], newMatchIndex);
+        }
+      } else if(state.faseId === "ronde1"){
+        // Fase 2 bij ronde 1 is opgeknipt in twee herkenbare stappen:
+        //  2a) eerst de tegenstanders voor de winnaars van wedstrijd 1 t/m x,
+        //      één voor één, elk direct gekoppeld aan "winnaar wedstrijd N";
+        //  2b) daarna de resterende bye-spelers, die in ronde 2 meteen tegen
+        //      elkaar spelen — die worden twee-aan-twee getrokken en als een
+        //      heuse wedstrijd onthuld, net als bij de wedstrijden hierboven.
+        // De trekkingsvolgorde (en dus state.bye) blijft ongewijzigd: eerst de
+        // x tegenstanders, dan de rest — voltooiRonde1() leest dat zo uit.
+        var byeIdxBeforePush = state.bye.length;
+        if(byeIdxBeforePush < targets.matchesTarget){
+          var wedstrijdNr = byeIdxBeforePush + 1;
+          var ronde1Match = state.matches[wedstrijdNr - 1];
+          await revealTegenstander(wedstrijdNr, winnerName, ronde1Match);
+        } else {
+          var subIdx = byeIdxBeforePush - targets.matchesTarget;
+          if(subIdx % 2 === 0){
+            await revealSingleName(winnerName, "Getrokken — koppel winnaarsronde 1");
+          } else {
+            var eersteNaam = state.bye[state.bye.length - 1];
+            var pairNr = Math.floor(subIdx / 2) + 1;
+            await revealMatch(pairNr, eersteNaam, winnerName, "Winnaarsronde 1 — koppel " + pairNr);
+          }
+        }
+        state.bye.push(winnerName);
+        saveState();
+        renderBye();
+      } else {
+        // Elke latere loting (bv. de bye-trekking binnen VR2) heeft geen WR2-
+        // voorbereiding nodig — daar is elke bye gewoon automatisch door naar
+        // de volgende ronde, dus een neutrale, altijd kloppende tekst.
+        await revealSingleName(winnerName, "Bye — door naar de volgende ronde");
+        state.bye.push(winnerName);
+        saveState();
+        renderBye();
+      }
+
+      updateStatus();
+
+      var doneTargets = computeTargets();
+      if(!state.afgerond && state.bye.length === doneTargets.byeTarget && state.remaining.length === 0 &&
+         !state.pending && state.matches.length === doneTargets.matchesTarget){
+        if(state.faseId === "ronde1"){
+          await voltooiRonde1();
+        } else {
+          await voltooiFaseLoting();
+        }
+      }
+    }
+    svg.addEventListener("transitionend", onDone);
+  }
+
+  // Wordt automatisch aangeroepen zodra alle bye's én alle ronde-1-wedstrijden
+  // geloot zijn. Bepaalt de voorbereiding voor ronde 2 (winnaarsronde) en
+  // schrijft de volledige toernooi-staat weg naar beker_toernooi, in exact het
+  // format dat bekertoernooi.html's genereerRonde1() ook produceert.
+  async function voltooiRonde1(){
+    if(state.afgerond) return;
+    var targets = computeTargets();
+    if(!(state.bye.length === targets.byeTarget && state.remaining.length === 0 &&
+         !state.pending && state.matches.length === targets.matchesTarget)) return;
+
+    // state.bye staat al in de volgorde waarin de bye-spelers via het rad zijn
+    // getrokken (ná de 10 voorronde-wedstrijden) — die trekkingsvolgorde bepaalt
+    // nu rechtstreeks de WR2-koppeling, in plaats van een onzichtbare shuffle
+    // achteraf: de eerst-getrokken bye-spelers komen tegen een wedstrijdwinnaar
+    // te staan, de rest speelt (in trekkingsvolgorde, twee aan twee) meteen
+    // tegen elkaar in WR2.
+    var preSeed = state.bye.slice(0, targets.matchesTarget);
+    var directBye = state.bye.slice(targets.matchesTarget);
+    var wr2ByeMatches = pairSequential(directBye);
+
+    if(state.syncEnabled){
+      for(var i = 0; i < wr2ByeMatches.length; i++){
+        try{
+          var rows = await schrijfWinnaarsrondeWedstrijd(wr2ByeMatches[i].a, wr2ByeMatches[i].b);
+          wr2ByeMatches[i].sync = "ok";
+          if(rows && rows[0]) wr2ByeMatches[i]._wedstrijdId = rows[0].id;
+        }catch(e){
+          wr2ByeMatches[i].sync = "error";
+        }
+      }
+    }
+
+    var slots = preSeed.map(function(naam, i){
+      return { byeSpeler: naam, winnaarVanWedstrijd: i + 1 };
+    });
+
+    state.wr2Prep = { byeMatches: wr2ByeMatches, slots: slots };
+    renderWr2Prep();
+
+    var ronde1Matches = state.matches.map(function(m, i){
+      var obj = { a: m.home, b: m.away, winnaar: null, nr: i + 1, sync: m.sync || null };
+      if(m._wedstrijdId !== undefined) obj._wedstrijdId = m._wedstrijdId;
+      return obj;
+    });
+
+    var wr2VoorbereidingByeMatches = wr2ByeMatches.map(function(m){
+      var obj = { a: m.a, b: m.b, winnaar: null, sync: m.sync || null };
+      if(m._wedstrijdId !== undefined) obj._wedstrijdId = m._wedstrijdId;
+      return obj;
+    });
+
+    var toernooiState = {
+      spelers: state.baseNames,
+      syncEnabled: state.syncEnabled,
+      kampioenWR: null,
+      kampioenVR: null,
+      fases: {
+        ronde1: { matches: ronde1Matches, bye: state.bye, afgerond: false }
+      },
+      wr2Voorbereiding: { byeMatches: wr2VoorbereidingByeMatches, slots: slots }
+    };
+
+    try{
+      var hdr = {};
+      for(var k in SB_HDR){ hdr[k] = SB_HDR[k]; }
+      hdr["Prefer"] = "resolution=merge-duplicates,return=representation";
+      await fetch(SB_URL + "/rest/v1/beker_toernooi", {
+        method: "POST",
+        headers: hdr,
+        body: JSON.stringify([{ id: SEIZOEN, seizoen: SEIZOEN, staat: toernooiState }])
+      });
+    }catch(e){ /* blijft lokaal afgerond staan; kan later handmatig opnieuw geprobeerd worden */ }
+
+    state.afgerond = true;
+    saveState();
+    updateStatus();
+  }
+
+  // Voltooit een loting voor elke fase NA ronde 1 (vr2, vr3, wr3, de kwart-/
+  // halve finales en de finales). Anders dan voltooiRonde1() is er hier geen
+  // WR2-voorbereiding — de getrokken paren zijn de complete fase. Heeft de fase
+  // ook een bye-trekking nodig (bv. VR2, als de pool geen macht van 2 is), dan
+  // worden die bye-spelers gewoon meegestuurd als state.fases[faseId].bye.
+  async function voltooiFaseLoting(){
+    if(state.afgerond) return;
+    var targets = computeTargets();
+    if(!(state.bye.length === targets.byeTarget && state.remaining.length === 0 &&
+         !state.pending && state.matches.length === targets.matchesTarget)) return;
+
+    var fase = FASES[state.faseId];
+    var divisie = "Beker " + fase.tak + " (Bo" + fase.bo + ")";
+
+    if(state.syncEnabled){
+      for(var i = 0; i < state.matches.length; i++){
+        var m = state.matches[i];
+        try{
+          var rows = await postWedstrijd(m.home, m.away, divisie);
+          m.sync = "ok";
+          if(rows && rows[0]) m._wedstrijdId = rows[0].id;
+        }catch(e){
+          m.sync = "error";
+        }
+      }
+      saveState();
+      renderMatches();
+    }
+
+    var toernooiMatches = state.matches.map(function(m, i){
+      var obj = { a: m.home, b: m.away, winnaar: null, nr: i + 1, sync: m.sync || null, _tak: fase.tak };
+      if(m._wedstrijdId !== undefined) obj._wedstrijdId = m._wedstrijdId;
+      return obj;
+    });
+
+    try{
+      var res = await fetch(SB_URL + "/rest/v1/beker_toernooi?id=eq." + encodeURIComponent(SEIZOEN), { headers: SB_HDR });
+      var rows2 = res.ok ? await res.json() : [];
+      var toernooiState = rows2.length ? rows2[0].staat : null;
+      if(!toernooiState){
+        toernooiState = { spelers: state.baseNames, syncEnabled: state.syncEnabled, kampioenWR: null, kampioenVR: null, fases: {} };
+      }
+      toernooiState.fases = toernooiState.fases || {};
+      var faseObj = { matches: toernooiMatches, afgerond: false };
+      if(state.faseType === "tussenronde") faseObj.bye = state.bye.slice();
+      toernooiState.fases[state.faseId] = faseObj;
+
+      var hdr = {};
+      for(var k in SB_HDR){ hdr[k] = SB_HDR[k]; }
+      hdr["Prefer"] = "resolution=merge-duplicates,return=representation";
+      await fetch(SB_URL + "/rest/v1/beker_toernooi", {
+        method: "POST",
+        headers: hdr,
+        body: JSON.stringify([{ id: SEIZOEN, seizoen: SEIZOEN, staat: toernooiState }])
+      });
+    }catch(e){ /* blijft lokaal afgerond staan; kan later handmatig opnieuw geprobeerd worden */ }
+
+    state.afgerond = true;
+    saveState();
+    updateStatus();
+  }
+
+  function resetDraw(){
+    var t = computeTargetsForFaseType(state.baseNames, state.faseType);
+    state.byeTarget = t.byeTarget;
+    state.matchesTarget = t.matchesTarget;
+    state.remaining = state.baseNames.slice();
+    state.pending = null;
+    state.matches = [];
+    state.bye = [];
+    state.afgerond = false;
+    state.wr2Prep = null;
+    state.rotation = 0;
+    svg.style.transition = "none";
+    svg.style.transform = "rotate(0deg)";
+    void svg.offsetWidth;
+    svg.style.transition = "";
+    saveState();
+    renderAll();
+  }
+
+  spinBtn.addEventListener("click", spin);
+  document.addEventListener("keydown", function(e){
+    if(e.key !== "Enter") return;
+    var tag = (e.target && e.target.tagName || "").toLowerCase();
+    if(tag === "textarea" || tag === "input" || tag === "select" || tag === "button" || tag === "a") return;
+    if(spinBtn.disabled || spinBtn.style.display === "none") return;
+    e.preventDefault();
+    spin();
+  });
+  function confirmReset(){
+    if(state.matches.length > 0 || state.pending || state.bye.length > 0){
+      if(!window.confirm("Weet je zeker dat je de loting opnieuw wilt starten? Alle geloot wedstrijden gaan verloren.")) return;
+    }
+    resetDraw();
+  }
+  resetBtn.addEventListener("click", confirmReset);
+  resetBtnCompact.addEventListener("click", confirmReset);
+
+  applyNamesBtn.addEventListener("click", function(){
+    var lines = namesTextarea.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
+    if(lines.length < 2){
+      window.alert("Voer minstens twee namen in.");
+      return;
+    }
+    state.baseNames = lines;
+    resetDraw();
+    editorDetails.open = false;
+  });
+
+  cancelNamesBtn.addEventListener("click", function(){
+    namesTextarea.value = state.baseNames.join("\n");
+    editorDetails.open = false;
+  });
+
+  syncToggle.addEventListener("change", function(){
+    state.syncEnabled = syncToggle.checked;
+    saveState();
+  });
+
+  // Zet de titel/kopjes op de pagina om zodat ze bij de fase passen die op dit
+  // moment geloot wordt (relevant voor alles na ronde 1).
+  // Naam van de fase die nu geloot wordt; een VR-loting met bye's heet "Tussenronde".
+  function faseNaam(){
+    if(state.faseId === "vr2" && state.faseType === "tussenronde") return "Tussenronde";
+    return FASES[state.faseId].label;
+  }
+  function updateFaseUiLabels(){
+    var fase = FASES[state.faseId];
+    var eyebrowEl = document.getElementById("eyebrowText");
+    if(eyebrowEl){
+      eyebrowEl.textContent = state.faseId === "ronde1"
+        ? "De Kaale Bull · Bekercompetitie"
+        : "De Kaale Bull · Bekercompetitie — " + faseNaam();
+    }
+    var matchesTitleEl = document.getElementById("matchesCardTitle");
+    if(matchesTitleEl) matchesTitleEl.textContent = faseNaam();
+    var byeTitleEl = document.getElementById("byeCardTitle");
+    if(byeTitleEl){
+      byeTitleEl.textContent = state.faseId === "ronde1"
+        ? "Bye — direct naar winnaarsronde 1"
+        : "Bye — automatisch door naar de volgende ronde";
+    }
+    // (De "Loting compleet"-tekst wordt gezet in updateStatus(), samen met het
+    // tonen van #doneLine, zodra de loting daadwerkelijk compleet is.)
+    // Namen handmatig aanpassen kan alleen bij de allereerste (ronde-1-)loting.
+    // Bij elke latere loting ligt de spelerspool al vast op basis van de
+    // daadwerkelijke uitslagen, dus dat bewerkveld zou daar alleen maar
+    // verwarring/foute data kunnen opleveren.
+    var namesSection = document.getElementById("namesEditSection");
+    var namesLockedNote = document.getElementById("namesLockedNote");
+    var isRonde1 = state.faseId === "ronde1";
+    if(namesSection) namesSection.style.display = isRonde1 ? "" : "none";
+    if(namesLockedNote) namesLockedNote.style.display = isRonde1 ? "none" : "block";
+  }
+
+  // Toont de "niets te doen"-toestand (geen wiel) wanneer bepaalTeLoten() null
+  // teruggeeft: ofwel is het hele toernooi afgerond, ofwel wacht alles nog op
+  // ingevoerde scores van de op dit moment openstaande fase.
+  function showGeenLotingState(toernooiState){
+    document.getElementById("board").style.display = "none";
+    var panel = document.getElementById("geenLotingPanel");
+    var heading = document.getElementById("geenLotingHeading");
+    var desc = document.getElementById("geenLotingDesc");
+    var afgerond = !!(toernooiState && toernooiState.kampioenWR && toernooiState.kampioenVR);
+    if(afgerond){
+      heading.textContent = "🏆 Het bekertoernooi is helemaal afgerond!";
+      desc.textContent = "Bekerwinnaar: " + toernooiState.kampioenWR + " · Winnaar verliezersronde: " + toernooiState.kampioenVR;
+    } else {
+      heading.textContent = "Niets te loten op dit moment";
+      desc.textContent = "Alle mogelijke lotingen zijn al gedaan — wacht tot de openstaande wedstrijden zijn ingevoerd op de bekertoernooi-pagina.";
+    }
+    panel.style.display = "flex";
+    spinBtn.disabled = true;
+  }
+
+  // Bij het opstarten: eerst ophalen welke fase (indien enige) nu klaar is om
+  // geloot te worden, op basis van de actuele beker_toernooi-staat. Voor
+  // ronde 1 blijft de bestaande flow (live spelerslijst ophalen, tenzij een
+  // loting al lokaal bezig is) volledig ongewijzigd. Voor elke andere fase
+  // wordt de pool die bepaalTeLoten() teruggeeft gebruikt als startpunt.
+  async function boot(){
+    var toernooiState = null;
+    try{
+      var tRes = await fetch(SB_URL + "/rest/v1/beker_toernooi?id=eq." + encodeURIComponent(SEIZOEN), { headers: SB_HDR });
+      if(tRes.ok){
+        var tRows = await tRes.json();
+        if(tRows.length) toernooiState = tRows[0].staat;
+      }
+    }catch(e){ /* geen toegang of nog geen rij: behandel als "nog niets" */ }
+
+    var teLoten = bepaalTeLoten(toernooiState);
+
+    if(teLoten === null){
+      showGeenLotingState(toernooiState);
+      return;
+    }
+
+    if(teLoten.type === "ronde1"){
+      state.faseId = "ronde1";
+      state.faseType = "ronde1";
+      var hadSaved = loadState("ronde1");
+      if(!hadSaved){
+        try{
+          var res = await fetch(SB_URL + "/rest/v1/spelers?select=naam&order=naam.asc", { headers: SB_HDR });
+          if(!res.ok) throw new Error(await res.text());
+          var rows = await res.json();
+          var namen = rows.map(function(r){ return r.naam; }).filter(function(n){
+            return n && n.trim().toLowerCase() !== "vrijwillige schrijver";
+          });
+          if(namen.length >= 2){
+            state.baseNames = namen;
+            state.remaining = namen.slice();
+          }
+        }catch(e){ /* val terug op de standaardlijst als de spelerslijst niet geladen kan worden */ }
+        var t1 = computeTargetsForFaseType(state.baseNames, "ronde1");
+        state.byeTarget = t1.byeTarget;
+        state.matchesTarget = t1.matchesTarget;
+      }
+    } else {
+      // 'fase' of 'tussenronde'
+      state.faseId = teLoten.faseId;
+      state.faseType = teLoten.type;
+      var hadSaved2 = loadState(teLoten.faseId);
+      if(!hadSaved2){
+        state.baseNames = teLoten.pool.slice();
+        state.remaining = teLoten.pool.slice();
+        // Wegschrijven naar de planning volgt de instelling van het toernooi,
+        // zodat het vinkje bij een nieuwe loting niet vergeten kan worden.
+        state.syncEnabled = !!(toernooiState && toernooiState.syncEnabled);
+        if(teLoten.type === "fase"){
+          state.byeTarget = 0;
+          state.matchesTarget = teLoten.pool.length / 2;
+        } else {
+          // tussenronde
+          state.byeTarget = teLoten.pool.length - teLoten.x * 2;
+          state.matchesTarget = teLoten.x;
+        }
+      }
+    }
+
+    namesTextarea.value = state.baseNames.join("\n");
+    syncToggle.checked = state.syncEnabled;
+    updateFaseUiLabels();
+    renderAll();
+  }
+
+  boot();
+})();
+
+// ══════════════════════════════════════════
+//  FULLSCREEN
+// ══════════════════════════════════════════
+function toggleFullscreen(){
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen();
+  }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  document.getElementById('fsBtn').style.display = document.fullscreenElement ? 'none' : 'flex';
+});
+</script>
