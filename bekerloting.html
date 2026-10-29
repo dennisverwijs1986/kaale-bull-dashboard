@@ -1,4 +1,5 @@
 <title>Bekerloting Kaale Bull</title>
+<script src="beker-proef.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -750,6 +751,7 @@
       </label>
 
       <p class="panel-sublabel">De voorronde is altijd Best of 5.</p>
+      <p class="panel-sublabel" id="proefLinkWrap"><a href="bekerloting.html?proef=1" style="color:inherit">🧪 Proefmodus: het hele toernooi proberen zonder iets op te slaan</a></p>
 
       <div id="namesEditSection">
         <hr class="panel-divider">
@@ -826,6 +828,12 @@
 </div>
 
 <script>
+// Veiligheid: met ?proef=1 maar zonder geladen proefmodus nooit verder gaan,
+// anders zou een proef in het echte toernooi terechtkomen.
+if(new URLSearchParams(location.search).has('proef') && !window.BEKER_PROEF){
+  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif;color:#f3ead6;background:#0d241b">Proefmodus kon niet laden. Herlaad de pagina; er is niets opgeslagen.</p>';
+  throw new Error('Proefmodus niet geladen');
+}
 (function(){
   "use strict";
 
@@ -842,7 +850,8 @@
     "Winston van de Graaf"
   ];
 
-  var STORAGE_KEY_BASE = "kaalebull-bekerloting-v1";
+  // In proefmodus een eigen sleutel, zodat een proefloting nooit een echte loting raakt.
+  var STORAGE_KEY_BASE = window.BEKER_PROEF ? "kaalebull-bekerloting-v1-proef" : "kaalebull-bekerloting-v1";
 
   // ── Supabase (zelfde project/anon key als index.html) ──
   var SB_URL = "https://ctxurzqtglckairgbjno.supabase.co";
@@ -1825,6 +1834,9 @@
       if(!hadSaved2){
         state.baseNames = teLoten.pool.slice();
         state.remaining = teLoten.pool.slice();
+        // Wegschrijven naar de planning volgt de instelling van het toernooi,
+        // zodat het vinkje bij een nieuwe loting niet vergeten kan worden.
+        state.syncEnabled = !!(toernooiState && toernooiState.syncEnabled);
         if(teLoten.type === "fase"){
           state.byeTarget = 0;
           state.matchesTarget = teLoten.pool.length / 2;

@@ -222,6 +222,7 @@ details.fase-card[open] > summary{margin-bottom:12px;}
   @page{ margin:14mm; }
 }
 </style>
+<script src="beker-proef.js"></script>
 </head>
 <body>
 
@@ -231,6 +232,7 @@ details.fase-card[open] > summary{margin-bottom:12px;}
     <label class="toggle-row"><input type="checkbox" id="syncToggle"> Wedstrijden wegschrijven naar planning</label>
     <button type="button" class="link-btn" id="pdfBtn" style="display:none;">📄 PDF / delen</button>
     <button type="button" class="link-btn" id="resetToernooiBtn" style="display:none;">↺ Toernooi resetten</button>
+    <a class="link-btn" id="proefLink" href="bekertoernooi.html?proef=1" title="Het hele toernooi proberen zonder iets op te slaan">🧪 Proef</a>
   </div>
 </div>
 
@@ -252,6 +254,12 @@ details.fase-card[open] > summary{margin-bottom:12px;}
 <div id="printView"></div>
 
 <script>
+// Veiligheid: met ?proef=1 maar zonder geladen proefmodus nooit verder gaan,
+// anders zou een proef in het echte toernooi terechtkomen.
+if(new URLSearchParams(location.search).has('proef') && !window.BEKER_PROEF){
+  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif;color:#f3ead6;background:#0d241b">Proefmodus kon niet laden. Herlaad de pagina; er is niets opgeslagen.</p>';
+  throw new Error('Proefmodus niet geladen');
+}
 // ══════════════════════════════════════════
 //  SUPABASE
 // ══════════════════════════════════════════
@@ -383,7 +391,8 @@ function faseKort(faseId){
 }
 
 async function init(){
-  document.getElementById('seizoenLbl').textContent = '— seizoen ' + SEIZOEN;
+  document.getElementById('seizoenLbl').textContent = window.BEKER_PROEF ? '— PROEF (niets wordt echt opgeslagen)' : '— seizoen ' + SEIZOEN;
+  if(window.BEKER_PROEF) document.getElementById('proefLink').style.display = 'none';
   try{
     const rows = await sbGet('beker_toernooi', `id=eq.${encodeURIComponent(SEIZOEN)}`);
     if(rows.length){
@@ -603,6 +612,38 @@ function genereerRonde1(spelers42){
 }
 
 function alleGespeeld(matches){ return matches.every(m => m.winnaar); }
+
+// Alleen in proefmodus: vult alle wedstrijden die nu gespeeld kunnen worden met
+// een willekeurige (geldige) uitslag, tot er weer een loting nodig is.
+async function proefVulUitslagen(){
+  if(!window.BEKER_PROEF || !state || !state.fases) return;
+  let aantal = 0, nogEens = true;
+  while(nogEens){
+    nogEens = false;
+    FASE_VOLGORDE.forEach(id=>{
+      const fase = state.fases[id];
+      if(!fase) return;
+      fase.matches.forEach(m=>{
+        if(!m.a || !m.b || m.winnaar) return;
+        const n = legsNodig(m._bo || FASES[id].bo);
+        const verliezerLegs = Math.floor(Math.random()*n);
+        const aWint = Math.random() < 0.5;
+        m.scoreA = aWint ? n : verliezerLegs;
+        m.scoreB = aWint ? verliezerLegs : n;
+        m.winnaar = aWint ? m.a : m.b;
+        aantal++; nogEens = true;
+      });
+      fase.afgerond = alleGespeeld(fase.matches);
+    });
+    berekenVolgendeFases();
+  }
+  await bewaarState();
+  await syncNieuweWr2Wedstrijden();
+  await laadPlanningInfo();
+  render();
+  toast(aantal ? `🎲 ${aantal} uitslag${aantal===1?'':'en'} ingevuld (proef).` : 'Er zijn nu geen wedstrijden om in te vullen — eerst loten.', aantal ? 'green' : 'red');
+}
+window.proefVulUitslagen = proefVulUitslagen;
 
 // ══════════════════════════════════════════
 //  SCORES INVOEREN — één opslaanknop voor alles
