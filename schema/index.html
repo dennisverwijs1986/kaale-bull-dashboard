@@ -995,15 +995,20 @@ async function laadStand(force){
   if (standBezig || (!force && S.stand && Date.now()-S.standTijd < 60000)) { renderStand(); return; }
   standBezig=true;
   try{
-    const [pst, ere, stats, volgende, bekerStaat, bekerLinks, eindRijen] = await Promise.all([
+    const [pstRuw, ere, stats, volgende, bekerStaat, bekerLinks, eindRuw, eersteZonder] = await Promise.all([
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
       sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
       sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300'),
       sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`),
       sbGet('beker_toernooi','select=staat&order=id.desc&limit=1').catch(()=>[]),
       sbGet('wedstrijden','select=id,verslag_url&divisie=ilike.Beker*&verslag_url=not.is.null').catch(()=>[]),
-      sbGet('eindstand_eerste_divisie','select=*&order=positie.asc')
+      sbGet('eindstand_eerste_divisie','select=*&order=positie.asc'),
+      // Eerste Divisie: gespeeld, uitslag bekend, maar legstand nog niet ingelezen (matchlog volgt na de avond)
+      sbGet('wedstrijden','select=thuis,uit,uitslag,speelronde&divisie=eq.Eerste%20Divisie&status=eq.gespeeld&or=(legs_thuis.is.null,legs_uit.is.null)').catch(()=>[])
     ]);
+    // Zoals bij de Eredivisie: wedstrijden zonder legstand tellen voorlopig mee (gespeeld + winst), met een *
+    const pst = voorlopigEerste(pstRuw, eersteZonder, true);
+    const eindRijen = voorlopigEerste(eindRuw, eersteZonder, false);
     // Statistieken: per divisie alleen de laatste peildatum
     const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
     S.beker = { staat: bekerStaat[0]?.staat || null, links: Object.fromEntries(bekerLinks.map(r=>[r.id, r.verslag_url])) };
@@ -1041,11 +1046,58 @@ function berekenEre(data){
   l.forEach((r,i)=>{ const v=l[i-1]; r.pos=(v&&v.p===r.p&&v.w===r.w&&v.v===r.v&&(v.lv-v.lt)===(r.lv-r.lt))?v.pos:i+1; });
   return l;
 }
+// Eerste Divisie voorlopig bijwerken met gespeelde wedstrijden waarvan de legstand nog niet is ingelezen.
+// Punten (= gewonnen legs) volgen pas na het inlezen; wedstrijden en winst tellen alvast mee, gemarkeerd met *.
+// Zonder voorlopige wedstrijden blijft de officiële volgorde uit de view staan.
+function winnaarUit(m){
+  const mt=String(m.uitslag||'').match(/^(Winnaar|Verliezer):\s*(.+)$/i);
+  if (!mt) return null;
+  const n=mt[2].trim();
+  return mt[1].toLowerCase()==='winnaar' ? n : (n===m.thuis ? m.uit : m.thuis);
+}
+function voorlopigEerste(rijen, zonder, perPeriode){
+  const ptnKey = perPeriode ? 'periodepunten' : 'punten';
+  const periodeVan = sr => { const r=parseInt(sr,10); return isNaN(r) ? null : r<=10 ? 1 : r<=21 ? 2 : r<=31 ? 3 : 4; };
+  const uit = (rijen||[]).map(r=>({...r, wedstrijden_gespeeld:Number(r.wedstrijden_gespeeld), gewonnen:Number(r.gewonnen),
+    [ptnKey]:Number(r[ptnKey]), _orig:Number(r.positie), voorlopig:0}));
+  const bye = n => !n || n.toLowerCase()===BYE;
+  const geraakt = new Set();
+  (zonder||[]).forEach(m=>{
+    const per = perPeriode ? periodeVan(m.speelronde) : null;
+    if (perPeriode && !per) return;
+    const w = winnaarUit(m);
+    [m.thuis, m.uit].forEach(n=>{
+      if (bye(n)) return;
+      let r = uit.find(x=>x.speler===n && (!perPeriode || x.periode===per));
+      if (!r){ r={ speler:n, wedstrijden_gespeeld:0, gewonnen:0, [ptnKey]:0, _orig:999, voorlopig:0 }; if (perPeriode) r.periode=per; uit.push(r); }
+      r.wedstrijden_gespeeld++; r.voorlopig++; if (w===n) r.gewonnen++;
+      geraakt.add(perPeriode ? per : 'x');
+    });
+  });
+  // Herordenen per groep (periode of eindstand) waar voorlopige wedstrijden in zitten
+  const groepen = perPeriode ? [1,2,3,4] : ['x'];
+  groepen.forEach(g=>{
+    if (!geraakt.has(g)) return;
+    // Op punten; bij gelijke punten de officiële volgorde, tenzij er een voorlopige wedstrijd in dat gelijke blok zit:
+    // dan eerst op winst (zoals de Eredivisie), daarna de officiële volgorde.
+    const alle = uit.filter(r=>!perPeriode || r.periode===g);
+    const perPunten = {}; alle.forEach(r=>{ (perPunten[r[ptnKey]]=perPunten[r[ptnKey]]||[]).push(r); });
+    const l = Object.keys(perPunten).map(Number).sort((a,b)=>b-a).flatMap(pt=>{
+      const blok = perPunten[pt], opWinst = blok.some(r=>r.voorlopig);
+      return blok.sort((a,b)=>(opWinst ? b.gewonnen-a.gewonnen : 0) || a._orig-b._orig || a.speler.localeCompare(b.speler));
+    });
+    l.forEach((r,i)=>{ const v=l[i-1];
+      const gelijk = v && v[ptnKey]===r[ptnKey] && v._orig===r._orig && (v._orig!==999 || (v.gewonnen===r.gewonnen && v.wedstrijden_gespeeld===r.wedstrijden_gespeeld));
+      r.positie = gelijk ? v.positie : i+1; });
+  });
+  return uit.sort((a,b)=>(perPeriode ? a.periode-b.periode : 0) || a.positie-b.positie || a.speler.localeCompare(b.speler));
+}
+
 // Eindstand Eerste Divisie: totaal over de periodes, directe promotie (nr. 1 en 2),
 // periodetitels en play-off tickets — zelfde regels als periode.html
 // Volgorde (incl. tiebreak: punten > minste wedstrijden > onderling > legsaldo) komt uit de view eindstand_eerste_divisie.
 function berekenEind(data, eind){
-  const lijst=(eind||[]).map(r=>({speler:r.speler,w:Number(r.wedstrijden_gespeeld),g:Number(r.gewonnen),p:Number(r.punten),pos:r.positie}));
+  const lijst=(eind||[]).map(r=>({speler:r.speler,w:Number(r.wedstrijden_gespeeld),g:Number(r.gewonnen),p:Number(r.punten),pos:r.positie,voorlopig:r.voorlopig||0}));
   const promo=new Set(lijst.slice(0,2).map(t=>t.speler));
   const titels={}, tickets={};
   [1,2,3,4].forEach(p=>{
@@ -1177,6 +1229,10 @@ function renderStand(){
   el.querySelectorAll('[data-bfase]').forEach(b=>b.addEventListener('click',()=>{ S.bekerFase=b.dataset.bfase; renderStand(); }));
   const af = el.querySelector('.bfasen .actief'); if (af) af.scrollIntoView({block:'nearest',inline:'center'});
 }
+function voorlopigNoot(n){
+  const w = Math.round(n/2);
+  return w ? `* ${w} gespeelde wedstrijd${w>1?'en hebben':' heeft'} nog geen legstand: wedstrijden en winst tellen al mee, de punten volgen zodra de legstanden zijn ingelezen. ` : '';
+}
 function eersteHtml(){
   const per = [1,2,3,4].map(p=>`<button data-periode="${p}" class="${S.standPeriode===p?'actief':''}"><b>P${p}</b><span>${PERIODE_LABELS[p].replace('Ronde ','')}</span></button>`).join('')
     + `<button data-periode="eind" class="${S.standPeriode==='eind'?'actief':''}"><b>Eind</b><span>totaal</span></button>`;
@@ -1188,16 +1244,16 @@ function eersteHtml(){
         if (t.promo) tags.push('<span class="zone-tag prom">⬆ promotie</span>');
         if (t.titels.length) tags.push(`<span class="zone-tag titel">🏆 P${t.titels.join(', P')}</span>`);
         if (t.ticket) tags.push(`<span class="zone-tag po">🎟 ${t.ticket==='E'?'eindstand':'P'+t.ticket}</span>`);
-        return `<tr class="${t.promo?'leider':''}${t.speler===S.ik?' ik':''}" data-speler="${esc(t.speler)}"><td class="pos">${t.pos}</td><td>${esc(t.speler)}${tags.length?`<div class="tags">${tags.join('')}</div>`:''}</td><td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num"><b>${t.p}</b></td></tr>`;
+        return `<tr class="${t.promo?'leider':''}${t.speler===S.ik?' ik':''}" data-speler="${esc(t.speler)}"><td class="pos">${t.pos}</td><td>${esc(t.speler)}${tags.length?`<div class="tags">${tags.join('')}</div>`:''}</td><td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num"><b>${t.p}</b>${t.voorlopig?' *':''}</td></tr>`;
       }).join('')}</tbody></table>
-      <div class="stand-noot">⬆ Nr. 1 en 2 promoveren direct. 🏆 Periodetitel. 🎟 Play-off ticket: per periode de beste speler zonder ticket, plus één via de eindstand.</div>`
+      <div class="stand-noot">${voorlopigNoot(l.reduce((n,t)=>n+(t.voorlopig||0),0))}⬆ Nr. 1 en 2 promoveren direct. 🏆 Periodetitel. 🎟 Play-off ticket: per periode de beste speler zonder ticket, plus één via de eindstand.</div>`
       : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden.</div>`;
   } else {
     const rijen = S.stand.pst.filter(r=>r.periode===S.standPeriode);
     tabel = rijen.length
       ? `<table class="stand"><thead><tr><th></th><th>Speler</th><th class="num">Wedstr.</th><th class="num">Winst</th><th class="num">Ptn</th></tr></thead><tbody>${
-          rijen.map(r=>`<tr class="${r.positie==1?'leider':''}${r.speler===S.ik?' ik':''}" data-speler="${esc(r.speler)}"><td class="pos">${r.positie==1?'🏆':r.positie}</td><td>${esc(r.speler)}</td><td class="num">${r.wedstrijden_gespeeld}</td><td class="num">${r.gewonnen}</td><td class="num"><b>${r.periodepunten}</b></td></tr>`).join('')
-        }</tbody></table><div class="stand-noot">Punten = gewonnen legs. ${PERIODE_LABELS[S.standPeriode]}.</div>`
+          rijen.map(r=>`<tr class="${r.positie==1?'leider':''}${r.speler===S.ik?' ik':''}" data-speler="${esc(r.speler)}"><td class="pos">${r.positie==1?'🏆':r.positie}</td><td>${esc(r.speler)}</td><td class="num">${r.wedstrijden_gespeeld}</td><td class="num">${r.gewonnen}</td><td class="num"><b>${r.periodepunten}</b>${r.voorlopig?' *':''}</td></tr>`).join('')
+        }</tbody></table><div class="stand-noot">Punten = gewonnen legs. ${PERIODE_LABELS[S.standPeriode]}. ${voorlopigNoot(rijen.reduce((n,r)=>n+(r.voorlopig||0),0))}</div>`
       : `<div class="leeg"><span class="ico">🎯</span>Nog geen gespeelde wedstrijden in deze periode.</div>`;
   }
   return `<div class="periodes">${per}</div>${tabel}`;
