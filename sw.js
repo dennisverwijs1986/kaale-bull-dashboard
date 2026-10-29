@@ -3,7 +3,7 @@
 // Wedstrijddata uit Supabase wordt NOOIT gecachet — die komt altijd live van de server.
 // Andere pagina's (index.html, tv.html, ...) worden niet aangeraakt.
 
-const CACHE = 'kb-wl-v2';   // ophogen (v2, v3, ...) als je wil dat iedereen de app-bestanden opnieuw ophaalt
+const CACHE = 'kb-wl-v3';   // ophogen (v2, v3, ...) als je wil dat iedereen de app-bestanden opnieuw ophaalt
 const SHELL = [
   'wl.html',
   'planner-kern.js',

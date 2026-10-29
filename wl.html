@@ -1168,11 +1168,11 @@ async function herstelOrig(){
 // ══════════════════════════════════════════
 const SEIZOEN = '2026-2027'; // moet gelijk zijn aan bekertoernooi.html en bekerloting.html
 const B_FASES = {
-  ronde1:   { label:'Ronde 1',                       kort:'Ronde 1',   tak:'gemengd',         bo:5 },
-  wr2:      { label:'Winnaarsronde 2',               kort:'WR 2',      tak:'winnaarsronde',   bo:5 },
-  vr2:      { label:'Verliezersronde 2',             kort:'VR 2',      tak:'verliezersronde', bo:5 },
-  vr3:      { label:'Verliezersronde 3',             kort:'VR 3',      tak:'verliezersronde', bo:5 },
-  wr3:      { label:'Winnaarsronde 3',               kort:'WR 3',      tak:'winnaarsronde',   bo:5 },
+  ronde1:   { label:'Voorronde',                     kort:'Voorronde',   tak:'gemengd',         bo:5 },
+  wr2:      { label:'Winnaarsronde 1',               kort:'WR 1',      tak:'winnaarsronde',   bo:5 },
+  vr2:      { label:'Verliezersronde 1',             kort:'VR 1',      tak:'verliezersronde', bo:5 },
+  vr3:      { label:'Verliezersronde 2',             kort:'VR 2',      tak:'verliezersronde', bo:5 },
+  wr3:      { label:'Winnaarsronde 2',               kort:'WR 2',      tak:'winnaarsronde',   bo:5 },
   wr_kwart: { label:'Winnaarsronde — kwartfinale',   kort:'WR kwart',  tak:'winnaarsronde',   bo:5 },
   vr_kwart: { label:'Verliezersronde — kwartfinale', kort:'VR kwart',  tak:'verliezersronde', bo:5 },
   wr_halve: { label:'Winnaarsronde — halve finale',  kort:'WR halve',  tak:'winnaarsronde',   bo:7 },
@@ -1196,7 +1196,7 @@ async function haalBekerStaat(){
   return rows.length ? rows[0].staat : null;
 }
 async function laadBeker(){
-  try{ BK.staat = await haalBekerStaat(); BK.fout=''; }
+  try{ BK.staat = await haalBekerStaat(); BK.fout=''; zetTussenrondeLabel(BK.staat); }
   catch(e){ BK.fout = `Kan het bekertoernooi niet laden: ${e.message}`; }
   BK.geladen = true;
 }
@@ -1241,6 +1241,19 @@ function berekenVolgendeFasesB(st){
 }
 
 // Kopie van bepaalTeLoten() uit bekertoernooi.html (alleen voor de melding "klaar om te loten")
+// vr2 heet "Tussenronde" als de verliezersronde met bye's terug moet naar een
+// rond aantal spelers (pool geen macht van 2), anders "Verliezersronde 1".
+function zetTussenrondeLabel(st){
+  const v = st && st.fases && st.fases.vr2;
+  let tussen = false;
+  if(v) tussen = !!((v.bye||[]).length && (v.matches||[]).length);
+  else if(st && st.fases && st.fases.wr2 && st.fases.wr2.afgerond){
+    const tl = bepaalTeLotenB(st);
+    if(tl && tl.faseId==='vr2' && tl.pool && tl.pool.length){ const p=tl.pool.length; tussen = (p & (p-1)) !== 0; }
+  }
+  B_FASES.vr2.label = tussen ? 'Tussenronde' : 'Verliezersronde 1';
+  B_FASES.vr2.kort  = tussen ? 'Tussenronde' : 'VR 1';
+}
 function bepaalTeLotenB(st){
   if(!st || !st.fases || !st.fases.ronde1) return { faseId:'ronde1', pool:[] };
   const f = st.fases;
@@ -1409,7 +1422,7 @@ function gevolgRegels(faseId, m, winnaar){
   const st = BK.staat, verliezer = winnaar===m.a ? m.b : m.a, r=[];
   if(faseId==='ronde1'){
     const slot = st.fases.wr2 && st.fases.wr2.matches.find(x=>x._wachtOpWedstrijd===m.nr);
-    r.push(`<b>${esc(winnaar)}</b> speelt in winnaarsronde 2${slot?` tegen <b>${esc(slot.b)}</b>`:''}.`);
+    r.push(`<b>${esc(winnaar)}</b> speelt in winnaarsronde 1${slot?` tegen <b>${esc(slot.b)}</b>`:''}.`);
     r.push(`<b>${esc(verliezer)}</b> gaat naar de verliezersronde.`);
   } else if(faseId==='wr2'){
     const r1w = new Set((st.fases.ronde1?.matches||[]).map(x=>x.winnaar).filter(Boolean));
@@ -1490,7 +1503,7 @@ async function slaScoreOp(){
     fase.afgerond = fase.matches.every(x=>x.winnaar);
     berekenVolgendeFasesB(st);
     await bewaarBeker(st);
-    BK.staat = st;
+    BK.staat = st; zetTussenrondeLabel(st);
 
     // Naar de planning schrijven (alleen als dat in het bracket aan staat, net als op de bekerpagina)
     let planFout = false;

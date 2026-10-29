@@ -749,7 +749,7 @@
         <span>Elke geloot wedstrijd meteen als bekerwedstrijd (NNB) in Supabase zetten</span>
       </label>
 
-      <p class="panel-sublabel">Ronde 1 is altijd Best of 5.</p>
+      <p class="panel-sublabel">De voorronde is altijd Best of 5.</p>
 
       <div id="namesEditSection">
         <hr class="panel-divider">
@@ -795,21 +795,21 @@
 
     <aside class="side">
       <div class="card matches-card">
-        <h2><span id="matchesCardTitle">Ronde 1</span> <span class="count-pill" id="matchCountPill">0 wedstrijden</span></h2>
+        <h2><span id="matchesCardTitle">Voorronde</span> <span class="count-pill" id="matchCountPill">0 wedstrijden</span></h2>
         <ul class="matches" id="matchesList"></ul>
         <p class="empty-note" id="emptyNote">Nog geen wedstrijden geloot. Draai het rad om te beginnen.</p>
       </div>
 
       <div class="card bye-card" id="byeCard" style="display:none;">
-        <h2><span id="byeCardTitle">Bye — direct naar ronde 2</span> <span class="count-pill" id="byeCountPill">0</span></h2>
+        <h2><span id="byeCardTitle">Bye — direct naar winnaarsronde 1</span> <span class="count-pill" id="byeCountPill">0</span></h2>
         <div class="remaining-list" id="byeList"></div>
       </div>
     </aside>
   </div>
 
   <div class="card wr2-prep-card" id="wr2PrepCard" style="display:none;">
-    <h2>Voorbereiding ronde 2 — winnaarsronde</h2>
-    <p class="empty-note" style="margin-bottom:1vh;">Deze bye-spelers spelen straks tegen elkaar of tegen de winnaar van een ronde-1-wedstrijd — zo kan geen twee ronde-1-winnaars elkaar in ronde 2 treffen.</p>
+    <h2>Voorbereiding winnaarsronde 1</h2>
+    <p class="empty-note" style="margin-bottom:1vh;">Deze bye-spelers spelen straks tegen elkaar of tegen de winnaar van een voorronde-wedstrijd — zo kunnen twee voorronde-winnaars elkaar nooit in winnaarsronde 1 treffen.</p>
     <ul class="matches" id="wr2PrepList"></ul>
   </div>
 
@@ -859,11 +859,11 @@
   // zowel WR2 als VR2 helemaal zijn uitgespeeld (dus niet zodra WR2 alleen
   // klaar is — WR3 wacht dan nog even op VR2).
   var FASES = {
-    ronde1:        { label:'Ronde 1',                tak:'gemengd',       bo:5 },
-    wr2:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
-    vr2:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
-    vr3:           { label:'Verliezersronde 3',       tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
-    wr3:           { label:'Winnaarsronde 3',         tak:'winnaarsronde', bo:5, dependsOn:['wr2','vr2'] },
+    ronde1:        { label:'Voorronde',                tak:'gemengd',       bo:5 },
+    wr2:           { label:'Winnaarsronde 1',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
+    vr2:           { label:'Verliezersronde 1',       tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
+    vr3:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
+    wr3:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['wr2','vr2'] },
     wr_kwart:      { label:'Winnaarsronde — kwartfinale', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
     vr_kwart:      { label:'Verliezersronde — kwartfinale', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
     wr_halve:      { label:'Winnaarsronde — halve finale', tak:'winnaarsronde', bo:7, dependsOn:['wr_kwart'] },
@@ -945,7 +945,7 @@
     return res.json();
   }
   function schrijfBekerwedstrijd(thuis, uit){
-    return postWedstrijd(thuis, uit, "Beker ronde 1 (Bo5)");
+    return postWedstrijd(thuis, uit, "Beker voorronde (Bo5)");
   }
   function schrijfWinnaarsrondeWedstrijd(thuis, uit){
     return postWedstrijd(thuis, uit, "Beker winnaarsronde (Bo5)");
@@ -1284,7 +1284,7 @@
     doneLine.style.display = done ? "flex" : "none";
     if(done){
       var faseVoorLabel = FASES[state.faseId];
-      if(faseVoorLabel && doneLineText) doneLineText.textContent = "Loting compleet — " + faseVoorLabel.label;
+      if(faseVoorLabel && doneLineText) doneLineText.textContent = "Loting compleet — " + faseNaam();
     }
 
     // Zodra de loting compleet is, staat alles al overzichtelijk verwerkt in de
@@ -1317,7 +1317,7 @@
       if(state.faseId === "ronde1" && state.bye.length < targets.matchesTarget){
         statusLine.innerHTML = "Trek de tegenstander voor de winnaar van wedstrijd <strong>" + (state.bye.length + 1) + "</strong> &mdash; nog <strong>" + resterendBye + "</strong> bye-spelers te gaan.";
       } else if(state.faseId === "ronde1"){
-        statusLine.innerHTML = "Trek de spelers voor de directe koppels in ronde 2 &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
+        statusLine.innerHTML = "Trek de spelers voor de directe koppels in winnaarsronde 1 &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
       } else {
         statusLine.innerHTML = "Trek een bye-speler &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
       }
@@ -1389,7 +1389,7 @@
         '<span class="reveal-pair-name">' + escapeHtml(uit) + '</span>'
       : escapeHtml("wedstrijd " + wedstrijdNr);
     showReveal(
-      '<p class="reveal-eyebrow">Ronde 2 — tegenstander bekend</p>' +
+      '<p class="reveal-eyebrow">Winnaarsronde 1 — tegenstander bekend</p>' +
       '<div class="reveal-vs-row">' +
         '<p class="reveal-name gold">' + escapeHtml(byeSpeler) + '</p>' +
         '<p class="reveal-vs-label">vs</p>' +
@@ -1485,11 +1485,11 @@
         } else {
           var subIdx = byeIdxBeforePush - targets.matchesTarget;
           if(subIdx % 2 === 0){
-            await revealSingleName(winnerName, "Getrokken — koppel ronde 2");
+            await revealSingleName(winnerName, "Getrokken — koppel winnaarsronde 1");
           } else {
             var eersteNaam = state.bye[state.bye.length - 1];
             var pairNr = Math.floor(subIdx / 2) + 1;
-            await revealMatch(pairNr, eersteNaam, winnerName, "Ronde 2 — koppel " + pairNr);
+            await revealMatch(pairNr, eersteNaam, winnerName, "Winnaarsronde 1 — koppel " + pairNr);
           }
         }
         state.bye.push(winnerName);
@@ -1720,20 +1720,25 @@
 
   // Zet de titel/kopjes op de pagina om zodat ze bij de fase passen die op dit
   // moment geloot wordt (relevant voor alles na ronde 1).
+  // Naam van de fase die nu geloot wordt; een VR-loting met bye's heet "Tussenronde".
+  function faseNaam(){
+    if(state.faseId === "vr2" && state.faseType === "tussenronde") return "Tussenronde";
+    return FASES[state.faseId].label;
+  }
   function updateFaseUiLabels(){
     var fase = FASES[state.faseId];
     var eyebrowEl = document.getElementById("eyebrowText");
     if(eyebrowEl){
       eyebrowEl.textContent = state.faseId === "ronde1"
         ? "De Kaale Bull · Bekercompetitie"
-        : "De Kaale Bull · Bekercompetitie — " + fase.label;
+        : "De Kaale Bull · Bekercompetitie — " + faseNaam();
     }
     var matchesTitleEl = document.getElementById("matchesCardTitle");
-    if(matchesTitleEl) matchesTitleEl.textContent = fase.label;
+    if(matchesTitleEl) matchesTitleEl.textContent = faseNaam();
     var byeTitleEl = document.getElementById("byeCardTitle");
     if(byeTitleEl){
       byeTitleEl.textContent = state.faseId === "ronde1"
-        ? "Bye — direct naar ronde 2"
+        ? "Bye — direct naar winnaarsronde 1"
         : "Bye — automatisch door naar de volgende ronde";
     }
     // (De "Loting compleet"-tekst wordt gezet in updateStatus(), samen met het
