@@ -106,25 +106,48 @@ body.heeft-savebar .toast{bottom:84px;}
 .roadmap .pill.nog-niet{opacity:0.55;}
 .roadmap .pill .n{display:inline-block;margin-left:5px;padding:0 6px;border-radius:10px;background:rgba(255,255,255,0.08);font-weight:700;}
 /* Wie zit waar */
-.wzw-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
-.wzw-top h2{margin:0;}
-.wzw-zoek{flex:0 1 220px;min-width:0;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font:inherit;font-size:0.85rem;}
-.wzw-ronde{margin-top:12px;}
-.wzw-kop{display:flex;align-items:baseline;gap:8px;font-size:0.8rem;font-weight:700;color:var(--text);margin-bottom:6px;}
-.wzw-kop .tel{color:var(--muted);font-weight:500;}
-.wzw-kop .badge{font-size:0.62rem;}
-.wzw-namen{display:flex;flex-wrap:wrap;gap:5px;}
-.wzw-naam{font-size:0.78rem;padding:4px 9px;border-radius:14px;background:var(--s2);border:1px solid var(--border);color:var(--text);white-space:nowrap;}
-.wzw-naam small{color:var(--muted);font-size:0.68rem;margin-left:4px;}
-.wzw-naam.wacht{border-style:dashed;}
-.wzw-naam.door{border-color:var(--green);}
-.wzw-naam.uit{opacity:0.55;text-decoration:line-through;text-decoration-thickness:1px;}
-.wzw-naam.hit{background:var(--orange);color:#1b1305;border-color:var(--orange);}
-.wzw-naam.hit small{color:#3d2c08;}
-.wzw-naam.dim{opacity:0.25;}
-.wzw-legenda{font-size:0.7rem;color:var(--muted);margin-top:4px;}
-.wzw-uit summary{cursor:pointer;font-size:0.8rem;font-weight:700;margin-top:14px;color:var(--muted);}
-.wzw-uit .wzw-namen{margin-top:6px;}
+.wrap.breed{max-width:1240px;}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start;}
+.layout-main{min-width:0;}
+.wzw{position:sticky;top:76px;max-height:calc(100vh - 92px);display:flex;flex-direction:column;background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.wzw-kopbalk{padding:14px 14px 10px;border-bottom:1px solid var(--border);}
+.wzw-kopbalk h2{font-size:0.95rem;font-weight:700;margin-bottom:8px;}
+.wzw-zoek{width:100%;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font:inherit;font-size:0.82rem;}
+.wzw-lijst{overflow-y:auto;padding:4px 0 10px;}
+.wzw-ronde{padding:10px 14px 4px;}
+.wzw-ronde + .wzw-ronde{border-top:1px solid rgba(255,255,255,0.05);}
+.wzw-kop{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.wzw-kop .titel{font-size:0.78rem;font-weight:700;letter-spacing:0.2px;text-transform:uppercase;color:var(--gold-bright, var(--orange));}
+.wzw-kop .tel{margin-left:auto;font-size:0.7rem;font-weight:700;color:var(--muted);background:var(--s2);border-radius:10px;padding:1px 8px;}
+.wzw-kop .badge{font-size:0.58rem;padding:2px 6px;}
+.wzw-sub{font-size:0.68rem;color:var(--muted);margin:-3px 0 6px;}
+.wzw-rij{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;font-size:0.82rem;}
+.wzw-rij .stip{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--muted);}
+.wzw-rij.open .stip{background:var(--orange);}
+.wzw-rij.door .stip{background:var(--green);}
+.wzw-rij.wacht .stip{background:transparent;border:1px solid var(--muted);}
+.wzw-rij.uit .stip{background:var(--red);}
+.wzw-rij .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wzw-rij .st{font-size:0.68rem;color:var(--muted);white-space:nowrap;}
+.wzw-rij.uit .nm{color:var(--muted);}
+.wzw-rij.hit{background:rgba(217,171,63,0.18);}
+.wzw-rij.hit .nm{color:var(--orange);font-weight:700;}
+.wzw-rij.dim{display:none;}
+.wzw-ronde.leeg{display:none;}
+.wzw-uit summary{cursor:pointer;list-style:none;}
+.wzw-uit summary::-webkit-details-marker{display:none;}
+.wzw-uit summary .titel::before{content:'▸ ';}
+.wzw-uit[open] summary .titel::before{content:'▾ ';}
+.wzw-uit summary .titel{color:var(--muted);}
+.wzw-legenda{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:0.66rem;color:var(--muted);padding:8px 14px;border-top:1px solid var(--border);}
+.wzw-legenda span{display:inline-flex;align-items:center;gap:5px;}
+.wzw-legenda .wzw-rij{padding:0;font-size:inherit;}
+@media(max-width:1000px){
+  .layout{grid-template-columns:1fr;}
+  .wzw{position:static;max-height:none;}
+  .wzw-lijst{overflow:visible;}
+}
+@media print{ .wzw{display:none;} }
 
 /* Voortgangsbalken: groen = gespeeld, goud = ingepland met datum */
 .voortgang{margin:-4px 0 12px;}
@@ -1016,7 +1039,8 @@ function wieZitWaarHtml(){
     (perRonde[p.id] = perRonde[p.id] || []).push({ naam, ...p });
   });
   const sorteer = (a,b)=>a.localeCompare(b,'nl');
-  const chip = (naam, cls, txt) => `<span class="wzw-naam ${cls}" data-naam="${escapeHtml(naam.toLowerCase())}">${escapeHtml(naam)}${txt?`<small>${escapeHtml(txt)}</small>`:''}</span>`;
+  const rij = (naam, cls, txt) => `<div class="wzw-rij ${cls}" data-naam="${escapeHtml(naam.toLowerCase())}"><span class="stip"></span><span class="nm">${escapeHtml(naam)}</span>${txt?`<span class="st">${escapeHtml(txt)}</span>`:''}</div>`;
+  const kortTxt = { 'nog spelen':'speelt nog', 'wacht op tegenstander':'wacht op tegenst.', 'wacht op loting':'', 'gewonnen':'✓ door', 'bye':'bye' };
 
   let rondes = '';
   FASE_VOLGORDE.forEach(id=>{
@@ -1027,31 +1051,43 @@ function wieZitWaarHtml(){
     const geloot = !!state.fases[id];
     lijst.sort((a,b)=>sorteer(a.naam,b.naam));
     rondes += `<div class="wzw-ronde">
-      <div class="wzw-kop">${escapeHtml(faseLabel(id))}${tak?` <span class="badge ${tak}">${tak.toUpperCase()}</span>`:''}
-        <span class="tel">${lijst.length} speler${lijst.length===1?'':'s'}${geloot?'':' · nog niet geloot'}</span></div>
-      <div class="wzw-namen">${lijst.map(x=>chip(x.naam, x.status, geloot ? x.txt : '')).join('')}</div>
+      <div class="wzw-kop"><span class="titel">${escapeHtml(faseLabel(id))}</span>${tak?`<span class="badge ${tak}">${tak.toUpperCase()}</span>`:''}<span class="tel">${lijst.length}</span></div>
+      ${geloot ? '' : '<div class="wzw-sub">nog niet geloot — tot nu toe zeker</div>'}
+      ${lijst.map(x=>rij(x.naam, x.status, geloot ? (kortTxt[x.txt] ?? x.txt) : '')).join('')}
     </div>`;
   });
 
   uitgeschakeld.sort(sorteer);
-  const uitHtml = uitgeschakeld.length ? `<details class="wzw-uit"${wzwZoek?' open':''}><summary>Uitgeschakeld (${uitgeschakeld.length})</summary>
-    <div class="wzw-namen">${uitgeschakeld.map(n=>{ const r = laatsteRondeVan(n); return chip(n,'uit', r ? 'in '+faseKort(r) : ''); }).join('')}</div></details>` : '';
+  if(uitgeschakeld.length){
+    rondes += `<details class="wzw-ronde wzw-uit"${wzwZoek?' open':''}>
+      <summary class="wzw-kop"><span class="titel">Uitgeschakeld</span><span class="tel">${uitgeschakeld.length}</span></summary>
+      ${uitgeschakeld.map(n=>{ const r = laatsteRondeVan(n); return rij(n,'uit', r ? 'in '+faseKort(r) : ''); }).join('')}
+    </details>`;
+  }
 
-  return `<div class="card" id="wzwCard">
-    <div class="wzw-top"><h2>👥 Wie zit waar</h2>
+  return `<aside class="wzw" id="wzwCard">
+    <div class="wzw-kopbalk"><h2>👥 Wie zit waar</h2>
       <input type="search" class="wzw-zoek" id="wzwZoek" placeholder="Zoek speler…" value="${escapeHtml(wzwZoek)}" oninput="zoekWzw(this.value)"></div>
-    <div class="wzw-legenda">Elke speler staat bij de verste ronde waarin hij nu zit. Gestippeld = wacht nog op loting of tegenstander.</div>
-    ${rondes}${uitHtml}
-  </div>`;
+    <div class="wzw-lijst">${rondes}</div>
+    <div class="wzw-legenda">
+      <span class="wzw-rij open"><span class="stip"></span>speelt nog</span>
+      <span class="wzw-rij wacht"><span class="stip"></span>wacht</span>
+      <span class="wzw-rij door"><span class="stip"></span>door</span>
+      <span class="wzw-rij uit"><span class="stip"></span>uit</span>
+    </div>
+  </aside>`;
 }
 
 function zoekWzw(q){
   wzwZoek = q;
   const t = q.trim().toLowerCase();
-  document.querySelectorAll('#wzwCard .wzw-naam').forEach(el=>{
+  document.querySelectorAll('#wzwCard .wzw-lijst .wzw-rij').forEach(el=>{
     const hit = t && el.dataset.naam.includes(t);
     el.classList.toggle('hit', !!hit);
     el.classList.toggle('dim', !!t && !hit);
+  });
+  document.querySelectorAll('#wzwCard .wzw-ronde').forEach(r=>{
+    r.classList.toggle('leeg', !!t && !r.querySelector('.wzw-rij.hit'));
   });
   if(t){ const d = document.querySelector('#wzwCard .wzw-uit'); if(d) d.open = true; }
 }
@@ -1075,6 +1111,7 @@ function roadmapHtml(){
 
 function render(){
   const app = document.getElementById('app');
+  app.classList.toggle('breed', !!state);
   document.getElementById('resetToernooiBtn').style.display = state ? 'inline-block' : 'none';
   document.getElementById('pdfBtn').style.display = state ? 'inline-block' : 'none';
   if(!state){
@@ -1107,11 +1144,10 @@ function render(){
     </div>`;
   }
 
-  html += wieZitWaarHtml();
-
   FASE_VOLGORDE.forEach(faseId=>{
     if(state.fases[faseId]) html += faseCardHtml(faseId);
   });
+  html = `<div class="layout"><div class="layout-main">${html}</div>${wieZitWaarHtml()}</div>`;
 
   // Onthoud nog niet opgeslagen invoer, zodat een render (bv. tijdens het
   // wegschrijven naar de planning) niets wist wat je al had ingetypt.
