@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uploaden - De Kaale Bull</title>
+<style>
+  :root {
+    --bg:      #0f1520;
+    --s1:      #161f30;
+    --s2:      #1e2a40;
+    --s3:      #243350;
+    --border:  #2a3a56;
+    --text:    #f1f5f9;
+    --muted:   #94a3b8;
+    --green:   #10b981;
+    --red:     #ef4444;
+    --orange:  #f59e0b;
+    --blue:    #3b82f6;
+    --purple:  #a855f7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    background: var(--bg); margin: 0; padding: 0; color: var(--text);
+  }
+  header {
+    background: #080d16; padding: 18px 20px; border-bottom: 2px solid var(--border);
+  }
+  header h1 { font-size: 1.15rem; margin: 0; font-weight: 800; letter-spacing: 0.5px; }
+  header .accent { color: var(--orange); }
+  main { max-width: 820px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  #login-screen {
+    max-width: 360px; margin: 80px auto; background: var(--s1);
+    border: 1px solid var(--border); border-radius: 10px; padding: 30px; text-align: center;
+  }
+  #login-screen h2 { margin-top: 0; }
+  #login-screen input {
+    width: 100%; padding: 12px; font-size: 1rem; background: var(--s2);
+    border: 1px solid var(--border); color: var(--text); border-radius: 6px; margin: 12px 0;
+  }
+  .btn {
+    padding: 12px 18px; font-size: 1rem; background: var(--green); color: #000;
+    border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-family: inherit;
+  }
+  .btn:hover { background: #059669; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  #login-screen .btn { width: 100%; }
+  #login-error { color: var(--red); font-size: 0.9rem; min-height: 20px; }
+  #app { display: none; }
+
+  .routine { font-size: 0.85rem; color: var(--muted); background: var(--s1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+  .routine ol { margin: 6px 0 0; padding-left: 20px; }
+  .routine li { margin: 3px 0; }
+  .routine b { color: var(--text); }
+
+  .drop {
+    border: 2px dashed var(--border); border-radius: 10px; padding: 34px 20px; text-align: center;
+    background: var(--s1); cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--green); background: rgba(16,185,129,0.06); }
+  .drop .icon { font-size: 2rem; }
+  .drop .titel { font-weight: 700; margin-top: 6px; }
+  .drop .hint { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+  #fileInput { display: none; }
+
+  .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
+  @media (max-width: 640px) { .slots { grid-template-columns: 1fr; } }
+  .slot { background: var(--s1); border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-width: 0; }
+  .slot .naam { font-weight: 700; font-size: 0.9rem; }
+  .slot .voor { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+  .slot .bestand { font-size: 0.78rem; margin-top: 8px; color: var(--muted); overflow-wrap: anywhere; }
+  .slot.klaar { border-color: rgba(16,185,129,0.5); }
+  .slot.klaar .bestand { color: var(--green); }
+  .slot.ok   { border-color: var(--green); background: rgba(16,185,129,0.08); }
+  .slot.fout { border-color: var(--red); background: rgba(239,68,68,0.08); }
+
+  .actie { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; background: var(--s1);
+    border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .actie label { font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  .actie input[type=date] { background: var(--s2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 9px 10px; font-family: inherit; font-size: 0.95rem; color-scheme: dark; }
+  .actie .uitleg { flex: 1 1 220px; font-size: 0.78rem; color: var(--muted); }
+  .actie .btn { margin-left: auto; }
+
+  .waarsch { color: var(--orange); font-size: 0.85rem; margin: 10px 0 0; }
+  #onbekend { color: var(--red); font-size: 0.85rem; margin-top: 10px; }
+
+  .resultaat { background: var(--s1); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 14px; }
+  .resultaat h3 { margin: 0 0 8px; font-size: 0.95rem; }
+  .log-line { padding: 3px 0; font-size: 0.85rem; border-bottom: 1px solid rgba(42,58,86,0.4); }
+  .log-line:last-child { border-bottom: 0; }
+  .log-ok { color: var(--green); }
+  .log-err { color: var(--red); }
+  .log-warn { color: var(--orange); }
+  .log-summary { font-weight: 700; }
+  .bezig { color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎯 Kaale Bull <span class="accent">— Uploaden na de speelavond</span></h1>
+</header>
+
+<main>
+  <div id="login-screen">
+    <h2>Inloggen</h2>
+    <p style="color:var(--muted); font-size:0.9rem;">Alleen voor wedstrijdleiding</p>
+    <input type="password" id="password-input" placeholder="Wachtwoord" autocomplete="off">
+    <button class="btn" onclick="tryLogin()">Inloggen</button>
+    <div id="login-error"></div>
+  </div>
+
+  <div id="app">
+    <div class="routine">
+      <b>Volgorde in DartConnect</b>
+      <ol>
+        <li><b>Matchlog</b> downloaden (nog mét beker, voor de bekerlegstanden)</li>
+        <li>Beker <b>voiden</b></li>
+        <li><b>Leaderboard</b> en <b>By Leg report</b> downloaden</li>
+      </ol>
+      Sleep daarna alles tegelijk hieronder. Eén of twee bestanden mag ook.
+    </div>
+
+    <div class="drop" id="drop" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📥</div>
+      <div class="titel">Sleep de CSV's hierheen of klik om te kiezen</div>
+      <div class="hint">De pagina herkent zelf welk bestand wat is</div>
+    </div>
+    <input type="file" id="fileInput" accept=".csv,text/csv" multiple>
+
+    <div class="slots">
+      <div class="slot" id="slot-matchlog">
+        <div class="naam">📋 Matchlog</div>
+        <div class="voor">Uitslagen, legstanden, periodestand, byes, beker</div>
+        <div class="bestand">Nog niet gekozen</div>
+      </div>
+      <div class="slot" id="slot-leaderboard">
+        <div class="naam">📊 Leaderboard</div>
+        <div class="voor">Tussenstand statistieken (gemiddelde, 180's, finishes)</div>
+        <div class="bestand">Nog niet gekozen</div>
+      </div>
+      <div class="slot" id="slot-legs">
+        <div class="naam">🎯 By Leg report</div>
+        <div class="voor">Legs voor records en ranglijsten</div>
+        <div class="bestand">Nog niet gekozen</div>
+      </div>
+    </div>
+    <div id="onbekend"></div>
+
+    <div class="actie">
+      <div>
+        <label for="peildatum">Peildatum leaderboard</label>
+        <input type="date" id="peildatum">
+      </div>
+      <div class="uitleg">De datum waaronder de tussenstand bewaard wordt. Staat standaard op de laatste speeldatum uit de bestanden. Dezelfde datum nog eens opslaan overschrijft die tussenstand.</div>
+      <button class="btn" id="verwerkKnop" onclick="verwerkAlles()" disabled>Verwerken</button>
+    </div>
+    <div id="waarschuwing"></div>
+
+    <div id="resultaten"></div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.0/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const IMPORT_DIVISIES = ['Eerste Divisie', 'Eredivisie'];
+  const TOTAAL_RONDES = 42;
+
+  // Gekozen bestanden per soort: { naam, tekst }
+  const gekozen = { matchlog: null, leaderboard: null, legs: null };
+  let peildatumAangepast = false;
+
+  // ── LOGIN (zelfde patroon als periode.html / spelerbeheer.html) ──
+  async function tryLogin() {
+    const input = document.getElementById('password-input').value;
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+    if (!input) return;
+    const { data: ok, error } = await supabaseClient.rpc('controleer_beheer_wachtwoord', { invoer: input });
+    if (error || ok === null) { errEl.textContent = 'Kon niet inloggen, probeer opnieuw.'; return; }
+    if (ok === true) { sessionStorage.setItem('spelerbeheer_ok', '1'); toonApp(); }
+    else errEl.textContent = 'Onjuist wachtwoord.';
+  }
+  document.getElementById('password-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+  function toonApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    zetStandaardPeildatum();
+  }
+  try { if (sessionStorage.getItem('spelerbeheer_ok') === '1') toonApp(); } catch (e) {}
+
+  // CSV → lijst objecten op kolomnaam. Zelf gedaan i.p.v. Papa's header-optie: DartConnect-exports
+  // bevatten lege/dubbele kolomkoppen, waardoor Papa de kolommen laat verschuiven.
+  function tabel(tekst) {
+    const rows = Papa.parse(tekst, { delimiter: '', skipEmptyLines: true }).data;
+    if (!rows.length) return [];
+    const kop = rows[0].map(k => String(k).replace(/^\uFEFF/, '').trim());
+    const pos = {};
+    kop.forEach((k, i) => { if (k && !(k in pos)) pos[k] = i; });
+    return rows.slice(1).map(r => {
+      const o = {};
+      for (const k in pos) o[k] = String(r[pos[k]] ?? '').trim();
+      return o;
+    });
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // ── BESTANDEN KIEZEN EN HERKENNEN ──
+  const drop = document.getElementById('drop');
+  const fileInput = document.getElementById('fileInput');
+  fileInput.addEventListener('change', e => { const lijst = Array.from(e.target.files); fileInput.value = ''; leesBestanden(lijst); });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); leesBestanden(Array.from(e.dataTransfer.files)); });
+
+  function leesTekst(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = ev => res(ev.target.result);
+      r.onerror = rej;
+      r.readAsText(file);
+    });
+  }
+
+  // Herkent het soort export aan de kolomkoppen
+  function herken(tekst) {
+    if (tekst.charCodeAt(0) === 0xFEFF) tekst = tekst.slice(1);
+    const kop = Papa.parse(tekst, { preview: 1, delimiter: '' }).data[0] || [];
+    const h = new Set(kop.map(k => String(k).replace(/^﻿/, '').trim().toLowerCase()));
+    if (h.has('game #') && h.has('darts') && h.has('report link')) return 'legs';
+    if (h.has('legs score') && h.has('division')) return 'matchlog';
+    if (h.has('first') && h.has('last') && h.has('3da') && h.has('matches')) return 'leaderboard';
+    return null;
+  }
+
+  async function leesBestanden(files) {
+    const onbekend = [];
+    for (const f of files) {
+      const tekst = await leesTekst(f);
+      const soort = herken(tekst);
+      if (!soort) { onbekend.push(f.name); continue; }
+      gekozen[soort] = { naam: f.name, tekst: tekst.charCodeAt(0) === 0xFEFF ? tekst.slice(1) : tekst };
+      const slot = document.getElementById('slot-' + soort);
+      slot.className = 'slot klaar';
+      slot.querySelector('.bestand').textContent = '✓ ' + f.name;
+    }
+    document.getElementById('onbekend').textContent = onbekend.length
+      ? `Niet herkend: ${onbekend.join(', ')}. Is dit een matchlog, leaderboard of By Leg export?` : '';
+    document.getElementById('verwerkKnop').disabled = !Object.values(gekozen).some(Boolean);
+    document.getElementById('resultaten').innerHTML = '';
+    zetStandaardPeildatum();
+    toonWaarschuwing();
+  }
+
+  function toonWaarschuwing() {
+    const el = document.getElementById('waarschuwing');
+    // Bevat het leaderboard nog bekerdata? Dan is de beker waarschijnlijk niet gevoid.
+    if (gekozen.leaderboard) {
+      const rijen = tabel(gekozen.leaderboard.tekst);
+      if (rijen.some(r => /beker/i.test(r['Division'] || ''))) {
+        el.innerHTML = '<p class="waarsch">⚠ In het leaderboard staat nog de beker. Is de beker al gevoid? De bekerregels worden niet opgeslagen, maar de gemiddelden kunnen ze nog wel bevatten.</p>';
+        return;
+      }
+    }
+    el.innerHTML = '';
+  }
+
+  // ── PEILDATUM ──
+  // Standaard: de laatste speeldatum uit de matchlog / het By Leg report; anders de meest recente donderdag
+  function dcDatum(d) {
+    const [m, day, y] = String(d || '').trim().split(' ')[0].split('/');
+    if (!y) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  function laatsteDatumIn(tekst, kolom) {
+    const rijen = tabel(tekst);
+    let max = null;
+    rijen.forEach(r => {
+      const div = r['Division'] || '';
+      if (!IMPORT_DIVISIES.includes(div)) return;
+      const d = dcDatum(r[kolom]);
+      if (d && (!max || d > max)) max = d;
+    });
+    return max;
+  }
+  function laatsteDonderdag() {
+    const d = new Date();
+    d.setDate(d.getDate() - ((d.getDay() + 3) % 7)); // 4 = donderdag
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function zetStandaardPeildatum() {
+    if (peildatumAangepast) return;
+    const kandidaten = [];
+    if (gekozen.matchlog) kandidaten.push(laatsteDatumIn(gekozen.matchlog.tekst, 'Date'));
+    if (gekozen.legs) kandidaten.push(laatsteDatumIn(gekozen.legs.tekst, 'Date'));
+    const d = kandidaten.filter(Boolean).sort().pop() || laatsteDonderdag();
+    document.getElementById('peildatum').value = d;
+  }
+  document.getElementById('peildatum').addEventListener('change', () => { peildatumAangepast = true; });
+
+  // ── VERWERKEN ──
+  async function verwerkAlles() {
+    const knop = document.getElementById('verwerkKnop');
+    knop.disabled = true;
+    const res = document.getElementById('resultaten');
+    res.innerHTML = '';
+    const stappen = [
+      ['matchlog', '📋 Matchlog', verwerkMatchlog],
+      ['legs', '🎯 By Leg report', verwerkLegs],
+      ['leaderboard', '📊 Leaderboard', verwerkLeaderboard],
+    ];
+    for (const [soort, titel, fn] of stappen) {
+      if (!gekozen[soort]) continue;
+      const kaart = document.createElement('div');
+      kaart.className = 'resultaat';
+      kaart.innerHTML = `<h3>${titel}</h3><div class="bezig">Bezig…</div>`;
+      res.appendChild(kaart);
+      const body = kaart.querySelector('.bezig');
+      const slot = document.getElementById('slot-' + soort);
+      try {
+        const { html, goed } = await fn(gekozen[soort].tekst);
+        body.outerHTML = html;
+        slot.className = 'slot ' + (goed ? 'ok' : 'fout');
+      } catch (e) {
+        body.outerHTML = `<div class="log-line log-err">Verwerken mislukt: ${esc(e.message || e)}</div>`;
+        slot.className = 'slot fout';
+      }
+    }
+    knop.disabled = false;
+  }
+
+  // Spelerslijst (volledige namen, met divisie)
+  let spelersCache = null;
+  async function laadSpelers() {
+    if (spelersCache) return spelersCache;
+    const { data, error } = await supabaseClient.from('spelers').select('naam, divisie');
+    if (error) throw new Error('Kon spelerslijst niet laden: ' + error.message);
+    spelersCache = data || [];
+    return spelersCache;
+  }
+
+  // ══════════════════════════════════════════
+  //  1. MATCHLOG — zelfde logica als periode.html
+  // ══════════════════════════════════════════
+  function verslagUrl(v) {
+    v = String(v || '').trim();
+    return /^https:\/\/recap\.dartconnect\.com\/[A-Za-z0-9\/_.-]+$/.test(v) ? v : null;
+  }
+  function isVrijeRonde(naam) { return !!naam && naam.toLowerCase().includes('vrije'); }
+
+  async function verwerkMatchlog(tekst) {
+    const spelers = (await laadSpelers()).filter(s => IMPORT_DIVISIES.includes(s.divisie));
+
+    // Naam-mapping: "Voornaam L" (Scoring App) en "Achternaam, Voornaam" (League Portal / byes)
+    const abbrevMap = {}, lastnameFirstMap = {};
+    IMPORT_DIVISIES.forEach(d => abbrevMap[d] = {});
+    spelers.forEach(s => {
+      const parts = s.naam.trim().split(/\s+/);
+      if (parts.length < 2) return;
+      for (let k = 1; k < parts.length; k++) {
+        const voornaam = parts.slice(0, k).join(' ');
+        const achternaam = parts.slice(k).join(' ');
+        const abbr = `${voornaam} ${achternaam[0]}`;
+        const lijst = abbrevMap[s.divisie][abbr] = abbrevMap[s.divisie][abbr] || [];
+        if (!lijst.includes(s.naam)) lijst.push(s.naam);
+        lastnameFirstMap[`${achternaam}, ${voornaam}`] = s.naam;
+      }
+    });
+    const kandidaten = (div, raw) => {
+      const exact = abbrevMap[div][raw];
+      if (exact && exact.length) return exact;
+      const kaal = String(raw || '').replace(/[.…]+$/, '').trim().toLowerCase();
+      if (kaal.length < 3) return [];
+      return spelers.filter(s => s.divisie === div && s.naam.toLowerCase().startsWith(kaal)).map(s => s.naam);
+    };
+    const kandidatenBeker = raw => {
+      const set = new Set();
+      IMPORT_DIVISIES.forEach(d => kandidaten(d, raw).forEach(n => set.add(n)));
+      return [...set];
+    };
+
+    const rows = Papa.parse(tekst.trim(), { delimiter: '', skipEmptyLines: true }).data;
+    const norm = s => (s || '').replace(/^﻿/, '').trim().toLowerCase();
+    const headers = rows[0].map(norm);
+    const findCol = (...names) => { for (const n of names) { const i = headers.indexOf(norm(n)); if (i !== -1) return i; } return -1; };
+    const idx = {
+      division: findCol('Division'),
+      date: findCol('Date'),
+      matchup: findCol('Away/Guest @ Home/Host', 'Away @ Home'),
+      legs: findCol('Legs Score'),
+      leaguePoints: findCol('League Points'),
+      source: findCol('Source'),
+      report: findCol('Report Link')
+    };
+    if (idx.division === -1 || idx.date === -1 || idx.matchup === -1 || idx.legs === -1) {
+      return { goed: false, html: '<div class="log-line log-err">Onverwacht formaat: verwachte kolommen niet gevonden.</div>' };
+    }
+
+    const normaal = [], beker = [], byes = [], problems = [];
+    for (let i = 1; i < rows.length; i++) {
+      const cols = rows[i].map(c => String(c ?? '').trim());
+      const div = cols[idx.division];
+      const isBeker = /beker/i.test(div || '');
+      if (!div || (!IMPORT_DIVISIES.includes(div) && !isBeker)) continue;
+      const verslag = idx.report !== -1 ? verslagUrl(cols[idx.report]) : null;
+      const matchup = cols[idx.matchup] || '';
+      if (!matchup.includes('@')) continue;
+      const [awayRaw, homeRaw] = matchup.split('@').map(s => s.trim());
+      const datum = dcDatum(cols[idx.date]);
+      const bron = idx.source !== -1 ? (cols[idx.source] || '') : '';
+      const legsField = (cols[idx.legs] || '').trim();
+
+      if (isBeker) {
+        if (!legsField) continue;
+        const homeCands = kandidatenBeker(homeRaw), awayCands = kandidatenBeker(awayRaw);
+        if (!homeCands.length || !awayCands.length) { problems.push(`Onbekende speler-afkorting (Beker): "${!homeCands.length ? homeRaw : awayRaw}" (rij: ${matchup})`); continue; }
+        const [aL, hL] = legsField.split('@').map(s => parseInt(s.trim(), 10));
+        if (Number.isNaN(hL) || Number.isNaN(aL)) { problems.push(`Kon legscore niet lezen voor ${matchup}`); continue; }
+        beker.push({ datum, homeCands, awayCands, legs_thuis: hL, legs_uit: aL, verslag });
+        continue;
+      }
+
+      const isBye = bron === 'League Portal' || !legsField;
+      if (isBye) {
+        const homeFull = lastnameFirstMap[homeRaw], awayFull = lastnameFirstMap[awayRaw];
+        const homeIsBye = !homeFull && isVrijeRonde(homeRaw), awayIsBye = !awayFull && isVrijeRonde(awayRaw);
+        if (!homeIsBye && !awayIsBye) { if (!homeFull || !awayFull) problems.push(`Onbekende speler in bye-rij: "${matchup}"`); continue; }
+        const pointsField = idx.leaguePoints !== -1 ? (cols[idx.leaguePoints] || '').trim() : '';
+        if (!pointsField.includes('@')) { problems.push(`Kon League Points niet lezen voor: "${matchup}"`); continue; }
+        const [awayPunten, homePunten] = pointsField.split('@').map(s => parseInt(s.trim(), 10));
+        if (Number.isNaN(awayPunten) || Number.isNaN(homePunten)) { problems.push(`Kon League Points niet lezen voor: "${matchup}"`); continue; }
+        const speler = homeIsBye ? awayFull : homeFull;
+        if (!speler) { problems.push(`Onbekende speler in bye-rij: "${matchup}"`); continue; }
+        byes.push({ div, datum, thuis: homeIsBye ? 'Vrije Ronde' : homeFull, uit: awayIsBye ? 'Vrije Ronde' : awayFull, legs_thuis: homePunten, legs_uit: awayPunten, speler });
+      } else {
+        const homeCands = kandidaten(div, homeRaw), awayCands = kandidaten(div, awayRaw);
+        if (!homeCands.length || !awayCands.length) { problems.push(`Onbekende speler-afkorting (${div}): "${!homeCands.length ? homeRaw : awayRaw}" (rij: ${matchup})`); continue; }
+        const [awayLegs, homeLegs] = legsField.split('@').map(s => parseInt(s.trim(), 10));
+        if (Number.isNaN(homeLegs) || Number.isNaN(awayLegs)) { problems.push(`Kon legscore niet lezen voor ${matchup}`); continue; }
+        normaal.push({ div, datum, homeCands, awayCands, legs_thuis: homeLegs, legs_uit: awayLegs, verslag });
+      }
+    }
+
+    if (!normaal.length && !beker.length && !byes.length && !problems.length) {
+      return { goed: false, html: '<div class="log-line">Geen Eerste Divisie-, Eredivisie- of bekerwedstrijden gevonden in dit bestand.</div>' };
+    }
+
+    const { data: wedstrijden, error } = await supabaseClient
+      .from('wedstrijden').select('id, divisie, datum, thuis, uit, speelronde').in('divisie', IMPORT_DIVISIES);
+    if (error) throw new Error('Kon planning niet laden: ' + error.message);
+
+    const lookup = {};
+    wedstrijden.forEach(w => { lookup[`${w.divisie}|${w.datum}|${w.thuis}|${w.uit}`] = w.id; });
+    const matched = { Beker: 0 };
+    IMPORT_DIVISIES.forEach(d => matched[d] = 0);
+    const unmatched = [], updates = [];
+    normaal.forEach(row => {
+      const hits = [];
+      row.homeCands.forEach(h => row.awayCands.forEach(a => { const id = lookup[`${row.div}|${row.datum}|${h}|${a}`]; if (id) hits.push(id); }));
+      if (hits.length !== 1) {
+        unmatched.push(`${row.div}, ${row.datum}: ${row.homeCands.join('/')} vs ${row.awayCands.join('/')}${hits.length > 1 ? ' (meerdere mogelijkheden)' : ''}`);
+        return;
+      }
+      matched[row.div]++;
+      updates.push({ id: hits[0], legs_thuis: row.legs_thuis, legs_uit: row.legs_uit, verslag: row.verslag });
+    });
+
+    if (beker.length) {
+      const { data: bw, error: bErr } = await supabaseClient.from('wedstrijden').select('id, datum, thuis, uit').ilike('divisie', 'Beker%');
+      if (bErr) problems.push('Kon bekerwedstrijden niet laden: ' + bErr.message);
+      else beker.forEach(row => {
+        const hits = [];
+        (bw || []).filter(w => w.datum === row.datum).forEach(w => {
+          if (row.homeCands.includes(w.thuis) && row.awayCands.includes(w.uit)) hits.push({ id: w.id, lt: row.legs_thuis, lu: row.legs_uit });
+          else if (row.homeCands.includes(w.uit) && row.awayCands.includes(w.thuis)) hits.push({ id: w.id, lt: row.legs_uit, lu: row.legs_thuis });
+        });
+        if (hits.length !== 1) {
+          unmatched.push(`Beker, ${row.datum}: ${row.homeCands.join('/')} vs ${row.awayCands.join('/')}${hits.length > 1 ? ' (meerdere mogelijkheden)' : ''}`);
+          return;
+        }
+        matched.Beker++;
+        updates.push({ id: hits[0].id, legs_thuis: hits[0].lt, legs_uit: hits[0].lu, verslag: row.verslag });
+      });
+    }
+
+    const updateResults = await Promise.all(updates.map(u => {
+      const velden = { legs_thuis: u.legs_thuis, legs_uit: u.legs_uit };
+      if (u.verslag) velden.verslag_url = u.verslag;
+      return supabaseClient.from('wedstrijden').update(velden).eq('id', u.id);
+    }));
+    const updateFailed = updateResults.filter(r => r.error);
+
+    // Byes: nieuwe wedstrijd aanmaken in de speelronde waarin de speler nog geen tegenstander had
+    let byesToegevoegd = 0, byesOversloegen = 0;
+    const byeProblemen = [];
+    const ontbrekendeRondes = (naam, div) => {
+      const gebruikt = new Set();
+      wedstrijden.forEach(w => { if (w.divisie === div && (w.thuis === naam || w.uit === naam)) gebruikt.add(parseInt(w.speelronde, 10)); });
+      const r = [];
+      for (let i = 1; i <= TOTAAL_RONDES; i++) if (!gebruikt.has(i)) r.push(i);
+      return r;
+    };
+    const meestWaarschijnlijkeDatum = (ronde, div) => {
+      const telling = {};
+      wedstrijden.forEach(w => { if (w.divisie === div && parseInt(w.speelronde, 10) === ronde) telling[w.datum] = (telling[w.datum] || 0) + 1; });
+      let beste = null, n = -1;
+      Object.entries(telling).forEach(([d, c]) => { if (c > n) { beste = d; n = c; } });
+      return beste;
+    };
+    for (const bye of byes) {
+      const alAanwezig = wedstrijden.some(w => w.divisie === bye.div && ((w.thuis === bye.speler && w.uit === 'Vrije Ronde') || (w.uit === bye.speler && w.thuis === 'Vrije Ronde')));
+      if (alAanwezig) { byesOversloegen++; continue; }
+      const kand = ontbrekendeRondes(bye.speler, bye.div);
+      if (!kand.length) { byeProblemen.push(`${bye.speler}: geen ontbrekende speelronde gevonden (alle rondes al ingepland).`); continue; }
+      let ronde = kand[0];
+      if (kand.length > 1) {
+        const doel = new Date(bye.datum).getTime();
+        let bv = Infinity;
+        kand.forEach(r => {
+          const d = meestWaarschijnlijkeDatum(r, bye.div);
+          if (!d) return;
+          const v = Math.abs(new Date(d).getTime() - doel);
+          if (v < bv) { bv = v; ronde = r; }
+        });
+      }
+      const { error: insErr } = await supabaseClient.from('wedstrijden').insert({
+        divisie: bye.div, datum: bye.datum, thuis: bye.thuis, uit: bye.uit,
+        legs_thuis: bye.legs_thuis, legs_uit: bye.legs_uit, speelronde: String(ronde), status: 'gespeeld'
+      });
+      if (insErr) { byeProblemen.push(`${bye.speler}: opslaan mislukt (${insErr.message})`); continue; }
+      wedstrijden.push({ id: 'nieuw', divisie: bye.div, datum: bye.datum, thuis: bye.thuis, uit: bye.uit, speelronde: String(ronde) });
+      byesToegevoegd++;
+    }
+
+    const perDiv = ['Eredivisie', 'Eerste Divisie', ...(matched.Beker ? ['Beker'] : [])].map(d => `${d}: ${matched[d]}`).join(' · ');
+    const totaal = IMPORT_DIVISIES.reduce((t, d) => t + matched[d], 0) + matched.Beker;
+    let html = `<div class="log-line log-summary">${totaal} wedstrijd(en) gekoppeld en bijgewerkt (${perDiv})${byesToegevoegd ? `, ${byesToegevoegd} bye-overwinning(en) toegevoegd` : ''}.</div>`;
+    if (byesOversloegen) html += `<div class="log-line">${byesOversloegen} bye-uitslag(en) stonden al in de planning, overgeslagen.</div>`;
+    if (updateFailed.length) html += `<div class="log-line log-err">${updateFailed.length} update(s) mislukt.</div>`;
+    if (unmatched.length) {
+      html += `<div class="log-line log-err">${unmatched.length} rij(en) niet gevonden in de planning (mogelijk datum/naam-verschil):</div>`;
+      unmatched.forEach(u => html += `<div class="log-line log-err">– ${esc(u)}</div>`);
+    }
+    [...byeProblemen, ...problems].forEach(p => html += `<div class="log-line log-err">– ${esc(p)}</div>`);
+    const goed = !unmatched.length && !byeProblemen.length && !problems.length && !updateFailed.length;
+    if (goed) html += `<div class="log-line log-ok">Alles gekoppeld, geen problemen.</div>`;
+    return { goed, html };
+  }
+
+  // ══════════════════════════════════════════
+  //  2. BY LEG REPORT → historie_legs
+  // ══════════════════════════════════════════
+  function seizoenVan(iso) {
+    const y = parseInt(iso.slice(0, 4), 10), m = parseInt(iso.slice(5, 7), 10);
+    const start = m >= 7 ? y : y - 1;
+    return `${start}-${String((start + 1) % 100).padStart(2, '0')}`;
+  }
+  const getal = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
+
+  async function verwerkLegs(tekst) {
+    const spelers = await laadSpelers();
+    const naamMap = new Map(spelers.map(s => [s.naam.toLowerCase(), s.naam]));
+    const rijen = tabel(tekst);
+
+    const onbekend = new Set();
+    let bekerOverslaan = 0;
+    const legs = [];
+    rijen.forEach(r => {
+      const div = (r['Division'] || '').trim();
+      if (!IMPORT_DIVISIES.includes(div)) { if (/beker/i.test(div)) bekerOverslaan++; return; }
+      const link = verslagUrl(r['Report Link']);
+      const datum = dcDatum(r['Date']);
+      const legNr = parseInt(r['Game #'], 10);
+      if (!link || !datum || !legNr) return;
+      const achternaam = String(r['Last Name, FI'] || '').split(',')[0].trim();
+      const dcNaam = `${String(r['First Name'] || '').trim()} ${achternaam}`.trim();
+      const naam = naamMap.get(dcNaam.toLowerCase());
+      if (!naam) onbekend.add(dcNaam);
+      legs.push({
+        seizoen: seizoenVan(datum), divisie: div, datum, dc_link: link, leg_nr: legNr,
+        speler: naam || dcNaam,
+        gewonnen: String(r['Win']).trim().toUpperCase() === 'W',
+        begon: String(r['Start']).trim() === '1',
+        punten: getal(r['Pts/Marks']), darts: getal(r['Darts']),
+        gemiddelde: getal(r['3DA']), hoogste_beurt: getal(r['Hi Turn']), finish: getal(r['DO'])
+      });
+    });
+    if (!legs.length) return { goed: false, html: '<div class="log-line">Geen competitielegs gevonden in dit bestand.</div>' };
+
+    // Tegenstander: de andere speler in dezelfde leg
+    const perLeg = {};
+    legs.forEach(l => (perLeg[l.dc_link + '|' + l.leg_nr] = perLeg[l.dc_link + '|' + l.leg_nr] || []).push(l));
+    const kapot = [];
+    Object.values(perLeg).forEach(paar => {
+      if (paar.length !== 2) { kapot.push(paar[0]); paar.forEach(l => l.overslaan = true); return; }
+      paar[0].tegenstander = paar[1].speler;
+      paar[1].tegenstander = paar[0].speler;
+    });
+    const teSchrijven = legs.filter(l => !l.overslaan);
+
+    // Toevoegen in blokken; legs die er al staan worden overgeslagen
+    let nieuw = 0;
+    const fouten = [];
+    for (let i = 0; i < teSchrijven.length; i += 500) {
+      const blok = teSchrijven.slice(i, i + 500).map(({ overslaan, ...l }) => l);
+      const { data, error } = await supabaseClient.from('historie_legs')
+        .upsert(blok, { onConflict: 'dc_link,leg_nr,speler', ignoreDuplicates: true }).select('id');
+      if (error) fouten.push(error.message);
+      else nieuw += (data || []).length;
+    }
+
+    const wedstrijden = new Set(teSchrijven.map(l => l.dc_link)).size;
+    const nieuweLegs = Math.round(nieuw / 2);
+    let html = `<div class="log-line log-summary">${nieuweLegs ? `${nieuweLegs} nieuwe leg(s) opgeslagen` : 'Geen nieuwe legs, alles stond er al'}.</div>`;
+    html += `<div class="log-line">In dit bestand: ${wedstrijden} wedstrijden, ${teSchrijven.length / 2} legs.</div>`;
+    if (bekerOverslaan) html += `<div class="log-line log-warn">${bekerOverslaan / 2} bekerleg(s) overgeslagen. Records gaan alleen over de competitie.</div>`;
+    if (onbekend.size) html += `<div class="log-line log-warn">Onbekende naam (onder de DartConnect-naam opgeslagen): ${esc([...onbekend].join(', '))}</div>`;
+    if (kapot.length) html += `<div class="log-line log-err">${kapot.length} leg(s) zonder tegenstander overgeslagen.</div>`;
+    fouten.forEach(f => html += `<div class="log-line log-err">Opslaan mislukt: ${esc(f)}</div>`);
+    const goed = !fouten.length && !kapot.length && !onbekend.size;
+    if (goed) html += `<div class="log-line log-ok">Alles verwerkt, geen problemen.</div>`;
+    return { goed, html };
+  }
+
+  // ══════════════════════════════════════════
+  //  3. LEADERBOARD → stats_snapshots (zelfde als stats.html)
+  // ══════════════════════════════════════════
+  async function verwerkLeaderboard(tekst) {
+    const datum = document.getElementById('peildatum').value;
+    if (!datum) return { goed: false, html: '<div class="log-line log-err">Kies eerst een peildatum.</div>' };
+    const n = v => { const x = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(x) ? x : 0; };
+    const rijen = tabel(tekst);
+    let bekerOverslaan = 0;
+    const players = rijen.map(r => ({
+      naam: ((r['First'] || '') + ' ' + (r['Last'] || '')).trim(),
+      div: r['Division'] || 'Onbekend',
+      matches: n(r['Matches']), s180: n(r['180']),
+      hvPlus: n(r['T40_59']) + n(r['T60_79']), hPlus: n(r['T00_19']) + n(r['T20_39']),
+      gem: parseFloat(r['3DA']) || 0, hFinish: n(r['HDO']), bestLeg: n(r['Best Leg']) || 0,
+    })).filter(p => {
+      if (/beker/i.test(p.div)) { bekerOverslaan++; return false; }
+      return p.naam && p.matches > 0;
+    });
+    if (!players.length) return { goed: false, html: '<div class="log-line log-err">Geen spelers gevonden in dit bestand.</div>' };
+
+    const spelers = await laadSpelers();
+    const naamMap = new Map(spelers.map(s => [s.naam.toLowerCase(), s.naam]));
+    const onbekend = [];
+    const data = players.map(p => {
+      const naam = naamMap.get(p.naam.toLowerCase());
+      if (!naam) onbekend.push(p.naam);
+      return {
+        peildatum: datum, divisie: p.div, speler: naam || p.naam, wedstrijden: p.matches,
+        s180: p.s180, t140: p.hvPlus, t100: p.hPlus, gem: Math.round(p.gem * 100) / 100,
+        hoogste_finish: p.hFinish || null, beste_leg: p.bestLeg || null, bron: 'csv'
+      };
+    });
+    const { error } = await supabaseClient.from('stats_snapshots').upsert(data, { onConflict: 'peildatum,divisie,speler' });
+    if (error) throw new Error(error.message);
+
+    const d = new Date(datum + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+    let html = `<div class="log-line log-summary">Tussenstand van ${d} opgeslagen (${data.length} spelers).</div>`;
+    if (bekerOverslaan) html += `<div class="log-line log-warn">${bekerOverslaan} bekerregel(s) overgeslagen.</div>`;
+    if (onbekend.length) html += `<div class="log-line log-warn">Onbekende naam: ${esc(onbekend.join(', '))}</div>`;
+    const goed = !onbekend.length;
+    if (goed) html += `<div class="log-line log-ok">Alles verwerkt, geen problemen.</div>`;
+    return { goed, html };
+  }
+</script>
+</body>
+</html>

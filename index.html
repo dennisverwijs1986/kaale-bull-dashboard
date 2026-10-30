@@ -563,6 +563,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
         <div class="nav-dropdown-item" id="navLogboek" onclick="switchNav('logboek'); closeAdminDropdown();">📝 Logboek</div>
         <div class="nav-dropdown-item" id="navUitslagen" onclick="switchNav('uitslagen'); closeAdminDropdown();">📜 Uitslagen</div>
         <div class="nav-dropdown-item" id="navPeriodestand" onclick="switchNav('periodestand'); closeAdminDropdown();">🏆 Periodestand</div>
+        <div class="nav-dropdown-item" id="navUpload" onclick="switchNav('upload'); closeAdminDropdown();">📥 Uploaden</div>
       </div>
     </div>
   </div>
@@ -792,6 +793,11 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 <!-- ── UITSLAGEN VIEW (iframe) ── -->
 <div class="external-view" id="uitslagenView">
   <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/uitslagen.html" title="Uitslagen"></iframe>
+</div>
+
+<!-- ── UPLOAD VIEW (iframe): matchlog, leaderboard en By Leg report in één keer ── -->
+<div class="external-view" id="uploadView">
+  <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/upload.html" title="Uploaden"></iframe>
 </div>
 
 <!-- ── PERIODESTAND VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
@@ -3247,7 +3253,7 @@ function toggleHistory() {
 //  NAVIGATIE
 // ══════════════════════════════════════════
 function switchNav(view) {
-  const adminViews = ['planning','stats','spelers','logboek','uitslagen','periodestand'];
+  const adminViews = ['planning','stats','spelers','logboek','uitslagen','periodestand','upload'];
   document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
   document.getElementById('planningView').classList.toggle('active', view === 'planning');
   document.getElementById('statsView').classList.toggle('active', view === 'stats');
@@ -3255,6 +3261,7 @@ function switchNav(view) {
   document.getElementById('logboekView').classList.toggle('active', view === 'logboek');
   document.getElementById('uitslagenView').classList.toggle('active', view === 'uitslagen');
   document.getElementById('periodestandView').classList.toggle('active', view === 'periodestand');
+  document.getElementById('uploadView').classList.toggle('active', view === 'upload');
   document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
   document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
   document.getElementById('navStats').classList.toggle('active', view === 'stats');
@@ -3262,6 +3269,7 @@ function switchNav(view) {
   document.getElementById('navLogboek').classList.toggle('active', view === 'logboek');
   document.getElementById('navUitslagen').classList.toggle('active', view === 'uitslagen');
   document.getElementById('navPeriodestand').classList.toggle('active', view === 'periodestand');
+  document.getElementById('navUpload').classList.toggle('active', view === 'upload');
   document.getElementById('navAdminBtn').classList.toggle('active', adminViews.includes(view));
   document.getElementById('navAdminBtn').classList.toggle('planning', view === 'planning');
 }
