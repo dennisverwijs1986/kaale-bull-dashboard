@@ -999,7 +999,7 @@ async function laadStand(force){
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
       sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
       sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300'),
-      sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`),
+      sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&is_inhaal=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`),
       sbGet('beker_toernooi','select=staat&order=id.desc&limit=1').catch(()=>[]),
       sbGet('wedstrijden','select=id,verslag_url&divisie=ilike.Beker*&verslag_url=not.is.null').catch(()=>[]),
       sbGet('eindstand_eerste_divisie','select=*&order=positie.asc'),
@@ -1016,7 +1016,7 @@ async function laadStand(force){
                 stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
     S.standTijd = Date.now();
     if (!S.standPeriode){
-      // Periode die nu loopt: die van de eerstvolgende speelronde in de planning (1–10, 11–21, 22–31, 32–42)
+      // Periode die nu loopt: die van de eerstvolgende reguliere speelronde (inhaalwedstrijden tellen niet mee) (1–10, 11–21, 22–31, 32–42)
       const rondes = volgende.map(w=>parseInt(w.speelronde,10)).filter(n=>!isNaN(n));
       const r = rondes.length ? Math.min(...rondes) : null;
       S.standPeriode = r===null ? 'eind' : r<=10 ? 1 : r<=21 ? 2 : r<=31 ? 3 : 4;
