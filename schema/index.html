@@ -348,6 +348,9 @@ table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
 .sp-legenda{display:flex;flex-wrap:wrap;gap:12px;font-size:.72rem;color:var(--muted);margin:6px 2px 0;}
 .sp-legenda i{display:inline-block;width:14px;border-top:2px solid #93c5fd;vertical-align:middle;margin-right:5px;}
 .sp-legenda i.vj{border-top:2px dashed var(--muted);}
+.sp-verschil{font-size:.82rem;color:var(--muted);margin:2px 2px 6px;}
+.sp-verschil b{color:var(--text);}
+.sp-verschil .op{color:#6ee7b7;font-weight:800;} .sp-verschil .neer{color:#fca5a5;font-weight:800;}
 .h2h-sub{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:14px 0 4px;}
 table.stand td.w{color:#6ee7b7;font-weight:700;}
 table.stand td.v{color:#fca5a5;font-weight:700;}
@@ -1583,19 +1586,20 @@ async function spelerExtra(naam){
   if (SP.hist[naam]) return SP.hist[naam];
   const e = encodeURIComponent(naam);
   const q = `"${String(naam).replace(/["\\]/g,'')}"`;
-  const [reeks, vorig] = await Promise.all([
-    sbGet('stats_snapshots', `select=peildatum,gem,wedstrijden&speler=eq.${e}&order=peildatum.asc`),
+  const [weken, laatsteWeek, vorig] = await Promise.all([
+    sbGet('legs_per_speelweek', `select=seizoen,speelweek,punten,darts&speler=eq.${e}&order=speelweek.asc`).catch(()=>[]),
+    sbGet('legs_per_speelweek', `select=speelweek&seizoen=eq.${huidigSeizoen()}&order=speelweek.desc&limit=1`).catch(()=>[]),
     sbGet('historie_stats', `select=*&speler=eq.${e}&order=seizoen.desc&limit=1`).catch(()=>[]),
   ]);
   const v = vorig[0] || null;
   const uitsl = v ? await sbGet('historie_wedstrijden',
       `select=thuis,uit,legs_thuis,legs_uit,winnaar,walkover&seizoen=eq.${encodeURIComponent(v.seizoen)}&or=${encodeURIComponent(`(thuis.eq.${q},uit.eq.${q})`)}`).catch(()=>[])
     : [];
-  return (SP.hist[naam] = { reeks, v, uitsl });
+  return (SP.hist[naam] = { weken, aantalWeken: laatsteWeek[0] ? laatsteWeek[0].speelweek : 0, v, uitsl });
 }
 // Klikbaar punt in de lijngrafiek: tik op een bolletje voor het gemiddelde van die week (standaard de laatste)
-function grafiekPunt({cx, cy, tekst, r, raak, actief, W, L, R}){
-  const kleur='#93c5fd', bw=String(tekst).length*6+12, bh=17;
+function grafiekPunt({cx, cy, tekst, r, raak, actief, W, L, R, kleur='#93c5fd'}){
+  const bw=String(tekst).length*6+12, bh=17;
   const boven = cy-r-5-bh >= 0;
   const by = boven ? cy-r-5-bh : cy+r+5;
   const bx = Math.min(Math.max(cx-bw/2, L-26), W-R-bw);
@@ -1612,25 +1616,57 @@ document.addEventListener('click', e=>{
   g.parentNode.querySelectorAll('[data-gpunt]').forEach(n=>n.classList.toggle('actief', n===g));
   g.parentNode.appendChild(g);
 });
-function spGrafiek(reeks, vjGem){
-  const p = reeks.filter(r=>nr(r.gem)>0 && nr(r.wedstrijden)>0);
-  if (p.length < 2) return '';
+// Seizoen waar vandaag in valt, bv. "2026-27" (seizoen loopt van juli t/m juni)
+function huidigSeizoen(){
+  const d=new Date(), y=d.getMonth()>=6 ? d.getFullYear() : d.getFullYear()-1;
+  return `${y}-${String((y+1)%100).padStart(2,'0')}`;
+}
+// Lopend 3DA per speelweek (sw 1 t/m n). Weken zonder wedstrijd houden de stand van de week ervoor.
+function lopendPerWeek(rijen, n){
+  const per={}; rijen.forEach(r=>per[r.speelweek]=r);
+  const uit=[]; let p=0, d=0;
+  for (let w=1; w<=n; w++){
+    const r=per[w];
+    if (r){ p+=Number(r.punten)||0; d+=Number(r.darts)||0; }
+    uit.push({ sw:w, gem: d ? p*3/d : null, gespeeld: !!r });
+  }
+  return uit;
+}
+// Grafiek: lopend gemiddelde per speelweek, dit seizoen tegen dezelfde speelweek vorig seizoen
+function spGrafiek(X, vjSeizoen){
+  const n = X.aantalWeken;
+  if (n < 2) return '';
+  const nu = lopendPerWeek(X.weken.filter(r=>r.seizoen===huidigSeizoen()), n);
+  const vj = vjSeizoen ? lopendPerWeek(X.weken.filter(r=>r.seizoen===vjSeizoen), n) : [];
+  if (nu.filter(r=>r.gem!==null).length < 1) return '';
+  const heeftVj = vj.some(r=>r.gem!==null);
   const W=340, Hh=150, L=30, R=8, T=12, B=22;
-  const waarden = p.map(r=>Number(r.gem)).concat(vjGem ? [vjGem] : []);
+  const waarden = nu.concat(vj).map(r=>r.gem).filter(g=>g!==null);
   let lo=Math.min(...waarden), hi=Math.max(...waarden); const m=Math.max(1,(hi-lo)*.15);
   lo=Math.floor(lo-m); hi=Math.ceil(hi+m);
-  const x=i=>L+i*(W-L-R)/(p.length-1), y=g=>T+(hi-g)*(Hh-T-B)/(hi-lo);
+  const x=i=>L+i*(W-L-R)/(n-1), y=g=>T+(hi-g)*(Hh-T-B)/(hi-lo);
   const raster=[0,1,2,3].map(k=>{ const g=lo+k*(hi-lo)/3;
     return `<line x1="${L}" x2="${W-R}" y1="${y(g)}" y2="${y(g)}" stroke="#2a3a56" stroke-width="1"/><text x="${L-5}" y="${y(g)+3.5}" text-anchor="end" font-size="9" fill="#64748b">${komma(g, hi-lo<8?1:0)}</text>`; }).join('');
-  const elke=Math.ceil(p.length/5);
-  const labels=p.map((r,i)=>(i%elke===0||i===p.length-1)?`<text x="${x(i)}" y="${Hh-6}" text-anchor="middle" font-size="9" fill="#64748b">${esc(fmtDag.format(alsDatum(r.peildatum)))}</text>`:'').join('');
-  const lijn=p.map((r,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(Number(r.gem)).toFixed(1)}`).join(' ');
-  const vj = vjGem ? `<line x1="${L}" x2="${W-R}" y1="${y(vjGem)}" y2="${y(vjGem)}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 4"/>` : '';
-  const raak=Math.max(8, Math.min(14, (W-L-R)/(p.length-1)/2));
-  return `<div class="h2h-sub">Gemiddelde door het seizoen</div><div class="sp-grafiek"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Verloop gemiddelde">${raster}${vj}
-    <path d="${lijn}" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-    ${labels}${p.map((r,i)=>grafiekPunt({cx:x(i), cy:y(Number(r.gem)), tekst:komma(r.gem,2), r:3, raak, actief:i===p.length-1, W, L, R})).join('')}</svg></div>
-    <div class="sp-legenda"><span><i></i>Dit seizoen</span>${vjGem?`<span><i class="vj"></i>Vorig seizoen (${komma(vjGem,2)})</span>`:''}</div>`;
+  const elke=Math.ceil(n/8);
+  const labels=nu.map((r,i)=>(i%elke===0||i===n-1)?`<text x="${x(i)}" y="${Hh-6}" text-anchor="${i===n-1?'end':'middle'}" font-size="9" fill="#64748b">sw ${r.sw}</text>`:'').join('');
+  const pad = reeks => { let d='', aan=false; reeks.forEach((r,i)=>{ if (r.gem===null){ aan=false; return; } d+=`${aan?'L':'M'}${x(i).toFixed(1)},${y(r.gem).toFixed(1)} `; aan=true; }); return d; };
+  const raak=Math.max(8, Math.min(14, (W-L-R)/(n-1)/2));
+  const laatsteNu = nu.map((r,i)=>r.gem!==null?i:-1).filter(i=>i>=0).pop();
+  const vjLijn = heeftVj ? `<path d="${pad(vj)}" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="5 4" stroke-linejoin="round"/>` : '';
+  const vjPunten = heeftVj ? vj.map((r,i)=>r.gem===null?'':grafiekPunt({cx:x(i), cy:y(r.gem), tekst:komma(r.gem,2), r:2.5, raak, actief:false, W, L, R, kleur:'#94a3b8'})).join('') : '';
+  const nuPunten = nu.map((r,i)=>r.gem===null?'':grafiekPunt({cx:x(i), cy:y(r.gem), tekst:komma(r.gem,2), r:r.gespeeld?3:2, raak, actief:i===laatsteNu, W, L, R})).join('');
+
+  // Verschil met dezelfde speelweek vorig seizoen
+  let verschil='';
+  const a=nu[n-1].gem, b=heeftVj ? vj[n-1].gem : null;
+  if (a!==null && b!==null){
+    const dlt=a-b, cls=dlt>0?'op':dlt<0?'neer':'';
+    verschil = `<div class="sp-verschil">Na speelweek ${n}: <b>${komma(a,2)}</b> · <span class="${cls}">${dlt>0?'+':dlt<0?'−':'±'}${komma(Math.abs(dlt),2)}</span> t.o.v. speelweek ${n} vorig seizoen (${komma(b,2)})</div>`;
+  }
+  return `<div class="h2h-sub">Gemiddelde per speelweek</div>${verschil}<div class="sp-grafiek"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Verloop gemiddelde per speelweek">${raster}${vjLijn}
+    <path d="${pad(nu)}" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${labels}${vjPunten}${nuPunten}</svg></div>
+    <div class="sp-legenda"><span><i></i>Dit seizoen</span>${heeftVj?`<span><i class="vj"></i>Vorig seizoen (${esc(vjSeizoen)})</span>`:''}</div>`;
 }
 function spBody(naam, D, X){
   const a = h2hStats(D, naam), v = X.v;
@@ -1673,9 +1709,10 @@ function spBody(naam, D, X){
     const s180vj = nr(v.s180);
     if (s180vj) html += `<div class="h2h-blok"><b>${a.s180 >= s180vj ? `🎉 Al net zoveel 180's als heel vorig seizoen (${s180vj})` : `Nog ${s180vj - (a.s180||0)} × 180 om vorig seizoen (${s180vj}) te evenaren`}</b></div>`;
   }
-  html += spGrafiek(X.reeks, vg);
+  html += spGrafiek(X, v ? v.seizoen : null);
   const noten = [`Stats: DartConnect${D.peil ? ' t/m '+fmtDag.format(alsDatum(D.peil)) : ''}. Alleen competitie, beker telt niet mee.`];
   if (v) noten.push('100+ en 140+ staan per wedstrijd, zodat je ook halverwege het seizoen eerlijk vergelijkt. Blauw = de betere van de twee. Vorig seizoen speelde iedereen in één divisie.');
+  if (X.aantalWeken >= 2) noten.push('Grafiek: lopend gemiddelde na elke speelweek, vergeleken met dezelfde speelweek vorig seizoen. Een week zonder wedstrijd houdt de stand van de week ervoor.');
   return html + `<div class="stand-noot">${noten.map(esc).join('<br>')}</div>`;
 }
 async function openSpeler(naam){
