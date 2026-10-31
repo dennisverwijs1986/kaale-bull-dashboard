@@ -2,7 +2,7 @@
 // Eigen scope (alleen de map schema/), dus de WL-app (wl.html + ../sw.js) wordt niet geraakt.
 // Wedstrijddata uit Supabase wordt NOOIT gecachet — die komt altijd live van de server.
 
-const CACHE = 'kb-schema-v30';   // ophogen (v2, v3, ...) als iedereen de app-bestanden opnieuw moet ophalen
+const CACHE = 'kb-schema-v31';   // ophogen (v2, v3, ...) als iedereen de app-bestanden opnieuw moet ophalen
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-180.png', 'icons/favicon-48.png'];
 const shellUrls = SHELL.map(p => new URL(p, self.registration.scope).pathname);
 
@@ -26,8 +26,10 @@ self.addEventListener('fetch', e => {
   if (!shellUrls.includes(url.pathname)) return;
 
   // Netwerk eerst: altijd de nieuwste versie; alleen zonder internet uit de cache.
+  // cache:'no-cache' = altijd bij GitHub navragen of er een nieuwere versie is, i.p.v. tot 10 minuten
+  // een oude kopie uit de browsercache te gebruiken (GitHub Pages stuurt max-age=600 mee).
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-cache' })
       .then(res => {
         if (res.ok) { const kopie = res.clone(); caches.open(CACHE).then(c => c.put(req, kopie)); }
         return res;
