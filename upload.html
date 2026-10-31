@@ -649,6 +649,8 @@
       matches: n(r['Matches']), s180: n(r['180']),
       hvPlus: n(r['T40_59']) + n(r['T60_79']), hPlus: n(r['T00_19']) + n(r['T20_39']),
       gem: parseFloat(r['3DA']) || 0, hFinish: n(r['HDO']), bestLeg: n(r['Best Leg']) || 0,
+      // Uitgooi-%: "CO Turn %" (zelfde kolom als vorig seizoen in historie_stats); "CO %" is in de export leeg
+      first9: n(r['First 9']) || null, co: n(r['CO Turn %']) || n(r['CO %']) || null,
     })).filter(p => {
       if (/beker/i.test(p.div)) { bekerOverslaan++; return false; }
       return p.naam && p.matches > 0;
@@ -664,7 +666,9 @@
       return {
         peildatum: datum, divisie: p.div, speler: naam || p.naam, wedstrijden: p.matches,
         s180: p.s180, t140: p.hvPlus, t100: p.hPlus, gem: Math.round(p.gem * 100) / 100,
-        hoogste_finish: p.hFinish || null, beste_leg: p.bestLeg || null, bron: 'csv'
+        hoogste_finish: p.hFinish || null, beste_leg: p.bestLeg || null,
+        first9: p.first9 !== null ? Math.round(p.first9 * 100) / 100 : null,
+        checkout_pct: p.co !== null ? Math.round(p.co * 100) / 100 : null, bron: 'csv'
       };
     });
     const { error } = await supabaseClient.from('stats_snapshots').upsert(data, { onConflict: 'peildatum,divisie,speler' });

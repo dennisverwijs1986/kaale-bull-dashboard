@@ -1013,7 +1013,7 @@ async function laadStand(force){
     const [pstRuw, ere, stats, volgende, bekerStaat, bekerLinks, eindRuw, eersteZonder] = await Promise.all([
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
       sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
-      sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg&order=peildatum.desc&limit=300'),
+      sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg,first9,checkout_pct&order=peildatum.desc&limit=300'),
       sbGet('wedstrijden',`select=speelronde&divisie=eq.Eerste%20Divisie&status=neq.gespeeld&datum_nnb=eq.false&is_inhaal=eq.false&datum=gte.${vandaag()}&order=datum.asc,tijdstip.asc&limit=20`),
       sbGet('beker_toernooi','select=staat&order=id.desc&limit=1').catch(()=>[]),
       sbGet('wedstrijden','select=id,verslag_url&divisie=ilike.Beker*&verslag_url=not.is.null').catch(()=>[]),
@@ -1410,7 +1410,7 @@ async function h2hData(){
     try{
       const [rijen, snap, sp, pst, vorig, eindRijen] = await Promise.all([
         sbGet('wedstrijden','select=id,datum,tijdstip,thuis,uit,legs_thuis,legs_uit,divisie,uitslag,status&status=eq.gespeeld&order=datum.asc,tijdstip.asc.nullslast,id.asc'),
-        sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,s180,hoogste_finish,beste_leg&order=peildatum.desc&limit=500'),
+        sbGet('stats_snapshots','select=peildatum,speler,wedstrijden,gem,t100,t140,s180,hoogste_finish,beste_leg,first9,checkout_pct&order=peildatum.desc&limit=500'),
         sbGet('spelers','select=naam,divisie'),
         sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
         sbGet('historie_stats','select=seizoen,speler,gem&order=seizoen.desc').catch(()=>[]),
@@ -1457,7 +1457,7 @@ function h2hStats(D, naam){
   });
   const s = D.snapVan[naam] || {};
   return { naam, div:D.div[naam]||null, plek:D.plek[naam] ?? null, gw, vl, lv, lt, vorm:vorm.slice(-5),
-    gem:nr(s.gem), t100:nr(s.t100), t140:nr(s.t140), s180:nr(s.s180), finish:nr(s.hoogste_finish), bl:nr(s.beste_leg), n:nr(s.wedstrijden),
+    gem:nr(s.gem), t100:nr(s.t100), t140:nr(s.t140), s180:nr(s.s180), finish:nr(s.hoogste_finish), bl:nr(s.beste_leg), n:nr(s.wedstrijden), f9:nr(s.first9), co:nr(s.checkout_pct),
     vj: D.vj ? (D.vj[naam] ?? null) : null };
 }
 
@@ -1709,13 +1709,13 @@ function spBody(naam, D, X){
     rijen += h2hRij(`${a.lv} – ${a.lt}`, 'Legs voor – tegen', vlv!==null ? `${vlv} – ${vlt}` : '–',
       a.lv+a.lt && vlv!==null ? beter(a.lv/(a.lv+a.lt), vlv/Math.max(1,vlv+vlt)) : null);
     rijen += h2hRij(komma(a.gem,2), 'Gemiddelde', komma(vg,2), beter(a.gem, vg));
-    rijen += h2hRij('–', 'First 9', komma(nr(v.first9),2), null);
+    rijen += h2hRij(komma(a.f9,2), 'First 9', komma(nr(v.first9),2), beter(a.f9, nr(v.first9)));
     rijen += h2hRij(p2(a.t100,nNu), '100+ per wedstrijd', p2(nr(v.t100),nVj), beter(per(a.t100,nNu), per(nr(v.t100),nVj)));
     rijen += h2hRij(p2(a.t140,nNu), '140+ per wedstrijd', p2(nr(v.t140),nVj), beter(per(a.t140,nNu), per(nr(v.t140),nVj)));
     rijen += h2hRij(`${komma(a.s180)}`, '180\'s totaal', komma(nr(v.s180)), null);
     rijen += h2hRij(komma(a.finish), 'Hoogste finish', komma(nr(v.hoogste_finish)), beter(a.finish, nr(v.hoogste_finish)));
     rijen += h2hRij(komma(a.bl), 'Beste leg (darts)', komma(nr(v.beste_leg)), beter(a.bl, nr(v.beste_leg), true));
-    rijen += h2hRij('–', 'Uitgooi-%', v.checkout_pct!=null ? komma(v.checkout_pct,1)+'%' : '–', null);
+    rijen += h2hRij(a.co!==null ? komma(a.co,1)+'%' : '–', 'Uitgooi-%', v.checkout_pct!=null ? komma(v.checkout_pct,1)+'%' : '–', beter(a.co, nr(v.checkout_pct)));
     rijen += `<div class="h2h-rij">${h2hBol(a.vorm)}<div class="lb">Vorm (laatste 5)</div><div></div></div>`;
     html += `<div class="h2h-sub">Dit seizoen vs. vorig seizoen</div><div class="h2h-tabel">${rijen}</div>`;
     const s180vj = nr(v.s180);
