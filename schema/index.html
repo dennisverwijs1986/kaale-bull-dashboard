@@ -244,6 +244,14 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .uitsl-kop h3{margin:0;}
 .seizoen-kies{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:.8rem;font-weight:700;color:var(--text);}
 .res-leeg{color:var(--muted);font-size:.85rem;padding:8px 2px 10px;}
+.push{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:0 0 12px;}
+.push b{display:block;font-size:.98rem;}
+.push p{margin:4px 0 0;color:var(--muted);font-size:.8rem;line-height:1.45;}
+.push .rij{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.push input{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:1.05rem;letter-spacing:.15em;text-transform:uppercase;font-family:ui-monospace,monospace;color:var(--text);}
+.push button.hoofd{background:var(--eerste);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-weight:700;font-size:.9rem;cursor:pointer;}
+.push .fout{color:#fca5a5;font-size:.8rem;margin-top:6px;}
+.push .ok{color:#6ee7b7;}
 
 /* ── BEKER ── */
 .roadmap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
@@ -521,8 +529,9 @@ let bezig=false;
 async function laad(){
   if (bezig) return; bezig=true;
   try{
-    const inst = await sbGet('instellingen','select=sleutel,waarde&sleutel=in.(planning_kantel_dag,app_mededeling_tekst,app_mededeling_actief)');
+    const inst = await sbGet('instellingen','select=sleutel,waarde&sleutel=in.(planning_kantel_dag,app_mededeling_tekst,app_mededeling_actief,push_zichtbaar_voor)');
     const I = Object.fromEntries(inst.map(r=>[r.sleutel, r.waarde]));
+    S.pushVoor = String(I.push_zichtbaar_voor||'').trim();
     S.kantel = parseInt(I.planning_kantel_dag,10) || 24;
     const tot = zichtbaarTot(S.kantel);
     const velden='select=id,datum,tijdstip,divisie,thuis,uit,status,is_inhaal,originele_datum,bord,datum_nnb,uitslag,legs_thuis,legs_uit,verslag_url,speelronde';
@@ -783,7 +792,7 @@ function renderMijn(){
         ${mijnNnb.map(w=>kaartHtml(w,{nnb:true})).join('')}
       </div>`;
     }
-    html += agendaHtml() + statsKnopHtml();
+    html += agendaHtml() + statsKnopHtml() + pushHtml();
     if (mijn.length && lezen('kb_schema_h2h_gezien')!=='1')
       html += `<div class="h2h-hint">👆 Tik op een wedstrijd voor de head-to-head met je tegenstander</div>`;
     const perDag={};
@@ -795,13 +804,14 @@ function renderMijn(){
     });
   }
   html += uitslagenHtml(mijnAlle);
-  if (!mijn.length && !mijnNnb.length) html += agendaHtml() + statsKnopHtml();
+  if (!mijn.length && !mijnNnb.length) html += agendaHtml() + statsKnopHtml() + pushHtml();
   el.innerHTML = html;
   el.querySelector('#wissel').addEventListener('click',()=>{ S.ik=null; S.ikId=null; opslaan('kb_schema_ik',null); render(); });
   el.querySelector('#deelMijn').addEventListener('click',()=>deelMijn(mijn));
   el.querySelector('#mijnStats').addEventListener('click',()=>openSpeler(S.ik));
   const meer = el.querySelector('#meerUitslagen');
   if (meer) meer.addEventListener('click',()=>{ S.alleUitslagen=true; renderMijn(); });
+  koppelPush(el);
   const kiesSz = el.querySelector('#uitslSeizoen');
   if (kiesSz) kiesSz.addEventListener('change', e=>{ S.uitslSeizoen=e.target.value; S.alleUitslagen=false; renderMijn(); });
   const ag = el.querySelector('.agenda');
@@ -813,6 +823,82 @@ function renderMijn(){
 // Knop naar het eigen spelerspaneel (stats + vergelijking met vorig seizoen); staat onder de agendaknop
 function statsKnopHtml(){
   return `<button class="stats-knop" id="mijnStats"><span class="ico">📊</span><span><b>Mijn statistieken</b><small>Gemiddelde, 180's, finishes en hoe je het doet t.o.v. vorig seizoen</small></span><span class="pijl">›</span></button>`;
+}
+
+// ── Pushmeldingen ──
+// Zichtbaar voor de namen in instellingen.push_zichtbaar_voor (komma-gescheiden) of 'iedereen'.
+// Aanzetten met de persoonlijke code (6 tekens) die de speler van de wedstrijdleiding / in zijn mail krijgt.
+const PUSH_FN = `${SB_URL}/functions/v1/push`;
+function pushZichtbaar(){
+  const v = (S.pushVoor||'').toLowerCase();
+  if (!v || !S.ik) return false;
+  return v==='iedereen' || v.split(',').map(x=>x.trim()).includes(S.ik.toLowerCase());
+}
+const pushKan = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+function pushStaat(){ try{ return JSON.parse(lezen('kb_push')||'null'); }catch(e){ return null; } }
+function pushHtml(){
+  let test=false; try{ test=TESTVERSIE; }catch(e){}   // TESTVERSIE wordt pas onderaan het script gedefinieerd
+  if (!pushZichtbaar() || test) return '';
+  const st = pushStaat();
+  if (!pushKan()){
+    if (isIOS() && !isStandalone())
+      return `<div class="push"><b>🔔 Meldingen op je telefoon</b><p>Op de iPhone werken meldingen alleen in de app op je beginscherm. Tik in Safari op <b style="display:inline">Deel</b> → <b style="display:inline">Zet op beginscherm</b>, open de app daar en kom hier terug.</p></div>`;
+    return '';
+  }
+  if (st && st.speler===S.ik && Notification.permission==='granted')
+    return `<div class="push"><b>🔔 Meldingen staan aan</b><p>Voor ${esc(S.ik)} op dit toestel. Je krijgt een melding bij verzette en nieuwe wedstrijden en op je speeldag.</p>
+      <div class="rij"><button class="knop-klein" id="pushTest">Stuur testmelding</button><button class="knop-klein" id="pushUit">Uitzetten</button></div><div class="fout" id="pushMelding"></div></div>`;
+  return `<div class="push"><b>🔔 Meldingen aanzetten</b><p>Krijg een melding op dit toestel als je wedstrijd verzet wordt of er een nieuwe bij komt, en op je speeldag. Vul je persoonlijke code in.</p>
+    <div class="rij"><input id="pushCode" inputmode="text" autocomplete="off" maxlength="7" placeholder="Code"><button class="hoofd" id="pushAan">Aanzetten</button></div><div class="fout" id="pushMelding"></div></div>`;
+}
+function b64naarBytes(b64){
+  const pad='='.repeat((4-b64.length%4)%4), s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(s); return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+async function pushPost(body){
+  const r = await fetch(PUSH_FN, { method:'POST', headers:{ 'Content-Type':'application/json', apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }, body:JSON.stringify(body) });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(d.fout || 'Er ging iets mis, probeer het later nog eens.');
+  return d;
+}
+function koppelPush(el){
+  const melding = t => { const m=el.querySelector('#pushMelding'); if (m){ m.className='fout'; m.textContent=t; } };
+  const aan = el.querySelector('#pushAan');
+  if (aan) aan.addEventListener('click', async ()=>{
+    const code = (el.querySelector('#pushCode').value||'').replace(/[^0-9a-z]/gi,'');
+    if (code.length!==6){ melding('De code bestaat uit 6 tekens.'); return; }
+    aan.disabled = true;
+    try{
+      // Toestemming direct bij de tik vragen (iPhone eist dat)
+      const toestemming = await Notification.requestPermission();
+      if (toestemming!=='granted') throw new Error('Je hebt meldingen niet toegestaan. Zet ze aan bij de instellingen van je telefoon (Meldingen → Kaale Bull) en probeer het opnieuw.');
+      const { sleutel } = await pushPost({ actie:'sleutel' });
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64naarBytes(sleutel) });
+      const d = await pushPost({ actie:'abonneer', code, abonnement:sub.toJSON(), toestel:navigator.userAgent });
+      if (d.speler!==S.ik) throw new Error(`Deze code hoort bij ${d.speler}, niet bij ${S.ik}.`);
+      opslaan('kb_push', JSON.stringify({ speler:d.speler, code:code.toUpperCase() }));
+      renderMijn();
+    }catch(e){ melding(e.message||String(e)); aan.disabled=false; }
+  });
+  const test = el.querySelector('#pushTest');
+  if (test) test.addEventListener('click', async ()=>{
+    test.disabled = true;
+    try{ const d = await pushPost({ actie:'test', code:(pushStaat()||{}).code }); const m=el.querySelector('#pushMelding'); m.className='fout ok'; m.textContent = d.gelukt ? `Testmelding verstuurd naar ${d.gelukt} toestel${d.gelukt>1?'len':''}.` : 'Geen toestel bereikt. Zet meldingen opnieuw aan.'; }
+    catch(e){ melding(e.message||String(e)); }
+    test.disabled = false;
+  });
+  const uit = el.querySelector('#pushUit');
+  if (uit) uit.addEventListener('click', async ()=>{
+    try{
+      const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+      if (sub){ await pushPost({ actie:'afmelden', endpoint:sub.endpoint }).catch(()=>{}); await sub.unsubscribe(); }
+    }catch(e){}
+    opslaan('kb_push', null); renderMijn();
+  });
 }
 
 // ── Mijn uitslagen + vorm ──
