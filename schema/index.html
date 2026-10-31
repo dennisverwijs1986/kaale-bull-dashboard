@@ -1604,10 +1604,14 @@ async function spelerExtra(naam){
     sbGet('historie_stats', `select=*&speler=eq.${e}&order=seizoen.desc&limit=1`).catch(()=>[]),
   ]);
   const v = vorig[0] || null;
+  // Langste leg (meeste darts, ook verloren legs) per seizoen, uit het By Leg report
+  const langsteVan = sz => sbGet('historie_legs', `select=darts&speler=eq.${e}&seizoen=eq.${encodeURIComponent(sz)}&order=darts.desc&limit=1`)
+    .then(r=>r[0] ? Number(r[0].darts) : null).catch(()=>null);
+  const [langNu, langVj] = await Promise.all([langsteVan(huidigSeizoen()), v ? langsteVan(v.seizoen) : Promise.resolve(null)]);
   const uitsl = v ? await sbGet('historie_wedstrijden',
       `select=thuis,uit,legs_thuis,legs_uit,winnaar,walkover&seizoen=eq.${encodeURIComponent(v.seizoen)}&or=${encodeURIComponent(`(thuis.eq.${q},uit.eq.${q})`)}`).catch(()=>[])
     : [];
-  return (SP.hist[naam] = { weken, aantalWeken: laatsteWeek[0] ? laatsteWeek[0].speelweek : 0, v, uitsl });
+  return (SP.hist[naam] = { weken, aantalWeken: laatsteWeek[0] ? laatsteWeek[0].speelweek : 0, v, uitsl, langNu, langVj });
 }
 // Klikbaar punt in de lijngrafiek: tik op een bolletje voor het gemiddelde van die week (standaard de laatste)
 function grafiekPunt({cx, cy, tekst, r, raak, actief, W, L, R, kleur='#93c5fd'}){
@@ -1694,6 +1698,8 @@ function spBody(naam, D, X){
     </div>`;
   if (!v){
     html += `<div class="h2h-tipblok">🎯 Eerste seizoen bij De Kaale Bull, dus nog geen cijfers van vorig seizoen om mee te vergelijken.</div>`;
+    if (a.bl!==null || X.langNu!==null)
+      html += `<div class="h2h-tabel">${h2hRij(komma(a.bl), 'Beste leg (darts)', '', null)}${h2hRij(komma(X.langNu), 'Langste leg (darts)', '', null)}</div>`;
   } else {
     // Vorig seizoen: winst/verlies uit de matchlog, legs uit de leaderboard-export
     let vgw=0, vvl=0;
@@ -1715,6 +1721,7 @@ function spBody(naam, D, X){
     rijen += h2hRij(`${komma(a.s180)}`, '180\'s totaal', komma(nr(v.s180)), null);
     rijen += h2hRij(komma(a.finish), 'Hoogste finish', komma(nr(v.hoogste_finish)), beter(a.finish, nr(v.hoogste_finish)));
     rijen += h2hRij(komma(a.bl), 'Beste leg (darts)', komma(nr(v.beste_leg)), beter(a.bl, nr(v.beste_leg), true));
+    rijen += h2hRij(komma(X.langNu), 'Langste leg (darts)', komma(X.langVj), null);
     rijen += h2hRij(a.co!==null ? komma(a.co,1)+'%' : '–', 'Uitgooi-%', v.checkout_pct!=null ? komma(v.checkout_pct,1)+'%' : '–', beter(a.co, nr(v.checkout_pct)));
     rijen += `<div class="h2h-rij">${h2hBol(a.vorm)}<div class="lb">Vorm (laatste 5)</div><div></div></div>`;
     html += `<div class="h2h-sub">Dit seizoen vs. vorig seizoen</div><div class="h2h-tabel">${rijen}</div>`;
