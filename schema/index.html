@@ -41,6 +41,13 @@ button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--dim);}
 .dot.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
 .dot.fout{background:var(--red);}
+.kop-rechts{display:flex;align-items:center;gap:10px;}
+.live-knop{display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.55);color:#fecaca;border-radius:999px;padding:5px 11px;font-weight:800;font-size:.8rem;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.live-knop i{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:livepuls 1.4s ease-in-out infinite;}
+.live-knop.actief{background:#ef4444;color:#fff;border-color:#ef4444;}
+.live-knop.actief i{background:#fff;}
+@keyframes livepuls{0%,100%{opacity:1;}50%{opacity:.25;}}
+.kop-rij.met-live #syncTekst{display:none;}
 
 /* ── MENU ONDERIN ── */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--s1);border-top:1px solid var(--border);
@@ -381,7 +388,10 @@ table.stand td.v{color:#fca5a5;font-weight:700;}
 <header class="kop">
   <div class="kop-rij">
     <div class="logo"><b id="ee-pijl" aria-hidden="true">🎯</b> <div>De Kaale Bull<small>Speelschema</small></div></div>
-    <div class="sync"><span class="dot" id="dot"></span><span id="syncTekst">laden…</span></div>
+    <div class="kop-rechts">
+      <button class="live-knop" id="liveKnop" hidden aria-label="Live borden"><i></i>Live <b id="liveAantal"></b></button>
+      <div class="sync"><span class="dot" id="dot"></span><span id="syncTekst">laden…</span></div>
+    </div>
   </div>
 </header>
 
@@ -401,10 +411,6 @@ table.stand td.v{color:#fca5a5;font-weight:700;}
     </button>
     <button id="tabMijn" data-view="mijn">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Mijn
-    </button>
-    <button id="tabLive" data-view="live">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>Live borden
-      <span class="badge" id="liveBadge" hidden></span>
     </button>
     <button id="tabStand" data-view="stand">
       <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Standen
@@ -609,6 +615,7 @@ function zetSync(ok){
 // ══════════════════════════════════════════
 function render(){
   document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('actief', b.dataset.view===S.view));
+  werkLiveKnopBij();
   document.getElementById('viewAlles').hidden = S.view!=='alles';
   document.getElementById('viewMijn').hidden  = S.view!=='mijn';
   document.getElementById('viewLive').hidden  = S.view!=='live';
@@ -1048,6 +1055,18 @@ document.querySelectorAll('.nav [data-view]').forEach(b=>b.addEventListener('cli
   if (S.view==='live') laadLive();
   if (S.view==='stand') laadStand();
 }));
+// Live-knop in de bovenbalk: alleen zichtbaar als er echt wedstrijden op een bord staan (of je kijkt er net naar)
+function werkLiveKnopBij(){
+  const n = BORDEN.filter(b=>S.borden && S.borden[b]).length;
+  const knop = document.getElementById('liveKnop');
+  document.getElementById('liveAantal').textContent = n || '';
+  knop.hidden = !n && S.view!=='live';
+  knop.classList.toggle('actief', S.view==='live');
+  document.querySelector('.kop-rij').classList.toggle('met-live', !knop.hidden);
+}
+document.getElementById('liveKnop').addEventListener('click',()=>{
+  S.view='live'; render(); window.scrollTo(0,0); laadLive();
+});
 // Een groen bordlabel in de wedstrijdlijst opent direct de livestand van dat bord
 document.addEventListener('click', e=>{
   const b=e.target.closest('[data-open-bord]');
@@ -1091,8 +1110,7 @@ async function laadLive(){
     const opBord = {}; BORDEN.forEach(b=>{ if (borden[b]) opBord[borden[b].id]=b; });
     S.rijen.forEach(w=>{ if (w.status!=='gespeeld') w.bord = opBord[w.id] || null; });
     const aantalLive = BORDEN.filter(b=>S.borden[b]).length;
-    const badge=document.getElementById('liveBadge');
-    badge.textContent=aantalLive; badge.hidden=!aantalLive;
+    werkLiveKnopBij();
     if (gewijzigd){
       if (S.view==='live') renderLive(); else if (S.geladen && S.view!=='stand') render();
       if (S.openBord) werkScorebordBij();
