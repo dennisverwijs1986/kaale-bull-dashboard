@@ -356,6 +356,7 @@ table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
 .sp-legenda i.vj{border-top:2px dashed var(--muted);}
 .sp-verschil{font-size:.82rem;color:var(--muted);margin:2px 2px 6px;}
 .sp-verschil b{color:var(--text);}
+.h2h-rij small.dt{display:block;font-size:.66rem;font-weight:400;color:var(--muted);margin-top:1px;}
 .sp-verschil .op{color:#6ee7b7;font-weight:800;} .sp-verschil .neer{color:#fca5a5;font-weight:800;}
 .h2h-sub{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:14px 0 4px;}
 table.stand td.w{color:#6ee7b7;font-weight:700;}
@@ -1604,14 +1605,18 @@ async function spelerExtra(naam){
     sbGet('historie_stats', `select=*&speler=eq.${e}&order=seizoen.desc&limit=1`).catch(()=>[]),
   ]);
   const v = vorig[0] || null;
-  // Langste leg (meeste darts, ook verloren legs) per seizoen, uit het By Leg report
-  const langsteVan = sz => sbGet('historie_legs', `select=darts&speler=eq.${e}&seizoen=eq.${encodeURIComponent(sz)}&order=darts.desc&limit=1`)
-    .then(r=>r[0] ? Number(r[0].darts) : null).catch(()=>null);
-  const [langNu, langVj] = await Promise.all([langsteVan(huidigSeizoen()), v ? langsteVan(v.seizoen) : Promise.resolve(null)]);
+  // Beste leg (minste darts, gewonnen) en langste leg (meeste darts, ook verloren) per seizoen, met datum — uit het By Leg report
+  const legRecord = (sz, beste) => sbGet('historie_legs',
+      `select=darts,datum&speler=eq.${e}&seizoen=eq.${encodeURIComponent(sz)}${beste?'&gewonnen=is.true':''}&order=darts.${beste?'asc':'desc'},datum.asc&limit=1`)
+    .then(r=>r[0] ? { darts:Number(r[0].darts), datum:r[0].datum } : null).catch(()=>null);
+  const geen = Promise.resolve(null);
+  const [besteNu, langNu, besteVj, langVj] = await Promise.all([
+    legRecord(huidigSeizoen(), true), legRecord(huidigSeizoen(), false),
+    v ? legRecord(v.seizoen, true) : geen, v ? legRecord(v.seizoen, false) : geen]);
   const uitsl = v ? await sbGet('historie_wedstrijden',
       `select=thuis,uit,legs_thuis,legs_uit,winnaar,walkover&seizoen=eq.${encodeURIComponent(v.seizoen)}&or=${encodeURIComponent(`(thuis.eq.${q},uit.eq.${q})`)}`).catch(()=>[])
     : [];
-  return (SP.hist[naam] = { weken, aantalWeken: laatsteWeek[0] ? laatsteWeek[0].speelweek : 0, v, uitsl, langNu, langVj });
+  return (SP.hist[naam] = { weken, aantalWeken: laatsteWeek[0] ? laatsteWeek[0].speelweek : 0, v, uitsl, besteNu, langNu, besteVj, langVj });
 }
 // Klikbaar punt in de lijngrafiek: tik op een bolletje voor het gemiddelde van die week (standaard de laatste)
 function grafiekPunt({cx, cy, tekst, r, raak, actief, W, L, R, kleur='#93c5fd'}){
@@ -1684,6 +1689,13 @@ function spGrafiek(X, vjSeizoen){
     ${labels}${vjPunten}${nuPunten}</svg></div>
     <div class="sp-legenda"><span><i></i>Dit seizoen</span>${heeftVj?`<span><i class="vj"></i>Vorig seizoen (${esc(vjSeizoen)})</span>`:''}</div>`;
 }
+// Aantal darts met de datum eronder (vorig seizoen met jaartal); datum alleen als de leg-data hetzelfde aantal geeft
+function legCel(darts, rec, metJaar){
+  if (darts===null || darts===undefined) return '–';
+  if (!rec || rec.darts!==Number(darts)) return komma(darts);
+  const d = alsDatum(rec.datum);
+  return `${komma(darts)}<small class="dt">${esc(fmtDag.format(d))}${metJaar ? ` '${String(d.getFullYear()).slice(2)}` : ''}</small>`;
+}
 function spBody(naam, D, X){
   const a = h2hStats(D, naam), v = X.v;
   const div = a.div || '';
@@ -1698,8 +1710,8 @@ function spBody(naam, D, X){
     </div>`;
   if (!v){
     html += `<div class="h2h-tipblok">🎯 Eerste seizoen bij De Kaale Bull, dus nog geen cijfers van vorig seizoen om mee te vergelijken.</div>`;
-    if (a.bl!==null || X.langNu!==null)
-      html += `<div class="h2h-tabel">${h2hRij(komma(a.bl), 'Beste leg (darts)', '', null)}${h2hRij(komma(X.langNu), 'Langste leg (darts)', '', null)}</div>`;
+    if (a.bl!==null || X.langNu)
+      html += `<div class="h2h-tabel">${h2hRij(legCel(a.bl, X.besteNu), 'Beste leg (darts)', '', null)}${h2hRij(legCel(X.langNu?.darts ?? null, X.langNu), 'Langste leg (darts)', '', null)}</div>`;
   } else {
     // Vorig seizoen: winst/verlies uit de matchlog, legs uit de leaderboard-export
     let vgw=0, vvl=0;
@@ -1720,8 +1732,8 @@ function spBody(naam, D, X){
     rijen += h2hRij(p2(a.t140,nNu), '140+ per wedstrijd', p2(nr(v.t140),nVj), beter(per(a.t140,nNu), per(nr(v.t140),nVj)));
     rijen += h2hRij(`${komma(a.s180)}`, '180\'s totaal', komma(nr(v.s180)), null);
     rijen += h2hRij(komma(a.finish), 'Hoogste finish', komma(nr(v.hoogste_finish)), beter(a.finish, nr(v.hoogste_finish)));
-    rijen += h2hRij(komma(a.bl), 'Beste leg (darts)', komma(nr(v.beste_leg)), beter(a.bl, nr(v.beste_leg), true));
-    rijen += h2hRij(komma(X.langNu), 'Langste leg (darts)', komma(X.langVj), null);
+    rijen += h2hRij(legCel(a.bl, X.besteNu), 'Beste leg (darts)', legCel(nr(v.beste_leg), X.besteVj, true), beter(a.bl, nr(v.beste_leg), true));
+    rijen += h2hRij(legCel(X.langNu?.darts ?? null, X.langNu), 'Langste leg (darts)', legCel(X.langVj?.darts ?? null, X.langVj, true), null);
     rijen += h2hRij(a.co!==null ? komma(a.co,1)+'%' : '–', 'Uitgooi-%', v.checkout_pct!=null ? komma(v.checkout_pct,1)+'%' : '–', beter(a.co, nr(v.checkout_pct)));
     rijen += `<div class="h2h-rij">${h2hBol(a.vorm)}<div class="lb">Vorm (laatste 5)</div><div></div></div>`;
     html += `<div class="h2h-sub">Dit seizoen vs. vorig seizoen</div><div class="h2h-tabel">${rijen}</div>`;
