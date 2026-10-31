@@ -240,6 +240,10 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .res .wv.w{background:rgba(16,185,129,.2);color:#6ee7b7;}
 .res .wv.v{background:rgba(239,68,68,.15);color:#fca5a5;}
 .meer{width:100%;border:0;background:none;color:#93c5fd;font-weight:700;font-size:.82rem;padding:8px;cursor:pointer;}
+.uitsl-kop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.uitsl-kop h3{margin:0;}
+.seizoen-kies{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:.8rem;font-weight:700;color:var(--text);}
+.res-leeg{color:var(--muted);font-size:.85rem;padding:8px 2px 10px;}
 
 /* ── BEKER ── */
 .roadmap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
@@ -798,9 +802,12 @@ function renderMijn(){
   el.querySelector('#mijnStats').addEventListener('click',()=>openSpeler(S.ik));
   const meer = el.querySelector('#meerUitslagen');
   if (meer) meer.addEventListener('click',()=>{ S.alleUitslagen=true; renderMijn(); });
+  const kiesSz = el.querySelector('#uitslSeizoen');
+  if (kiesSz) kiesSz.addEventListener('change', e=>{ S.uitslSeizoen=e.target.value; S.alleUitslagen=false; renderMijn(); });
   const ag = el.querySelector('.agenda');
   if (ag){ ag.open = lezen('kb_schema_agenda_open')==='1'; ag.addEventListener('toggle',()=>opslaan('kb_schema_agenda_open', ag.open?'1':'0')); }
   haalIkId();
+  haalHistUitsl();
 }
 
 // Knop naar het eigen spelerspaneel (stats + vergelijking met vorig seizoen); staat onder de agendaknop
@@ -810,11 +817,19 @@ function statsKnopHtml(){
 
 // ── Mijn uitslagen + vorm ──
 function uitslagenHtml(mijnAlle){
-  const vd=vandaag();
+  // Seizoenkeuze: alleen als deze speler uitslagen uit eerdere seizoenen heeft (historie_wedstrijden)
+  const nu = huidigSeizoen();
+  const hist = S.histUitsl && S.histUitsl.naam===S.ik ? S.histUitsl.rijen : [];
+  const oud = [...new Set(hist.map(r=>r.seizoen))].filter(x=>x!==nu).sort().reverse();
+  const gekozen = oud.includes(S.uitslSeizoen) ? S.uitslSeizoen : nu;
+  const kies = oud.length ? `<select id="uitslSeizoen" class="seizoen-kies" aria-label="Seizoen">${[nu, ...oud].map(x=>`<option value="${esc(x)}"${x===gekozen?' selected':''}>${esc(x)}</option>`).join('')}</select>` : '';
+  const kop = `<div class="uitsl-kop"><h3>Mijn uitslagen</h3>${kies}</div>`;
+  if (gekozen!==nu) return histUitslagenHtml(hist.filter(r=>r.seizoen===gekozen), kop);
+
   const gespeeld = mijnAlle.filter(w=>w.status==='gespeeld')
     .concat(S.byes.filter(w=>w.thuis===S.ik || w.uit===S.ik))
     .sort((a,b)=> (b.datum+(b.tijdstip||'')).localeCompare(a.datum+(a.tijdstip||'')));
-  if (!gespeeld.length) return '';
+  if (!gespeeld.length) return kies ? `<div class="uitslagen">${kop}<div class="res-leeg">Nog geen uitslagen dit seizoen.</div></div>` : '';
   const metUitslag = gespeeld.filter(w=>!isBye(w) && winnaarVan(w));
   const w = metUitslag.filter(x=>winnaarVan(x)===S.ik).length, v = metUitslag.length - w;
   const vorm = metUitslag.slice(0,5).reverse().map(x=>winnaarVan(x)===S.ik ? '<i class="w">W</i>' : '<i class="v">V</i>').join('');
@@ -829,11 +844,45 @@ function uitslagenHtml(mijnAlle){
     const beker = divKey(x)==='beker' ? ' <span class="chip beker">Beker</span>' : '';
     return `<div class="res"><span class="rd">${dt}</span><span class="rt">tegen ${esc(tegen)}${beker}</span><span class="rs">${wv}${score}${verslagHtml(x)?'<br>'+verslagHtml(x):''}</span></div>`;
   }).join('');
-  return `<div class="uitslagen"><h3>Mijn uitslagen</h3>
+  return `<div class="uitslagen">${kop}
     ${metUitslag.length ? `<div class="vorm">Vorm ${vorm}<span style="margin-left:auto">${w} gewonnen · ${v} verloren</span></div>` : ''}
     ${lijst}
     ${!S.alleUitslagen && gespeeld.length>5 ? `<button class="meer" id="meerUitslagen">Toon alle ${gespeeld.length} uitslagen</button>` : ''}
   </div>`;
+}
+// Uitslagen van een eerder seizoen (uit historie_wedstrijden)
+function histUitslagenHtml(rijen, kop){
+  const l = rijen.slice().sort((a,b)=>String(b.datum||'').localeCompare(String(a.datum||'')));
+  if (!l.length) return `<div class="uitslagen">${kop}<div class="res-leeg">Geen uitslagen in dit seizoen.</div></div>`;
+  const w = l.filter(r=>r.winnaar===S.ik).length, v = l.filter(r=>r.winnaar && r.winnaar!==S.ik).length;
+  const lijst = (S.alleUitslagen ? l : l.slice(0,5)).map(r=>{
+    const dt = r.datum ? esc(fmtDag.format(alsDatum(r.datum))) : '';
+    const tegen = r.thuis===S.ik ? r.uit : r.thuis;
+    const mijnLegs = r.thuis===S.ik ? r.legs_thuis : r.legs_uit, hunLegs = r.thuis===S.ik ? r.legs_uit : r.legs_thuis;
+    const score = r.walkover ? '<span class="score">w.o.</span>' : (mijnLegs!=null && hunLegs!=null ? `<span class="score">${mijnLegs}-${hunLegs}</span>` : '');
+    const wv = r.winnaar ? `<span class="wv ${r.winnaar===S.ik?'w':'v'}">${r.winnaar===S.ik?'W':'V'}</span>` : '';
+    const verslag = verslagHtml({ verslag_url: r.dc_link });
+    return `<div class="res"><span class="rd">${dt}</span><span class="rt">tegen ${esc(tegen)}</span><span class="rs">${wv}${score}${verslag?'<br>'+verslag:''}</span></div>`;
+  }).join('');
+  return `<div class="uitslagen">${kop}
+    <div class="vorm"><span>${w} gewonnen · ${v} verloren</span></div>
+    ${lijst}
+    ${!S.alleUitslagen && l.length>5 ? `<button class="meer" id="meerUitslagen">Toon alle ${l.length} uitslagen</button>` : ''}
+  </div>`;
+}
+// Haalt eenmalig de uitslagen uit eerdere seizoenen op voor de gekozen speler; tekent daarna Mijn wedstrijden opnieuw
+async function haalHistUitsl(){
+  const naam = S.ik;
+  if (!naam || (S.histUitsl && S.histUitsl.naam===naam) || S.histBezig===naam) return;
+  S.histBezig = naam;
+  const q = `"${String(naam).replace(/["\\]/g,'')}"`;
+  try{
+    const rijen = await sbGet('historie_wedstrijden',
+      `select=seizoen,datum,thuis,uit,legs_thuis,legs_uit,winnaar,walkover,dc_link&or=${encodeURIComponent(`(thuis.eq.${q},uit.eq.${q})`)}&order=datum.desc`);
+    S.histUitsl = { naam, rijen: rijen || [] };
+    if (S.ik===naam && S.histUitsl.rijen.length && document.getElementById('viewMijn')?.offsetParent !== null) renderMijn();
+  }catch(e){}
+  finally{ if (S.histBezig===naam) S.histBezig = null; }
 }
 
 // ── Delen ──
