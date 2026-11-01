@@ -471,6 +471,20 @@
     return data;
   }
 
+  // Meldingen-uitnodiging (uitleg + persoonlijke code) opnieuw naar het mailadres van de speler
+  async function stuurUitnodiging(id, naam) {
+    if (!confirm(`De uitnodiging met de meldingen-code opnieuw mailen naar ${naam}?`)) return;
+    const knop = document.getElementById(`uitnodig-${id}`);
+    const oud = knop.textContent; knop.disabled = true; knop.textContent = 'Versturen…';
+    try {
+      await contactApi('uitnodig', { speler_id: id });
+      knop.textContent = '✓ Verstuurd';
+    } catch (e) {
+      alert('Versturen mislukt: ' + e.message);
+      knop.textContent = oud; knop.disabled = false;
+    }
+  }
+
   async function tryLogin() {
     const input = document.getElementById('password-input').value;
     const errEl = document.getElementById('login-error');
@@ -609,6 +623,16 @@
               <div class="field-group">
                 <label>Telefoon</label>
                 <input type="text" id="telefoon-${p.id}" value="${escapeAttr(contact.telefoon || '')}">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label>Code meldingen (app)</label>
+                <input type="text" readonly value="${escapeAttr(contact.code || '–')}" style="font-family:monospace;letter-spacing:3px;font-weight:bold;">
+              </div>
+              <div class="field-group" style="justify-content:flex-end;">
+                <label>&nbsp;</label>
+                <button class="save-btn" id="uitnodig-${p.id}" onclick="stuurUitnodiging('${p.id}','${escapeAttr(p.naam)}')" ${contact.code && contact.email ? '' : 'disabled'} style="background:var(--s2, #334155);">📧 Code opnieuw mailen</button>
               </div>
             </div>
             <div style="display:flex;gap:8px;">
