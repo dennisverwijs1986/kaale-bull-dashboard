@@ -1870,27 +1870,21 @@ async function openH2H(id){
 // ══════════════════════════════════════════
 //  APP JE TEGENSTANDER — knop in het wedstrijdpaneel (TEST: alleen voor WA_TESTERS).
 //  Nummer komt via RPC whatsapp_tegenstander (alleen als jij in die wedstrijd speelt en hij nog niet gespeeld is).
-//  Zonder bekend nummer opent WhatsApp met de tekst klaar en kies je zelf het contact.
+//  Geen voorgetypt bericht: de speler typt zelf. Zonder bekend nummer is de knop uitgeschakeld.
 // ══════════════════════════════════════════
 const WA_TESTERS = ['Dennis Verwijs'];
 const WA = { nummers:{} };
 function waMag(w){
   return !!S.ik && WA_TESTERS.includes(S.ik) && !isBye(w) && w.status!=='gespeeld' && (w.thuis===S.ik || w.uit===S.ik);
 }
-function waTekst(w){
-  const tegen = w.thuis===S.ik ? w.uit : w.thuis;
-  const wanneer = w.datum_nnb ? 'die nog geen datum heeft' : `van ${fmtLang.format(alsDatum(w.datum))}${w.tijdstip ? ' om '+w.tijdstip : ''}`;
-  return `Hoi ${voorn(tegen)}, over onze wedstrijd ${wanneer} bij de Kaale Bull: `;
-}
 function waKnopHtml(w){
   if (!waMag(w)) return '';
   const nr = WA.nummers[w.id];
   const tegen = w.thuis===S.ik ? w.uit : w.thuis;
-  const url = `https://wa.me/${nr || ''}?text=${encodeURIComponent(waTekst(w))}`;
-  const uitleg = nr===undefined ? 'Nummer ophalen…'
-    : nr ? `Opent WhatsApp met ${esc(voorn(tegen))}, je bericht staat al klaar`
-    : `Nummer van ${esc(voorn(tegen))} is niet bekend: kies zelf het contact in WhatsApp`;
-  return `<a class="wa-knop" id="waKnop" href="${esc(url)}" target="_blank" rel="noopener">💬 App ${esc(voorn(tegen))}</a><div class="wa-uitleg" id="waUitleg">${uitleg}</div>`;
+  if (nr===undefined) return `<a class="wa-knop" id="waKnop" aria-disabled="true" style="opacity:.6">💬 App ${esc(voorn(tegen))}</a><div class="wa-uitleg" id="waUitleg">Nummer ophalen…</div>`;
+  if (!nr) return `<a class="wa-knop" id="waKnop" aria-disabled="true" style="opacity:.45;pointer-events:none">💬 App ${esc(voorn(tegen))}</a><div class="wa-uitleg" id="waUitleg">Het nummer van ${esc(voorn(tegen))} is niet bekend bij de wedstrijdleiding</div>`;
+  // wa.me werkt ook als de tegenstander niet in je contacten staat
+  return `<a class="wa-knop" id="waKnop" href="https://wa.me/${esc(nr)}" target="_blank" rel="noopener">💬 App ${esc(voorn(tegen))}</a><div class="wa-uitleg" id="waUitleg">Opent een WhatsApp-chat met ${esc(voorn(tegen))}, ook als hij niet in je contacten staat</div>`;
 }
 async function waNummerOphalen(w){
   if (!waMag(w) || WA.nummers[w.id]!==undefined) return;
