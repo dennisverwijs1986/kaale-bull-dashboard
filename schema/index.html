@@ -363,6 +363,10 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .h2h-blok{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.88rem;}
 .h2h-blok b{display:block;margin-bottom:3px;}
 .h2h-blok div{color:var(--muted);padding:2px 0;}
+.wa-knop{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:0 0 12px;padding:12px;border-radius:12px;
+  background:#25d366;color:#06291a;font-weight:800;font-size:.95rem;text-decoration:none;border:0;}
+.wa-knop:active{filter:brightness(.92);}
+.wa-uitleg{font-size:.75rem;color:var(--muted);margin:-6px 0 12px;text-align:center;}
 .h2h-tipblok{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:#bfdbfe;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.88rem;}
 table.stand tr[data-speler]{cursor:pointer;}
 table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
@@ -1852,16 +1856,62 @@ async function openH2H(id){
   if (!eerder){ try{ history.pushState({h2h:1}, ''); }catch(e){} }
   if (lezen('kb_schema_h2h_gezien')!=='1'){ opslaan('kb_schema_h2h_gezien','1'); }
   document.getElementById('h2hTitel').textContent = '⚔️ Head-to-head';
-  h2hInhoud.innerHTML = h2hKop(w,A,B) + `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
+  h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
+  waNummerOphalen(w);
   h2hEl.querySelector('.h2h-paneel').scrollTop = 0;
   try{
     const [D, hist] = await Promise.all([h2hData(), h2hHist(A,B)]);
     if (!H.open || H.open.w!==w) return;
-    h2hInhoud.innerHTML = h2hKop(w,A,B) + h2hBody(D, hist, w, A, B);
+    h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + h2hBody(D, hist, w, A, B);
   }catch(e){
-    if (H.open && H.open.w===w) h2hInhoud.innerHTML = h2hKop(w,A,B) + `<div class="leeg"><span class="ico">📡</span>Kan de head-to-head nu niet ophalen.<br>Probeer het zo nog eens.</div>`;
+    if (H.open && H.open.w===w) h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + `<div class="leeg"><span class="ico">📡</span>Kan de head-to-head nu niet ophalen.<br>Probeer het zo nog eens.</div>`;
   }
 }
+// ══════════════════════════════════════════
+//  APP JE TEGENSTANDER — knop in het wedstrijdpaneel (TEST: alleen voor WA_TESTERS).
+//  Nummer komt via RPC whatsapp_tegenstander (alleen als jij in die wedstrijd speelt en hij nog niet gespeeld is).
+//  Zonder bekend nummer opent WhatsApp met de tekst klaar en kies je zelf het contact.
+// ══════════════════════════════════════════
+const WA_TESTERS = ['Dennis Verwijs'];
+const WA = { nummers:{} };
+function waMag(w){
+  return !!S.ik && WA_TESTERS.includes(S.ik) && !isBye(w) && w.status!=='gespeeld' && (w.thuis===S.ik || w.uit===S.ik);
+}
+function waTekst(w){
+  const tegen = w.thuis===S.ik ? w.uit : w.thuis;
+  const wanneer = w.datum_nnb ? 'die nog geen datum heeft' : `van ${fmtLang.format(alsDatum(w.datum))}${w.tijdstip ? ' om '+w.tijdstip : ''}`;
+  return `Hoi ${voorn(tegen)}, over onze wedstrijd ${wanneer} bij de Kaale Bull: `;
+}
+function waKnopHtml(w){
+  if (!waMag(w)) return '';
+  const nr = WA.nummers[w.id];
+  const tegen = w.thuis===S.ik ? w.uit : w.thuis;
+  const url = `https://wa.me/${nr || ''}?text=${encodeURIComponent(waTekst(w))}`;
+  const uitleg = nr===undefined ? 'Nummer ophalen…'
+    : nr ? `Opent WhatsApp met ${esc(voorn(tegen))}, je bericht staat al klaar`
+    : `Nummer van ${esc(voorn(tegen))} is niet bekend: kies zelf het contact in WhatsApp`;
+  return `<a class="wa-knop" id="waKnop" href="${esc(url)}" target="_blank" rel="noopener">💬 App ${esc(voorn(tegen))}</a><div class="wa-uitleg" id="waUitleg">${uitleg}</div>`;
+}
+async function waNummerOphalen(w){
+  if (!waMag(w) || WA.nummers[w.id]!==undefined) return;
+  let nr = null;
+  try{
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/whatsapp_tegenstander`, {
+      method:'POST', headers:{ ...HDR, 'Content-Type':'application/json' }, cache:'no-store',
+      body: JSON.stringify({ p_wedstrijd:w.id, p_ik:S.ik })
+    });
+    if (r.ok) nr = (await r.json()) || null;
+  }catch(e){}
+  WA.nummers[w.id] = nr;
+  if (!H.open || H.open.w!==w) return;
+  const k=document.getElementById('waKnop'), u=document.getElementById('waUitleg');
+  if (!k) return;
+  const tmp=document.createElement('div'); tmp.innerHTML=waKnopHtml(w);
+  k.replaceWith(tmp.children[0]); u.replaceWith(tmp.children[0]);
+}
+document.addEventListener('click', e=>{
+  if (e.target.closest && e.target.closest('#waKnop')) telScherm('whatsapp');
+});
 function sluitH2H(viaTerug){
   if (!H.open) return;
   H.open=null; h2hEl.hidden=true;
