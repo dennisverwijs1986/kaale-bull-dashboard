@@ -899,8 +899,11 @@ function pushHtml(){
   if (!pushZichtbaar() || test) return '';
   const st = pushStaat();
   if (!pushKan()){
-    if (isIOS() && !isStandalone())
+    if (isIOS() && !isStandalone()){
+      pushPogingEenmalig('iphone_niet_op_beginscherm');
       return `<div class="push"><b>🔔 Meldingen op je telefoon</b><p>Op de iPhone werken meldingen alleen in de app op je beginscherm. Tik in Safari op <b style="display:inline">Deel</b> → <b style="display:inline">Zet op beginscherm</b>, open de app daar en kom hier terug.</p></div>`;
+    }
+    pushPogingEenmalig('niet_ondersteund');
     return '';
   }
   if (st && st.speler===S.ik && Notification.permission==='granted')
@@ -919,26 +922,43 @@ async function pushPost(body){
   if (!r.ok) throw new Error(d.fout || 'Er ging iets mis, probeer het later nog eens.');
   return d;
 }
+// Mislukte poging doorgeven, zodat de wedstrijdleiding kan zien wie vastloopt en kan helpen
+function pushPoging(reden, extra={}){
+  try{
+    fetch(PUSH_FN, { method:'POST', keepalive:true, headers:{ 'Content-Type':'application/json', apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` },
+      body:JSON.stringify({ actie:'poging', naam:S.ik||null, reden, toestel:navigator.userAgent, ...extra }) }).catch(()=>{});
+  }catch(e){}
+}
+function pushPogingEenmalig(reden){
+  const k='kb_push_poging_'+reden;
+  if (lezen(k)===vandaag()) return;
+  opslaan(k, vandaag()); pushPoging(reden);
+}
 function koppelPush(el){
   const melding = t => { const m=el.querySelector('#pushMelding'); if (m){ m.className='fout'; m.textContent=t; } };
   const aan = el.querySelector('#pushAan');
   if (aan) aan.addEventListener('click', async ()=>{
     const code = (el.querySelector('#pushCode').value||'').replace(/[^0-9a-z]/gi,'');
-    if (code.length!==6){ melding('De code bestaat uit 6 tekens.'); return; }
+    if (code.length!==6){ pushPoging('code_te_kort', { code }); melding('De code bestaat uit 6 tekens.'); return; }
     aan.disabled = true;
     try{
       // Toestemming direct bij de tik vragen (iPhone eist dat)
       const toestemming = await Notification.requestPermission();
-      if (toestemming!=='granted') throw new Error('Je hebt meldingen niet toegestaan. Zet ze aan bij de instellingen van je telefoon (Meldingen → Kaale Bull) en probeer het opnieuw.');
+      if (toestemming!=='granted'){ pushPoging('geen_toestemming', { code, detail:toestemming }); const e=new Error('Je hebt meldingen niet toegestaan. Zet ze aan bij de instellingen van je telefoon (Meldingen → Kaale Bull) en probeer het opnieuw.'); e.gemeld=true; throw e; }
       const { sleutel } = await pushPost({ actie:'sleutel' });
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64naarBytes(sleutel) });
-      const d = await pushPost({ actie:'abonneer', code, abonnement:sub.toJSON(), toestel:navigator.userAgent });
+      let d;
+      try{ d = await pushPost({ actie:'abonneer', code, naam:S.ik, abonnement:sub.toJSON(), toestel:navigator.userAgent }); }
+      catch(e){ e.gemeld=true; throw e; }   // code fout / andere speler: de server legt dat al vast
       if (d.speler!==S.ik) throw new Error(`Deze code hoort bij ${d.speler}, niet bij ${S.ik}.`);
       opslaan('kb_push', JSON.stringify({ speler:d.speler, code:code.toUpperCase() }));
       render();
-    }catch(e){ melding(e.message||String(e)); aan.disabled=false; }
+    }catch(e){
+      if (!e.gemeld) pushPoging('technische_fout', { code, detail:String(e && (e.message||e)).slice(0,300) });
+      melding(e.message||String(e)); aan.disabled=false;
+    }
   });
   const test = el.querySelector('#pushTest');
   if (test) test.addEventListener('click', async ()=>{
