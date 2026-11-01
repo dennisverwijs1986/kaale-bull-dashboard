@@ -247,6 +247,11 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .schakel input:checked{background:var(--green);}
 .schakel input:checked::after{transform:translateX(18px);}
 .mdd-leeg{font-size:.8rem;color:var(--muted);margin-top:6px;}
+.push-ww{width:100%;margin-top:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.95rem;}
+.push-stuur{width:100%;margin-top:10px;}
+.push-res{font-size:.82rem;margin-top:8px;color:var(--muted);}
+.push-res.ok{color:#6ee7b7;}
+.push-res.fout{color:#fca5a5;}
 .mdd-wis{font-size:.8rem;font-weight:700;color:var(--red);padding:6px 0;}
 .sheet-voet{padding:10px 16px calc(10px + var(--bot));border-top:1px solid var(--border);background:var(--s1);display:grid;grid-template-columns:1fr 1.3fr;gap:10px;}
 
@@ -1598,14 +1603,15 @@ async function verversMddLive(){ try{ zetMddLive(await haalMdd()); }catch(e){} }
 
 async function openMdd(){
   sheet = null; scoreSheet = null;
-  mddSheet = { laden:true, bezig:false, fout:'' };
+  mddSheet = { laden:true, bezig:false, fout:'', push:{ tekst:'', bezig:false, res:'', resSoort:'', aantal:null } };
   renderMdd();
+  pushAantal();
   $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
   document.body.style.overflow='hidden';
   try{
     const st = await haalMdd();
     if(!mddSheet) return;
-    mddSheet = { ...st, orig: JSON.stringify(st), laden:false, bezig:false, fout:'' };
+    mddSheet = { ...st, orig: JSON.stringify(st), laden:false, bezig:false, fout:'', push: mddSheet.push };
     zetMddLive(st);
   }catch(e){
     if(!mddSheet) return;
@@ -1640,7 +1646,8 @@ function renderMdd(){
   if(ms.laden) body = `<div class="leeg" style="margin-top:16px">Laden…</div>`;
   else if(ms.fout && !ms.tv) body = `<div class="warn">${esc(ms.fout)}</div>`;
   else body = `${ms.fout?`<div class="warn">${esc(ms.fout)}</div>`:''}${mddBlok('tv')}${mddBlok('app')}
-    <div class="info"><span>De TV haalt de mededeling binnen een halve minuut op; de spelers-app bij het openen of verversen.</span></div>`;
+    <div class="info"><span>De TV haalt de mededeling binnen een halve minuut op; de spelers-app bij het openen of verversen.</span></div>
+    ${pushBlok()}`;
   const gewijzigd = ms.tv && JSON.stringify({tv:ms.tv,app:ms.app})!==ms.orig;
   el.innerHTML = `
     <div class="sheet-kop">
@@ -1653,6 +1660,62 @@ function renderMdd(){
       <button class="btn btn-sec" onclick="sluitSheet()">Sluiten</button>
       <button class="btn btn-pri" id="mddOpslaan" ${gewijzigd && !ms.bezig?'':'disabled'} onclick="slaMddOp()">${ms.bezig?'Bezig…':'Opslaan'}</button>
     </div>`;
+}
+
+// ── Pushmelding aan iedereen (alleen spelers die meldingen aan hebben) ──
+// Wachtwoord = beheerwachtwoord van spelerbeheer; na één keer goed onthouden op dit toestel.
+const PUSH_FN = `${SB_URL}/functions/v1/push`;
+const PUSH_MAX = 200;
+function pushWw(){ try{ return localStorage.getItem('kb_wl_beheer_ww')||''; }catch(e){ return ''; } }
+async function pushFn(body){
+  const r = await fetch(PUSH_FN, { method:'POST', headers:{ 'Content-Type':'application/json', apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }, body:JSON.stringify(body) });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ const e=new Error(d.fout||('Fout '+r.status)); e.status=r.status; throw e; }
+  return d;
+}
+async function pushAantal(){
+  try{ const d = await pushFn({ actie:'aantal' }); if(mddSheet){ mddSheet.push.aantal=d.spelers; const el=$('#pushAantal'); if(el) el.textContent=`${d.spelers} speler${d.spelers===1?'':'s'}`; } }catch(e){}
+}
+function pushBlok(){
+  const p = mddSheet.push, n = p.aantal;
+  const res = p.res ? `<div class="push-res ${p.resSoort}">${esc(p.res)}</div>` : '';
+  return `
+    <div class="mdd-blok">
+      <div class="mdd-blok-kop"><b>🔔 Pushmelding aan iedereen</b><span class="mdd-stat" id="pushAantal">${n==null?'…':`${n} speler${n===1?'':'s'}`}</span></div>
+      <textarea id="pushTekst" maxlength="${PUSH_MAX}" placeholder="Bijv. 'Vanavond beginnen we 15 minuten later.'" oninput="pushInvoer()">${esc(p.tekst)}</textarea>
+      <div class="mdd-onder"><span style="font-size:.78rem;color:var(--muted)">Direct op de telefoon van iedereen met meldingen aan</span><span class="mdd-teller" id="pushN">${p.tekst.length}/${PUSH_MAX}</span></div>
+      ${pushWw() ? '' : `<input class="push-ww" id="pushWw" type="password" autocomplete="current-password" placeholder="Beheerwachtwoord (zoals bij spelerbeheer)">`}
+      <button class="btn btn-pri push-stuur" id="pushStuur" ${p.tekst.trim() && !p.bezig ? '' : 'disabled'} onclick="pushStuurIedereen()">${p.bezig?'Versturen…':'Versturen'}</button>
+      <div id="pushRes">${res}</div>
+    </div>`;
+}
+function pushInvoer(){
+  const p = mddSheet && mddSheet.push; if(!p) return;
+  p.tekst = $('#pushTekst').value;
+  $('#pushN').textContent = `${p.tekst.length}/${PUSH_MAX}`;
+  $('#pushStuur').disabled = p.bezig || !p.tekst.trim();
+}
+async function pushStuurIedereen(){
+  const p = mddSheet && mddSheet.push; if(!p || p.bezig) return;
+  const tekst = p.tekst.trim(); if(!tekst) return;
+  const veld = $('#pushWw');
+  const ww = veld ? veld.value : pushWw();
+  if(!ww){ p.res='Vul eerst het beheerwachtwoord in.'; p.resSoort='fout'; $('#pushRes').innerHTML=`<div class="push-res fout">${esc(p.res)}</div>`; return; }
+  const n = p.aantal;
+  if(!confirm(`Deze melding nu versturen${n!=null?` naar ${n} speler${n===1?'':'s'}`:''}?\n\n"${tekst}"\n\nDit kan niet worden teruggedraaid.`)) return;
+  p.bezig=true; p.res=''; renderMdd();
+  try{
+    const d = await pushFn({ actie:'stuur_iedereen', wachtwoord:ww, tekst });
+    try{ localStorage.setItem('kb_wl_beheer_ww', ww); }catch(e){}
+    p.tekst=''; p.res=`✓ Verstuurd naar ${d.spelers} speler${d.spelers===1?'':'s'} (${d.gelukt} van ${d.toestellen} toestel${d.toestellen===1?'':'len'} bereikt).`; p.resSoort='ok';
+    toast('Pushmelding verstuurd','ok');
+  }catch(e){
+    if(e.status===401){ try{ localStorage.removeItem('kb_wl_beheer_ww'); }catch(x){} p.res='Onjuist wachtwoord.'; }
+    else p.res = navigator.onLine===false ? 'Geen internetverbinding.' : `Versturen mislukt: ${e.message}`;
+    p.resSoort='fout';
+  }
+  p.bezig=false;
+  if(mddSheet) renderMdd();
 }
 
 // Bij typen alleen de kleine onderdelen bijwerken, zodat het toetsenbord en de cursor blijven staan
