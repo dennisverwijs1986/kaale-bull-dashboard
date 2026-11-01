@@ -640,6 +640,34 @@ function render(){
   if (S.view==='alles') renderAlles(); else if (S.view==='mijn') renderMijn();
   else if (S.view==='live') renderLive(); else if (S.view==='stats') renderStats();
   else if (S.view==='inst') renderInst(); else renderStand();
+  telHuidigScherm();
+}
+
+// ══════════════════════════════════════════
+//  ANONIEME SCHERMTELLING — welk menu/scherm wordt gebruikt (per apparaat per dag, max. 1x per scherm per keer openen)
+// ══════════════════════════════════════════
+
+function telScherm(naam){
+  try{
+    const gt = (window._kbGeteld = window._kbGeteld || new Set());
+    if (TESTVERSIE || !naam || gt.has(naam)) return;   // try: ook veilig als dit al bij het opstarten loopt
+    gt.add(naam);
+    const id = lezen('kb_schema_apparaat'); if (!id) return;
+    fetch(`${SB_URL}/rest/v1/rpc/tel_tik`, {
+      method:'POST', keepalive:true,
+      headers:{ ...HDR, 'Content-Type':'application/json' },
+      body: JSON.stringify({ p_apparaat:id, p_scherm:naam })
+    }).catch(()=>{});
+  }catch(e){}
+}
+function telHuidigScherm(){
+  const v=S.view;
+  if (v==='mijn') telScherm('schema_mijn');
+  else if (v==='alles') telScherm('schema_avond');
+  else if (v==='live') telScherm('live');
+  else if (v==='inst') telScherm('instellingen');
+  else if (v==='stats') telScherm('stats_'+(S.statsDeel==='mijn'?'mijn':'club'));
+  else if (v==='stand') telScherm(S.standSoort==='beker' ? 'ranglijst_beker' : 'ranglijst_'+(S.standDiv==='eerste'?'eerste':'ere'));
 }
 // Schakelaar bovenaan Schema
 function schemaSegHtml(){
@@ -1420,6 +1448,7 @@ function renderStats(){
   el.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{ S.statsSort=b.dataset.sort; renderStats(); }));
   const ni = el.querySelector('#naarInst'); if (ni) ni.addEventListener('click',()=>{ S.view='inst'; render(); window.scrollTo(0,0); });
   if (S.statsDeel==='mijn' && S.ik) laadMijnStats();
+  if (S.view==='stats') telHuidigScherm();
 }
 // Eigen stats (zelfde inhoud als het spelerspaneel), maximaal eens per minuut opnieuw ophalen
 async function laadMijnStats(){
@@ -1492,6 +1521,7 @@ function renderStand(){
   el.querySelectorAll('[data-periode]').forEach(b=>b.addEventListener('click',()=>{ const v=b.dataset.periode; S.standPeriode = v==='eind' ? 'eind' : Number(v); renderStand(); }));
   el.querySelectorAll('[data-bfase]').forEach(b=>b.addEventListener('click',()=>{ S.bekerFase=b.dataset.bfase; renderStand(); }));
   const af = el.querySelector('.bfasen .actief'); if (af) af.scrollIntoView({block:'nearest',inline:'center'});
+  if (S.view==='stand') telHuidigScherm();
 }
 function voorlopigNoot(n){
   const w = Math.round(n/2);
@@ -1601,6 +1631,7 @@ function werkScorebordBij(){
 }
 function openScorebord(b){
   if (!SCOREBORD_AAN || !S.codes[b]) return;
+  telScherm('scorebord');
   S.openBord=b; sb.el.hidden=false; document.body.style.overflow='hidden';
   telScorebord(b);
   try{ history.pushState({scorebord:b}, ''); }catch(e){}
@@ -1813,6 +1844,7 @@ function h2hBody(D, hist, w, A, B){
 async function openH2H(id){
   const w = [...S.rijen, ...S.nnb].find(x=>String(x.id)===String(id));
   if (!w || isBye(w)) return;
+  telScherm('h2h');
   const [A,B] = S.ik && w.uit===S.ik ? [w.uit, w.thuis] : [w.thuis, w.uit];
   const eerder = !!H.open;
   H.open = { w };
@@ -1996,6 +2028,7 @@ function spBody(naam, D, X){
 }
 async function openSpeler(naam){
   if (!naam) return;
+  telScherm('spelerpaneel');
   const eerder = !!H.open;
   const open = { speler:naam };
   H.open = open;
