@@ -100,7 +100,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 <div class="topbar">
   <div class="logo">🎯 Avondplanner</div>
-  <a href="index.html">← Dashboard</a>
+  <a href="index.html" id="terugLink">← Dashboard</a>
 </div>
 
 <div class="wrap">
@@ -316,5 +316,6 @@ async function doorvoeren(){
 
 laadAvonden().catch(e => { document.getElementById('avonden').innerHTML = `<div class="melding fout">Laden mislukt: ${escapeHtml(e.message)}</div>`; });
 </script>
+<script>if (window.self !== window.top) document.getElementById('terugLink').style.display='none';</script>
 </body>
 </html>

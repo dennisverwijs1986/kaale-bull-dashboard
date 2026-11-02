@@ -557,7 +557,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
       <div class="nav-tab nav-dropdown-btn" id="navAdminBtn" onclick="toggleAdminDropdown(event)">⚙️ Admin ▾</div>
       <div class="nav-dropdown-menu align-right" id="navAdminMenu">
         <div class="nav-dropdown-item" id="navPlanning" onclick="switchNav('planning'); closeAdminDropdown();">🗓 Planning Tool</div>
-        <a class="nav-dropdown-item" href="optimaliseer.html" target="_blank" rel="noopener">🧩 Avondplanner</a>
+        <div class="nav-dropdown-item" id="navAvondplanner" onclick="switchNav('avondplanner'); closeAdminDropdown();">🧩 Avondplanner</div>
         <div class="nav-dropdown-item" id="navStats" onclick="switchNav('stats'); closeAdminDropdown();">📊 Stats</div>
         <div class="nav-dropdown-item" id="navSpelers" onclick="switchNav('spelers'); closeAdminDropdown();">🧑‍🤝‍🧑 Spelerbeheer</div>
         <div class="nav-dropdown-item" id="navLogboek" onclick="switchNav('logboek'); closeAdminDropdown();">📝 Logboek</div>
@@ -798,6 +798,11 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 <!-- ── UPLOAD VIEW (iframe): matchlog, leaderboard en By Leg report in één keer ── -->
 <div class="external-view" id="uploadView">
   <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/upload.html" title="Uploaden"></iframe>
+</div>
+
+<!-- ── AVONDPLANNER VIEW (iframe, wordt bij openen ververst zodat de planning actueel is) ── -->
+<div class="external-view" id="avondplannerView">
+  <iframe id="avondplannerFrame" data-src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/optimaliseer.html" title="Avondplanner"></iframe>
 </div>
 
 <!-- ── PERIODESTAND VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
@@ -3253,7 +3258,13 @@ function toggleHistory() {
 //  NAVIGATIE
 // ══════════════════════════════════════════
 function switchNav(view) {
-  const adminViews = ['planning','stats','spelers','logboek','uitslagen','periodestand','upload'];
+  const adminViews = ['planning','avondplanner','stats','spelers','logboek','uitslagen','periodestand','upload'];
+  document.getElementById('avondplannerView').classList.toggle('active', view === 'avondplanner');
+  document.getElementById('navAvondplanner').classList.toggle('active', view === 'avondplanner');
+  if (view === 'avondplanner') {
+    const f = document.getElementById('avondplannerFrame');
+    f.src = f.dataset.src + '?t=' + Date.now();
+  }
   document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
   document.getElementById('planningView').classList.toggle('active', view === 'planning');
   document.getElementById('statsView').classList.toggle('active', view === 'stats');
