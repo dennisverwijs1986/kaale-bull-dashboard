@@ -595,7 +595,7 @@
         <div class="player-card ${p.divisie === 'Eredivisie' ? 'div-ere' : p.divisie === 'Eerste Divisie' ? 'div-eerste' : ''}" id="card-${p.id}">
           <div class="player-header" onclick="toggleCard('${p.id}')">
             <div>
-              <div class="player-name">${escapeHtml(p.naam)}</div>
+              <div class="player-name">${escapeHtml(p.naam)}${p.nnb_pauze ? ' <span title="Geen NNB-herinnering (ook niet aan tegenstanders)" style="display:inline-block;font-size:0.7rem;font-weight:bold;color:#f59e0b;border:1px solid #f59e0b;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle;">⏸ NNB-mail gepauzeerd</span>' : ''}</div>
               <div class="player-meta">${escapeHtml(meta)}</div>
             </div>
             <div class="chevron">▶</div>
@@ -635,6 +635,10 @@
                 <button class="save-btn" id="uitnodig-${p.id}" onclick="stuurUitnodiging('${p.id}','${escapeAttr(p.naam)}')" ${contact.code && contact.email ? '' : 'disabled'} style="background:var(--s2, #334155);">📧 Code opnieuw mailen</button>
               </div>
             </div>
+            <label style="display:flex;align-items:flex-start;gap:10px;margin:4px 0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.85rem;line-height:1.4;">
+              <input type="checkbox" id="nnbpauze-${p.id}" ${p.nnb_pauze ? 'checked' : ''} onchange="zetNnbPauze('${p.id}', this.checked)" style="width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;">
+              <span><strong>NNB-herinnering pauzeren</strong><br><span style="color:var(--muted);">Bijv. bij blessure of operatie. Geen wekelijkse NNB-mail over wedstrijden van deze speler, ook niet aan zijn tegenstanders. Wordt direct opgeslagen.</span></span>
+            </label>
             <div style="display:flex;gap:8px;">
               <button class="save-btn" onclick="savePlayer('${p.id}')" style="flex:1;">Opslaan</button>
               <button class="save-btn delete-btn" onclick="deletePlayer('${p.id}','${escapeAttr(p.naam)}')" style="flex:0 0 auto;background:var(--red);">Verwijderen</button>
@@ -647,6 +651,24 @@
 
   function toggleCard(id) {
     document.getElementById('card-' + id).classList.toggle('open');
+  }
+
+  // NNB-herinnering pauzeren (03-11-2026): de Edge Function nnb-herinnering slaat
+  // alle wedstrijden over waarin een speler met nnb_pauze = true speelt.
+  async function zetNnbPauze(id, aan) {
+    const vak = document.getElementById('nnbpauze-' + id);
+    if (vak) vak.disabled = true;
+    const { error } = await supabaseClient.from('spelers').update({ nnb_pauze: aan }).eq('id', id);
+    if (error) {
+      if (vak) { vak.checked = !aan; vak.disabled = false; }
+      showStatus('Fout bij opslaan pauze: ' + error.message, false);
+      return;
+    }
+    const p = allPlayers.find(x => x.id === id);
+    if (p) p.nnb_pauze = aan;
+    showStatus((p ? p.naam + ': ' : '') + (aan ? 'NNB-herinnering gepauzeerd' : 'NNB-herinnering weer aan'), true);
+    renderPlayers();
+    document.getElementById('card-' + id)?.classList.add('open');
   }
 
   let bulkMode = false;
