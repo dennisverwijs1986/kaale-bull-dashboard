@@ -315,7 +315,7 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 
 <nav class="nav">
   <button data-v="avond"  onclick="naarView('avond')"><span class="ic">📅</span>Avond</button>
-  <button data-v="zoek"   onclick="naarView('zoek')"><span class="ic">🔍</span>Speler</button>
+  <button data-v="zoek"   onclick="naarView('zoek')"><span class="ic">🔍</span>Spelers</button>
   <button data-v="nnb"    onclick="naarView('nnb')"><span class="ic">🕓</span>NNB<span class="badge" id="nnbBadge" hidden></span></button>
   <button data-v="beker"  onclick="naarView('beker')"><span class="ic">🏆</span>Beker</button>
   <button data-v="plan"   onclick="naarView('plan')"><span class="ic">🧩</span>Planner<span class="badge plan" id="planBadge" hidden></span></button>
@@ -352,7 +352,7 @@ const MIN_RUST_MIN  = 20;
 // ══════════════════════════════════════════
 let W = [], spelers = [], leiders = [];
 let geladen = false, laadFout = '';
-const S = { view:'avond', datum:null, div:'alle', toonGespeeld:false, zoek:'' };
+const S = { view:'avond', datum:null, div:'alle', toonGespeeld:false, zoek:'', spMode:'wed' };
 let sheet = null;
 let installPrompt = null;
 
@@ -762,9 +762,186 @@ function kaart(w, opts={}){
 
 // ── ZOEKEN OP SPELER ──
 function htmlZoek(){
-  return `<input class="zoek" id="zoekInp" type="search" placeholder="Zoek speler…" autocomplete="off" value="${esc(S.zoek)}"
+  const seg = `<div class="seg" style="margin-bottom:10px">
+      <button class="${S.spMode!=='beheer'?'act':''}" onclick="kiesSpMode('wed')">Wedstrijden</button>
+      <button class="${S.spMode==='beheer'?'act':''}" onclick="kiesSpMode('beheer')">Spelerbeheer</button></div>`;
+  if(S.spMode==='beheer') return seg + htmlSpBeheer();
+  return seg + `<input class="zoek" id="zoekInp" type="search" placeholder="Zoek speler…" autocomplete="off" value="${esc(S.zoek)}"
       oninput="S.zoek=this.value;renderZoekResultaat()">
     <div id="zoekRes">${htmlZoekResultaat()}</div>`;
+}
+function kiesSpMode(m){
+  S.spMode=m;
+  if(m==='beheer' && !SP.geladen && !SP.laden && beheerWw()) laadSpelersBeheer();
+  render();
+}
+
+// ══════════════════════════════════════════
+//  SPELERBEHEER (mobiel) — zelfde data en regels als spelerbeheer.html
+//  Contactgegevens via de Edge Function contact-beheer, met het beheerwachtwoord
+//  (zelfde wachtwoord als bij de pushmelding; onthouden op dit toestel).
+//  Naam wijzigen, verwijderen, bulk en vervangen blijven in het volledige spelerbeheer,
+//  omdat wedstrijden aan de naam gekoppeld zijn.
+// ══════════════════════════════════════════
+const CONTACT_FN = `${SB_URL}/functions/v1/contact-beheer`;
+const SP = { lijst:[], contact:{}, geladen:false, laden:false, fout:'', zoek:'', loginFout:'' };
+let spSheet = null;
+function beheerWw(){ return pushWw(); }
+async function contactFn(actie, extra={}, ww=beheerWw()){
+  const r = await fetch(CONTACT_FN, { method:'POST',
+    headers:{ 'Content-Type':'application/json', apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'x-beheer-wachtwoord':ww },
+    body:JSON.stringify({ actie, ...extra }) });
+  const d = await r.json().catch(()=>({}));
+  if(r.status===401){ const e=new Error('Onjuist wachtwoord'); e.status=401; throw e; }
+  if(!r.ok) throw new Error(d.error||('Fout '+r.status));
+  return d;
+}
+async function laadSpelersBeheer(){
+  SP.laden=true; SP.fout='';
+  if(S.view==='zoek') render();
+  try{
+    const [lijst, c] = await Promise.all([ sbGet('spelers','select=*&order=naam.asc'), contactFn('lijst') ]);
+    SP.lijst = lijst; SP.contact = {};
+    (c.contacten||[]).forEach(x=>{ SP.contact[x.speler_id]=x; });
+    SP.geladen=true;
+  }catch(e){
+    if(e.status===401){ try{ localStorage.removeItem('kb_wl_beheer_ww'); }catch(x){} SP.loginFout='Wachtwoord klopt niet meer, log opnieuw in.'; }
+    else SP.fout = navigator.onLine===false ? 'Geen internetverbinding.' : `Kan spelers niet laden: ${e.message}`;
+  }
+  SP.laden=false;
+  if(S.view==='zoek') render();
+}
+async function spLogin(){
+  const veld=$('#spWw'); const ww=veld?veld.value:''; if(!ww) return;
+  SP.loginFout='';
+  try{ await contactFn('controle', {}, ww); }
+  catch(e){ SP.loginFout = e.status===401 ? 'Onjuist wachtwoord.' : 'Kon niet inloggen, probeer opnieuw.'; render(); return; }
+  try{ localStorage.setItem('kb_wl_beheer_ww', ww); }catch(e){}
+  laadSpelersBeheer();
+}
+function htmlSpBeheer(){
+  if(!beheerWw()) return `
+    <div class="info" style="display:block"><b>Inloggen</b><br><span>Vul het beheerwachtwoord in (hetzelfde als bij spelerbeheer). Het wordt onthouden op deze telefoon.</span></div>
+    <input class="inp" id="spWw" type="password" autocomplete="current-password" placeholder="Beheerwachtwoord" style="margin-top:10px" onkeydown="if(event.key==='Enter')spLogin()">
+    ${SP.loginFout?`<div class="warn">${esc(SP.loginFout)}</div>`:''}
+    <button class="btn btn-pri" style="width:100%;margin-top:10px" onclick="spLogin()">Inloggen</button>`;
+  if(!SP.geladen){
+    if(!SP.laden && !SP.fout) setTimeout(laadSpelersBeheer,0);
+    return SP.fout ? `<div class="fout-box">⚠ ${esc(SP.fout)}</div><button class="btn btn-sec" style="width:100%" onclick="laadSpelersBeheer()">Opnieuw proberen</button>`
+                   : '<div class="leeg">Spelers laden…</div>';
+  }
+  const gepauzeerd = SP.lijst.filter(p=>p.nnb_pauze).length;
+  return `<input class="zoek" id="spZoek" type="search" placeholder="Zoek speler…" autocomplete="off" value="${esc(SP.zoek)}"
+      oninput="SP.zoek=this.value;renderSpLijst()">
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-sec" style="flex:1;min-height:44px" onclick="openSpeler(null)">＋ Nieuwe speler</button>
+      <a class="btn btn-sec" style="flex:1;min-height:44px;color:var(--text);text-decoration:none" href="spelerbeheer.html">🖥 Volledig beheer</a>
+    </div>
+    ${gepauzeerd?`<div class="info" style="display:block">⏸ ${gepauzeerd} speler${gepauzeerd===1?'':'s'} met gepauzeerde NNB-herinnering</div>`:''}
+    <div id="spLijst">${htmlSpLijst()}</div>`;
+}
+function renderSpLijst(){ const el=$('#spLijst'); if(el) el.innerHTML=htmlSpLijst(); }
+function htmlSpLijst(){
+  const q=norm(SP.zoek.trim());
+  const lijst=SP.lijst.filter(p=>!q || norm(p.naam).includes(q));
+  if(!lijst.length) return '<div class="leeg" style="margin-top:14px">Geen spelers gevonden.</div>';
+  const groepen=[['Eredivisie',lijst.filter(p=>p.divisie==='Eredivisie'),'ere'],['Eerste Divisie',lijst.filter(p=>p.divisie==='Eerste Divisie'),'eerste'],
+    ['Zonder divisie',lijst.filter(p=>p.divisie!=='Eredivisie'&&p.divisie!=='Eerste Divisie'),'overig']].filter(g=>g[1].length);
+  return groepen.map(([titel,ps,k])=>`<div class="sec-title">${esc(titel)} · ${ps.length}</div>` + ps.map(p=>{
+    const c=SP.contact[p.id]||{};
+    const meta=[c.email||'geen e-mail', c.telefoon||''].filter(Boolean).join(' · ');
+    return `<button class="card ${k}" onclick="openSpeler(${jsAttr(p.id)})">
+      <div class="card-main"><div class="names"><span class="n">${esc(p.naam)}</span></div>
+        <div class="chips">${p.nnb_pauze?'<span class="chip beker">⏸ NNB-mail gepauzeerd</span>':''}<span class="chip" style="${c.email?'':'color:var(--orange)'}">${esc(meta)}</span></div>
+      </div><span class="card-go">›</span></button>`;
+  }).join('')).join('');
+}
+
+function openSpeler(id){
+  const p = id ? SP.lijst.find(x=>x.id===id) : null;
+  if(id && !p) return;
+  const c = p ? (SP.contact[p.id]||{}) : {};
+  sheet=null; scoreSheet=null; mddSheet=null;
+  spSheet = { id, nieuw:!p, naam:p?p.naam:'', divisie:p?(p.divisie||''):'', email:c.email||'', telefoon:c.telefoon||'',
+              pauze:!!(p&&p.nnb_pauze), code:c.code||'', bezig:false, fout:'', mailRes:'' };
+  renderSpSheet();
+  $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function spVeld(k,v){ if(spSheet) spSheet[k]=v; }
+function renderSpSheet(){
+  const s=spSheet; if(!s) return;
+  const divOpt=[['','— geen —'],['Eredivisie','Eredivisie'],['Eerste Divisie','Eerste Divisie']]
+    .map(([v,l])=>`<option value="${esc(v)}" ${s.divisie===v?'selected':''}>${esc(l)}</option>`).join('');
+  $('#sheet').innerHTML = `
+    <div class="sheet-kop">
+      <div style="flex:1;min-width:0;"><div class="names"><span class="n">${s.nieuw?'Nieuwe speler':esc(s.naam)}</span></div>
+      <div class="nu">${s.nieuw?'Toevoegen aan de spelerslijst':'Gegevens en NNB-herinnering'}</div></div>
+      <button class="icon-btn" onclick="sluitSheet()" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div style="height:10px"></div>
+      ${s.nieuw?`<div class="veld"><label>Naam</label><input class="inp" id="spNaam" value="${esc(s.naam)}" oninput="spVeld('naam',this.value)" autocomplete="off"></div>`:''}
+      <div class="veld"><label>Divisie</label><select class="inp" onchange="spVeld('divisie',this.value)">${divOpt}</select></div>
+      <div class="veld"><label>E-mail</label><input class="inp" type="email" inputmode="email" autocomplete="off" value="${esc(s.email)}" oninput="spVeld('email',this.value)"></div>
+      <div class="veld"><label>Telefoon</label><input class="inp" type="tel" inputmode="tel" autocomplete="off" value="${esc(s.telefoon)}" oninput="spVeld('telefoon',this.value)"></div>
+      <div class="toggle-row" style="margin:14px 2px 2px;color:var(--text);font-weight:700">
+        <span>⏸ NNB-herinnering pauzeren</span>
+        <label class="switch"><input type="checkbox" ${s.pauze?'checked':''} onchange="spVeld('pauze',this.checked)"><span></span></label></div>
+      <p class="muted" style="font-size:.8rem;margin:4px 2px 0;line-height:1.4">Bijv. bij vakantie, ziekte of een operatie. Geen wekelijkse NNB-mail over wedstrijden van deze speler, ook niet aan zijn tegenstanders.</p>
+      ${s.nieuw?'':`
+      <div class="sec-title">Meldingen-code (app)</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="inp" style="flex:1;font-family:monospace;letter-spacing:3px;font-weight:800;display:flex;align-items:center">${esc(s.code||'–')}</div>
+        <button class="btn btn-sec" style="min-height:46px" ${s.code&&s.email?'':'disabled'} onclick="spMailCode()">📧 Opnieuw mailen</button>
+      </div>
+      ${s.mailRes?`<div class="info" style="display:block">${esc(s.mailRes)}</div>`:''}
+      <p class="muted" style="font-size:.78rem;margin:10px 2px 0;line-height:1.4">Naam wijzigen of een speler verwijderen doe je in het volledige spelerbeheer, omdat de wedstrijden aan de naam gekoppeld zijn.</p>`}
+      ${s.fout?`<div class="warn">${esc(s.fout)}</div>`:''}
+    </div>
+    <div class="sheet-voet">
+      <button class="btn btn-sec" onclick="sluitSheet()">Annuleren</button>
+      <button class="btn btn-pri" ${s.bezig?'disabled':''} onclick="slaSpelerOp()">${s.bezig?'Bezig…':(s.nieuw?'Toevoegen':'Opslaan')}</button>
+    </div>`;
+}
+async function spMailCode(){
+  const s=spSheet; if(!s || !s.id) return;
+  if(!confirm(`De uitnodiging met de meldingen-code opnieuw mailen naar ${s.naam}?`)) return;
+  s.mailRes='Versturen…'; renderSpSheet();
+  try{ await contactFn('uitnodig', { speler_id:s.id }); if(spSheet===s){ s.mailRes='✓ Verstuurd naar '+s.email; renderSpSheet(); } }
+  catch(e){ if(spSheet===s){ s.mailRes='Versturen mislukt: '+e.message; renderSpSheet(); } }
+}
+async function slaSpelerOp(){
+  const s=spSheet; if(!s || s.bezig) return;
+  const naam=s.naam.trim(), email=s.email.trim()||null, telefoon=s.telefoon.trim()||null, divisie=s.divisie||null;
+  if(s.nieuw && !naam){ s.fout='Vul een naam in.'; renderSpSheet(); return; }
+  if(s.nieuw && SP.lijst.some(p=>norm(p.naam)===norm(naam))){ s.fout='Er bestaat al een speler met deze naam.'; renderSpSheet(); return; }
+  s.bezig=true; s.fout=''; renderSpSheet();
+  try{
+    let id=s.id;
+    if(s.nieuw){
+      const [rij] = await sbPost('spelers', { naam, divisie, nnb_pauze:s.pauze });
+      id=rij.id;
+    } else {
+      await sbPatch('spelers', id, { divisie, nnb_pauze:s.pauze });
+    }
+    const oud=SP.contact[id]||{};
+    if(s.nieuw ? (email||telefoon) : ((oud.email||null)!==email || (oud.telefoon||null)!==telefoon)){
+      try{ await contactFn('opslaan', { speler_id:id, email, telefoon }); }
+      catch(e){
+        if(e.status===401){ try{ localStorage.removeItem('kb_wl_beheer_ww'); }catch(x){} }
+        throw new Error((s.nieuw?'Speler toegevoegd, maar ':'')+'contactgegevens niet opgeslagen: '+e.message);
+      }
+    }
+    sluitSheet();
+    toast(s.nieuw?`Speler toegevoegd: ${naam}`:`Opgeslagen: ${s.naam}`,'groen');
+    await laadSpelersBeheer();
+    if(s.nieuw) laadData(true);
+  }catch(e){
+    if(spSheet!==s) return;
+    s.bezig=false; s.fout = navigator.onLine===false ? 'Geen internetverbinding, niet opgeslagen.' : e.message;
+    renderSpSheet();
+  }
 }
 function renderZoekResultaat(){ const r=$('#zoekRes'); if(r) r.innerHTML=htmlZoekResultaat(); }
 function htmlZoekResultaat(){
@@ -804,7 +981,7 @@ function openVerzet(id){
   laadData(true); // verse stand ophalen zodat conflicten kloppen
 }
 function sluitSheet(){
-  sheet=null; scoreSheet=null; mddSheet=null;
+  sheet=null; scoreSheet=null; mddSheet=null; spSheet=null;
   $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open');
   document.body.style.overflow='';
 }
@@ -1764,7 +1941,7 @@ async function slaMddOp(){
   }
 }
 verversMddLive();
-setInterval(()=>{ if(document.visibilityState==='visible' && !sheet && !scoreSheet && !mddSheet) laadData(true); }, 60000);
+setInterval(()=>{ if(document.visibilityState==='visible' && !sheet && !scoreSheet && !mddSheet && !spSheet) laadData(true); }, 60000);
 setInterval(()=>{ if(document.visibilityState==='visible' && !mddSheet) verversMddLive(); }, 60000);
 window.addEventListener('online', ()=>laadData(true));
 naarView('avond');
