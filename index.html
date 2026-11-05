@@ -115,18 +115,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .ig{flex:1;display:flex;flex-direction:column;gap:4px;}
 .lbl{font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:0.5px;}
 
-/* ── BEKER ── */
-.beker-wrap{border:1px solid rgba(245,158,11,0.25);border-radius:8px;overflow:hidden;background:linear-gradient(135deg,var(--s2),var(--s1));}
-.beker-hdr{padding:10px 13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;background:rgba(245,158,11,0.05);border-bottom:1px solid rgba(245,158,11,0.15);}
-.beker-hdr:hover{background:rgba(245,158,11,0.1);}
-.beker-hdr-title{font-size:0.75rem;font-weight:700;letter-spacing:1px;color:var(--beker);text-transform:uppercase;}
-.beker-body{padding:13px;display:none;}
-.beker-body.open{display:block;}
-.bo-row{display:flex;gap:5px;margin-bottom:10px;}
-.bo-btn{flex:1;padding:6px;border-radius:4px;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.06);color:var(--orange);font-size:0.75rem;font-weight:700;cursor:pointer;transition:all 0.15s;font-family:inherit;}
-.bo-btn.active{background:var(--beker);color:#000;border-color:var(--beker);}
-.bo-btn:hover:not(.active){background:rgba(245,158,11,0.15);}
-
 /* ── AVOND OVERZICHT ── */
 .avond-banner{background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(168,85,247,0.08));border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;}
 .avond-banner-title{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
@@ -590,38 +578,6 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
   <!-- LINKS -->
   <div class="panel-left">
 
-    <!-- BEKER -->
-    <div class="sec">
-      <div class="beker-wrap">
-        <div class="beker-hdr" onclick="toggleBeker()">
-          <span class="beker-hdr-title">🏆 Bekerwedstrijd toevoegen</span>
-          <span id="bekerArrow" style="color:var(--beker);">►</span>
-        </div>
-        <div class="beker-body" id="bekerBody">
-          <div class="row" style="margin-bottom:9px;">
-            <div class="ig"><div class="lbl">THUIS</div><select class="sel" id="bekerThuis"><option value="">-- kies --</option></select></div>
-            <div class="ig"><div class="lbl">UIT</div><select class="sel" id="bekerUit"><option value="">-- kies --</option></select></div>
-          </div>
-          <div class="row" style="margin-bottom:9px;">
-            <div class="ig"><div class="lbl">DATUM</div><input type="date" class="inp" id="bekerDatum"></div>
-            <div class="ig"><div class="lbl">TIJDSTIP</div><input type="text" class="inp" id="bekerTijd" placeholder="19:30"></div>
-          </div>
-          <div style="margin-bottom:9px;">
-            <div class="lbl" style="margin-bottom:5px;">FORMAT</div>
-            <div class="bo-row">
-              <button class="bo-btn active" id="bo5" onclick="selectBO('Best of 5')">Bo5</button>
-              <button class="bo-btn" id="bo7" onclick="selectBO('Best of 7')">Bo7</button>
-              <button class="bo-btn" id="bo9" onclick="selectBO('Best of 9')">Bo9</button>
-            </div>
-          </div>
-          <div style="margin-bottom:10px;"><div class="lbl" style="margin-bottom:4px;">RONDE</div><input type="text" class="inp" id="bekerRonde" placeholder="bijv. 1/4 finale"></div>
-          <div style="margin-bottom:10px;"><div class="lbl" style="margin-bottom:4px;">GEWIJZIGD DOOR</div><select class="sel" id="bekerDoor"><option value="">-- kies --</option></select></div>
-          <button class="btn btn-orange btn-full" onclick="voegBekerToe(true)">📧 Plan in en informeer</button>
-          <button class="btn btn-ghost btn-full" style="margin-top:8px;color:var(--nnb);border-color:rgba(6,182,212,0.3);" onclick="voegBekerToe(false)">🕓 Plan in zonder datum (NNB, geen mail)</button>
-        </div>
-      </div>
-    </div>
-
     <!-- WERKLAST -->
     <div class="sec" id="werklastSec" style="display:none;">
       <div class="sec-title">📊 Wedstrijden per speler</div>
@@ -941,8 +897,6 @@ function jsAttr(v){ return escapeHtml(JSON.stringify(v === undefined ? null : v)
 let wedstrijden = [];
 let spelers     = [];
 let wedstrijdleiders = [];
-let gekozenBO    = 'Best of 5';
-let bekerOpen    = false;
 let verzetId     = null;
 let verzetPlan   = null;   // voorstel van 'Ruimte maken' in de verzet-modal
 let uitslagBord  = null;
@@ -1037,7 +991,6 @@ async function laadData() {
     if (bordVersie === bordSyncVersie) pasBordStandToe(wedstrijden, dcRows.filter(r=>r.sleutel.startsWith('bord_schrijver_')));
     setSync('ok','● VERBONDEN');
     bouwDatumFilter();
-    vulBekerDropdowns();
     vulVerzetDoorDropdown();
     renderBoards();
     renderAll();
@@ -2982,102 +2935,6 @@ async function herstelWedstrijd(id) {
 // ══════════════════════════════════════════
 //  BEKER
 // ══════════════════════════════════════════
-function toggleBeker() {
-  bekerOpen=!bekerOpen;
-  document.getElementById('bekerBody').classList.toggle('open',bekerOpen);
-  document.getElementById('bekerArrow').textContent=bekerOpen?'▼':'►';
-}
-
-function selectBO(w) {
-  gekozenBO=w;
-  ['bo5','bo7','bo9'].forEach(id=>document.getElementById(id).classList.remove('active'));
-  const map={'Best of 5':'bo5','Best of 7':'bo7','Best of 9':'bo9'};
-  if(map[w]) document.getElementById(map[w]).classList.add('active');
-}
-
-function vulBekerDropdowns() {
-  const opts='<option value="">-- kies --</option>'+
-    spelers.map(s=>`<option value="${escapeHtml(s.naam)}">${escapeHtml(s.naam)}</option>`).join('');
-  document.getElementById('bekerThuis').innerHTML=opts;
-  document.getElementById('bekerUit').innerHTML=opts;
-  const doorSel=document.getElementById('bekerDoor');
-  if (doorSel) {
-    const huidige=doorSel.value;
-    doorSel.innerHTML='<option value="">-- kies --</option>'+
-      wedstrijdleiders.map(w=>`<option value="${escapeHtml(w.naam)}">${escapeHtml(w.naam)}</option>`).join('');
-    doorSel.value=huidige||'';
-  }
-}
-
-// informeer=true  → "Plan in en informeer": datum verplicht, mailtje naar spelers + wedstrijdleiding
-// informeer=false → "Plan in zonder datum": datum optioneel (NNB), géén mail — handig om na de loting
-//                    in één keer alle bekerwedstrijden vast te leggen zonder spelers te storen.
-async function voegBekerToe(informeer) {
-  const thuis=document.getElementById('bekerThuis').value;
-  const uit=document.getElementById('bekerUit').value;
-  const datumInp=document.getElementById('bekerDatum').value;
-  const tijd=document.getElementById('bekerTijd').value.trim();
-  const ronde=document.getElementById('bekerRonde').value.trim();
-  const gewijzigdDoor=document.getElementById('bekerDoor').value;
-  if(!thuis||!uit){toast('Kies twee spelers','red');return;}
-  if(thuis===uit){toast('Kies twee verschillende spelers','red');return;}
-  if(informeer && !datumInp){toast('Kies een datum (of gebruik "Plan in zonder datum")','red');return;}
-
-  const isNNB = !informeer && !datumInp;
-  // datum is verplicht in de database; bij NNB zonder gekozen datum gebruiken we vandaag als placeholder,
-  // deze wordt nergens getoond zolang datum_nnb=true staat (matches staan los in de NNB-balk).
-  const datum = datumInp || new Date().toISOString().slice(0,10);
-
-  // ── CAPACITEITSCHECK: max MAX_PER_AVOND wedstrijden per avond (bekerwedstrijden tellen nu ook mee) ──
-  if (!isNNB) {
-    const wedstrijdenOpDatum = wedstrijden.filter(w => w.datum === datum && !w.datum_nnb);
-    const totaalNaToevoegen = wedstrijdenOpDatum.length + 1;
-    if (totaalNaToevoegen > MAX_PER_AVOND) {
-      const msg = `⚠ WAARSCHUWING\n\n${fmtDatum(datum)} heeft al ${wedstrijdenOpDatum.length} wedstrijden.\nDeze zou het totaal op ${totaalNaToevoegen} brengen (max ${MAX_PER_AVOND}).\n\nZeker doorgaan?`;
-      if (!confirm(msg)) { toast('Toevoegen geannuleerd','orange'); return; }
-    }
-  }
-
-  try {
-    const [nieuw]=await sbPost('wedstrijden',{
-      datum, tijdstip:tijd||null, divisie:`Beker (${gekozenBO})`, thuis, uit,
-      speelronde:ronde||null, status:'gepland', is_inhaal:false, datum_nnb:isNNB
-    });
-    wedstrijden.unshift(nieuw);
-    document.getElementById('bekerThuis').value='';
-    document.getElementById('bekerUit').value='';
-    document.getElementById('bekerDatum').value='';
-    document.getElementById('bekerTijd').value='';
-    document.getElementById('bekerRonde').value='';
-
-    if (informeer) {
-      document.getElementById('datumFilter').value=datum;
-      bouwDatumFilter(); document.getElementById('datumFilter').value=datum;
-    }
-    renderAll();
-
-    if (isNNB) {
-      toast(`🕓 Bekerwedstrijd ${thuis} vs ${uit} vastgelegd (NNB, geen mail verstuurd)`,'orange');
-      return;
-    }
-
-    toast(`🏆 Bekerwedstrijd toegevoegd op ${fmtDatum(datum)}`,'orange');
-
-    if (informeer) {
-      try {
-        const res = await fetch(`${SB_URL}/functions/v1/notify-wedstrijd`, {
-          method:'POST', headers:HDR,
-          body: JSON.stringify({ type:'nieuwe_beker', wedstrijd_id:nieuw.id, gewijzigd_door:gewijzigdDoor||null })
-        });
-        if(!res.ok) throw new Error(await res.text());
-        toast('📧 Spelers geïnformeerd over nieuwe bekerwedstrijd','green');
-      } catch(mailErr) {
-        toast(`⚠ Wedstrijd toegevoegd, maar mail mislukt: ${mailErr.message}`,'red');
-      }
-    }
-  } catch(e){toast(`Fout: ${e.message}`,'red');}
-}
-
 async function verwijderBeker(id) {
   if(!confirm('Bekerwedstrijd verwijderen?')) return;
   try {
