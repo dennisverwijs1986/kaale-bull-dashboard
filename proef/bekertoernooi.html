@@ -879,15 +879,21 @@ function bepaalTeLoten(state){
     return { type:'fase', faseId:'wr3', pool };
   }
 
-  const generiek = [
-    ['wr3','wr_kwart'], ['vr3','vr_kwart'],
-    ['wr_kwart','wr_halve'], ['vr_kwart','vr_halve'],
-    ['wr_halve','wr_finale'], ['vr_halve','vr_finale'],
+  // Kwartfinales, halve finales en finales van beide takken worden samen
+  // geloot (besloten 06-11-2026): pas als de ronde ervoor in de winnaarsronde
+  // én in de verliezersronde klaar is, dan eerst de WR en direct daarna de VR.
+  const paren = [
+    [['wr3','vr3'], ['wr_kwart','vr_kwart']],
+    [['wr_kwart','vr_kwart'], ['wr_halve','vr_halve']],
+    [['wr_halve','vr_halve'], ['wr_finale','vr_finale']],
   ];
-  for(const [van,naar] of generiek){
-    if(fases[van] && fases[van].afgerond && !fases[naar]){
-      const pool = fases[van].matches.map(m=>m.winnaar);
-      return { type:'fase', faseId:naar, pool };
+  for(const [bronnen, doelen] of paren){
+    if(!bronnen.every(id=>fases[id] && fases[id].afgerond)) continue;
+    for(let k = 0; k < 2; k++){
+      if(!fases[doelen[k]]){
+        const pool = fases[bronnen[k]].matches.map(m=>m.winnaar);
+        return { type:'fase', faseId:doelen[k], pool };
+      }
     }
   }
 

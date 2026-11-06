@@ -929,16 +929,23 @@ if(!window.BEKER_PROEF){ // proefmap: zonder proefmodus nooit verder
       return { type:'fase', faseId:'wr3', pool:poolWr3 };
     }
 
-    var generiek = [
-      ['wr3','wr_kwart'], ['vr3','vr_kwart'],
-      ['wr_kwart','wr_halve'], ['vr_kwart','vr_halve'],
-      ['wr_halve','wr_finale'], ['vr_halve','vr_finale'],
+    // Kwartfinales, halve finales en finales van beide takken worden samen
+    // geloot (besloten 06-11-2026): pas als de ronde ervoor in de winnaarsronde
+    // én in de verliezersronde klaar is, dan eerst de WR en direct daarna de VR.
+    var paren = [
+      [['wr3','vr3'], ['wr_kwart','vr_kwart']],
+      [['wr_kwart','vr_kwart'], ['wr_halve','vr_halve']],
+      [['wr_halve','vr_halve'], ['wr_finale','vr_finale']],
     ];
-    for(var i = 0; i < generiek.length; i++){
-      var van = generiek[i][0], naar = generiek[i][1];
-      if(fases[van] && fases[van].afgerond && !fases[naar]){
-        var poolGeneriek = fases[van].matches.map(function(m){ return m.winnaar; });
-        return { type:'fase', faseId:naar, pool:poolGeneriek };
+    for(var i = 0; i < paren.length; i++){
+      var bronnen = paren[i][0], doelen = paren[i][1];
+      var beideKlaar = bronnen.every(function(id){ return fases[id] && fases[id].afgerond; });
+      if(!beideKlaar) continue;
+      for(var j = 0; j < 2; j++){
+        if(!fases[doelen[j]]){
+          var poolGeneriek = fases[bronnen[j]].matches.map(function(m){ return m.winnaar; });
+          return { type:'fase', faseId:doelen[j], pool:poolGeneriek };
+        }
       }
     }
 

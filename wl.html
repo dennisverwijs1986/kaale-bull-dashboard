@@ -1483,8 +1483,10 @@ function bepaalTeLotenB(st){
   }
   if(f.vr2 && f.vr2.afgerond && !f.vr3 && !st.vr3Voorbereiding) return { faseId:'vr3', pool:[...f.vr2.matches.map(m=>m.winnaar), ...(f.vr2.bye||[])] };
   if(f.wr2 && f.wr2.afgerond && !f.wr3) return { faseId:'wr3', pool:f.wr2.matches.map(m=>m.winnaar) };
-  for(const [van,naar] of [['wr3','wr_kwart'],['vr3','vr_kwart'],['wr_kwart','wr_halve'],['vr_kwart','vr_halve'],['wr_halve','wr_finale'],['vr_halve','vr_finale']]){
-    if(f[van] && f[van].afgerond && !f[naar]) return { faseId:naar, pool:f[van].matches.map(m=>m.winnaar) };
+  // Kwart-/halve finales en finales van beide takken samen loten (06-11-2026)
+  for(const [bronnen, doelen] of [[['wr3','vr3'],['wr_kwart','vr_kwart']],[['wr_kwart','vr_kwart'],['wr_halve','vr_halve']],[['wr_halve','vr_halve'],['wr_finale','vr_finale']]]){
+    if(!bronnen.every(id=>f[id] && f[id].afgerond)) continue;
+    for(let k=0;k<2;k++) if(!f[doelen[k]]) return { faseId:doelen[k], pool:f[bronnen[k]].matches.map(m=>m.winnaar) };
   }
   return null;
 }
