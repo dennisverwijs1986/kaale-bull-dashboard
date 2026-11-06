@@ -931,7 +931,8 @@ if(!window.BEKER_PROEF){ // proefmap: zonder proefmodus nooit verder
 
     // Kwartfinales, halve finales en finales van beide takken worden samen
     // geloot (besloten 06-11-2026): pas als de ronde ervoor in de winnaarsronde
-    // én in de verliezersronde klaar is, dan eerst de WR en direct daarna de VR.
+    // én in de verliezersronde klaar is, dan eerst de VR en direct daarna de WR
+    // (altijd eerst de verliezersronde loten, besloten 06-11-2026).
     var paren = [
       [['wr3','vr3'], ['wr_kwart','vr_kwart']],
       [['wr_kwart','vr_kwart'], ['wr_halve','vr_halve']],
@@ -941,7 +942,7 @@ if(!window.BEKER_PROEF){ // proefmap: zonder proefmodus nooit verder
       var bronnen = paren[i][0], doelen = paren[i][1];
       var beideKlaar = bronnen.every(function(id){ return fases[id] && fases[id].afgerond; });
       if(!beideKlaar) continue;
-      for(var j = 0; j < 2; j++){
+      for(var j = 1; j >= 0; j--){
         if(!fases[doelen[j]]){
           var poolGeneriek = fases[bronnen[j]].matches.map(function(m){ return m.winnaar; });
           return { type:'fase', faseId:doelen[j], pool:poolGeneriek };

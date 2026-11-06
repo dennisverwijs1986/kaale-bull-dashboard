@@ -881,7 +881,8 @@ function bepaalTeLoten(state){
 
   // Kwartfinales, halve finales en finales van beide takken worden samen
   // geloot (besloten 06-11-2026): pas als de ronde ervoor in de winnaarsronde
-  // én in de verliezersronde klaar is, dan eerst de WR en direct daarna de VR.
+  // én in de verliezersronde klaar is, dan eerst de VR en direct daarna de WR
+  // (altijd eerst de verliezersronde loten, besloten 06-11-2026).
   const paren = [
     [['wr3','vr3'], ['wr_kwart','vr_kwart']],
     [['wr_kwart','vr_kwart'], ['wr_halve','vr_halve']],
@@ -889,7 +890,7 @@ function bepaalTeLoten(state){
   ];
   for(const [bronnen, doelen] of paren){
     if(!bronnen.every(id=>fases[id] && fases[id].afgerond)) continue;
-    for(let k = 0; k < 2; k++){
+    for(let k = 1; k >= 0; k--){
       if(!fases[doelen[k]]){
         const pool = fases[bronnen[k]].matches.map(m=>m.winnaar);
         return { type:'fase', faseId:doelen[k], pool };

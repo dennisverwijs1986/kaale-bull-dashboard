@@ -1486,7 +1486,7 @@ function bepaalTeLotenB(st){
   // Kwart-/halve finales en finales van beide takken samen loten (06-11-2026)
   for(const [bronnen, doelen] of [[['wr3','vr3'],['wr_kwart','vr_kwart']],[['wr_kwart','vr_kwart'],['wr_halve','vr_halve']],[['wr_halve','vr_halve'],['wr_finale','vr_finale']]]){
     if(!bronnen.every(id=>f[id] && f[id].afgerond)) continue;
-    for(let k=0;k<2;k++) if(!f[doelen[k]]) return { faseId:doelen[k], pool:f[bronnen[k]].matches.map(m=>m.winnaar) };
+    for(let k=1;k>=0;k--) if(!f[doelen[k]]) return { faseId:doelen[k], pool:f[bronnen[k]].matches.map(m=>m.winnaar) };
   }
   return null;
 }
