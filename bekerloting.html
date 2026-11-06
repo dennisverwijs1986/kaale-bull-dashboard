@@ -151,6 +151,8 @@
     cursor:pointer;
   }
   .done-line-link:hover{ color: var(--ink); border-color: var(--gold); }
+  .done-line-next{ background: var(--gold); color: var(--bg-deep); border-color: var(--gold); font-weight: 600; }
+  .done-line-next:hover{ color: var(--bg-deep); filter: brightness(1.08); }
 
   /* "Niets te loten"/"toernooi afgerond"-melding hergebruikt dit kaart-uiterlijk;
      position:relative voorkomt dat de knop erin naar de hoek van het scherm springt. */
@@ -376,7 +378,7 @@
     list-style:none;
     margin:0; padding:0 4px 4px 0;
     display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
     align-content:start;
     gap: 0.7vh 0.7vw;
     overflow-y:auto;
@@ -386,9 +388,10 @@
 
   .matches li{
     display:grid;
-    grid-template-columns: auto 1fr auto 1fr auto;
+    grid-template-columns: auto minmax(0,1fr) auto minmax(0,1fr) auto;
     align-items:center;
     gap: 0.35em;
+    min-width: 0;
     background: rgba(0,0,0,0.2);
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -433,6 +436,10 @@
   }
   .matches li .home{ text-align:right; }
   .matches li .away{ text-align:left; }
+  .matches li .home, .matches li .away{ min-width:0; overflow-wrap:anywhere; }
+  /* Kaart met een wachtplek ("wacht op winnaar wedstrijd 3"): de rechterkant
+     is uitleg, geen naam — iets kleiner en gedimd. */
+  .matches li .away.wacht{ color: var(--ink-dim); font-size: 0.88em; }
 
   .empty-note{
     color: var(--ink-dim);
@@ -443,6 +450,8 @@
   .remaining-list{
     display:flex;
     flex-wrap:wrap;
+    align-content:flex-start;
+    align-items:flex-start;
     gap: 0.5em;
     overflow-y:auto;
     flex: 1 1 auto;
@@ -774,6 +783,7 @@
   <p class="done-line" id="doneLine" style="display:none;">
     <span class="done-line-check" aria-hidden="true">&#10003;</span>
     <span id="doneLineText">Loting compleet</span>
+    <button type="button" class="done-line-link done-line-next" id="volgendeLotingBtn" style="display:none;" onclick="location.reload()"></button>
     <a href="bekertoernooi.html" class="done-line-link" id="doneLineCta">🏆 Naar het bekertoernooi &rarr;</a>
     <button type="button" class="done-line-link" id="resetBtnCompact">&#8630; Opnieuw beginnen</button>
   </p>
@@ -808,8 +818,8 @@
   </div>
 
   <div class="card wr2-prep-card" id="wr2PrepCard" style="display:none;">
-    <h2>Voorbereiding winnaarsronde 1</h2>
-    <p class="empty-note" style="margin-bottom:1vh;">Deze bye-spelers spelen straks tegen elkaar of tegen de winnaar van een voorronde-wedstrijd — zo kunnen twee voorronde-winnaars elkaar nooit in winnaarsronde 1 treffen.</p>
+    <h2 id="wr2PrepTitle">Voorbereiding winnaarsronde 1</h2>
+    <p class="empty-note" id="wr2PrepDesc" style="margin-bottom:1vh;">Deze bye-spelers spelen straks tegen elkaar of tegen de winnaar van een voorronde-wedstrijd — zo kunnen twee voorronde-winnaars elkaar nooit in winnaarsronde 1 treffen.</p>
     <ul class="matches" id="wr2PrepList"></ul>
   </div>
 
@@ -863,7 +873,7 @@
     wr2:           { label:'Winnaarsronde 1',         tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
     vr2:           { label:'Verliezersronde 1',       tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
     vr3:           { label:'Verliezersronde 2',       tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
-    wr3:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['wr2','vr2'] },
+    wr3:           { label:'Winnaarsronde 2',         tak:'winnaarsronde', bo:5, dependsOn:['wr2'] },
     wr_kwart:      { label:'Winnaarsronde — kwartfinale', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
     vr_kwart:      { label:'Verliezersronde — kwartfinale', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
     wr_halve:      { label:'Winnaarsronde — halve finale', tak:'winnaarsronde', bo:7, dependsOn:['wr_kwart'] },
@@ -898,15 +908,15 @@
       // x === 0: geen loting nodig, bekertoernooi.html vult dit automatisch
     }
 
-    if(fases.vr2 && fases.vr2.afgerond && !fases.vr3){
+    if(fases.vr2 && fases.vr2.afgerond && !fases.vr3 && !toernooiState.vr3Voorbereiding){
       var poolVr3 = fases.vr2.matches.map(function(m){ return m.winnaar; }).concat(fases.vr2.bye || []);
       return { type:'fase', faseId:'vr3', pool:poolVr3 };
     }
 
-    // WR3 wacht — net als VR3 — tot VR2 helemaal is uitgespeeld, zodat "ronde 3"
-    // in zijn geheel als nieuwe fase klaarstaat (in plaats van dat WR3 al eerder
-    // los zou kunnen lopen terwijl VR2 nog bezig is).
-    if(fases.wr2 && fases.wr2.afgerond && fases.vr2 && fases.vr2.afgerond && !fases.wr3){
+    // WR3 kan geloot worden zodra WR2 helemaal is uitgespeeld (besloten
+    // 06-11-2026: niet meer wachten tot VR2 ook klaar is). Staat er ook een
+    // tussenronde klaar, dan komt die eerst; daarna volgt WR3 direct.
+    if(fases.wr2 && fases.wr2.afgerond && !fases.wr3){
       var poolWr3 = fases.wr2.matches.map(function(m){ return m.winnaar; });
       return { type:'fase', faseId:'wr3', pool:poolWr3 };
     }
@@ -952,6 +962,23 @@
   }
 
   function powerOf2LE(n){ var p = 1; while(p * 2 <= n) p *= 2; return p; }
+
+  // Bij de voorronde én bij de tussenronde gaan de bye-spelers niet los door:
+  // ze worden direct aan een plek in de volgende ronde gekoppeld. De eerst
+  // getrokken bye-spelers spelen tegen de winnaar van wedstrijd 1, 2, 3...
+  // en de rest speelt meteen tegen elkaar. Zo kunnen twee winnaars van de
+  // voor-/tussenronde elkaar in de volgende ronde nooit treffen.
+  function heeftVoorbereiding(){
+    return state.faseId === "ronde1" || state.faseType === "tussenronde";
+  }
+  // Naam van de ronde waar de bye-spelers in terechtkomen.
+  function volgendeRondeNaam(){
+    return state.faseId === "ronde1" ? "winnaarsronde 1" : "verliezersronde 2";
+  }
+  function bronRondeNaam(){
+    return state.faseId === "ronde1" ? "voorronde" : "tussenronde";
+  }
+  function hoofdletter(t){ return t.charAt(0).toUpperCase() + t.slice(1); }
   // Paart namen twee aan twee, in de volgorde waarin ze worden meegegeven — voor
   // als die volgorde al willekeurig is doordat hij rechtstreeks uit een trekking
   // via het rad komt (bv. de WR2-bye's, in de volgorde waarin ze zijn getrokken).
@@ -1036,11 +1063,23 @@
   // voor deze specifieke fase (dan wordt er verder gegaan i.p.v. een nieuwe pool
   // op te halen). Elke fase heeft zijn eigen storage-sleutel zodat een lopende
   // ronde1-loting en een lopende vr2-loting (weken later) elkaar nooit overschrijven.
-  function loadState(faseId){
+  // Voor elke fase na ronde 1 ligt de pool vast (verwachtePool): een bewaarde
+  // loting met andere namen is verouderd (bv. een oude test) en wordt genegeerd.
+  function zelfdeNamen(a, b){
+    if(!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    var x = a.slice().sort(), y = b.slice().sort();
+    for(var i = 0; i < x.length; i++){ if(x[i] !== y[i]) return false; }
+    return true;
+  }
+  function loadState(faseId, verwachtePool){
     try{
       var raw = localStorage.getItem(storageKeyFor(faseId));
       if(!raw) return false;
       var saved = JSON.parse(raw);
+      if(verwachtePool && saved && !zelfdeNamen(saved.baseNames, verwachtePool)){
+        localStorage.removeItem(storageKeyFor(faseId));
+        return false;
+      }
       if(saved && Array.isArray(saved.baseNames) && saved.baseNames.length){
         state.faseId = faseId;
         state.faseType = saved.faseType || (faseId === "ronde1" ? "ronde1" : "fase");
@@ -1140,7 +1179,7 @@
     byeCountPill.textContent = state.bye.length;
     byeList.innerHTML = "";
 
-    if(state.faseId === "ronde1"){
+    if(heeftVoorbereiding()){
       // Toon meteen de twee herkenbare groepen uit de trekking: eerst de
       // tegenstanders voor de wedstrijdwinnaars, dan de directe ronde-2-koppels.
       byeList.className = "";
@@ -1153,8 +1192,8 @@
         li.innerHTML =
           '<span class="num">&mdash;</span>' +
           '<span class="home">' + escapeHtml(state.bye[i]) + '</span>' +
-          '<span class="vs">tegen winnaar</span>' +
-          '<span class="away">wedstrijd ' + (i + 1) + '</span>';
+          '<span class="vs">vs</span>' +
+          '<span class="away wacht">winnaar wedstrijd ' + (i + 1) + '</span>';
         ul.appendChild(li);
       }
 
@@ -1198,6 +1237,11 @@
       return;
     }
     wr2PrepList.innerHTML = "";
+    var prepTitle = document.getElementById("wr2PrepTitle");
+    var prepDesc = document.getElementById("wr2PrepDesc");
+    if(prepTitle) prepTitle.textContent = "Voorbereiding " + volgendeRondeNaam();
+    if(prepDesc) prepDesc.textContent = "Deze bye-spelers spelen straks tegen elkaar of tegen de winnaar van een " + bronRondeNaam() +
+      "-wedstrijd — zo kunnen twee " + bronRondeNaam() + "-winnaars elkaar nooit in " + volgendeRondeNaam() + " treffen.";
     state.wr2Prep.byeMatches.forEach(function(m, idx){
       var li = document.createElement("li");
       li.innerHTML =
@@ -1215,8 +1259,8 @@
       li.innerHTML =
         '<span class="num">&mdash;</span>' +
         '<span class="home">' + escapeHtml(slot.byeSpeler) + '</span>' +
-        '<span class="vs">wacht op</span>' +
-        '<span class="away">winnaar wedstrijd ' + slot.winnaarVanWedstrijd + (vsText ? " (" + vsText + ")" : "") + '</span>' +
+        '<span class="vs">vs</span>' +
+        '<span class="away wacht">winnaar wedstrijd ' + slot.winnaarVanWedstrijd + (vsText ? " (" + vsText + ")" : "") + '</span>' +
         '<span class="sync-badge off"></span>';
       wr2PrepList.appendChild(li);
     });
@@ -1314,10 +1358,10 @@
       }
     } else if(!byeDone){
       var resterendBye = targets.byeTarget - state.bye.length;
-      if(state.faseId === "ronde1" && state.bye.length < targets.matchesTarget){
+      if(heeftVoorbereiding() && state.bye.length < targets.matchesTarget){
         statusLine.innerHTML = "Trek de tegenstander voor de winnaar van wedstrijd <strong>" + (state.bye.length + 1) + "</strong> &mdash; nog <strong>" + resterendBye + "</strong> bye-spelers te gaan.";
-      } else if(state.faseId === "ronde1"){
-        statusLine.innerHTML = "Trek de spelers voor de directe koppels in winnaarsronde 1 &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
+      } else if(heeftVoorbereiding()){
+        statusLine.innerHTML = "Trek de spelers voor de directe koppels in " + volgendeRondeNaam() + " &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
       } else {
         statusLine.innerHTML = "Trek een bye-speler &mdash; nog <strong>" + resterendBye + "</strong> te gaan.";
       }
@@ -1389,7 +1433,7 @@
         '<span class="reveal-pair-name">' + escapeHtml(uit) + '</span>'
       : escapeHtml("wedstrijd " + wedstrijdNr);
     showReveal(
-      '<p class="reveal-eyebrow">Winnaarsronde 1 — tegenstander bekend</p>' +
+      '<p class="reveal-eyebrow">' + escapeHtml(hoofdletter(volgendeRondeNaam())) + ' — tegenstander bekend</p>' +
       '<div class="reveal-vs-row">' +
         '<p class="reveal-name gold">' + escapeHtml(byeSpeler) + '</p>' +
         '<p class="reveal-vs-label">vs</p>' +
@@ -1468,8 +1512,8 @@
         if(newMatchIndex >= 0 && state.syncEnabled && state.faseId === "ronde1"){
           syncMatch(state.matches[newMatchIndex], newMatchIndex);
         }
-      } else if(state.faseId === "ronde1"){
-        // Fase 2 bij ronde 1 is opgeknipt in twee herkenbare stappen:
+      } else if(heeftVoorbereiding()){
+        // Fase 2 bij ronde 1 (en bij de tussenronde) is opgeknipt in twee herkenbare stappen:
         //  2a) eerst de tegenstanders voor de winnaars van wedstrijd 1 t/m x,
         //      één voor één, elk direct gekoppeld aan "winnaar wedstrijd N";
         //  2b) daarna de resterende bye-spelers, die in ronde 2 meteen tegen
@@ -1485,11 +1529,11 @@
         } else {
           var subIdx = byeIdxBeforePush - targets.matchesTarget;
           if(subIdx % 2 === 0){
-            await revealSingleName(winnerName, "Getrokken — koppel winnaarsronde 1");
+            await revealSingleName(winnerName, "Getrokken — koppel " + volgendeRondeNaam());
           } else {
             var eersteNaam = state.bye[state.bye.length - 1];
             var pairNr = Math.floor(subIdx / 2) + 1;
-            await revealMatch(pairNr, eersteNaam, winnerName, "Winnaarsronde 1 — koppel " + pairNr);
+            await revealMatch(pairNr, eersteNaam, winnerName, hoofdletter(volgendeRondeNaam()) + " — koppel " + pairNr);
           }
         }
         state.bye.push(winnerName);
@@ -1627,6 +1671,40 @@
       renderMatches();
     }
 
+    // Tussenronde: de bye-spelers zijn tijdens het trekken al gekoppeld (zie
+    // spin()): de eerst getrokken bye-spelers spelen in verliezersronde 2 tegen
+    // de winnaar van tussenronde-wedstrijd 1, 2, 3..., de rest speelt daar
+    // meteen tegen elkaar. Die directe koppels gaan nu al als NNB-wedstrijd
+    // naar de planning; bekertoernooi.html maakt er fase vr3 van.
+    var vr3Voorbereiding = null;
+    if(state.faseType === "tussenronde"){
+      var preSeedT = state.bye.slice(0, targets.matchesTarget);
+      var directeKoppels = pairSequential(state.bye.slice(targets.matchesTarget));
+      var vr3Fase = FASES.vr3;
+      if(state.syncEnabled){
+        for(var d = 0; d < directeKoppels.length; d++){
+          try{
+            var rowsD = await postWedstrijd(directeKoppels[d].a, directeKoppels[d].b, "Beker " + vr3Fase.tak + " (Bo" + vr3Fase.bo + ")");
+            directeKoppels[d].sync = "ok";
+            if(rowsD && rowsD[0]) directeKoppels[d]._wedstrijdId = rowsD[0].id;
+          }catch(e){
+            directeKoppels[d].sync = "error";
+          }
+        }
+      }
+      var slotsT = preSeedT.map(function(naam, i){ return { byeSpeler: naam, winnaarVanWedstrijd: i + 1 }; });
+      state.wr2Prep = { byeMatches: directeKoppels, slots: slotsT };
+      renderWr2Prep();
+      vr3Voorbereiding = {
+        byeMatches: directeKoppels.map(function(m){
+          var obj = { a: m.a, b: m.b, winnaar: null, sync: m.sync || null, _tak: vr3Fase.tak };
+          if(m._wedstrijdId !== undefined) obj._wedstrijdId = m._wedstrijdId;
+          return obj;
+        }),
+        slots: slotsT
+      };
+    }
+
     var toernooiMatches = state.matches.map(function(m, i){
       var obj = { a: m.home, b: m.away, winnaar: null, nr: i + 1, sync: m.sync || null, _tak: fase.tak };
       if(m._wedstrijdId !== undefined) obj._wedstrijdId = m._wedstrijdId;
@@ -1644,6 +1722,20 @@
       var faseObj = { matches: toernooiMatches, afgerond: false };
       if(state.faseType === "tussenronde") faseObj.bye = state.bye.slice();
       toernooiState.fases[state.faseId] = faseObj;
+      if(vr3Voorbereiding){
+        toernooiState.vr3Voorbereiding = vr3Voorbereiding;
+        // Fase vr3 meteen aanmaken (zelfde opbouw als berekenVolgendeFases() in
+        // bekertoernooi.html), zodat hij direct overal zichtbaar is.
+        if(!toernooiState.fases.vr3){
+          var vr3Matches = vr3Voorbereiding.byeMatches.map(function(m){
+            var kopie = {}; for(var k2 in m){ kopie[k2] = m[k2]; } return kopie;
+          }).concat(vr3Voorbereiding.slots.map(function(sl){
+            return { a: null, b: sl.byeSpeler, winnaar: null, sync: null, _tak: "verliezersronde", _wachtOpWedstrijd: sl.winnaarVanWedstrijd, _wachtOpFase: "vr2" };
+          }));
+          vr3Matches.forEach(function(m, i){ m.nr = i + 1; });
+          toernooiState.fases.vr3 = { matches: vr3Matches, afgerond: false };
+        }
+      }
 
       var hdr = {};
       for(var k in SB_HDR){ hdr[k] = SB_HDR[k]; }
@@ -1658,6 +1750,23 @@
     state.afgerond = true;
     saveState();
     updateStatus();
+    toonVolgendeLoting();
+  }
+
+  // Na een afgeronde loting: staat er meteen nog een loting klaar (bv. na de
+  // tussenronde de winnaarsronde 2), dan verschijnt er een knop om daarmee
+  // door te gaan. De pagina herladen is genoeg: boot() pakt de volgende fase.
+  async function toonVolgendeLoting(){
+    var knop = document.getElementById("volgendeLotingBtn");
+    if(!knop) return;
+    try{
+      var res = await fetch(SB_URL + "/rest/v1/beker_toernooi?id=eq." + encodeURIComponent(SEIZOEN), { headers: SB_HDR });
+      var rows = res.ok ? await res.json() : [];
+      var volgende = rows.length ? bepaalTeLoten(rows[0].staat) : null;
+      if(!volgende || volgende.type === "ronde1" || volgende.faseId === state.faseId) return;
+      knop.textContent = "🎡 Volgende loting: " + FASES[volgende.faseId].label + " →";
+      knop.style.display = "";
+    }catch(e){ /* geen knop: de wedstrijdleider kan de pagina ook gewoon herladen */ }
   }
 
   function resetDraw(){
@@ -1737,8 +1846,8 @@
     if(matchesTitleEl) matchesTitleEl.textContent = faseNaam();
     var byeTitleEl = document.getElementById("byeCardTitle");
     if(byeTitleEl){
-      byeTitleEl.textContent = state.faseId === "ronde1"
-        ? "Bye — direct naar winnaarsronde 1"
+      byeTitleEl.textContent = heeftVoorbereiding()
+        ? "Bye — direct naar " + volgendeRondeNaam()
         : "Bye — automatisch door naar de volgende ronde";
     }
     // (De "Loting compleet"-tekst wordt gezet in updateStatus(), samen met het
@@ -1821,7 +1930,7 @@
       // 'fase' of 'tussenronde'
       state.faseId = teLoten.faseId;
       state.faseType = teLoten.type;
-      var hadSaved2 = loadState(teLoten.faseId);
+      var hadSaved2 = loadState(teLoten.faseId, teLoten.pool);
       if(!hadSaved2){
         state.baseNames = teLoten.pool.slice();
         state.remaining = teLoten.pool.slice();

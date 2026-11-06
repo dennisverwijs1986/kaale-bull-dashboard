@@ -1411,6 +1411,13 @@ async function bewaarBeker(staat){
   if(!r.ok) throw new Error(await r.text());
 }
 
+// Wachtplek ("wacht op winnaar wedstrijd X"): verwijst naar de voorronde (WR 1)
+// of, sinds 06-11-2026, naar de tussenronde (VR 2).
+function wachtBronB(st, m){
+  const bron = st && st.fases && st.fases[m._wachtOpFase || 'ronde1'];
+  return bron ? bron.matches.find(x=>x.nr===m._wachtOpWedstrijd) : null;
+}
+
 // Kopie van berekenVolgendeFases() uit bekertoernooi.html
 function berekenVolgendeFasesB(st){
   st.fases = st.fases || {};
@@ -1424,14 +1431,22 @@ function berekenVolgendeFasesB(st){
     matches.forEach((m,i)=>m.nr=i+1);
     st.fases.wr2 = { matches, afgerond:false };
   }
-  if(st.fases.wr2 && st.fases.ronde1){
-    st.fases.wr2.matches.forEach(m=>{
+  if(st.fases.vr2 && st.vr3Voorbereiding && !st.fases.vr3){
+    const { byeMatches, slots } = st.vr3Voorbereiding;
+    const slotMatches = slots.map(s=>({ a:null, b:s.byeSpeler, winnaar:null, sync:null, _tak:'verliezersronde', _wachtOpWedstrijd:s.winnaarVanWedstrijd, _wachtOpFase:'vr2' }));
+    const matches = [...byeMatches.map(m=>({...m})), ...slotMatches];
+    matches.forEach((m,i)=>m.nr=i+1);
+    st.fases.vr3 = { matches, afgerond:false };
+  }
+  ['wr2','vr3'].forEach(faseId=>{
+    if(!st.fases[faseId]) return;
+    st.fases[faseId].matches.forEach(m=>{
       if(m._wachtOpWedstrijd && !m.a){
-        const rm = st.fases.ronde1.matches.find(x=>x.nr===m._wachtOpWedstrijd);
+        const rm = wachtBronB(st, m);
         if(rm && rm.winnaar) m.a = rm.winnaar;
       }
     });
-  }
+  });
   const r1Winnaars = st.fases.ronde1 ? new Set(st.fases.ronde1.matches.map(m=>m.winnaar)) : new Set();
   if(st.fases.wr2 && st.fases.wr2.afgerond && !st.fases.vr2){
     const r1Verliezers = st.fases.ronde1.matches.map(m => m.winnaar===m.a ? m.b : m.a);
@@ -1466,8 +1481,8 @@ function bepaalTeLotenB(st){
                   ...f.wr2.matches.map(m => m.winnaar===m.a ? m.b : m.a).filter(v => !r1w.has(v))];
     if(pool.length - powerOf2LE(pool.length) > 0) return { faseId:'vr2', pool };
   }
-  if(f.vr2 && f.vr2.afgerond && !f.vr3) return { faseId:'vr3', pool:[...f.vr2.matches.map(m=>m.winnaar), ...(f.vr2.bye||[])] };
-  if(f.wr2 && f.wr2.afgerond && f.vr2 && f.vr2.afgerond && !f.wr3) return { faseId:'wr3', pool:f.wr2.matches.map(m=>m.winnaar) };
+  if(f.vr2 && f.vr2.afgerond && !f.vr3 && !st.vr3Voorbereiding) return { faseId:'vr3', pool:[...f.vr2.matches.map(m=>m.winnaar), ...(f.vr2.bye||[])] };
+  if(f.wr2 && f.wr2.afgerond && !f.wr3) return { faseId:'wr3', pool:f.wr2.matches.map(m=>m.winnaar) };
   for(const [van,naar] of [['wr3','wr_kwart'],['vr3','vr_kwart'],['wr_kwart','wr_halve'],['vr_kwart','vr_halve'],['wr_halve','wr_finale'],['vr_halve','vr_finale']]){
     if(f[van] && f[van].afgerond && !f[naar]) return { faseId:naar, pool:f[van].matches.map(m=>m.winnaar) };
   }
@@ -1579,7 +1594,7 @@ function htmlBeker(){
   const r1 = st.fases.ronde1.matches;
   const wachtHtml = L.wacht.length ? `<details class="bk-wacht"><summary>Wacht op tegenstander (${L.wacht.length})</summary>
       ${L.wacht.map(({faseId,m})=>{
-        const rm = faseId==='wr2' ? r1.find(x=>x.nr===m._wachtOpWedstrijd) : null;
+        const rm = wachtBronB(st, m);
         return `<div class="bk-wacht-rij"><b>${esc(m.b)}</b> <span class="muted">${esc(B_FASES[faseId].kort)} · wacht op winnaar van</span> ${rm?`${esc(rm.a)} – ${esc(rm.b)}`:`wedstrijd ${m._wachtOpWedstrijd}`}</div>`;
       }).join('')}</details>` : '';
 
@@ -1631,6 +1646,10 @@ function gevolgRegels(faseId, m, winnaar){
     const r1w = new Set((st.fases.ronde1?.matches||[]).map(x=>x.winnaar).filter(Boolean));
     r.push(`<b>${esc(winnaar)}</b> gaat door naar winnaarsronde 3.`);
     r.push(r1w.has(verliezer) ? `<b>${esc(verliezer)}</b> ligt uit het toernooi.` : `<b>${esc(verliezer)}</b> krijgt een herkansing in de verliezersronde.`);
+  } else if(faseId==='vr2' && st.fases.vr3 && st.fases.vr3.matches.some(x=>x._wachtOpFase==='vr2' && x._wachtOpWedstrijd===m.nr)){
+    const slot = st.fases.vr3.matches.find(x=>x._wachtOpFase==='vr2' && x._wachtOpWedstrijd===m.nr);
+    r.push(`<b>${esc(winnaar)}</b> speelt in verliezersronde 2 tegen <b>${esc(slot.b)}</b>.`);
+    r.push(`<b>${esc(verliezer)}</b> ligt uit het toernooi.`);
   } else if(faseId==='wr_finale'){ r.push(`🏆 <b>${esc(winnaar)}</b> wint de beker!`); }
   else if(faseId==='vr_finale'){ r.push(`🥈 <b>${esc(winnaar)}</b> wint de verliezersronde!`); }
   else { r.push(`<b>${esc(winnaar)}</b> gaat door naar de volgende ronde.`); r.push(`<b>${esc(verliezer)}</b> ligt uit het toernooi.`); }
@@ -1712,9 +1731,9 @@ async function slaScoreOp(){
     let planFout = false;
     if(st.syncEnabled){
       try{ await schrijfBekerWedstrijd(m, ss.faseId); }catch(e){ m.sync='error'; planFout=true; }
-      for(const x of ((st.fases.wr2||{}).matches||[])){
+      for(const [fId, x] of ['wr2','vr3'].flatMap(id=>((st.fases[id]||{}).matches||[]).map(x=>[id, x]))){
         if(x.a && x.b && !x.winnaar && !x.sync){
-          try{ await schrijfBekerWedstrijd(x, 'wr2'); }catch(e){ x.sync='error'; planFout=true; }
+          try{ await schrijfBekerWedstrijd(x, fId); }catch(e){ x.sync='error'; planFout=true; }
         }
       }
       try{ await bewaarBeker(st); }catch(e){ planFout=true; }

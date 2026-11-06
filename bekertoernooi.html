@@ -288,6 +288,14 @@ function shuffle(arr){
   return a;
 }
 function powerOf2LE(n){ let p=1; while(p*2<=n) p*=2; return p; }
+// Een wachtplek ("wacht op winnaar wedstrijd X") verwijst naar een wedstrijd in
+// de voorronde (WR 1) of, sinds 06-11-2026, in de tussenronde (VR 2).
+function wachtBronFase(m){ return m._wachtOpFase || 'ronde1'; }
+function wachtBronMatch(st, m){
+  const bron = st && st.fases && st.fases[wachtBronFase(m)];
+  return bron ? bron.matches.find(x=>x.nr===m._wachtOpWedstrijd) : null;
+}
+function wachtBronNaam(m){ return wachtBronFase(m)==='vr2' ? 'tussenronde' : 'voorronde'; }
 function pairUp(namen){
   const s=shuffle(namen);
   const matches=[];
@@ -354,7 +362,7 @@ const FASES = {
   wr2:           { label:'Winnaarsronde 1',         kort:'WR 1',      tak:'winnaarsronde', bo:5, dependsOn:['ronde1'] },
   vr2:           { label:'Verliezersronde 1',       kort:'VR 1',      tak:'verliezersronde',bo:5, dependsOn:['wr2'] },
   vr3:           { label:'Verliezersronde 2',       kort:'VR 2',      tak:'verliezersronde',bo:5, dependsOn:['vr2'] },
-  wr3:           { label:'Winnaarsronde 2',         kort:'WR 2',      tak:'winnaarsronde', bo:5, dependsOn:['wr2','vr2'] },
+  wr3:           { label:'Winnaarsronde 2',         kort:'WR 2',      tak:'winnaarsronde', bo:5, dependsOn:['wr2'] },
   wr_kwart:      { label:'Winnaarsronde — kwartfinale', kort:'WR kwart', tak:'winnaarsronde', bo:5, dependsOn:['wr3'] },
   vr_kwart:      { label:'Verliezersronde — kwartfinale', kort:'VR kwart', tak:'verliezersronde', bo:5, dependsOn:['vr3'] },
   wr_halve:      { label:'Winnaarsronde — halve finale', kort:'WR halve', tak:'winnaarsronde', bo:7, dependsOn:['wr_kwart'] },
@@ -419,7 +427,7 @@ function pdfMatchRow(m){
   // Plek die nog wacht op de winnaar van een ronde-1-wedstrijd: toon wie die
   // wedstrijd spelen, i.p.v. het als bye weer te geven.
   if(m._wachtOpWedstrijd && !m.a){
-    const rm = state.fases.ronde1 && state.fases.ronde1.matches.find(x=>x.nr===m._wachtOpWedstrijd);
+    const rm = wachtBronMatch(state, m);
     const wieTxt = rm
       ? `winnaar ${escapeHtml(rm.a)} / ${escapeHtml(rm.b)}`
       : `winnaar wedstrijd ${m._wachtOpWedstrijd}`;
@@ -552,10 +560,13 @@ async function schrijfWedstrijd(match, faseId){
 // wordt. Idempotent en veilig om vaak aan te roepen — wedstrijden met sync
 // "ok"/"pending"/"error" worden overgeslagen.
 async function syncNieuweWr2Wedstrijden(){
-  if(!state || !state.syncEnabled || !state.fases.wr2) return;
-  for(const m of state.fases.wr2.matches){
-    if(m.a && m.b && !m.winnaar && !m.sync){
-      await schrijfWedstrijd(m, 'wr2');
+  if(!state || !state.syncEnabled) return;
+  for(const faseId of ['wr2','vr3']){
+    if(!state.fases[faseId]) continue;
+    for(const m of state.fases[faseId].matches){
+      if(m.a && m.b && !m.winnaar && !m.sync){
+        await schrijfWedstrijd(m, faseId);
+      }
     }
   }
 }
@@ -731,14 +742,27 @@ function berekenVolgendeFases(){
   // Vul elke nog openstaande "wacht op winnaar wedstrijd X"-plek in zodra die
   // ronde1-wedstrijd een winnaar heeft — per wedstrijd, niet pas als alle 10
   // voorronde-wedstrijden klaar zijn.
-  if(state.fases.wr2 && state.fases.ronde1){
-    state.fases.wr2.matches.forEach(m=>{
+  // VR 2 (fase vr3) na een tussenronde: zelfde opzet als WR 1. De bye-spelers
+  // van de tussenronde zijn bij de loting al gekoppeld — een deel speelt direct
+  // tegen elkaar, de rest wacht op de winnaar van een tussenronde-wedstrijd.
+  if(state.fases.vr2 && state.vr3Voorbereiding && !state.fases.vr3){
+    const { byeMatches, slots } = state.vr3Voorbereiding;
+    const slotMatches = slots.map(s=>({ a:null, b:s.byeSpeler, winnaar:null, sync:null, _tak:'verliezersronde', _wachtOpWedstrijd:s.winnaarVanWedstrijd, _wachtOpFase:'vr2' }));
+    const matches = [...byeMatches.map(m=>({...m})), ...slotMatches];
+    matches.forEach((m,i)=>m.nr=i+1);
+    state.fases.vr3 = { matches, afgerond:false };
+  }
+
+  // Vul elke wachtplek in zodra de wedstrijd waar hij op wacht een winnaar heeft.
+  ['wr2','vr3'].forEach(faseId=>{
+    if(!state.fases[faseId]) return;
+    state.fases[faseId].matches.forEach(m=>{
       if(m._wachtOpWedstrijd && !m.a){
-        const rm = state.fases.ronde1.matches.find(x=>x.nr===m._wachtOpWedstrijd);
+        const rm = wachtBronMatch(state, m);
         if(rm && rm.winnaar) m.a = rm.winnaar;
       }
     });
-  }
+  });
 
   // VR2, vr3, wr3 en de generieke halvering worden niet meer hier automatisch
   // gegenereerd — die lotingen gebeuren nu via het rad in bekerloting.html. Zie
@@ -804,14 +828,14 @@ function bepaalTeLoten(state){
     // x === 0: geen loting nodig, bekertoernooi.html vult dit automatisch
   }
 
-  if(fases.vr2 && fases.vr2.afgerond && !fases.vr3){
+  if(fases.vr2 && fases.vr2.afgerond && !fases.vr3 && !state.vr3Voorbereiding){
     const pool = [...fases.vr2.matches.map(m=>m.winnaar), ...(fases.vr2.bye||[])];
     return { type:'fase', faseId:'vr3', pool };
   }
 
-  // WR3 wacht — net als VR3 — tot VR2 helemaal is uitgespeeld, zodat "ronde 3"
-  // in zijn geheel als nieuwe fase klaarstaat.
-  if(fases.wr2 && fases.wr2.afgerond && fases.vr2 && fases.vr2.afgerond && !fases.wr3){
+  // WR3 kan geloot worden zodra WR2 helemaal is uitgespeeld (sinds 06-11-2026
+  // niet meer wachten op VR2).
+  if(fases.wr2 && fases.wr2.afgerond && !fases.wr3){
     const pool = fases.wr2.matches.map(m=>m.winnaar);
     return { type:'fase', faseId:'wr3', pool };
   }
@@ -840,7 +864,7 @@ function matchHtml(faseId, m, idx){
   const bo = m._bo || (FASES[faseId] ? FASES[faseId].bo : 5);
   if(wachtOpRonde1){
     return `<div class="match wacht"><span class="nr">${m.nr||''}</span>
-      <div class="side">${escapeHtml(m.b)} — wacht op winnaar wedstrijd ${m._wachtOpWedstrijd} (voorronde)</div></div>`;
+      <div class="side">${escapeHtml(m.b)} — wacht op winnaar wedstrijd ${m._wachtOpWedstrijd} (${wachtBronNaam(m)})</div></div>`;
   }
   if(isBye){
     const naam = m.a || m.b || '';

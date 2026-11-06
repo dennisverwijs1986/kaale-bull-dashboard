@@ -1377,7 +1377,7 @@ function bekerHtml(){
   // Standaard de nieuwste fase die nog loopt, anders de laatste
   if (!S.bekerFase || !fasen.includes(S.bekerFase)) S.bekerFase = fasen.filter(id=>!f[id].afgerond).pop() || fasen[fasen.length-1];
 
-  const wachtNaam = m => { const rm=r1.find(x=>x.nr===m._wachtOpWedstrijd); return rm ? `winnaar ${rm.a} / ${rm.b}` : 'nog onbekend'; };
+  const wachtNaam = m => { const bron=(f[m._wachtOpFase||'ronde1']||{}).matches||[]; const rm=bron.find(x=>x.nr===m._wachtOpWedstrijd); return rm ? `winnaar ${rm.a} / ${rm.b}` : 'nog onbekend'; };
   const naamA = m => m.a || (m._wachtOpWedstrijd ? wachtNaam(m) : 'nog onbekend');
   const naamB = m => m.b || 'nog onbekend';
 
