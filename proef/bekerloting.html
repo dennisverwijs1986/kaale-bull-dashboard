@@ -1369,6 +1369,8 @@ if(!window.BEKER_PROEF){ // proefmap: zonder proefmodus nooit verder
     if(!matchenKlaarVoorStatus){
       if(state.pending){
         statusLine.innerHTML = "<strong>" + escapeHtml(state.pending) + "</strong> is getrokken &mdash; wacht op de tegenstander.";
+      } else if(/_finale$/.test(state.faseId)){
+        statusLine.innerHTML = "Trek één naam &mdash; die speler mag in de finale <strong>beginnen met bullen</strong>.";
       } else {
         statusLine.innerHTML = "Trek een wedstrijd &mdash; <strong>" + state.remaining.length + "</strong> namen op het rad.";
       }
@@ -1503,7 +1505,19 @@ if(!window.BEKER_PROEF){ // proefmap: zonder proefmodus nooit verder
       var matchenKlaar = state.matches.length >= targets.matchesTarget && !state.pending;
       var inByePhase = matchenKlaar;
 
-      if(!inByePhase){
+      if(!inByePhase && /_finale$/.test(state.faseId) && !state.pending && state.remaining.length === 1){
+        // Finale (besloten 06-11-2026): er wordt maar één naam getrokken. Die
+        // speler mag beginnen met bullen (thuis = a); de tegenstander is dan
+        // al bekend en wordt er automatisch bij gezet.
+        var tegenstander = state.remaining.splice(0, 1)[0];
+        renderRemaining();
+        buildWheel();
+        await revealSingleName(winnerName, "Begint met bullen");
+        await revealMatch(1, winnerName, tegenstander, "Finale", winnerName + " begint met bullen ↓");
+        state.matches.push({ home: winnerName, away: tegenstander, sync: state.syncEnabled ? "pending" : null });
+        saveState();
+        renderMatches();
+      } else if(!inByePhase){
         // Fase 1: de namen worden per twee getrokken tot wedstrijden.
         var wasPending = state.pending;
         await revealSingleName(winnerName, wasPending ? "Tegenstander" : "Getrokken");
