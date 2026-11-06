@@ -546,11 +546,9 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
       <div class="nav-dropdown-menu align-right" id="navAdminMenu">
         <div class="nav-dropdown-item" id="navPlanning" onclick="switchNav('planning'); closeAdminDropdown();">🗓 Planning Tool</div>
         <div class="nav-dropdown-item" id="navAvondplanner" onclick="switchNav('avondplanner'); closeAdminDropdown();">🧩 Avondplanner</div>
-        <div class="nav-dropdown-item" id="navStats" onclick="switchNav('stats'); closeAdminDropdown();">📊 Stats</div>
         <div class="nav-dropdown-item" id="navSpelers" onclick="switchNav('spelers'); closeAdminDropdown();">🧑‍🤝‍🧑 Spelerbeheer</div>
         <div class="nav-dropdown-item" id="navLogboek" onclick="switchNav('logboek'); closeAdminDropdown();">📝 Logboek</div>
         <div class="nav-dropdown-item" id="navUitslagen" onclick="switchNav('uitslagen'); closeAdminDropdown();">📜 Uitslagen</div>
-        <div class="nav-dropdown-item" id="navPeriodestand" onclick="switchNav('periodestand'); closeAdminDropdown();">🏆 Periodestand</div>
         <div class="nav-dropdown-item" id="navUpload" onclick="switchNav('upload'); closeAdminDropdown();">📥 Uploaden</div>
       </div>
     </div>
@@ -731,10 +729,6 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
   </div>
 </div>
 
-<!-- ── STATS VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
-<div class="external-view" id="statsView">
-  <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/stats.html" title="Stats"></iframe>
-</div>
 
 <!-- ── SPELERBEHEER VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
 <div class="external-view" id="spelersView">
@@ -761,10 +755,6 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
   <iframe id="avondplannerFrame" data-src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/optimaliseer.html" title="Avondplanner"></iframe>
 </div>
 
-<!-- ── PERIODESTAND VIEW (iframe, blijft binnen huidige pagina, live banen boven blijven zichtbaar) ── -->
-<div class="external-view" id="periodestandView">
-  <iframe src="https://dennisverwijs1986.github.io/kaale-bull-dashboard/periode.html" title="Periodestand"></iframe>
-</div>
 
 </div><!-- end view-container -->
 
@@ -3115,7 +3105,7 @@ function toggleHistory() {
 //  NAVIGATIE
 // ══════════════════════════════════════════
 function switchNav(view) {
-  const adminViews = ['planning','avondplanner','stats','spelers','logboek','uitslagen','periodestand','upload'];
+  const adminViews = ['planning','avondplanner','spelers','logboek','uitslagen','upload'];
   document.getElementById('avondplannerView').classList.toggle('active', view === 'avondplanner');
   document.getElementById('navAvondplanner').classList.toggle('active', view === 'avondplanner');
   if (view === 'avondplanner') {
@@ -3124,19 +3114,15 @@ function switchNav(view) {
   }
   document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
   document.getElementById('planningView').classList.toggle('active', view === 'planning');
-  document.getElementById('statsView').classList.toggle('active', view === 'stats');
   document.getElementById('spelersView').classList.toggle('active', view === 'spelers');
   document.getElementById('logboekView').classList.toggle('active', view === 'logboek');
   document.getElementById('uitslagenView').classList.toggle('active', view === 'uitslagen');
-  document.getElementById('periodestandView').classList.toggle('active', view === 'periodestand');
   document.getElementById('uploadView').classList.toggle('active', view === 'upload');
   document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
   document.getElementById('navPlanning').classList.toggle('active', view === 'planning');
-  document.getElementById('navStats').classList.toggle('active', view === 'stats');
   document.getElementById('navSpelers').classList.toggle('active', view === 'spelers');
   document.getElementById('navLogboek').classList.toggle('active', view === 'logboek');
   document.getElementById('navUitslagen').classList.toggle('active', view === 'uitslagen');
-  document.getElementById('navPeriodestand').classList.toggle('active', view === 'periodestand');
   document.getElementById('navUpload').classList.toggle('active', view === 'upload');
   document.getElementById('navAdminBtn').classList.toggle('active', adminViews.includes(view));
   document.getElementById('navAdminBtn').classList.toggle('planning', view === 'planning');
