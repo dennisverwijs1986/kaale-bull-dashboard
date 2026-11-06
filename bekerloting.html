@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Bekerloting Kaale Bull</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -110,6 +111,45 @@
   /* Met de hele pagina scrollbaar hoeft dit blok niet meer zijn eigen interne
      scrollbalk te forceren — dat gaf een onnodige dubbele scroll-ervaring. */
   .board.is-done ~ .wr2-prep-card{ max-height: none; }
+
+  /* ── TV-weergave na de loting ──────────────────────────────────────────
+     Het scherm hangt op een tv in de kroeg en moet op 4-5 meter leesbaar
+     zijn. Na de loting kiest pasTvGrootteAan() de grootst mogelijke
+     lettergrootte (--tv-fs) en het aantal kolommen (--tv-cols) waarbij alles
+     nog precies op het scherm past. Namen staan daarbij op één regel. */
+  body.is-done{ overflow: hidden; }
+  .wrap.is-done{ height: 100%; }
+  body.is-done .board.is-done .matches,
+  body.is-done .wr2-prep-card .matches{
+    grid-template-columns: repeat(var(--tv-cols, 2), minmax(0, 1fr));
+    gap: calc(var(--tv-fs, 24px) * 0.3);
+    padding: 0;
+  }
+  body.is-done .matches li{
+    font-size: var(--tv-fs, 24px);
+    padding: 0.28em 0.55em;
+    gap: 0.4em;
+    position: relative;
+    animation: none;
+    border-radius: 0.35em;
+  }
+  body.is-done .matches li .home,
+  body.is-done .matches li .away{ white-space: nowrap; overflow-wrap: normal; font-weight: 600; }
+  .matches li .away.wacht .wacht-label,
+  .matches li .away.wacht .wacht-namen{ display: block; }
+  body.is-done .matches li .away.wacht{ white-space: normal; font-size: 1em; font-weight: 400; line-height: 1.1; }
+  body.is-done .matches li .away.wacht .wacht-label{ font-size: 0.45em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); }
+  body.is-done .matches li .away.wacht .wacht-namen{ font-size: 0.62em; color: var(--ink); font-weight: 600; }
+  body.is-done .matches li .num{ font-size: 0.55em; }
+  body.is-done .matches li .vs{ font-size: 0.45em; }
+  body.is-done .sync-badge{ position: absolute; top: 3px; right: 5px; font-size: 11px; }
+  body.is-done .sync-badge.ok{ display: none; }
+  body.is-done #wr2PrepDesc{ display: none; }
+  .bullen-note{ margin: 1vh 0 0; text-align: center; color: var(--gold-bright); font-family: "Oswald", sans-serif;
+    font-size: clamp(16px, 1.4vw, 26px); letter-spacing: 0.04em; }
+  body.is-done .bullen-note{ font-size: calc(var(--tv-fs, 24px) * 0.45); margin-top: 0.4em; }
+  body.is-done .card h2{ font-size: clamp(16px, 1.6vw, 34px); margin-bottom: 0.8vh; }
+  body.is-done .card h2 .count-pill{ font-size: 0.6em; }
 
   .done-line{
     display:flex;
@@ -807,6 +847,7 @@
       <div class="card matches-card">
         <h2><span id="matchesCardTitle">Voorronde</span> <span class="count-pill" id="matchCountPill">0 wedstrijden</span></h2>
         <ul class="matches" id="matchesList"></ul>
+        <p class="bullen-note" id="bullenNote" style="display:none;"></p>
         <p class="empty-note" id="emptyNote">Nog geen wedstrijden geloot. Draai het rad om te beginnen.</p>
       </div>
 
@@ -1240,6 +1281,7 @@
   }
 
   function renderWr2Prep(){
+    planTvGrootte();
     if(!state.wr2Prep){
       wr2PrepCard.style.display = "none";
       return;
@@ -1262,13 +1304,14 @@
     });
     state.wr2Prep.slots.forEach(function(slot){
       var ronde1Match = state.matches[slot.winnaarVanWedstrijd - 1];
-      var vsText = ronde1Match ? (escapeHtml(ronde1Match.home) + " vs " + escapeHtml(ronde1Match.away)) : "";
+      var vsText = ronde1Match ? (escapeHtml(ronde1Match.home) + " / " + escapeHtml(ronde1Match.away)) : "";
       var li = document.createElement("li");
       li.innerHTML =
         '<span class="num">&mdash;</span>' +
         '<span class="home">' + escapeHtml(slot.byeSpeler) + '</span>' +
         '<span class="vs">vs</span>' +
-        '<span class="away wacht">winnaar wedstrijd ' + slot.winnaarVanWedstrijd + (vsText ? " (" + vsText + ")" : "") + '</span>' +
+        '<span class="away wacht"><span class="wacht-label">winnaar wedstrijd ' + slot.winnaarVanWedstrijd + '</span>' +
+          (vsText ? '<span class="wacht-namen">' + vsText + '</span>' : '') + '</span>' +
         '<span class="sync-badge off"></span>';
       wr2PrepList.appendChild(li);
     });
@@ -1284,6 +1327,7 @@
   }
 
   function renderMatches(){
+    planTvGrootte();
     matchesList.innerHTML = "";
     matchCountPill.textContent = state.matches.length + " wedstrijd" + (state.matches.length === 1 ? "" : "en");
     emptyNote.style.display = state.matches.length === 0 ? "block" : "none";
@@ -1298,6 +1342,13 @@
         badgeHtml(m, idx);
       matchesList.appendChild(li);
     });
+    // Finale: wie is getrokken (thuisspeler) mag beginnen met bullen.
+    var bullenNote = document.getElementById("bullenNote");
+    if(bullenNote){
+      var isFinale = /_finale$/.test(state.faseId) && state.matches.length === 1;
+      bullenNote.style.display = isFinale ? "" : "none";
+      if(isFinale) bullenNote.textContent = "🎯 " + state.matches[0].home + " begint met bullen";
+    }
   }
 
   matchesList.addEventListener("click", function(ev){
@@ -1323,6 +1374,54 @@
     renderMatches();
   }
 
+  // Zoekt na de loting de grootste lettergrootte + het aantal kolommen waarbij
+  // alle wedstrijden (en de voorbereiding van de volgende ronde) nog precies
+  // in beeld passen, zonder dat een naam wordt afgekapt.
+  var tvFitGepland = false;
+  function planTvGrootte(){
+    if(tvFitGepland) return;
+    tvFitGepland = true;
+    requestAnimationFrame(function(){ tvFitGepland = false; pasTvGrootteAan(); });
+  }
+  function pasTvGrootteAan(){
+    var body = document.body;
+    if(!body.classList.contains("is-done")){
+      body.style.removeProperty("--tv-fs");
+      body.style.removeProperty("--tv-cols");
+      return;
+    }
+    var lijsten = [matchesList, wr2PrepList].filter(function(el){ return el && el.offsetParent !== null && el.children.length; });
+    if(!lijsten.length) return;
+    var meeste = Math.max.apply(null, lijsten.map(function(el){ return el.children.length; }));
+    var onderGrens = window.innerHeight - 12;
+    function past(){
+      var laatste = lijsten[lijsten.length - 1].closest(".card");
+      if(laatste.getBoundingClientRect().bottom > onderGrens) return false;
+      for(var i = 0; i < lijsten.length; i++){
+        var spans = lijsten[i].querySelectorAll(".home, .away:not(.wacht)");
+        for(var j = 0; j < spans.length; j++){
+          if(spans[j].scrollWidth > spans[j].clientWidth + 1) return false;
+        }
+      }
+      return true;
+    }
+    var beste = { fs: 14, cols: 1 };
+    for(var cols = 1; cols <= Math.min(4, meeste); cols++){
+      body.style.setProperty("--tv-cols", cols);
+      var laag = 14, hoog = Math.round(window.innerHeight * 0.14);
+      while(hoog - laag > 1){
+        var mid = Math.floor((laag + hoog) / 2);
+        body.style.setProperty("--tv-fs", mid + "px");
+        if(past()) laag = mid; else hoog = mid;
+      }
+      if(laag > beste.fs) beste = { fs: laag, cols: cols };
+    }
+    body.style.setProperty("--tv-cols", beste.cols);
+    body.style.setProperty("--tv-fs", beste.fs + "px");
+  }
+  window.addEventListener("resize", planTvGrootte);
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(planTvGrootte);
+
   function updateStatus(){
     var targets = computeTargets();
     var byeDone = state.bye.length >= targets.byeTarget;
@@ -1345,6 +1444,7 @@
     // daadwerkelijke ronde-1-wedstrijden, dus die verbergen we dan.
     byeCard.style.display = done ? "none" : (state.bye.length > 0 ? "flex" : "none");
 
+    planTvGrootte();
     if(done){
       completeBanner.classList.add("show");
       statusLine.style.display = "none";
