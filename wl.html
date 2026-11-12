@@ -299,6 +299,22 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 .names .vs{display:inline;font-size:.68rem;margin:0 5px 0 0;text-transform:uppercase;}
 .card-main .chips{margin-top:4px;gap:4px;}
 .card-main .chip{padding:1px 6px;}
+/* ── BORDEN (speelavond) ── */
+.borden{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 4px;}
+.bord-tegel{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:9px 10px;min-height:74px;display:flex;flex-direction:column;gap:3px;text-align:left;}
+.bord-tegel.bezet{border-color:var(--green);background:rgba(16,185,129,.08);}
+.bord-tegel .bn{font-size:.72rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;}
+.bord-tegel.bezet .bn{color:#6ee7b7;}
+.bord-tegel .bw{font-weight:700;font-size:.86rem;line-height:1.25;overflow-wrap:anywhere;}
+.bord-tegel .vrij-txt{color:var(--muted);font-size:.85rem;}
+.bord-knoppen{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.bord-knop{min-height:62px;border-radius:12px;border:1.5px solid var(--green);background:rgba(16,185,129,.10);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;}
+.bord-knop b{font-size:1.25rem;}
+.bord-knop small{font-size:.62rem;color:var(--muted);font-weight:700;line-height:1.15;text-align:center;overflow:hidden;max-height:2.4em;}
+.bord-knop.bezet{border-color:var(--border);background:var(--s2);opacity:.6;}
+.bord-knop.hier{border-color:var(--green);background:var(--green);color:#022c1f;}
+.bord-knop.hier small{color:#022c1f;}
+.bord-af{width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1.5px solid var(--orange);background:rgba(245,158,11,.10);font-weight:800;font-size:.9rem;}
 </style>
 </head>
 <body>
@@ -721,6 +737,7 @@ function htmlAvond(){
 
   return `
     ${datumChips('avondDatums', d, 'kiesAvond', null, false)}
+    ${d===vandaag() ? bordenHtml() : ''}
     <div class="stats">
       <div class="stat"><b>${alle.length}</b><span>totaal</span></div>
       <div class="stat"><b style="color:var(--orange)">${open.length}</b><span>open</span></div>
@@ -960,6 +977,67 @@ function htmlNNB(){
   if(!lijst.length) return '<div class="leeg">Geen wedstrijden zonder datum 👍</div>';
   return `<div class="sec-title">Nieuwe datum nog niet bekend (${lijst.length})</div>` +
     lijst.map(w=>kaart(w,{toonDatum:false}) .replace('<div class="chips">', `<div class="chips">${w.originele_datum?`<span class="chip">oorspr. ${esc(fmtKort(w.originele_datum))}</span>`:''}`)).join('');
+}
+
+// ══════════════════════════════════════════
+//  BORDEN — wedstrijd vanaf de telefoon op een bord zetten (kolom `bord` in wedstrijden,
+//  zelfde als startOpBord/herstelBaan in index.html; laptop en tv.html pikken het binnen ~5 sec op)
+// ══════════════════════════════════════════
+const BORDEN=[1,2,3,4];
+function opBord(b){ return W.find(w=>w.bord===b && w.status!=='gespeeld'); }
+function bordenHtml(){
+  return `<div class="borden">${BORDEN.map(b=>{
+    const w=opBord(b);
+    return w
+      ? `<div class="bord-tegel bezet"><div class="bn">🎯 Bord ${b}<button class="btn-klein" style="min-height:28px;padding:0 9px" onclick="haalVanBord(${jsAttr(w.id)})">eraf</button></div>
+           <div class="bw" onclick="openVerzet(${jsAttr(w.id)})">${esc(w.thuis)}<br><span class="muted" style="font-weight:600">vs</span> ${esc(w.uit)}</div></div>`
+      : `<div class="bord-tegel"><div class="bn">Bord ${b}</div><div class="vrij-txt">vrij — tik op een wedstrijd</div></div>`;
+  }).join('')}</div>`;
+}
+function naarBordHtml(m){
+  if(m.datum_nnb || m.datum!==vandaag() || m.status==='gespeeld') return '';
+  const knoppen=BORDEN.map(b=>{
+    const w=opBord(b);
+    if(w && w.id===m.id) return `<button class="bord-knop hier" disabled><b>${b}</b><small>staat hier</small></button>`;
+    if(w) return `<button class="bord-knop bezet" disabled><b>${b}</b><small>${esc(w.thuis.split(' ')[0])} – ${esc(w.uit.split(' ')[0])}</small></button>`;
+    return `<button class="bord-knop" ${m.bord?'disabled style="opacity:.5"':''} onclick="zetOpBord(${jsAttr(m.id)},${b})"><b>${b}</b><small>vrij</small></button>`;
+  }).join('');
+  return `<div class="sec-title">🎯 Naar bord</div><div class="bord-knoppen">${knoppen}</div>
+    ${m.bord ? `<button class="bord-af" onclick="haalVanBord(${jsAttr(m.id)})">↩ Van bord ${esc(m.bord)} halen (terug in de wachtrij)</button>` : ''}`;
+}
+let bordBezig=false;
+async function zetOpBord(id, b){
+  if(bordBezig) return; bordBezig=true;
+  try{
+    // Verse stand: misschien heeft de laptop (of een ander scherm) het bord of deze wedstrijd net gebruikt
+    const rijen = await sbGet('wedstrijden', `or=(bord.eq.${b},id.eq.${encodeURIComponent(id)})&select=id,bord,status`);
+    const bezet = rijen.find(r=>r.bord===b && r.status!=='gespeeld' && r.id!==id);
+    const zelf  = rijen.find(r=>r.id===id);
+    if(bezet){ toast(`Bord ${b} is net bezet`,'red'); }
+    else if(zelf && zelf.status==='gespeeld'){ toast('Deze wedstrijd is al gespeeld','red'); }
+    else if(zelf && zelf.bord && zelf.bord!==b){ toast(`Staat al op bord ${zelf.bord}`,'red'); }
+    else {
+      await sbPatch('wedstrijden', id, {bord:b});
+      const w=W.find(x=>x.id===id); if(w) w.bord=b;
+      toast(`▶ Op bord ${b} gezet`,'green');
+      if(navigator.vibrate) navigator.vibrate(30);
+      sluitSheet();
+    }
+  }catch(e){ toast(`Mislukt: ${e.message}`,'red'); }
+  finally{ bordBezig=false; await laadData(true); }
+}
+async function haalVanBord(id){
+  if(bordBezig) return;
+  const w=W.find(x=>x.id===id); if(!w) return;
+  if(!confirm(`${w.thuis} – ${w.uit} van bord ${w.bord} halen?\nDe wedstrijd gaat terug in de wachtrij (niet als gespeeld).`)) return;
+  bordBezig=true;
+  try{
+    await sbPatch('wedstrijden', id, {bord:null});
+    w.bord=null;
+    toast('↩ Van het bord gehaald','');
+    if(sheet && sheet.id===id) renderSheet();
+  }catch(e){ toast(`Mislukt: ${e.message}`,'red'); }
+  finally{ bordBezig=false; await laadData(true); }
 }
 
 // ══════════════════════════════════════════
@@ -1243,6 +1321,7 @@ function renderSheet(){
       <button class="icon-btn" onclick="sluitSheet()" aria-label="Sluiten">✕</button>
     </div>
     <div class="sheet-body">
+      ${naarBordHtml(m)}
       ${bkKnop}
       ${orig}
       ${kanRuilen(m) ? `<button class="ruil-knop" onclick="sheet.ruil=true;renderSheet()">⇄ Tijd ruilen met een andere wedstrijd op ${esc(fmtKort(m.datum))}</button>` : ''}
@@ -1963,6 +2042,8 @@ async function slaMddOp(){
 }
 verversMddLive();
 setInterval(()=>{ if(document.visibilityState==='visible' && !sheet && !scoreSheet && !mddSheet && !spSheet) laadData(true); }, 60000);
+// Op de speelavond de borden vaker verversen, zodat je ziet wat de laptop doet
+setInterval(()=>{ if(document.visibilityState==='visible' && S.view==='avond' && S.datum===vandaag() && !sheet && !scoreSheet && !mddSheet && !spSheet) laadData(true); }, 10000);
 setInterval(()=>{ if(document.visibilityState==='visible' && !mddSheet) verversMddLive(); }, 60000);
 window.addEventListener('online', ()=>laadData(true));
 naarView('avond');
