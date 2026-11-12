@@ -1781,6 +1781,7 @@
     if(state.syncEnabled){
       for(var i = 0; i < state.matches.length; i++){
         var m = state.matches[i];
+        if(m._wedstrijdId) continue; // al weggeschreven bij een eerdere poging
         try{
           var rows = await postWedstrijd(m.home, m.away, divisie);
           m.sync = "ok";
@@ -1802,9 +1803,17 @@
     if(state.faseType === "tussenronde"){
       var preSeedT = state.bye.slice(0, targets.matchesTarget);
       var directeKoppels = pairSequential(state.bye.slice(targets.matchesTarget));
+      // Bij een hervatte afronding: neem over wat al naar de planning ging.
+      if(state.wr2Prep && Array.isArray(state.wr2Prep.byeMatches)){
+        directeKoppels.forEach(function(k, ki){
+          var oud = state.wr2Prep.byeMatches[ki];
+          if(oud && oud.a === k.a && oud.b === k.b && oud._wedstrijdId){ k._wedstrijdId = oud._wedstrijdId; k.sync = oud.sync; }
+        });
+      }
       var vr3Fase = FASES.vr3;
       if(state.syncEnabled){
         for(var d = 0; d < directeKoppels.length; d++){
+          if(directeKoppels[d]._wedstrijdId) continue;
           try{
             var rowsD = await postWedstrijd(directeKoppels[d].a, directeKoppels[d].b, "Beker " + vr3Fase.tak + " (Bo" + vr3Fase.bo + ")");
             directeKoppels[d].sync = "ok";
@@ -1816,6 +1825,7 @@
       }
       var slotsT = preSeedT.map(function(naam, i){ return { byeSpeler: naam, winnaarVanWedstrijd: i + 1 }; });
       state.wr2Prep = { byeMatches: directeKoppels, slots: slotsT };
+      saveState();
       renderWr2Prep();
       vr3Voorbereiding = {
         byeMatches: directeKoppels.map(function(m){
@@ -1862,12 +1872,19 @@
       var hdr = {};
       for(var k in SB_HDR){ hdr[k] = SB_HDR[k]; }
       hdr["Prefer"] = "resolution=merge-duplicates,return=representation";
-      await fetch(SB_URL + "/rest/v1/beker_toernooi", {
+      var opslaan = await fetch(SB_URL + "/rest/v1/beker_toernooi", {
         method: "POST",
         headers: hdr,
         body: JSON.stringify([{ id: SEIZOEN, seizoen: SEIZOEN, staat: toernooiState }])
       });
-    }catch(e){ /* blijft lokaal afgerond staan; kan later handmatig opnieuw geprobeerd worden */ }
+      if(!opslaan.ok) throw new Error(await opslaan.text());
+    }catch(e){
+      // Niet als afgerond markeren: de loting staat veilig in deze browser en
+      // wordt bij het herladen van de pagina opnieuw naar het toernooi gestuurd.
+      saveState();
+      if(doneLineText) doneLineText.textContent = "⚠ Loting nog niet opgeslagen — herlaad de pagina";
+      return;
+    }
 
     state.afgerond = true;
     saveState();
@@ -2074,6 +2091,23 @@
     syncToggle.checked = state.syncEnabled;
     updateFaseUiLabels();
     renderAll();
+
+    // Was de laatste naam al getrokken maar is het wegschrijven niet gelukt of
+    // afgebroken (pagina herladen/gesloten tijdens de laatste onthulling), dan
+    // wordt de loting nu alsnog afgerond — er hoeft niet opnieuw geloot te worden.
+    var tg = computeTargets();
+    var compleet = state.bye.length === tg.byeTarget && state.remaining.length === 0 &&
+                   !state.pending && state.matches.length === tg.matchesTarget && state.matches.length > 0;
+    if(compleet && state.faseId === "ronde1" && !state.afgerond){
+      await voltooiRonde1();
+      renderMatches();
+    } else if(compleet && state.faseId !== "ronde1"){
+      // Deze fase staat hier alleen klaar omdat het toernooi hem nog niet
+      // kent — ook als deze browser dacht dat hij al was afgerond.
+      state.afgerond = false;
+      await voltooiFaseLoting();
+      renderMatches();
+    }
   }
 
   boot();
