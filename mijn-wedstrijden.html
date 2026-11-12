@@ -129,7 +129,7 @@ function kaartHtml(w, vandaag) {
   return `<div class="w ${soortVan(w.divisie, w.is_inhaal)}${voorbij ? ' voorbij' : ''}" id="w-${esc(w.id)}">
     <div class="kop">${kop}</div>
     <div class="wie">tegen <strong>${esc(w.tegenstander)}</strong></div>
-    <div class="sub">${rondeTekst(w.divisie, w.speelronde)}${w.is_inhaal ? ' · <span style="color:#fca5a5">inhaal</span>' : ''}</div>
+    <div class="sub">${rondeTekst(w.divisie, w.speelronde)}${w.is_inhaal ? ` · <span style="color:#fca5a5">${w.originele_datum && String(w.datum) < String(w.originele_datum) ? 'vooruit' : 'inhaal'}</span>` : ''}</div>
     ${statusHtml(w)}
     ${w.verzetbaar ? `<div class="knoppen"><button onclick="openPaneel('${esc(w.id)}')">${w.datum ? 'Verzetten aanvragen' : 'Datum voorstellen'}</button></div><div class="paneel" id="p-${esc(w.id)}" hidden></div>` : ''}
   </div>`;
@@ -327,7 +327,8 @@ async function toonCheck(spelerId, naam) {
       const div = (desc.match(/Divisie: ([^\n]*)/) || [])[1] || '';
       const ronde = (desc.match(/Speelronde: ([^\n]*)/) || [])[1] || '';
       const tegen = (desc.match(/tegen ([^\n]*)/) || [])[1] || e.SUMMARY || '';
-      const isInhaal = /inhaal/i.test(e.SUMMARY || '');
+      const isVooruitF = /vooruitwedstrijd/i.test(e.SUMMARY || '');
+      const isInhaal = isVooruitF || /inhaal/i.test(e.SUMMARY || '');
       const voorbij = (e.DTSTART || '').slice(0, 8) < vandaag;
       const lm = icsDatum(e['LAST-MODIFIED']);
       const lmTxt = lm ? new Date(Date.UTC(lm.y, lm.mo - 1, lm.d, +lm.hh, +lm.mm)).toLocaleDateString('nl-NL', { day:'numeric', month:'short' }) : '';
@@ -336,7 +337,7 @@ async function toonCheck(spelerId, naam) {
         <div class="kop"><span class="dag">${DAGEN[dag.getDay()]} ${x.d} ${MAANDEN[x.mo - 1].slice(0,3)}</span><span class="tijd">${x.hh}:${x.mm}</span>
         ${(+e.SEQUENCE > 0 && lmTxt) ? `<span class="notitie">verzet<br>${esc(lmTxt)}</span>` : ''}</div>
         <div class="wie">tegen <strong>${esc(tegen)}</strong></div>
-        <div class="sub">${rondeTekst(div, ronde)}${isInhaal ? ' · <span style="color:#fca5a5">inhaal</span>' : ''}</div>
+        <div class="sub">${rondeTekst(div, ronde)}${isInhaal ? ` · <span style="color:#fca5a5">${isVooruitF ? 'vooruit' : 'inhaal'}</span>` : ''}</div>
       </div>`;
     }
     lijst.innerHTML = html;

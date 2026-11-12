@@ -969,6 +969,9 @@ function setSync(ok){
 // ══════════════════════════════════════════
 //  KOMENDE WEDSTRIJDEN (rechts, 2 tijdsloten)
 // ══════════════════════════════════════════
+// Vóór de originele datum gegooid = 'Vooruit', erna = 'Inhaal' (12-11-2026)
+const isVooruit = w => !!(w && w.is_inhaal && w.originele_datum && w.datum && String(w.datum) < String(w.originele_datum));
+const inhaalLabel = w => isVooruit(w) ? 'Vooruit' : 'Inhaal';
 function getDivKey(m){
   const d=(m.divisie||'').toLowerCase();
   if(m.is_inhaal) return 'inhaal';
@@ -979,7 +982,7 @@ function getDivKey(m){
 }
 function divChip(m){
   const k=getDivKey(m);
-  const labels={ere:'Ere',eerste:'1e Div',beker:'Beker',inhaal:'Inhaal',general:'Div'};
+  const labels={ere:'Ere',eerste:'1e Div',beker:'Beker',inhaal:inhaalLabel(m),general:'Div'};
   return `<span class="div-chip ${k}">${escapeHtml(labels[k]||m.divisie||'')}</span>`;
 }
 

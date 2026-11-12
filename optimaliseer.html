@@ -155,7 +155,7 @@ let huidige = null;   // { datum, ms, orig, voorstel, cap, gekozen:Set }
 async function laadAvonden(){
   const vandaag = lokaleDatumVandaag();
   alleWedstrijden = await sbGet('wedstrijden',
-    `datum=gte.${vandaag}&datum_nnb=not.is.true&tijdstip=not.is.null&select=id,datum,tijdstip,thuis,uit,divisie,status,bord,is_inhaal,datum_nnb&order=datum.asc,tijdstip.asc`);
+    `datum=gte.${vandaag}&datum_nnb=not.is.true&tijdstip=not.is.null&select=id,datum,tijdstip,thuis,uit,divisie,status,bord,is_inhaal,originele_datum,datum_nnb&order=datum.asc,tijdstip.asc`);
   const perDatum = groepeer();
   const el = document.getElementById('avonden');
   const datums = [...perDatum.keys()].slice(0, 12);
@@ -222,7 +222,7 @@ function render(){
   const verschHtml = verschuivingen.length ? `<div>${
     verschuivingen.map(({i,s}) => { const w = ms[i]; const aan = gekozen.has(i); return `<label class="vrij ${aan?'':'uit'}">
       <input type="checkbox" ${aan?'checked':''} onchange="toggle(${i}, this.checked)">
-      <span class="wie"><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${w.is_inhaal?' <span class="pill rood">inhaal</span>':''}</span>
+      <span class="wie"><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${w.is_inhaal?` <span class="pill rood">${w.originele_datum&&String(w.datum)<String(w.originele_datum)?'vooruit':'inhaal'}</span>`:''}</span>
       <span class="tijden"><span class="oud">${PT_SLOTS[orig[i]].tijd}</span><span class="pijl">→</span><span class="tijd">${PT_SLOTS[s].tijd}</span></span>
     </label>`; }).join('')
   }</div>` : '<div class="leeg">Deze avond staat al goed, er hoeft niets te schuiven.</div>';

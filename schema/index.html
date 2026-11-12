@@ -467,6 +467,9 @@ table.stand td.v{color:#fca5a5;font-weight:700;}
 const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
 const HDR = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` };
+// Vóór de originele datum gegooid = 'Vooruit', erna = 'Inhaal' (12-11-2026)
+const isVooruit = w => !!(w && w.is_inhaal && w.originele_datum && w.datum && String(w.datum) < String(w.originele_datum));
+const inhaalLabel = w => isVooruit(w) ? 'Vooruit' : 'Inhaal';
 const sbGet = async (t,q='') => {
   const r = await fetch(`${SB_URL}/rest/v1/${t}?${q}`, { headers:HDR, cache:'no-store' });
   if (!r.ok) throw new Error(await r.text());
@@ -728,7 +731,7 @@ function kaartHtml(w, opties={}){
   else if (w.bord) cls.push('opbord');
   if (S.ik && (w.thuis===S.ik || w.uit===S.ik)) cls.push('mijn');
   if (opties.volgende) cls.push('volgende-kaart');
-  const inhaal = w.is_inhaal && w.originele_datum!==w.datum ? `<span class="chip inhaal">Inhaal</span>` : '';
+  const inhaal = w.is_inhaal && w.originele_datum!==w.datum ? `<span class="chip inhaal">${inhaalLabel(w)}</span>` : '';
   const tijd = opties.metTijd ? `<div class="tijd-groot">${esc(w.tijdstip||'--:--')}</div>` : '';
   return `<div class="${cls.join(' ')}"${isBye(w) ? '' : ` data-h2h="${esc(w.id)}"`}>
     ${tijd}
@@ -1199,7 +1202,7 @@ function renderLive(){
       const k=divKey(w);
       status = `<span class="bk-status live">Live</span>`;
       inhoud = `<div class="bk-namen">${namenHtml(w)}</div>
-        <div class="bk-meta"><span class="chip ${k}">${esc(divLabel(w))}</span>${w.is_inhaal && w.originele_datum!==w.datum?'<span class="chip inhaal">Inhaal</span>':''}${schr?`<span>✍️ ${esc(schr)}</span>`:''}</div>
+        <div class="bk-meta"><span class="chip ${k}">${esc(divLabel(w))}</span>${w.is_inhaal && w.originele_datum!==w.datum?`<span class="chip inhaal">${inhaalLabel(w)}</span>`:''}${schr?`<span>✍️ ${esc(schr)}</span>`:''}</div>
         ${kanKijken ? '<div class="bk-actie">Tik voor de live stand ›</div>' : ''}`;
     } else if (kanKijken){
       status = `<span class="bk-status live">Live</span>`;
@@ -1779,7 +1782,7 @@ const wieVol = n => n===S.ik ? 'Jij' : n; // weetjes: volledige naam (twee Patri
 
 function h2hKop(w, A, B){
   const k=divKey(w);
-  const inhaal = w.is_inhaal && w.originele_datum && w.originele_datum!==w.datum ? '<span class="chip inhaal">Inhaal</span>' : '';
+  const inhaal = w.is_inhaal && w.originele_datum && w.originele_datum!==w.datum ? `<span class="chip inhaal">${inhaalLabel(w)}</span>` : '';
   const wanneer = w.datum_nnb ? 'Datum nog niet bekend' : `${fmtLang.format(alsDatum(w.datum))}${w.tijdstip ? ' · '+w.tijdstip : ''}`;
   const nm = n => { const [v,r]=naamDelen(n); return `<div class="nm${n===S.ik?' ik':''}">${esc(v)}<small>${esc(r)}</small></div>`; };
   const [la,lb] = legsVan(w,A);

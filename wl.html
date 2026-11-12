@@ -349,6 +349,9 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
 const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation' };
+// Vóór de originele datum gegooid = 'Vooruit', erna = 'Inhaal' (12-11-2026)
+const isVooruit = w => !!(w && w.is_inhaal && w.originele_datum && w.datum && String(w.datum) < String(w.originele_datum));
+const inhaalLabel = w => isVooruit(w) ? 'Vooruit' : 'Inhaal';
 const sbGet   = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR,cache:'no-store'}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 const sbPost  = async (t,b)    => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 const sbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
@@ -605,7 +608,7 @@ function htmlPlan(){
   const rijen = versch.map(({i,s})=>{ const w=ms[i]; const aan=gekozen.has(i);
     return `<label class="vrij ${aan?'':'uit'}"><input type="checkbox" ${aan?'checked':''} onchange="plToggle(${i},this.checked)">
       <div><div class="wie">${esc(w.thuis)} – ${esc(w.uit)}</div>
-      <div class="tijden"><span class="oud">${PT_SLOTS[orig[i]].tijd}</span> → <span class="nw">${PT_SLOTS[s].tijd}</span> ${divChip(w)}${w.is_inhaal?' <span class="chip inhaal">Inhaal</span>':''}</div></div></label>`; }).join('');
+      <div class="tijden"><span class="oud">${PT_SLOTS[orig[i]].tijd}</span> → <span class="nw">${PT_SLOTS[s].tijd}</span> ${divChip(w)}${w.is_inhaal?` <span class="chip inhaal">${inhaalLabel(w)}</span>`:''}</div></div></label>`; }).join('');
 
   let melding='';
   if(vol.length) melding=`<div class="warn"><div>⚠ Met deze selectie zit ${vol.map(x=>`${PT_SLOTS[x.i].tijd} (${x.n}/${x.cap})`).join(', ')} te vol. Vink de wedstrijd die erop past ook aan.</div></div>`;
@@ -761,7 +764,7 @@ function kaart(w, opts={}){
   const conflict = !gespeeld && heeftRustConflict(w);
   const chips = [
     divChip(w),
-    w.is_inhaal ? '<span class="chip inhaal">Inhaal</span>' : '',
+    w.is_inhaal ? `<span class="chip inhaal">${inhaalLabel(w)}</span>` : '',
     w.datum_nnb ? '<span class="chip nnb">NNB</span>' : '',
     w.speelronde ? `<span class="chip">SR ${esc(w.speelronde)}</span>` : '',
     w.bord ? `<span class="chip groen">🎯 Bord ${esc(w.bord)}</span>` : '',
@@ -1272,7 +1275,7 @@ function renderRuil(m, nu){
     const label = e.niveau==='zelfde' ? '<span class="chip rood">dubbel</span>' : e.niveau==='krap' ? '<span class="chip oranje">krap</span>' : '<span class="chip groen">rust ok</span>';
     const delta = (e.voor!==null && e.na!==e.voor) ? `<span class="chip ${e.na<e.voor?'groen':'rood'}">knelpunten ${e.voor} → ${e.na}</span>` : '';
     return `<button class="ruil-rij ${cls}" onclick="ruilMet(${jsAttr(w.id)})"><span class="t">${esc(w.tijdstip)}</span>
-      <div class="w">${esc(w.thuis)} – ${esc(w.uit)}<div class="chips">${label}${delta}${divChip(w)}${w.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}</div></div></button>`;
+      <div class="w">${esc(w.thuis)} – ${esc(w.uit)}<div class="chips">${label}${delta}${divChip(w)}${w.is_inhaal?`<span class="chip inhaal">${inhaalLabel(w)}</span>`:''}</div></div></button>`;
   };
   const rijen = kandidaten.map(rijHtml).join('');
   // Beste opties: ruilen waarbij iedereen genoeg rust houdt, minste knelpunten op de avond eerst
@@ -1283,7 +1286,7 @@ function renderRuil(m, nu){
     <div class="sheet-kop">
       <div style="flex:1;min-width:0;">
         <div class="names"><span class="n">${esc(m.thuis)}</span><span class="n"><span class="vs">vs</span>${esc(m.uit)}</span></div>
-        <div class="chips">${divChip(m)}${m.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}</div>
+        <div class="chips">${divChip(m)}${m.is_inhaal?`<span class="chip inhaal">${inhaalLabel(m)}</span>`:''}</div>
         <div class="nu">${nu}</div>
       </div>
       <button class="icon-btn" onclick="sluitSheet()" aria-label="Sluiten">✕</button>
@@ -1413,7 +1416,7 @@ function renderSheet(){
     <div class="sheet-kop">
       <div style="flex:1;min-width:0;">
         <div class="names"><span class="n">${esc(m.thuis)}</span><span class="n"><span class="vs">vs</span>${esc(m.uit)}</span></div>
-        <div class="chips">${divChip(m)}${m.is_inhaal?'<span class="chip inhaal">Inhaal</span>':''}${m.speelronde?`<span class="chip">SR ${esc(m.speelronde)}</span>`:''}</div>
+        <div class="chips">${divChip(m)}${m.is_inhaal?`<span class="chip inhaal">${inhaalLabel(m)}</span>`:''}${m.speelronde?`<span class="chip">SR ${esc(m.speelronde)}</span>`:''}</div>
         <div class="nu">${nu}</div>
       </div>
       <button class="icon-btn" onclick="sluitSheet()" aria-label="Sluiten">✕</button>
