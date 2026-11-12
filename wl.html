@@ -366,7 +366,7 @@ const MIN_RUST_MIN  = 20;
 // ══════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════
-let W = [], spelers = [], leiders = [];
+let W = [], spelers = [], leiders = [], WACHT = [];
 let geladen = false, laadFout = '';
 const S = { view:'avond', datum:null, div:'alle', toonGespeeld:false, zoek:'', spMode:'wed' };
 let sheet = null;
@@ -470,13 +470,17 @@ async function laadData(stil){
   zetDot('bezig');
   try{
     let kantelRij;
-    [W, spelers, leiders, , kantelRij] = await Promise.all([
+    let wachtRijen;
+    [W, spelers, leiders, , kantelRij, wachtRijen] = await Promise.all([
       sbGet('wedstrijden','select=id,datum,tijdstip,divisie,thuis,uit,speelronde,status,uitslag,datum_nnb,is_inhaal,originele_datum,notitie,bord&order=datum.asc,tijdstip.asc'),
       sbGet('spelers','select=naam&order=naam.asc'),
       sbGet('wedstrijdleiding','select=naam&actief=eq.true&order=naam.asc'),
       laadBeker(),
-      sbGet('instellingen','sleutel=eq.planning_kantel_dag&select=waarde').catch(()=>[])
+      sbGet('instellingen','sleutel=eq.planning_kantel_dag&select=waarde').catch(()=>[]),
+      sbGet('wachtlijst','select=id,wedstrijd_id,datum,door,aangemaakt_op&order=aangemaakt_op.asc').catch(()=>[])
     ]);
+    WACHT = wachtRijen||[];
+    wachtOpruimen();
     const k=parseInt(kantelRij?.[0]?.waarde,10); PL.kantel = k>=1 && k<=28 ? k : 24;
     geladen=true; laadFout='';
     zetDot('ok');
@@ -492,7 +496,7 @@ async function laadData(stil){
 }
 function updateBadge(){
   updatePlanBadge();
-  const n=W.filter(w=>w.datum_nnb && w.status!=='gespeeld').length;
+  const n=W.filter(w=>w.datum_nnb && w.status!=='gespeeld').length + wachtAanDeBeurt().length;
   const b=$('#nnbBadge'); b.hidden=!n; b.textContent=n;
 }
 
@@ -737,6 +741,7 @@ function htmlAvond(){
 
   return `
     ${datumChips('avondDatums', d, 'kiesAvond', null, false)}
+    ${wachtBanner(d)}
     ${d===vandaag() ? bordenHtml() : ''}
     <div class="stats">
       <div class="stat"><b>${alle.length}</b><span>totaal</span></div>
@@ -760,6 +765,7 @@ function kaart(w, opts={}){
     w.datum_nnb ? '<span class="chip nnb">NNB</span>' : '',
     w.speelronde ? `<span class="chip">SR ${esc(w.speelronde)}</span>` : '',
     w.bord ? `<span class="chip groen">🎯 Bord ${esc(w.bord)}</span>` : '',
+    ...wachtVan(w.id).map(x=>`<span class="chip oranje">⏳ wacht ${esc(fmtKort(x.datum))}</span>`),
     conflict ? `<span class="chip rood">⚠ &lt;${MIN_RUST_MIN} min rust</span>` : '',
     w.notitie ? '<span class="chip">📝</span>' : '',
     gespeeld ? '<span class="chip groen">✓ gespeeld</span>' : ''
@@ -974,9 +980,100 @@ function htmlZoekResultaat(){
 // ── NNB ──
 function htmlNNB(){
   const lijst=W.filter(w=>w.datum_nnb && w.status!=='gespeeld');
-  if(!lijst.length) return '<div class="leeg">Geen wedstrijden zonder datum 👍</div>';
-  return `<div class="sec-title">Nieuwe datum nog niet bekend (${lijst.length})</div>` +
+  const wacht=htmlWachtlijst();
+  if(!lijst.length) return wacht + '<div class="leeg" style="margin-top:12px">Geen wedstrijden zonder datum 👍</div>';
+  return wacht + `<div class="sec-title">Nieuwe datum nog niet bekend (${lijst.length})</div>` +
     lijst.map(w=>kaart(w,{toonDatum:false}) .replace('<div class="chips">', `<div class="chips">${w.originele_datum?`<span class="chip">oorspr. ${esc(fmtKort(w.originele_datum))}</span>`:''}`)).join('');
+}
+
+// ══════════════════════════════════════════
+//  WACHTLIJST — volle avonden (max 40). Wedstrijd blijft op zijn huidige avond staan;
+//  komt er een plek vrij, dan ziet de WL wie aan de beurt is en plant die met één tik in.
+//  Volgorde: wie het eerst op de lijst staat (aangemaakt_op). Tabel `wachtlijst`.
+// ══════════════════════════════════════════
+const wachtVan = id => WACHT.filter(x=>x.wedstrijd_id===id);
+function wachtGeldig(x){
+  const m=W.find(w=>w.id===x.wedstrijd_id);
+  return m && m.status!=='gespeeld' && x.datum>=vandaag() && !(m.datum===x.datum && !m.datum_nnb);
+}
+// Verlopen regels (gespeeld, datum voorbij, of inmiddels op die avond ingepland) stilletjes weghalen
+function wachtOpruimen(){
+  const weg=WACHT.filter(x=>!wachtGeldig(x));
+  if(!weg.length) return;
+  WACHT=WACHT.filter(wachtGeldig);
+  fetch(`${SB_URL}/rest/v1/wachtlijst?id=in.(${weg.map(x=>x.id).join(',')})`,{method:'DELETE',headers:HDR}).catch(()=>{});
+}
+function wachtVoor(d){ return WACHT.filter(x=>x.datum===d && wachtGeldig(x)); }
+function vrijePlekken(d){ return Math.max(0, MAX_PER_AVOND - telAvond(d)); }
+// Wie mag er nu in? De eerste N op de lijst, N = aantal vrije plekken op die avond
+function wachtAanDeBeurt(){
+  const datums=[...new Set(WACHT.map(x=>x.datum))];
+  return datums.flatMap(d=>wachtVoor(d).slice(0, vrijePlekken(d)));
+}
+function wachtBanner(d){
+  const lijst=wachtVoor(d); if(!lijst.length) return '';
+  const vrij=vrijePlekken(d);
+  const m=W.find(w=>w.id===lijst[0].wedstrijd_id);
+  return vrij
+    ? `<div class="info" style="border-color:var(--green);background:rgba(16,185,129,.1)"><span>✅ <b>${vrij} plek${vrij>1?'ken':''} vrij</b> · eerstvolgende op de wachtlijst: <b>${esc(m.thuis)} – ${esc(m.uit)}</b></span>
+        <button class="btn-klein" onclick="openVerzet(${jsAttr(m.id)},${jsAttr(d)})">Inplannen</button></div>`
+    : `<div class="info"><span>⏳ Avond vol · <b>${lijst.length}</b> op de wachtlijst</span><button class="btn-klein" onclick="naarView('nnb')">Bekijk</button></div>`;
+}
+function htmlWachtlijst(){
+  const datums=[...new Set(WACHT.filter(wachtGeldig).map(x=>x.datum))].sort();
+  if(!datums.length) return '';
+  return `<div class="sec-title">⏳ Wachtlijst volle avonden</div>` + datums.map(d=>{
+    const lijst=wachtVoor(d), vrij=vrijePlekken(d);
+    return `<div class="slot-hdr"><span class="t">${esc(fmtKort(d))}</span><span class="c ${vrij?'':'vol'}">${telAvond(d)}/${MAX_PER_AVOND}${vrij?` · ${vrij} vrij`:' · vol'}</span></div>` +
+      lijst.map((x,i)=>{
+        const m=W.find(w=>w.id===x.wedstrijd_id);
+        const beurt=i<vrij;
+        return `<div class="card ${divKey(m)}" style="${beurt?'box-shadow:inset 0 0 0 1.5px var(--green)':''}">
+          <div class="card-main" onclick="openVerzet(${jsAttr(m.id)},${jsAttr(d)})">
+            <div class="card-when">#${i+1} · staat nu ${m.datum_nnb?'op NNB':'op '+esc(fmtKort(m.datum))}</div>
+            <div class="names"><span class="n">${esc(m.thuis)}</span><span class="n"><span class="vs">vs</span>${esc(m.uit)}</span></div>
+            <div class="chips">${divChip(m)}${beurt?'<span class="chip groen">✅ plek vrij — tik om in te plannen</span>':''}</div>
+          </div>
+          <button class="btn-klein" onclick="wachtAf(${jsAttr(x.id)})" aria-label="Van wachtlijst halen">✕</button></div>`;
+      }).join('');
+  }).join('');
+}
+function wachtSheetHtml(m){
+  const eigen=wachtVan(m.id).filter(wachtGeldig);
+  const rijen=eigen.map(x=>{
+    const pos=wachtVoor(x.datum).findIndex(y=>y.id===x.id)+1;
+    return `<div class="info"><span>⏳ Op de wachtlijst voor <b>${esc(fmtKort(x.datum))}</b> (#${pos})</span><button class="btn-klein" onclick="wachtAf(${jsAttr(x.id)})">Eraf</button></div>`;
+  }).join('');
+  let knop='';
+  const d=sheet.datum;
+  if(!sheet.nnb && d && d!==m.datum && telAvond(d, m.id)>=MAX_PER_AVOND && !eigen.some(x=>x.datum===d)){
+    const n=wachtVoor(d).length;
+    knop=`<button class="ruil-knop" style="border-color:var(--orange);background:rgba(245,158,11,.10)" onclick="wachtOp(${jsAttr(m.id)},${jsAttr(d)})">⏳ Op wachtlijst voor ${esc(fmtKort(d))}${n?` (nu ${n} wachtend)`:''}<br><small style="font-weight:600;color:var(--muted)">Blijft ${m.datum_nnb?'op NNB':'op '+esc(fmtKort(m.datum))} staan tot er een plek vrijkomt</small></button>`;
+  }
+  return (rijen||knop) ? `<div class="sec-title">Wachtlijst</div>${rijen}${knop}` : '';
+}
+async function wachtOp(id, d){
+  if(!sheet?.door){ toast('Kies eerst onderaan wie de wijziging doet','rood'); return; }
+  try{
+    const rij=await sbPost('wachtlijst',{wedstrijd_id:id, datum:d, door:sheet.door});
+    WACHT.push(rij[0]);
+    const m=W.find(w=>w.id===id);
+    try{ await sbPost('wijziging_log',{ wedstrijd_id:id, thuis:m.thuis, uit:m.uit, divisie:m.divisie||null, actie:'verzet',
+      oude_datum:m.datum_nnb?null:m.datum, nieuwe_datum:m.datum_nnb?null:m.datum, oude_tijdstip:m.tijdstip||null, nieuwe_tijdstip:m.tijdstip||null,
+      gewijzigd_door:sheet.door, notitie:`Op wachtlijst voor ${fmtKort(d)} (avond vol)`, mail_verstuurd:false }); }catch(e){}
+    toast(`⏳ Op de wachtlijst voor ${fmtKort(d)}`,'oranje');
+    sluitSheet(); updateBadge(); render();
+  }catch(e){ toast(/duplicate|unique/i.test(e.message)?'Staat al op die wachtlijst':`Mislukt: ${e.message}`,'rood'); }
+}
+async function wachtAf(wid){
+  if(!confirm('Van de wachtlijst halen?')) return;
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/wachtlijst?id=eq.${encodeURIComponent(wid)}`,{method:'DELETE',headers:HDR});
+    if(!r.ok) throw new Error(await r.text());
+    WACHT=WACHT.filter(x=>x.id!==wid);
+    toast('Van de wachtlijst gehaald','');
+    updateBadge(); render(); if(sheet) renderSheet();
+  }catch(e){ toast(`Mislukt: ${e.message}`,'rood'); }
 }
 
 // ══════════════════════════════════════════
@@ -1013,17 +1110,17 @@ async function zetOpBord(id, b){
     const rijen = await sbGet('wedstrijden', `or=(bord.eq.${b},id.eq.${encodeURIComponent(id)})&select=id,bord,status`);
     const bezet = rijen.find(r=>r.bord===b && r.status!=='gespeeld' && r.id!==id);
     const zelf  = rijen.find(r=>r.id===id);
-    if(bezet){ toast(`Bord ${b} is net bezet`,'red'); }
-    else if(zelf && zelf.status==='gespeeld'){ toast('Deze wedstrijd is al gespeeld','red'); }
-    else if(zelf && zelf.bord && zelf.bord!==b){ toast(`Staat al op bord ${zelf.bord}`,'red'); }
+    if(bezet){ toast(`Bord ${b} is net bezet`,'rood'); }
+    else if(zelf && zelf.status==='gespeeld'){ toast('Deze wedstrijd is al gespeeld','rood'); }
+    else if(zelf && zelf.bord && zelf.bord!==b){ toast(`Staat al op bord ${zelf.bord}`,'rood'); }
     else {
       await sbPatch('wedstrijden', id, {bord:b});
       const w=W.find(x=>x.id===id); if(w) w.bord=b;
-      toast(`▶ Op bord ${b} gezet`,'green');
+      toast(`▶ Op bord ${b} gezet`,'groen');
       if(navigator.vibrate) navigator.vibrate(30);
       sluitSheet();
     }
-  }catch(e){ toast(`Mislukt: ${e.message}`,'red'); }
+  }catch(e){ toast(`Mislukt: ${e.message}`,'rood'); }
   finally{ bordBezig=false; await laadData(true); }
 }
 async function haalVanBord(id){
@@ -1036,14 +1133,14 @@ async function haalVanBord(id){
     w.bord=null;
     toast('↩ Van het bord gehaald','');
     if(sheet && sheet.id===id) renderSheet();
-  }catch(e){ toast(`Mislukt: ${e.message}`,'red'); }
+  }catch(e){ toast(`Mislukt: ${e.message}`,'rood'); }
   finally{ bordBezig=false; await laadData(true); }
 }
 
 // ══════════════════════════════════════════
 //  VERZETTEN (bottom sheet)
 // ══════════════════════════════════════════
-function openVerzet(id){
+function openVerzet(id, voorDatum){
   const m=W.find(w=>w.id===id); if(!m || m.status==='gespeeld') return;
   const eersteKeerBeker = isBeker(m) && m.datum_nnb && !m.originele_datum && !m.is_inhaal;
   const standaard = !m.tijdstip || PT_SLOTS.some(s=>s.tijd===m.tijdstip);
@@ -1056,6 +1153,7 @@ function openVerzet(id){
   renderSheet();
   $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
   document.body.style.overflow='hidden';
+  if(voorDatum) sheetKiesDatum(voorDatum);
   laadData(true); // verse stand ophalen zodat conflicten kloppen
 }
 function sluitSheet(){
@@ -1336,6 +1434,7 @@ function renderSheet(){
       ${aangepast}
       ${ctxHtml}
       ${warnHtml}
+      ${wachtSheetHtml(m)}
       <div class="sec-title">Opslaan</div>
       <label class="check"><input type="checkbox" ${sheet.inhaal?'checked':''} onchange="sheet.inhaal=this.checked"> Telt als inhaalwedstrijd (oorspronkelijke datum bewaren)</label>
       <div class="veld"><label>Gewijzigd door</label><select class="inp" onchange="sheet.door=this.value;lsSet('wl_door',this.value)">${leiderOpts}</select></div>
@@ -1396,6 +1495,7 @@ async function slaVerzetOp(informeer){
   try{
     await sbPatch('wedstrijden', id, { datum:nieuweDatum, tijdstip:nieuweTijd, datum_nnb:isNNB, is_inhaal:sheet.inhaal, originele_datum:origDatum, status:'gepland' });
     Object.assign(m,{ datum:nieuweDatum, tijdstip:nieuweTijd, datum_nnb:isNNB, is_inhaal:sheet.inhaal, originele_datum:origDatum, status:'gepland' });
+    if(!isNNB) wachtOpruimen();
     sluitSheet();
     if(!isNNB && S.view==='avond') S.datum=nieuweDatum;
     render(); updateBadge();
