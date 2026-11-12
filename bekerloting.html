@@ -986,6 +986,17 @@
     return null; // niets te loten op dit moment
   }
 
+  // fetch met tijdslimiet: blijft een verzoek hangen (bv. wifi die hapert),
+  // dan geeft hij na 15 seconden een fout i.p.v. eindeloos te wachten.
+  async function fetchMetLimiet(url, opties){
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, 15000);
+    var o = {}; for(var k in (opties || {})) o[k] = opties[k];
+    o.signal = ctrl.signal;
+    try{ return await fetch(url, o); }
+    finally{ clearTimeout(timer); }
+  }
+
   async function postWedstrijd(thuis, uit, divisie){
     var body = [{
       datum: new Date().toISOString().slice(0, 10),
@@ -999,7 +1010,7 @@
       is_inhaal: false,
       datum_nnb: true
     }];
-    var res = await fetch(SB_URL + "/rest/v1/wedstrijden", { method: "POST", headers: SB_HDR, body: JSON.stringify(body) });
+    var res = await fetchMetLimiet(SB_URL + "/rest/v1/wedstrijden", { method: "POST", headers: SB_HDR, body: JSON.stringify(body) });
     if(!res.ok) throw new Error(await res.text());
     return res.json();
   }
@@ -1769,6 +1780,14 @@
   // WR2-voorbereiding — de getrokken paren zijn de complete fase. Heeft de fase
   // ook een bye-trekking nodig (bv. VR2, als de pool geen macht van 2 is), dan
   // worden die bye-spelers gewoon meegestuurd als state.fases[faseId].bye.
+  function toonNietOpgeslagen(){
+    // Niet als afgerond markeren: de loting staat veilig in deze browser en
+    // wordt bij het herladen van de pagina opnieuw naar het toernooi gestuurd.
+    state.afgerond = false;
+    saveState();
+    if(doneLineText) doneLineText.textContent = "⚠ Loting nog niet opgeslagen — herlaad de pagina";
+  }
+
   async function voltooiFaseLoting(){
     if(state.afgerond) return;
     var targets = computeTargets();
@@ -1792,6 +1811,7 @@
       }
       saveState();
       renderMatches();
+      if(state.matches.some(function(x){ return x.sync === "error"; })) return toonNietOpgeslagen();
     }
 
     // Tussenronde: de bye-spelers zijn tijdens het trekken al gekoppeld (zie
@@ -1823,6 +1843,10 @@
           }
         }
       }
+      if(directeKoppels.some(function(x){ return x.sync === "error"; })){
+        state.wr2Prep = { byeMatches: directeKoppels, slots: [] };
+        return toonNietOpgeslagen();
+      }
       var slotsT = preSeedT.map(function(naam, i){ return { byeSpeler: naam, winnaarVanWedstrijd: i + 1 }; });
       state.wr2Prep = { byeMatches: directeKoppels, slots: slotsT };
       saveState();
@@ -1844,8 +1868,9 @@
     });
 
     try{
-      var res = await fetch(SB_URL + "/rest/v1/beker_toernooi?id=eq." + encodeURIComponent(SEIZOEN), { headers: SB_HDR });
-      var rows2 = res.ok ? await res.json() : [];
+      var res = await fetchMetLimiet(SB_URL + "/rest/v1/beker_toernooi?id=eq." + encodeURIComponent(SEIZOEN), { headers: SB_HDR });
+      if(!res.ok) throw new Error(await res.text()); // nooit het toernooi overschrijven met alleen deze fase
+      var rows2 = await res.json();
       var toernooiState = rows2.length ? rows2[0].staat : null;
       if(!toernooiState){
         toernooiState = { spelers: state.baseNames, syncEnabled: state.syncEnabled, kampioenWR: null, kampioenVR: null, fases: {} };
@@ -1872,7 +1897,7 @@
       var hdr = {};
       for(var k in SB_HDR){ hdr[k] = SB_HDR[k]; }
       hdr["Prefer"] = "resolution=merge-duplicates,return=representation";
-      var opslaan = await fetch(SB_URL + "/rest/v1/beker_toernooi", {
+      var opslaan = await fetchMetLimiet(SB_URL + "/rest/v1/beker_toernooi", {
         method: "POST",
         headers: hdr,
         body: JSON.stringify([{ id: SEIZOEN, seizoen: SEIZOEN, staat: toernooiState }])
@@ -1881,9 +1906,7 @@
     }catch(e){
       // Niet als afgerond markeren: de loting staat veilig in deze browser en
       // wordt bij het herladen van de pagina opnieuw naar het toernooi gestuurd.
-      saveState();
-      if(doneLineText) doneLineText.textContent = "⚠ Loting nog niet opgeslagen — herlaad de pagina";
-      return;
+      return toonNietOpgeslagen();
     }
 
     state.afgerond = true;
