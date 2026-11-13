@@ -7,13 +7,20 @@
 <meta name="description" content="Het actuele speelschema van dartsclub De Kaale Bull.">
 <meta name="theme-color" content="#0f1520">
 <script>
-/* Tijdelijk thema "Vice week": aan t/m vrijdag 27-11-2026, daarna vanzelf weer normaal. */
+/* Tijdelijke thema's: elk aan van 'van' t/m 'tot' (exclusief), daarna vanzelf weer normaal. */
 (function(){
+  var THEMAS=[
+    {cls:'thema-vice',  van:'2026-11-13T00:00:00+01:00', tot:'2026-11-28T00:00:00+01:00', kleur:'#1a0b33'},
+    {cls:'thema-kerst', van:'2026-12-06T00:00:00+01:00', tot:'2026-12-18T00:00:00+01:00', kleur:'#7a1020'}
+  ];
   try{
-    if (Date.now() < new Date('2026-11-28T00:00:00+01:00').getTime()) {
-      document.documentElement.classList.add('thema-vice');
-      var m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content','#1a0b33');
-    }
+    var nu=Date.now();
+    for(var i=0;i<THEMAS.length;i++){var t=THEMAS[i];
+      if(nu>=new Date(t.van).getTime() && nu<new Date(t.tot).getTime()){
+        document.documentElement.classList.add(t.cls);
+        var m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content',t.kleur);
+        break;
+      }}
   }catch(e){}
 })();
 </script>
@@ -451,9 +458,83 @@ html.thema-vice .nav{background:rgba(18,6,40,.94);border-top:2px solid #22e3ff;b
 html.thema-vice .nav button.actief{color:#ff5fc4;filter:drop-shadow(0 0 6px #ff2fb3);}
 html.thema-vice .h2h-paneel,html.thema-vice .installeer{background:#22103c;}
 html.thema-vice .sb-kop{background:#22103c;}
+
+/* ══════════════════════════════════════════════════════════
+   TIJDELIJK THEMA "KERST" (6-12 t/m 17-12-2026)
+   Aan via class thema-kerst op <html> (zie script in <head>).
+   ══════════════════════════════════════════════════════════ */
+.kerst-decor,.kerst-band{display:none;}
+html.thema-kerst{
+  --bg:#0b1a2e; --s1:rgba(16,34,56,.86); --s2:rgba(24,48,76,.9); --s3:#24486e; --border:#2f5a80;
+  --text:#f8fafc; --muted:#b8cde0; --dim:#7f9bb5;
+  --green:#34d399; --orange:#fbbf24; --red:#ff4d5e;
+  --ere:#ff4d5e; --eerste:#7dd3fc; --beker:#fbbf24;
+}
+html.thema-kerst body{background:#0b1a2e;}
+html.thema-kerst main{position:relative;z-index:1;}
+html.thema-kerst .kerst-decor{display:block;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 0%,#1d3a5f 0%,#0b1a2e 55%,#06101d 100%);}
+html.thema-kerst .kerst-decor svg{position:absolute;inset:0;width:100%;height:100%;}
+.sneeuw i{position:absolute;top:-12px;border-radius:50%;background:#fff;opacity:.8;animation:sneeuwval linear infinite;}
+@keyframes sneeuwval{to{transform:translate3d(var(--dx,20px),110vh,0);}}
+@media (prefers-reduced-motion:reduce){.sneeuw{display:none;}}
+html.thema-kerst .kerst-band{display:block;margin:0 0 12px;border-radius:10px;padding:8px 12px;font-size:.8rem;font-weight:700;text-align:center;
+  background:linear-gradient(90deg,rgba(255,77,94,.28),rgba(52,211,153,.28));border:1px solid rgba(251,191,36,.5);color:#fff;letter-spacing:.03em;}
+html.thema-kerst .kop{background:linear-gradient(90deg,rgba(120,16,32,.95),rgba(150,22,40,.95));border-bottom:0;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding-bottom:16px;}
+/* lampjessnoer onder de kop */
+html.thema-kerst .kop::after{content:'';position:absolute;left:0;right:0;bottom:-6px;height:12px;pointer-events:none;
+  background:
+    radial-gradient(circle at 10px 6px,#fbbf24 3.5px,transparent 4.5px) 0 0/80px 12px repeat-x,
+    radial-gradient(circle at 30px 6px,#34d399 3.5px,transparent 4.5px) 0 0/80px 12px repeat-x,
+    radial-gradient(circle at 50px 6px,#7dd3fc 3.5px,transparent 4.5px) 0 0/80px 12px repeat-x,
+    radial-gradient(circle at 70px 6px,#ff9aa5 3.5px,transparent 4.5px) 0 0/80px 12px repeat-x,
+    linear-gradient(#1f3d2b,#1f3d2b) 0 5px/100% 1.5px no-repeat;
+  animation:lampjes 2.4s steps(2) infinite;}
+@keyframes lampjes{50%{filter:brightness(.55) saturate(.7);}}
+html.thema-kerst .logo>div{font-weight:900;color:#fff;text-shadow:0 0 8px rgba(255,255,255,.35);}
+html.thema-kerst .logo small{color:#fde68a;letter-spacing:.2em;text-transform:uppercase;font-size:.62rem;font-weight:700;}
+html.thema-kerst .sync{color:#fecaca;}
+html.thema-kerst .live-knop{background:rgba(255,255,255,.12);border-color:#fff;color:#fff;}
+html.thema-kerst .kaart{border-radius:12px;}
+html.thema-kerst .kaart.mijn{border-top-color:#fbbf24;border-right-color:#fbbf24;border-bottom-color:#fbbf24;box-shadow:0 0 12px rgba(251,191,36,.35);}
+html.thema-kerst .kaart.opbord{background:rgba(52,211,153,.12);box-shadow:0 0 12px rgba(52,211,153,.4);}
+html.thema-kerst .k-namen .ik,html.thema-kerst .duel .ik{color:#fde68a;}
+html.thema-kerst .avond.actief,html.thema-kerst .periodes button.actief{background:linear-gradient(135deg,#c81e3a,#ff4d5e);border-color:#ff4d5e;box-shadow:0 0 12px rgba(255,77,94,.5);}
+html.thema-kerst .avond.actief span,html.thema-kerst .periodes button.actief span{color:#fff;}
+html.thema-kerst .seg button.actief{background:linear-gradient(135deg,#15803d,#22c55e);color:#fff;}
+html.thema-kerst .avond-titel h2,html.thema-kerst .ik-balk h2{color:#fff;}
+html.thema-kerst .avond-titel h2::before,html.thema-kerst .ik-balk h2::before{content:'🎄 ';}
+html.thema-kerst .chip.ere{background:rgba(255,77,94,.2);color:#fecdd3;}
+html.thema-kerst .chip.eerste{background:rgba(125,211,252,.18);color:#e0f2fe;}
+html.thema-kerst .beurt.nu{background:rgba(52,211,153,.14);border-color:#34d399;color:#d1fae5;}
+html.thema-kerst table.stand tr.ik td{background:rgba(251,191,36,.12);}
+html.thema-kerst .agenda-knoppen a,html.thema-kerst .dc-knop,html.thema-kerst .push button.hoofd,html.thema-kerst .installeer .ja{background:linear-gradient(135deg,#c81e3a,#ff4d5e);color:#fff;}
+html.thema-kerst .nav{background:rgba(8,20,36,.95);border-top:2px solid #c81e3a;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
+html.thema-kerst .nav button.actief{color:#fbbf24;}
+html.thema-kerst .h2h-paneel,html.thema-kerst .installeer,html.thema-kerst .sb-kop{background:#10223a;}
 </style>
 </head>
 <body>
+<div class="kerst-decor" aria-hidden="true">
+ <svg viewBox="0 0 390 780" preserveAspectRatio="xMidYMax slice">
+  <circle cx="320" cy="120" r="26" fill="#fef9c3" opacity=".85"/><circle cx="331" cy="112" r="24" fill="#132a46" opacity=".9"/>
+  <g fill="#fff" opacity=".7"><circle cx="40" cy="80" r="1.2"/><circle cx="110" cy="150" r="1"/><circle cx="200" cy="60" r="1.3"/><circle cx="250" cy="190" r="1"/><circle cx="70" cy="260" r="1.1"/><circle cx="360" cy="240" r="1"/><circle cx="160" cy="300" r="1.2"/></g>
+  <path d="M0 640 C80 600 150 610 210 630 C270 650 330 610 390 620 L390 780 L0 780Z" fill="#dbeafe" opacity=".18"/>
+  <path d="M0 680 C90 650 170 665 240 685 C300 700 350 670 390 675 L390 780 L0 780Z" fill="#e2e8f0" opacity=".9"/>
+  <g fill="#0f3d2a">
+   <path d="M60 690 L84 690 L72 600Z M52 660 L92 660 L72 610Z M46 690 L98 690 L72 640Z"/>
+   <path d="M310 700 L342 700 L326 585Z M300 668 L352 668 L326 600Z M294 700 L358 700 L326 630Z"/>
+   <path d="M352 700 L372 700 L362 640Z M346 700 L378 700 L362 660Z"/>
+  </g>
+  <rect x="69" y="690" width="6" height="10" fill="#5b3a1e"/><rect x="323" y="700" width="6" height="10" fill="#5b3a1e"/>
+  <polygon points="72,594 74,600 80,600 75,604 77,610 72,606 67,610 69,604 64,600 70,600" fill="#fbbf24"/>
+  <polygon points="326,579 328,585 334,585 329,589 331,595 326,591 321,595 323,589 318,585 324,585" fill="#fbbf24"/>
+  <g><circle cx="66" cy="650" r="2.5" fill="#ff4d5e"/><circle cx="80" cy="672" r="2.5" fill="#7dd3fc"/><circle cx="62" cy="680" r="2.5" fill="#fbbf24"/>
+     <circle cx="318" cy="640" r="2.5" fill="#ff4d5e"/><circle cx="334" cy="660" r="2.5" fill="#fbbf24"/><circle cx="314" cy="688" r="2.5" fill="#7dd3fc"/><circle cx="338" cy="690" r="2.5" fill="#ff4d5e"/></g>
+ </svg>
+ <div class="sneeuw"></div>
+</div>
 <div class="vice-decor" aria-hidden="true">
  <svg viewBox="0 0 390 780" preserveAspectRatio="xMidYMax slice">
   <defs>
@@ -471,6 +552,16 @@ html.thema-vice .sb-kop{background:#22103c;}
  </svg>
 </div>
 
+<script>
+(function(){
+  if(!document.documentElement.classList.contains('thema-kerst'))return;
+  var box=document.querySelector('.kerst-decor .sneeuw'); if(!box)return;
+  for(var i=0;i<40;i++){var v=document.createElement('i'),d=2+Math.random()*4;
+    v.style.cssText='left:'+(Math.random()*100)+'%;width:'+d+'px;height:'+d+'px;opacity:'+(.4+Math.random()*.5)+
+      ';animation-duration:'+(8+Math.random()*10)+'s;animation-delay:-'+(Math.random()*18)+'s;--dx:'+(Math.random()*60-30)+'px';
+    box.appendChild(v);}
+})();
+</script>
 <header class="kop">
   <div class="kop-rij">
     <div class="logo"><b id="ee-pijl" aria-hidden="true">🎯</b> <div>De Kaale Bull<small>Speelschema</small></div></div>
@@ -482,6 +573,7 @@ html.thema-vice .sb-kop{background:#22103c;}
 </header>
 
 <main>
+  <div class="kerst-band">🎄 Fijne feestdagen van De Kaale Bull 🎄</div>
   <div class="vice-band">🌴 VICE WEEK · t/m vrijdag 27 november 🌴</div>
   <div class="mededeling" id="mededeling" hidden></div>
   <section id="viewAlles"></section>
