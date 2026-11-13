@@ -6,6 +6,17 @@
 <title>Kaale Bull — Speelschema</title>
 <meta name="description" content="Het actuele speelschema van dartsclub De Kaale Bull.">
 <meta name="theme-color" content="#0f1520">
+<script>
+/* Tijdelijk thema "Vice week": aan t/m vrijdag 27-11-2026, daarna vanzelf weer normaal. */
+(function(){
+  try{
+    if (Date.now() < new Date('2026-11-28T00:00:00+01:00').getTime()) {
+      document.documentElement.classList.add('thema-vice');
+      var m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content','#1a0b33');
+    }
+  }catch(e){}
+})();
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/favicon-48.png">
@@ -393,9 +404,72 @@ table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
 table.stand td.w{color:#6ee7b7;font-weight:700;}
 table.stand td.v{color:#fca5a5;font-weight:700;}
 [hidden]{display:none !important;}
+
+/* ══════════════════════════════════════════════════════════
+   TIJDELIJK THEMA "VICE WEEK" (13-11 t/m 27-11-2026)
+   Aan via class thema-vice op <html> (zie script in <head>);
+   na de einddatum valt de app vanzelf terug op het normale thema.
+   ══════════════════════════════════════════════════════════ */
+.vice-decor,.vice-band{display:none;}
+html.thema-vice{
+  --bg:#1a0b33; --s1:rgba(34,14,62,.84); --s2:rgba(54,20,86,.88); --s3:#4a1d6e; --border:#5b2a86;
+  --text:#fff4fb; --muted:#d9a8e6; --dim:#9b6fb5;
+  --green:#19f5c8; --orange:#ffb347; --red:#ff3b6b;
+  --ere:#ff2fb3; --eerste:#22e3ff; --beker:#ffb347;
+}
+html.thema-vice body{background:#1a0b33;}
+html.thema-vice .vice-decor{display:block;position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,#1a0b33 0%,#2b0d4a 38%,#6b1a6e 62%,#c2306f 78%,#ff7a59 92%,#ffc46b 100%);}
+html.thema-vice .vice-decor svg{position:absolute;inset:0;width:100%;height:100%;}
+html.thema-vice main{position:relative;z-index:1;}
+html.thema-vice .vice-band{display:block;margin:0 0 12px;border-radius:10px;padding:8px 12px;font-size:.78rem;font-weight:700;text-align:center;
+  background:linear-gradient(90deg,rgba(255,47,179,.25),rgba(34,227,255,.25));border:1px solid rgba(255,255,255,.25);color:#fff;letter-spacing:.03em;}
+html.thema-vice .kop{background:linear-gradient(90deg,rgba(18,6,40,.94),rgba(40,8,60,.94));border-bottom:2px solid #ff2fb3;
+  box-shadow:0 2px 18px rgba(255,47,179,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
+html.thema-vice .logo>div{font-style:italic;font-weight:900;letter-spacing:.02em;
+  background:linear-gradient(90deg,#ff5fc4,#ffb347);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 6px rgba(255,95,196,.6));}
+html.thema-vice .logo small{-webkit-text-fill-color:#22e3ff;color:#22e3ff;font-style:normal;letter-spacing:.25em;text-transform:uppercase;font-size:.62rem;font-weight:700;}
+html.thema-vice .live-knop{background:rgba(255,59,107,.2);border-color:#ff3b6b;color:#ffd1dc;box-shadow:0 0 10px rgba(255,59,107,.6);}
+html.thema-vice .kaart{border-radius:4px 14px 4px 14px;}
+html.thema-vice .kaart.mijn{border-top-color:#22e3ff;border-right-color:#22e3ff;border-bottom-color:#22e3ff;box-shadow:0 0 14px rgba(34,227,255,.45);}
+html.thema-vice .kaart.opbord{background:rgba(25,245,200,.12);box-shadow:0 0 14px rgba(25,245,200,.45);}
+html.thema-vice .k-namen .ik,html.thema-vice .duel .ik{color:#22e3ff;}
+html.thema-vice .avond.actief,html.thema-vice .periodes button.actief{background:linear-gradient(135deg,#ff2fb3,#ff7a59);border-color:#ff7a59;box-shadow:0 0 14px rgba(255,47,179,.6);}
+html.thema-vice .avond.actief span,html.thema-vice .periodes button.actief span{color:#fff;}
+html.thema-vice .seg button.actief{background:linear-gradient(135deg,#ff2fb3,#8a2be2);color:#fff;}
+html.thema-vice .slot-tijd,html.thema-vice .kaart .tijd-groot{font-style:italic;text-shadow:0 0 8px rgba(255,179,71,.8);}
+html.thema-vice .avond-titel h2,html.thema-vice .ik-balk h2{font-style:italic;font-weight:900;text-transform:uppercase;letter-spacing:.04em;
+  color:#fff;text-shadow:2px 2px 0 #ff2fb3,4px 4px 0 rgba(34,227,255,.6);}
+html.thema-vice .chip.ere{background:rgba(255,47,179,.22);color:#ffb3e6;}
+html.thema-vice .chip.eerste{background:rgba(34,227,255,.18);color:#a8f4ff;}
+html.thema-vice .bord{color:#062a24;box-shadow:0 0 10px rgba(25,245,200,.7);}
+html.thema-vice .beurt.nu{background:rgba(25,245,200,.14);border-color:#19f5c8;color:#c9fff3;box-shadow:0 0 16px rgba(25,245,200,.35);}
+html.thema-vice table.stand tr.ik td{background:rgba(34,227,255,.14);}
+html.thema-vice .agenda-knoppen a,html.thema-vice .dc-knop,html.thema-vice .push button.hoofd,html.thema-vice .installeer .ja{background:linear-gradient(135deg,#ff2fb3,#8a2be2);color:#fff;}
+html.thema-vice .nav{background:rgba(18,6,40,.94);border-top:2px solid #22e3ff;box-shadow:0 -2px 18px rgba(34,227,255,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
+html.thema-vice .nav button.actief{color:#ff5fc4;filter:drop-shadow(0 0 6px #ff2fb3);}
+html.thema-vice .h2h-paneel,html.thema-vice .installeer{background:#22103c;}
+html.thema-vice .sb-kop{background:#22103c;}
 </style>
 </head>
 <body>
+<div class="vice-decor" aria-hidden="true">
+ <svg viewBox="0 0 390 780" preserveAspectRatio="xMidYMax slice">
+  <defs>
+   <linearGradient id="viceZon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd36b"/><stop offset=".55" stop-color="#ff7a59"/><stop offset="1" stop-color="#ff2fb3"/></linearGradient>
+   <clipPath id="viceStrepen"><rect x="0" y="0" width="390" height="560"/><rect x="0" y="566" width="390" height="10"/><rect x="0" y="582" width="390" height="8"/><rect x="0" y="596" width="390" height="6"/><rect x="0" y="608" width="390" height="5"/></clipPath>
+  </defs>
+  <circle cx="195" cy="600" r="120" fill="url(#viceZon)" clip-path="url(#viceStrepen)" opacity=".85"/>
+  <path d="M0 640 L0 600 L30 600 L30 575 L52 575 L52 610 L80 610 L80 560 L96 552 L112 560 L112 615 L300 615 L300 570 L318 570 L318 540 L336 540 L336 590 L360 590 L360 605 L390 605 L390 640Z" fill="#1a0630" opacity=".9"/>
+  <g fill="#12041f">
+   <path d="M48 780 C52 720 58 680 70 640 L76 642 C66 682 62 722 60 780Z"/>
+   <path d="M72 640 C50 620 25 622 8 636 C30 628 52 632 70 646Z M72 640 C60 612 40 600 18 602 C40 610 58 624 70 644Z M72 640 C84 614 104 604 128 608 C106 614 88 626 74 644Z M72 640 C96 628 120 634 136 650 C114 640 92 640 74 646Z M72 640 C72 616 82 598 98 590 C86 604 80 622 76 644Z"/>
+   <path d="M340 780 C336 730 330 700 318 668 L312 670 C322 702 326 732 328 780Z"/>
+   <path d="M316 668 C338 650 362 652 382 664 C360 658 338 662 318 674Z M316 668 C326 642 346 632 370 634 C348 642 330 654 318 672Z M316 668 C304 644 284 636 262 640 C284 646 300 656 314 672Z M316 668 C294 658 272 662 256 676 C276 668 298 668 314 674Z"/>
+  </g>
+ </svg>
+</div>
 
 <header class="kop">
   <div class="kop-rij">
@@ -408,6 +482,7 @@ table.stand td.v{color:#fca5a5;font-weight:700;}
 </header>
 
 <main>
+  <div class="vice-band">🌴 VICE WEEK · t/m vrijdag 27 november 🌴</div>
   <div class="mededeling" id="mededeling" hidden></div>
   <section id="viewAlles"></section>
   <section id="viewMijn" hidden></section>
