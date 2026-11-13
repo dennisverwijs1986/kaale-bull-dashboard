@@ -513,6 +513,16 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 .ar-druk span{font-size:0.65rem;margin-left:3px;}
 .druk-lijst{flex-basis:100%;order:5;display:flex;flex-wrap:wrap;gap:4px 14px;padding:7px 10px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25);border-radius:6px;font-size:0.75rem;color:var(--warn);}
 .statusregel #nnbBanner{display:contents;}
+.statusregel #wachtBanner{display:contents;}
+.wacht-banner{background:linear-gradient(90deg,rgba(245,158,11,0.12),rgba(245,158,11,0.05));border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:6px 12px;display:flex;flex-direction:column;justify-content:center;}
+.wacht-banner.vrij{border-color:rgba(16,185,129,0.6);background:linear-gradient(90deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05));}
+.statusregel .wacht-banner:has(.nnb-list.open){flex-basis:100%;order:6;}
+.wacht-banner .nnb-banner-title{color:var(--orange);gap:10px;}
+.wacht-banner.vrij .nnb-banner-title{color:var(--green);}
+.wacht-item{border-left-color:var(--orange);}
+.wacht-item.beurt{border-left-color:var(--green);box-shadow:inset 0 0 0 1px rgba(16,185,129,0.5);}
+.wacht-dag{font-size:0.7rem;font-weight:700;color:var(--muted);margin-top:4px;letter-spacing:.5px;}
+.wacht-box{border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);border-radius:7px;padding:8px 10px;margin-bottom:12px;font-size:0.78rem;display:flex;flex-direction:column;gap:6px;}
 .statusregel .nnb-banner{margin:0;padding:6px 12px;display:flex;flex-direction:column;justify-content:center;}
 .statusregel .nnb-banner:has(.nnb-list.open){flex-basis:100%;order:6;}
 .statusregel .nnb-banner-title{gap:10px;}
@@ -616,6 +626,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
       <div class="statusregel">
       <div id="avondBanner"></div>
       <div id="nnbBanner"></div>
+      <div id="wachtBanner"></div>
       <div class="mdd-wrap">
         <div class="mdd-hdr" onclick="toggleMdd()">
           <span class="mdd-hdr-title">📢 TV-mededeling <span class="mdd-status uit" id="mddStatus">uit</span></span>
@@ -804,6 +815,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
     <div id="verzetSlotenMsg" style="font-size:0.68rem;color:var(--muted);margin:-2px 0 12px;">Groen = beide spelers minstens 2 tijdsloten rust.</div>
     <div id="verzetRuimte"></div>
     <div id="verzetSpelerAvond"></div>
+    <div id="verzetWacht"></div>
     <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--nnb);cursor:pointer;margin-bottom:12px;">
       <input type="checkbox" id="verzetNNB" onchange="toggleVerzetNNB()"> 🕓 Datum nog niet bekend (NNB)
     </label>
@@ -979,6 +991,8 @@ async function laadData() {
     appMddPreviewUpdate();
     // Bordstand komt uit de database, zodat elk scherm (kroeg, thuis, telefoon) hetzelfde ziet
     if (bordVersie === bordSyncVersie) pasBordStandToe(wedstrijden, dcRows.filter(r=>r.sleutel.startsWith('bord_schrijver_')));
+    try { WACHT = await sbGet('wachtlijst','select=id,wedstrijd_id,datum,door,aangemaakt_op&order=aangemaakt_op.asc'); } catch(e) { console.warn('Wachtlijst laden mislukt:', e); }
+    wachtOpruimen();
     setSync('ok','● VERBONDEN');
     bouwDatumFilter();
     vulVerzetDoorDropdown();
@@ -1050,6 +1064,7 @@ function getGespeeld() {
 // ══════════════════════════════════════════
 function renderAll() {
   renderNNBBanner();
+  renderWachtBanner();
   renderAvondBanner();
   renderQueue();
   renderHistory();
@@ -1139,6 +1154,117 @@ async function opslaanAppMdd() {
   } catch(e) {
     toast(`Fout bij opslaan app-mededeling: ${e.message}`,'red');
   }
+}
+
+// ══════════════════════════════════════════
+//  WACHTLIJST — volle avonden (max MAX_PER_AVOND). Zelfde tabel `wachtlijst` als de WL-app.
+//  Wedstrijd blijft op zijn huidige avond staan; komt er een plek vrij, dan plant de WL de
+//  eerstvolgende in via het gewone verzetvenster. Volgorde = wie het eerst op de lijst stond.
+// ══════════════════════════════════════════
+let WACHT = [];
+let wachtOpen = false;
+const wachtVan = id => WACHT.filter(x => x.wedstrijd_id === id);
+function telAvondW(d, zonderId) { return wedstrijden.filter(w => w.datum === d && !w.datum_nnb && w.id !== zonderId).length; }
+function wachtGeldig(x) {
+  const m = wedstrijden.find(w => w.id === x.wedstrijd_id);
+  return m && m.status !== 'gespeeld' && x.datum >= zoekVandaag() && !(m.datum === x.datum && !m.datum_nnb);
+}
+function wachtOpruimen() {
+  const weg = WACHT.filter(x => !wachtGeldig(x));
+  if (!weg.length) return;
+  WACHT = WACHT.filter(wachtGeldig);
+  fetch(`${SB_URL}/rest/v1/wachtlijst?id=in.(${weg.map(x=>x.id).join(',')})`, {method:'DELETE', headers:HDR}).catch(()=>{});
+}
+function wachtVoor(d) { return WACHT.filter(x => x.datum === d && wachtGeldig(x)); }
+function vrijePlekken(d) { return Math.max(0, MAX_PER_AVOND - telAvondW(d)); }
+function toggleWacht() { wachtOpen = !wachtOpen; renderWachtBanner(); }
+
+function renderWachtBanner() {
+  const el = document.getElementById('wachtBanner');
+  if (!el) return;
+  const datums = [...new Set(WACHT.filter(wachtGeldig).map(x => x.datum))].sort();
+  if (!datums.length) { el.innerHTML = ''; return; }
+  let totaal = 0, beurten = 0;
+  const html = datums.map(d => {
+    const lijst = wachtVoor(d), vrij = vrijePlekken(d);
+    totaal += lijst.length; beurten += Math.min(vrij, lijst.length);
+    return `<div class="wacht-dag">${fmtDatum(d)} · ${telAvondW(d)}/${MAX_PER_AVOND}${vrij ? ` · <span style="color:var(--green)">${vrij} vrij</span>` : ' · vol'}</div>` +
+      lijst.map((x, i) => {
+        const m = wedstrijden.find(w => w.id === x.wedstrijd_id);
+        const beurt = i < vrij;
+        return `<div class="nnb-item wacht-item ${beurt?'beurt':''}">
+          <div class="nnb-item-info">
+            <span class="nnb-chip" style="background:rgba(245,158,11,.15);color:var(--orange)">#${i+1}</span>
+            ${getDivChip(m)}
+            <strong>${escapeHtml(m.thuis)} vs ${escapeHtml(m.uit)}</strong>
+            <span class="orig-datum">staat nu ${m.datum_nnb ? 'op NNB' : 'op ' + fmtDatum(m.datum)}</span>
+            ${beurt ? '<span style="color:var(--green);font-weight:700;font-size:.72rem">✅ plek vrij</span>' : ''}
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn ${beurt?'btn-green':'btn-ghost'} btn-xs" onclick="openVerzetModal(${jsAttr(m.id)},${jsAttr(d)})">📅 Inplannen</button>
+            <button class="btn btn-ghost btn-xs" onclick="wachtAf(${jsAttr(x.id)})" title="Van de wachtlijst halen">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+  }).join('');
+  el.innerHTML = `
+    <div class="wacht-banner ${beurten ? 'vrij' : ''}">
+      <div class="nnb-banner-title" onclick="toggleWacht()">
+        <span title="Wachtlijst voor volle avonden">⏳ Wachtlijst <b class="sr-n">${totaal}</b>${beurten ? ` · ${beurten} plek${beurten>1?'ken':''} vrij` : ''}</span>
+        <span class="nnb-banner-arrow">${wachtOpen ? '▼' : '►'}</span>
+      </div>
+      <div class="nnb-list${wachtOpen ? ' open' : ''}">${html}</div>
+    </div>`;
+}
+
+// Blok in het verzetvenster: huidige wachtlijstplekken + knop als de gekozen avond vol zit
+function renderVerzetWacht() {
+  const box = document.getElementById('verzetWacht');
+  if (!box) return;
+  const m = wedstrijden.find(w => w.id === verzetId);
+  if (!m) { box.innerHTML = ''; return; }
+  const eigen = wachtVan(m.id).filter(wachtGeldig);
+  const rijen = eigen.map(x => {
+    const pos = wachtVoor(x.datum).findIndex(y => y.id === x.id) + 1;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <span>⏳ Op de wachtlijst voor <b>${fmtDatum(x.datum)}</b> (#${pos})</span>
+      <button class="btn btn-ghost btn-xs" onclick="wachtAf(${jsAttr(x.id)})">Eraf</button></div>`;
+  }).join('');
+  const d = document.getElementById('verzetDatum').value;
+  const nnb = document.getElementById('verzetNNB').checked;
+  let knop = '';
+  if (!nnb && d && d !== m.datum && telAvondW(d, m.id) >= MAX_PER_AVOND && !eigen.some(x => x.datum === d)) {
+    const n = wachtVoor(d).length;
+    knop = `<div>${fmtDatum(d)} zit vol (${telAvondW(d, m.id)}/${MAX_PER_AVOND}). Op de wachtlijst zetten? De wedstrijd blijft ${m.datum_nnb ? 'op NNB' : 'op ' + fmtDatum(m.datum)} staan tot er een plek vrijkomt.</div>
+      <button class="btn btn-orange btn-sm" onclick="wachtOp(${jsAttr(m.id)},${jsAttr(d)})">⏳ Op wachtlijst voor ${fmtDatum(d)}${n ? ` (nu ${n} wachtend)` : ''}</button>`;
+  }
+  box.innerHTML = (rijen || knop) ? `<div class="wacht-box">${rijen}${knop}</div>` : '';
+}
+
+async function wachtOp(id, d) {
+  const door = document.getElementById('verzetDoor').value;
+  if (!door) { toast('Kies eerst wie de wijziging doet','orange'); return; }
+  const m = wedstrijden.find(w => w.id === id);
+  try {
+    const rij = await sbPost('wachtlijst', {wedstrijd_id:id, datum:d, door});
+    WACHT.push(rij[0]);
+    try { await sbPost('wijziging_log', { wedstrijd_id:id, thuis:m.thuis, uit:m.uit, divisie:m.divisie||null, actie:'verzet',
+      oude_datum:m.datum_nnb?null:m.datum, nieuwe_datum:m.datum_nnb?null:m.datum, oude_tijdstip:m.tijdstip||null, nieuwe_tijdstip:m.tijdstip||null,
+      gewijzigd_door:door, notitie:`Op wachtlijst voor ${fmtDatum(d)} (avond vol)`, mail_verstuurd:false }); } catch(e) {}
+    toast(`⏳ Op de wachtlijst voor ${fmtDatum(d)}`,'orange');
+    sluitModal('verzetModal');
+    renderAll();
+  } catch(e) { toast(/duplicate|unique/i.test(e.message) ? 'Staat al op die wachtlijst' : `Mislukt: ${e.message}`,'red'); }
+}
+async function wachtAf(wid) {
+  if (!confirm('Van de wachtlijst halen?')) return;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/wachtlijst?id=eq.${encodeURIComponent(wid)}`, {method:'DELETE', headers:HDR});
+    if (!r.ok) throw new Error(await r.text());
+    WACHT = WACHT.filter(x => x.id !== wid);
+    toast('Van de wachtlijst gehaald','green');
+    renderWachtBanner(); renderVerzetWacht();
+  } catch(e) { toast(`Mislukt: ${e.message}`,'red'); }
 }
 
 let nnbOpen = false;
@@ -2255,7 +2381,7 @@ function vulVerzetDoorDropdown() {
   sel.value = huidige || '';
 }
 
-function openVerzetModal(id) {
+function openVerzetModal(id, voorDatum) {
   verzetId = id;
   verzetPlan = null;
   const m = wedstrijden.find(w=>w.id===id); if (!m) return;
@@ -2289,6 +2415,11 @@ function openVerzetModal(id) {
     origHtml += `<div class="orig-datum-info" style="color:var(--nnb);border-color:rgba(6,182,212,0.3);background:rgba(6,182,212,0.08);">🕓 Huidige status: datum nog niet bekend (NNB)</div>`;
   }
   origEl.innerHTML = origHtml;
+  if (voorDatum) {
+    document.getElementById('verzetNNB').checked = false; toggleVerzetNNB();
+    document.getElementById('verzetDatum').value = voorDatum; verzetDatumGewijzigd();
+  }
+  renderVerzetWacht();
   document.getElementById('verzetModal').classList.add('open');
 }
 
@@ -2462,6 +2593,7 @@ function maakVerzetRuimte() {
 // Welke wedstrijden hebben deze twee spelers nog meer op de gekozen avond?
 // Rood = binnen MIN_RUST_MIN minuten van de gekozen tijd; blauw = deze wedstrijd op de nieuwe tijd.
 function renderVerzetSpelerAvond() {
+  renderVerzetWacht();
   const box = document.getElementById('verzetSpelerAvond');
   if (!box) return;
   const datum = document.getElementById('verzetDatum').value;
@@ -2626,7 +2758,7 @@ async function slaVerzetOp(informeer) {
     });
     if (m) { m.datum=nieuweDatum; m.tijdstip=nieuweTijd; m.datum_nnb=isNNB; m.is_inhaal=isInhaal; m.originele_datum=origDatum; }
     sluitModal('verzetModal'); verzetId=null;
-    bouwDatumFilter(); renderAll();
+    wachtOpruimen(); bouwDatumFilter(); renderAll();
     const tijdWasGewijzigd = !isNNB && nieuweTijd && nieuweTijd !== oudeTijd;
     toast(isNNB ? '🕓 Gemarkeerd als NNB — nieuwe datum nog niet bekend'
       : `📅 Verzet naar ${fmtDatum(nieuweDatum)}${tijdWasGewijzigd ? ` om ${nieuweTijd}` : ''}`,'orange');
