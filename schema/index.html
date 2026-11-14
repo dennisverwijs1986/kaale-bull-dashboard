@@ -1749,7 +1749,7 @@ function renderInst(){
       + (S.ik ? rij('agenda','📅','Agenda','') : '')
       + rij('weergave','🎨','Weergave', (THEMAS.find(x=>x[0]===tk)||THEMAS[1])[1].replace(/^\S+\s/,''))
       + rij('delen','📲','Delen','')
-      + rij('idee','💡','Idee of tip insturen','')
+      + rij('idee','💡','Vraag, idee of tip','')
       + rij('over','ℹ️','Over deze app & privacy', teltMee()?'':'Telt niet mee')
       + `</div>`;
     const apId = lezen('kb_schema_apparaat');
@@ -1776,13 +1776,13 @@ function renderInst(){
       <p>Daarvoor krijgt dit toestel een willekeurig nummer. Er wordt <strong>geen naam, geen locatie en niets over je uitslagen</strong> aan gekoppeld, en we kunnen niet zien wie welk toestel heeft.</p>
       <p>Zet je dit uit, dan stopt het tellen meteen en worden ook alle eerdere tellingen van dit toestel gewist.</p>
       <div class="fout" id="tellenMelding"></div></div>
-      <div class="inst-blok"><b>🎯 De Kaale Bull · Speelschema</b><p style="margin-top:0">Gemaakt door en voor de wedstrijdleiding van De Kaale Bull. Je wedstrijden en uitslagen komen uit de clubplanning en DartConnect. Vragen? Spreek de wedstrijdleiding aan, of stuur een idee of tip via Instellingen.</p></div>`;
+      <div class="inst-blok"><b>🎯 De Kaale Bull · Speelschema</b><p style="margin-top:0">Gemaakt door en voor de wedstrijdleiding van De Kaale Bull. Je wedstrijden en uitslagen komen uit de clubplanning en DartConnect. Vragen? Spreek de wedstrijdleiding aan, of stuur je vraag, idee of tip via Instellingen.</p></div>`;
   } else if (sub==='idee'){
-    html = terug('💡 Idee of tip') + `<div class="inst-blok"><b>Wat kan er beter of handiger?</b>
-      <textarea id="ideeTekst" maxlength="1000" rows="6" placeholder="Bijvoorbeeld: ik zou graag … willen zien, of: dit werkt bij mij niet goed …"></textarea>
+    html = terug('💡 Vraag, idee of tip') + `<div class="inst-blok"><b>Wat wil je kwijt?</b>
+      <textarea id="ideeTekst" maxlength="1000" rows="6" placeholder="Een vraag, iets wat beter of handiger kan, of iets wat niet goed werkt …"></textarea>
       ${S.ik ? `<label class="vink-rij"><input type="checkbox" id="ideeNaam" checked> Stuur mijn naam mee (${esc(S.ik)})</label>` : ''}
       <button class="deel" id="ideeStuur" style="margin-top:10px">Versturen</button>
-      <p id="ideeMelding">Je bericht gaat naar de wedstrijdleiding. Met je naam erbij kunnen we je eventueel even terugspreken.</p></div>`;
+      <p id="ideeMelding">Je bericht gaat naar de wedstrijdleiding. Met je naam erbij kunnen we je antwoorden of even terugspreken.</p></div>`;
   } else if (sub==='delen'){
     html = terug('📲 Delen') + `<div class="inst-blok"><p style="margin-top:0">Stuur de app door naar een clubgenoot${S.ik ? ', of deel je eigen wedstrijden' : ''}.</p>
       <div class="inst-knoppen"><button class="deel" id="deelApp">📲 Stuur de app door</button>${S.ik ? '<button class="knop-klein" id="deelMijn">Deel mijn wedstrijden</button>' : ''}</div></div>`;
@@ -1816,14 +1816,14 @@ function renderInst(){
   if (is) is.addEventListener('click', async ()=>{
     const tekst = (el.querySelector('#ideeTekst').value||'').trim();
     const m = el.querySelector('#ideeMelding');
-    if (tekst.length < 3){ m.className='fout'; m.textContent='Typ eerst even je idee of tip.'; return; }
+    if (tekst.length < 3){ m.className='fout'; m.textContent='Typ eerst even je bericht.'; return; }
     const metNaam = el.querySelector('#ideeNaam'); 
     is.disabled = true; is.textContent='Versturen…';
     try{
       const r = await fetch(`${SB_URL}/rest/v1/rpc/stuur_idee`, { method:'POST', headers:{ ...HDR, 'Content-Type':'application/json' },
         body: JSON.stringify({ p_tekst:tekst, p_naam: (metNaam && metNaam.checked) ? S.ik : null }) });
       const d = await r.json().catch(()=>null);
-      if (!r.ok || d==='te_kort') throw new Error('Typ eerst even je idee of tip.');
+      if (!r.ok || d==='te_kort') throw new Error('Typ eerst even je bericht.');
       if (d==='te_veel') throw new Error('Je hebt vandaag al een paar berichten gestuurd. Probeer het morgen nog eens.');
       el.querySelector('#ideeTekst').value='';
       m.className='ok'; m.textContent='✅ Bedankt! Je bericht is verstuurd naar de wedstrijdleiding.';
@@ -2558,7 +2558,7 @@ const NIEUWS = [   // nieuwste onderaan; elke update een nieuwe id (oplopend)
     ['📅','Schema van een andere speler','Tik op een wedstrijd en kies "Schema" bij een naam om al diens wedstrijden te zien.'],
   ]},
   { id:'2026-11-14b', punten:[
-    ['💡','Idee of tip insturen','Iets wat beter kan of handig zou zijn? Stuur het via Instellingen → Idee of tip.'],
+    ['💡','Vraag, idee of tip insturen','Een vraag, of iets wat beter kan? Stuur het via Instellingen → Vraag, idee of tip.'],
     ['📊','Anonieme telling','De app telt anoniem welke schermen gebruikt worden, zonder naam. Uitzetten kan bij Instellingen → Over deze app.'],
   ]},
 ];
