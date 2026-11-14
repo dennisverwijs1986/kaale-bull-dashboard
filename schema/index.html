@@ -7,21 +7,24 @@
 <meta name="description" content="Het actuele speelschema van dartsclub De Kaale Bull.">
 <meta name="theme-color" content="#0f1520">
 <script>
-/* Tijdelijke thema's: elk aan van 'van' t/m 'tot' (exclusief), daarna vanzelf weer normaal. */
+/* Thema's: de speler kiest zelf (Instellingen → Weergave), bewaard op dit toestel. Standaard = donker. */
 (function(){
-  var THEMAS=[
-    {cls:'thema-vice',  van:'2026-11-13T00:00:00+01:00', tot:'2026-11-28T00:00:00+01:00', kleur:'#1a0b33'},
-    {cls:'thema-kerst', van:'2026-12-06T00:00:00+01:00', tot:'2026-12-18T00:00:00+01:00', kleur:'#7a1020'}
-  ];
-  try{
-    var nu=Date.now();
-    for(var i=0;i<THEMAS.length;i++){var t=THEMAS[i];
-      if(nu>=new Date(t.van).getTime() && nu<new Date(t.tot).getTime()){
-        document.documentElement.classList.add(t.cls);
-        var m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content',t.kleur);
-        break;
-      }}
-  }catch(e){}
+  var KLEUR={donker:'#0f1520',licht:'#ffffff',vice:'#1a0b33',kerst:'#7a1020'};
+  var mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: light)'):null;
+  function keuze(){ try{return localStorage.getItem('kb_schema_thema')||'donker';}catch(e){return 'donker';} }
+  function pas(t){
+    var h=document.documentElement, eff=t==='auto'?(mq&&mq.matches?'licht':'donker'):t;
+    if(!KLEUR[eff]) eff='donker';
+    h.classList.remove('thema-licht','thema-vice','thema-kerst');
+    if(eff!=='donker') h.classList.add('thema-'+eff);
+    var m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content',KLEUR[eff]);
+    if(eff==='kerst' && window.maakSneeuw) window.maakSneeuw();
+  }
+  window.themaKeuze=keuze;
+  window.zetThema=function(t){ try{localStorage.setItem('kb_schema_thema',t);}catch(e){} pas(t); };
+  window.pasThemaToe=function(){ pas(keuze()); };
+  if(mq&&mq.addEventListener) mq.addEventListener('change',function(){ if(keuze()==='auto') pas('auto'); });
+  pas(keuze());
 })();
 </script>
 <link rel="manifest" href="manifest.webmanifest">
@@ -37,6 +40,8 @@
   --text:#f1f5f9; --muted:#94a3b8; --dim:#64748b;
   --green:#10b981; --red:#ef4444; --orange:#f59e0b; --cyan:#06b6d4;
   --ere:#a855f7; --eerste:#3b82f6; --beker:#f59e0b;
+  --t-groen:#6ee7b7; --t-blauw:#93c5fd; --t-rood:#fca5a5; --t-geel:#fcd34d; --t-geel2:#fde68a;
+  --t-roze:#fecaca; --t-blauw2:#bfdbfe; --t-mint:#a7f3d0; --t-paars:#d8b4fe; --rand-ik:#3b5584;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
@@ -60,7 +65,7 @@ button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
 .dot.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
 .dot.fout{background:var(--red);}
 .kop-rechts{display:flex;align-items:center;gap:10px;}
-.live-knop{display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.55);color:#fecaca;border-radius:999px;padding:5px 11px;font-weight:800;font-size:.8rem;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.live-knop{display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.55);color:var(--t-roze);border-radius:999px;padding:5px 11px;font-weight:800;font-size:.8rem;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
 .live-knop i{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:livepuls 1.4s ease-in-out infinite;}
 .live-knop.actief{background:#ef4444;color:#fff;border-color:#ef4444;}
 .live-knop.actief i{background:#fff;}
@@ -74,7 +79,7 @@ button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
 .nav button{flex:1;border:0;background:none;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:3px;
   font-size:.7rem;font-weight:600;padding:7px 0 5px;cursor:pointer;position:relative;}
 .nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-.nav button.actief{color:#93c5fd;}
+.nav button.actief{color:var(--t-blauw);}
 .nav .badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:17px;height:17px;border-radius:9px;background:var(--green);
   color:#052e1f;font-size:.66rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;}
 
@@ -93,7 +98,7 @@ button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
 .bk-namen{font-weight:700;font-size:1.05rem;overflow-wrap:anywhere;}
 .bk-namen .vs{color:var(--dim);font-weight:400;font-size:.8rem;margin:0 6px;}
 .bk-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px;font-size:.8rem;color:var(--muted);}
-.bk-actie{margin-top:8px;font-size:.82rem;font-weight:700;color:#6ee7b7;}
+.bk-actie{margin-top:8px;font-size:.82rem;font-weight:700;color:var(--t-groen);}
 .bk-leeg{color:var(--dim);font-size:.9rem;}
 a.bordkaart{color:inherit;text-decoration:none;}
 .dc-knop{display:block;text-align:center;background:var(--eerste);color:#fff;text-decoration:none;font-weight:800;border-radius:10px;padding:11px;margin:0 0 12px;}
@@ -107,7 +112,7 @@ button.bord{border:0;cursor:pointer;font-family:inherit;}
 .sb-titel{flex:1;min-width:0;font-size:.85rem;line-height:1.25;}
 .sb-titel b{display:block;font-size:.95rem;}
 .sb-titel span{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
-.sb-ext{color:#93c5fd;font-size:.78rem;text-decoration:none;white-space:nowrap;}
+.sb-ext{color:var(--t-blauw);font-size:.78rem;text-decoration:none;white-space:nowrap;}
 .sb-vak{flex:1;position:relative;overflow:hidden;}
 .sb-vak iframe{position:absolute;top:0;left:0;width:1600px;height:900px;border:0;transform-origin:0 0;background:#000;}
 .sb-melding{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -118,7 +123,7 @@ button.bord{border:0;cursor:pointer;font-family:inherit;}
 main{padding:12px 16px;max-width:640px;margin:0 auto;}
 
 /* ── MEDEDELING ── */
-.mededeling{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fde68a;
+.mededeling{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--t-geel2);
   border-radius:10px;padding:10px 12px;font-size:.9rem;margin-bottom:12px;white-space:pre-line;}
 
 /* ── AVONDKEUZE ── */
@@ -151,19 +156,19 @@ main{padding:12px 16px;max-width:640px;margin:0 auto;}
 .kaart.eerste{border-left-color:var(--eerste);}
 .kaart.beker{border-left-color:var(--beker);}
 .kaart.gespeeld{opacity:.5;}
-.kaart.mijn{background:var(--s2);border-top-color:#3b5584;border-right-color:#3b5584;border-bottom-color:#3b5584;}
+.kaart.mijn{background:var(--s2);border-top-color:var(--rand-ik);border-right-color:var(--rand-ik);border-bottom-color:var(--rand-ik);}
 .kaart.opbord{border-top-color:rgba(16,185,129,.6);border-right-color:rgba(16,185,129,.6);border-bottom-color:rgba(16,185,129,.6);background:rgba(16,185,129,.08);}
 .k-midden{flex:1;min-width:0;}
 .k-namen{font-weight:600;font-size:.98rem;overflow-wrap:anywhere;}
 .k-namen .vs{color:var(--dim);font-weight:400;font-size:.8rem;margin:0 6px;}
-.k-namen .ik{color:#93c5fd;}
+.k-namen .ik{color:var(--t-blauw);}
 .k-info{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center;}
 .chip{font-size:.68rem;font-weight:700;border-radius:5px;padding:2px 6px;}
-.chip.ere{background:rgba(168,85,247,.2);color:#d8b4fe;}
-.chip.eerste{background:rgba(59,130,246,.2);color:#93c5fd;}
-.chip.beker{background:rgba(245,158,11,.2);color:#fcd34d;}
+.chip.ere{background:rgba(168,85,247,.2);color:var(--t-paars);}
+.chip.eerste{background:rgba(59,130,246,.2);color:var(--t-blauw);}
+.chip.beker{background:rgba(245,158,11,.2);color:var(--t-geel);}
 .chip.alg{background:var(--s3);color:var(--muted);}
-.chip.inhaal{background:rgba(239,68,68,.15);color:#fca5a5;}
+.chip.inhaal{background:rgba(239,68,68,.15);color:var(--t-rood);}
 .k-rechts{flex:0 0 auto;text-align:right;font-size:.78rem;}
 .bord{display:inline-flex;align-items:center;gap:5px;background:var(--green);color:#052e1f;
   font-weight:800;border-radius:7px;padding:4px 8px;font-size:.8rem;}
@@ -194,9 +199,9 @@ main{padding:12px 16px;max-width:640px;margin:0 auto;}
 .beurt .ico{font-size:1.6rem;line-height:1;}
 .beurt b{display:block;font-size:1.02rem;}
 .beurt span{font-size:.82rem;opacity:.85;}
-.beurt.nu{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.6);color:#a7f3d0;}
-.beurt.klaar{background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.55);color:#fde68a;}
-.beurt.wacht{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:#bfdbfe;}
+.beurt.nu{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.6);color:var(--t-mint);}
+.beurt.klaar{background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.55);color:var(--t-geel2);}
+.beurt.wacht{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:var(--t-blauw2);}
 .beurt.later{background:var(--s1);border:1px solid var(--border);color:var(--text);}
 
 /* ── AGENDA ── */
@@ -225,7 +230,7 @@ table.stand th{font-size:.68rem;color:var(--muted);text-transform:uppercase;lett
 table.stand td{padding:8px 6px;border-bottom:1px solid rgba(42,58,86,.6);}
 table.stand .num{text-align:right;font-variant-numeric:tabular-nums;}
 table.stand .pos{width:28px;color:var(--muted);font-weight:700;}
-table.stand tr.leider td{color:#fcd34d;font-weight:700;}
+table.stand tr.leider td{color:var(--t-geel);font-weight:700;}
 table.stand tr.ik td{background:rgba(59,130,246,.14);}
 table.stand tr.zone-po td.pos{color:var(--orange);}
 table.stand tr.zone-po td{background:rgba(245,158,11,.06);}
@@ -233,16 +238,20 @@ table.stand tr.zone-deg td.pos{color:var(--red);}
 table.stand tr.zone-deg td{background:rgba(239,68,68,.07);}
 table.stand tr.streep td{border-top:2px solid var(--border);}
 .zone-tag{font-size:.6rem;font-weight:800;text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;}
-.zone-tag.po{background:rgba(245,158,11,.2);color:#fcd34d;}
-.zone-tag.deg{background:rgba(239,68,68,.2);color:#fca5a5;}
-.zone-tag.prom{background:rgba(16,185,129,.2);color:#6ee7b7;margin-left:0;}
-.zone-tag.titel{background:rgba(245,197,24,.18);color:#fcd34d;}
+.zone-tag.po{background:rgba(245,158,11,.2);color:var(--t-geel);}
+.zone-tag.deg{background:rgba(239,68,68,.2);color:var(--t-rood);}
+.zone-tag.prom{background:rgba(16,185,129,.2);color:var(--t-groen);margin-left:0;}
+.zone-tag.titel{background:rgba(245,197,24,.18);color:var(--t-geel);}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
 .tags .zone-tag{margin-left:0;}
 .seg + .seg{margin-top:-4px;}
 .inst-blok{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:0 0 12px;}
 .inst-blok b{display:block;font-size:.98rem;margin-bottom:8px;}
 .inst-blok select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 10px;}
+.thema-keus{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.thema-keus button{border:1px solid var(--border);background:var(--s2);color:var(--text);border-radius:9px;padding:10px 6px;font-weight:700;font-size:.85rem;cursor:pointer;}
+.thema-keus button:first-child{grid-column:1/-1;}
+.thema-keus button.actief{background:var(--eerste);border-color:var(--eerste);color:#fff;}
 .inst-blok p{margin:8px 0 0;color:var(--muted);font-size:.8rem;line-height:1.45;}
 .inst-knoppen{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
 .inst-knoppen .deel{margin-top:0;}
@@ -253,8 +262,8 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 /* ── TESTVERSIE ── */
 /* ── UITSLAGEN ── */
 .score{font-weight:700;font-size:.95rem;font-variant-numeric:tabular-nums;color:var(--text);white-space:nowrap;}
-.score b{color:#6ee7b7;}
-.verslag{display:inline-block;margin-top:4px;color:#93c5fd;font-size:.75rem;font-weight:700;text-decoration:none;white-space:nowrap;}
+.score b{color:var(--t-groen);}
+.verslag{display:inline-block;margin-top:4px;color:var(--t-blauw);font-size:.75rem;font-weight:700;text-decoration:none;white-space:nowrap;}
 .k-namen .winst{font-weight:800;}
 .k-namen .verlies{color:var(--muted);font-weight:500;}
 .kaart.gespeeld{opacity:.92;}
@@ -263,16 +272,16 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .uitslagen h3{margin:0 0 8px;font-size:1rem;}
 .vorm{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);}
 .vorm i{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:.72rem;}
-.vorm i.w{background:rgba(16,185,129,.2);color:#6ee7b7;border:1px solid rgba(16,185,129,.5);}
-.vorm i.v{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.45);}
+.vorm i.w{background:rgba(16,185,129,.2);color:var(--t-groen);border:1px solid rgba(16,185,129,.5);}
+.vorm i.v{background:rgba(239,68,68,.15);color:var(--t-rood);border:1px solid rgba(239,68,68,.45);}
 .res{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid rgba(42,58,86,.6);font-size:.9rem;}
 .res .rd{color:var(--muted);font-size:.75rem;min-width:46px;}
 .res .rt{flex:1;min-width:0;overflow-wrap:anywhere;}
 .res .rs{text-align:right;}
 .res .wv{display:inline-block;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:.66rem;font-weight:800;margin-right:4px;}
-.res .wv.w{background:rgba(16,185,129,.2);color:#6ee7b7;}
-.res .wv.v{background:rgba(239,68,68,.15);color:#fca5a5;}
-.meer{width:100%;border:0;background:none;color:#93c5fd;font-weight:700;font-size:.82rem;padding:8px;cursor:pointer;}
+.res .wv.w{background:rgba(16,185,129,.2);color:var(--t-groen);}
+.res .wv.v{background:rgba(239,68,68,.15);color:var(--t-rood);}
+.meer{width:100%;border:0;background:none;color:var(--t-blauw);font-weight:700;font-size:.82rem;padding:8px;cursor:pointer;}
 .uitsl-kop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
 .uitsl-kop h3{margin:0;}
 .seizoen-kies{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:.8rem;font-weight:700;color:var(--text);}
@@ -283,29 +292,29 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .push .rij{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 .push input{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:1.05rem;letter-spacing:.15em;text-transform:uppercase;font-family:ui-monospace,monospace;color:var(--text);}
 .push button.hoofd{background:var(--eerste);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-weight:700;font-size:.9rem;cursor:pointer;}
-.push .fout{color:#fca5a5;font-size:.8rem;margin-top:6px;}
-.push .ok{color:#6ee7b7;}
+.push .fout{color:var(--t-rood);font-size:.8rem;margin-top:6px;}
+.push .ok{color:var(--t-groen);}
 
 /* ── BEKER ── */
 .roadmap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
 .roadmap span{font-size:.72rem;font-weight:800;padding:4px 8px;border-radius:8px;background:var(--s1);border:1px solid var(--border);color:var(--dim);}
-.roadmap span.klaar{border-color:rgba(16,185,129,.5);color:#6ee7b7;}
-.roadmap span.bezig{border-color:rgba(245,158,11,.5);color:#fcd34d;}
-.kampioen{background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.45);border-radius:12px;padding:10px 12px;margin-bottom:10px;color:#fde68a;font-weight:700;}
+.roadmap span.klaar{border-color:rgba(16,185,129,.5);color:var(--t-groen);}
+.roadmap span.bezig{border-color:rgba(245,158,11,.5);color:var(--t-geel);}
+.kampioen{background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.45);border-radius:12px;padding:10px 12px;margin-bottom:10px;color:var(--t-geel2);font-weight:700;}
 .bfase{margin-bottom:14px;}
 .bfasen{overflow-x:auto;scrollbar-width:none;}
 .bfasen::-webkit-scrollbar{display:none;}
 .bfasen button{flex:0 0 auto;min-width:84px;}
 .bgroep{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:10px 0 6px;}
 .duel{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:9px 10px;margin-bottom:6px;font-size:.88rem;}
-.duel.mijn{background:var(--s2);border-color:#3b5584;}
+.duel.mijn{background:var(--s2);border-color:var(--rand-ik);}
 .duel .da{text-align:right;overflow-wrap:anywhere;}
 .duel .db{text-align:left;overflow-wrap:anywhere;}
 .duel .dm{text-align:center;font-weight:800;font-variant-numeric:tabular-nums;color:var(--muted);min-width:48px;white-space:nowrap;}
 .duel .dm .verslag{display:block;font-size:.68rem;margin-top:2px;}
 .duel .winst{font-weight:800;color:var(--text);}
 .duel .verlies{color:var(--muted);}
-.duel .ik{color:#93c5fd;}
+.duel .ik{color:var(--t-blauw);}
 .bfase h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 6px;}
 .bm{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-left:4px solid var(--beker);border-radius:10px;padding:9px 12px;margin-bottom:6px;}
 .bm.mijn{background:var(--s2);}
@@ -313,7 +322,7 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .bm .bn div{overflow-wrap:anywhere;}
 .bm .bn .winst{font-weight:800;}
 .bm .bn .verlies{color:var(--muted);}
-.bm .bn .ik{color:#93c5fd;}
+.bm .bn .ik{color:var(--t-blauw);}
 .bm .bs{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;}
 .bm .bs small{display:block;font-weight:600;color:var(--dim);font-size:.7rem;}
 
@@ -329,9 +338,9 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .testbalk{background:#7c3aed;color:#fff;text-align:center;font-size:.75rem;font-weight:800;letter-spacing:.06em;padding:4px;}
 
 .nnb-blok{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45);border-radius:12px;padding:12px 12px 6px;margin-bottom:14px;}
-.nnb-kop{font-weight:800;color:#fcd34d;margin-bottom:4px;}
-.nnb-uitleg{font-size:.82rem;color:#fde68a;margin:0 0 10px;}
-.nnb-label{display:inline-block;background:rgba(245,158,11,.2);color:#fcd34d;font-weight:800;border-radius:7px;padding:4px 8px;font-size:.75rem;}
+.nnb-kop{font-weight:800;color:var(--t-geel);margin-bottom:4px;}
+.nnb-uitleg{font-size:.82rem;color:var(--t-geel2);margin:0 0 10px;}
+.nnb-label{display:inline-block;background:rgba(245,158,11,.2);color:var(--t-geel);font-weight:800;border-radius:7px;padding:4px 8px;font-size:.75rem;}
 
 .leeg{text-align:center;color:var(--muted);padding:36px 12px;}
 .leeg .ico{font-size:2rem;display:block;margin-bottom:6px;}
@@ -339,7 +348,7 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 
 /* ── INSTALLEER-TIP ── */
 .installeer{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:30;
-  max-width:616px;margin:0 auto;background:var(--s3);border:1px solid #3b5584;border-radius:12px;
+  max-width:616px;margin:0 auto;background:var(--s3);border:1px solid var(--rand-ik);border-radius:12px;
   padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:.88rem;}
 .installeer .tekst{flex:1;}
 .installeer .ja{background:var(--eerste);border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;}
@@ -363,7 +372,7 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .h2h-vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:center;margin-bottom:12px;}
 .h2h-vs .nm{font-weight:800;font-size:1.08rem;line-height:1.2;overflow-wrap:anywhere;}
 .h2h-vs .nm small{display:block;font-weight:500;font-size:.75rem;color:var(--muted);}
-.h2h-vs .nm.ik{color:#93c5fd;}
+.h2h-vs .nm.ik{color:var(--t-blauw);}
 .h2h-vs .x{font-weight:800;color:var(--eerste);font-size:.9rem;}
 .h2h-vs .x.score{color:var(--text);font-size:1.2rem;font-variant-numeric:tabular-nums;}
 .h2h-tabel{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
@@ -372,12 +381,12 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .h2h-rij:first-child{border-top:0;}
 .h2h-rij.namen{font-size:.75rem;font-weight:800;color:var(--muted);padding:7px 6px;}
 .h2h-rij .lb{font-size:.7rem;color:var(--muted);line-height:1.2;}
-.h2h-rij .best{color:#93c5fd;font-weight:800;}
+.h2h-rij .best{color:var(--t-blauw);font-weight:800;}
 .h2h-rij.vj{color:var(--muted);font-size:.85rem;padding-top:6px;padding-bottom:6px;}
 .h2h-vorm{display:flex;justify-content:center;gap:3px;}
 .h2h-vorm i{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:.58rem;}
-.h2h-vorm i.w{background:rgba(16,185,129,.25);color:#6ee7b7;}
-.h2h-vorm i.v{background:rgba(239,68,68,.2);color:#fca5a5;}
+.h2h-vorm i.w{background:rgba(16,185,129,.25);color:var(--t-groen);}
+.h2h-vorm i.v{background:rgba(239,68,68,.2);color:var(--t-rood);}
 .h2h-blok{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.88rem;}
 .h2h-blok b{display:block;margin-bottom:3px;}
 .h2h-blok div{color:var(--muted);padding:2px 0;}
@@ -385,7 +394,7 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
   background:#25d366;color:#06291a;font-weight:800;font-size:.95rem;text-decoration:none;border:0;}
 .wa-knop:active{filter:brightness(.92);}
 .wa-uitleg{font-size:.75rem;color:var(--muted);margin:-6px 0 12px;text-align:center;}
-.h2h-tipblok{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:#bfdbfe;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.88rem;}
+.h2h-tipblok{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:var(--t-blauw2);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.88rem;}
 table.stand tr[data-speler]{cursor:pointer;}
 table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
 .sp-tegels{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
@@ -393,7 +402,7 @@ table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
 .sp-tegel b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums;}
 .sp-tegel span{font-size:.68rem;color:var(--muted);}
 .sp-pijl{font-size:.7rem;font-weight:800;margin-left:3px;}
-.sp-pijl.op{color:#6ee7b7;} .sp-pijl.neer{color:#fca5a5;}
+.sp-pijl.op{color:var(--t-groen);} .sp-pijl.neer{color:var(--t-rood);}
 .sp-grafiek{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:6px 4px 2px;}
 .sp-grafiek svg{display:block;width:100%;height:auto;}
 .gpunt{cursor:pointer;-webkit-tap-highlight-color:transparent;}
@@ -401,22 +410,34 @@ table.stand tr[data-speler]:active td{background:rgba(147,197,253,.12);}
 .gpunt.actief .glabel{display:inline;}
 .gpunt.actief .stip{stroke:#fff;stroke-width:2;}
 .sp-legenda{display:flex;flex-wrap:wrap;gap:12px;font-size:.72rem;color:var(--muted);margin:6px 2px 0;}
-.sp-legenda i{display:inline-block;width:14px;border-top:2px solid #93c5fd;vertical-align:middle;margin-right:5px;}
+.sp-legenda i{display:inline-block;width:14px;border-top:2px solid var(--t-blauw);vertical-align:middle;margin-right:5px;}
 .sp-legenda i.vj{border-top:2px dashed var(--muted);}
 .sp-verschil{font-size:.82rem;color:var(--muted);margin:2px 2px 6px;}
 .sp-verschil b{color:var(--text);}
 .h2h-rij small.dt{display:block;font-size:.66rem;font-weight:400;color:var(--muted);margin-top:1px;}
-.sp-verschil .op{color:#6ee7b7;font-weight:800;} .sp-verschil .neer{color:#fca5a5;font-weight:800;}
+.sp-verschil .op{color:var(--t-groen);font-weight:800;} .sp-verschil .neer{color:var(--t-rood);font-weight:800;}
 .h2h-sub{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:14px 0 4px;}
-table.stand td.w{color:#6ee7b7;font-weight:700;}
-table.stand td.v{color:#fca5a5;font-weight:700;}
+table.stand td.w{color:var(--t-groen);font-weight:700;}
+table.stand td.v{color:var(--t-rood);font-weight:700;}
 [hidden]{display:none !important;}
 
 /* ══════════════════════════════════════════════════════════
-   TIJDELIJK THEMA "VICE WEEK" (13-11 t/m 27-11-2026)
-   Aan via class thema-vice op <html> (zie script in <head>);
-   na de einddatum valt de app vanzelf terug op het normale thema.
+   THEMA'S — door de speler te kiezen bij Instellingen → Weergave
+   (Donker = standaard, geen class; Licht/Vice/Kerst via class op <html>)
    ══════════════════════════════════════════════════════════ */
+html.thema-licht{
+  --bg:#eef2f7; --s1:#ffffff; --s2:#eaf1ff; --s3:#dde5ef; --border:#cfd9e6;
+  --text:#0f172a; --muted:#475569; --dim:#64748b;
+  --green:#059669; --red:#dc2626; --orange:#c2410c; --cyan:#0891b2;
+  --ere:#9333ea; --eerste:#2563eb; --beker:#d97706;
+  --t-groen:#047857; --t-blauw:#1d4ed8; --t-rood:#b91c1c; --t-geel:#a16207; --t-geel2:#92400e;
+  --t-roze:#b91c1c; --t-blauw2:#1e40af; --t-mint:#065f46; --t-paars:#7e22ce; --rand-ik:#93c5fd;
+  color-scheme:light;
+}
+html.thema-licht .kaart,html.thema-licht .avond,html.thema-licht .inst-blok,html.thema-licht .push,html.thema-licht .agenda{box-shadow:0 1px 2px rgba(15,23,42,.06);}
+html.thema-licht .label.klaar,html.thema-licht .bk-status.vrij{color:var(--muted);}
+
+/* ── THEMA VICE CITY ── */
 .vice-decor,.vice-band{display:none;}
 html.thema-vice{
   --bg:#1a0b33; --s1:rgba(34,14,62,.84); --s2:rgba(54,20,86,.88); --s3:#4a1d6e; --border:#5b2a86;
@@ -462,10 +483,7 @@ html.thema-vice .nav button.actief{color:#ff5fc4;filter:drop-shadow(0 0 6px #ff2
 html.thema-vice .h2h-paneel,html.thema-vice .installeer{background:#22103c;}
 html.thema-vice .sb-kop{background:#22103c;}
 
-/* ══════════════════════════════════════════════════════════
-   TIJDELIJK THEMA "KERST" (6-12 t/m 17-12-2026)
-   Aan via class thema-kerst op <html> (zie script in <head>).
-   ══════════════════════════════════════════════════════════ */
+/* ── THEMA KERST ── */
 .kerst-decor,.kerst-band{display:none;}
 html.thema-kerst{
   --bg:#0b1a2e; --s1:rgba(16,34,56,.86); --s2:rgba(24,48,76,.9); --s3:#24486e; --border:#2f5a80;
@@ -556,14 +574,14 @@ html.thema-kerst .h2h-paneel,html.thema-kerst .installeer,html.thema-kerst .sb-k
 </div>
 
 <script>
-(function(){
-  if(!document.documentElement.classList.contains('thema-kerst'))return;
-  var box=document.querySelector('.kerst-decor .sneeuw'); if(!box)return;
+window.maakSneeuw=function(){
+  var box=document.querySelector('.kerst-decor .sneeuw'); if(!box||box.childElementCount)return;
   for(var i=0;i<40;i++){var v=document.createElement('i'),d=2+Math.random()*4;
     v.style.cssText='left:'+(Math.random()*100)+'%;width:'+d+'px;height:'+d+'px;opacity:'+(.4+Math.random()*.5)+
       ';animation-duration:'+(8+Math.random()*10)+'s;animation-delay:-'+(Math.random()*18)+'s;--dx:'+(Math.random()*60-30)+'px';
     box.appendChild(v);}
-})();
+};
+if(document.documentElement.classList.contains('thema-kerst')) window.maakSneeuw();
 </script>
 <header class="kop">
   <div class="kop-rij">
@@ -1679,6 +1697,10 @@ function renderInst(){
     const ag = agendaHtml();
     if (ag) html += ag;
   }
+  { const tk = window.themaKeuze ? window.themaKeuze() : 'donker';
+    const opties=[['auto','📱 Automatisch'],['donker','🌙 Donker'],['licht','☀️ Licht'],['vice','🌴 Vice City'],['kerst','🎄 Kerst']];
+    html += `<div class="inst-blok"><b>🎨 Weergave</b><div class="thema-keus">${opties.map(([k,t])=>`<button data-thema="${k}" class="${k===tk?'actief':''}">${t}</button>`).join('')}</div>
+      <p>Alleen voor jouw toestel. Automatisch volgt de licht/donker-stand van je telefoon.</p></div>`; }
   html += `<div class="inst-blok"><b>📲 Delen</b><p>Stuur de app door naar een clubgenoot${S.ik ? ', of deel je eigen wedstrijden' : ''}.</p>
       <div class="inst-knoppen"><button class="deel" id="deelApp">📲 Stuur de app door</button>${S.ik ? '<button class="knop-klein" id="deelMijn">Deel mijn wedstrijden</button>' : ''}</div></div>`;
   { const apId = lezen('kb_schema_apparaat');
@@ -1689,6 +1711,7 @@ function renderInst(){
     opslaan('kb_schema_ik', S.ik); opslaan('kb_schema_ikid', null);
     renderInst(); haalIkId();
   });
+  el.querySelectorAll('[data-thema]').forEach(b=>b.addEventListener('click',()=>{ window.zetThema && window.zetThema(b.dataset.thema); renderInst(); }));
   el.querySelector('#deelApp').addEventListener('click', deelApp);
   const dm = el.querySelector('#deelMijn');
   if (dm) dm.addEventListener('click', ()=>{ const vd=vandaag(); deelMijn(S.rijen.filter(w=>(w.thuis===S.ik||w.uit===S.ik) && w.datum>=vd)); });
