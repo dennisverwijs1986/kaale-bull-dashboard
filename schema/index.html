@@ -248,6 +248,19 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .inst-blok{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:0 0 12px;}
 .inst-blok b{display:block;font-size:.98rem;margin-bottom:8px;}
 .inst-blok select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 10px;}
+.inst-menu{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.inst-rij{display:flex;align-items:center;gap:12px;width:100%;border:0;border-top:1px solid var(--border);background:none;color:var(--text);
+  padding:14px;text-align:left;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.inst-rij:first-child{border-top:0;}
+.inst-rij:active{background:var(--s2);}
+.inst-rij .ico{font-size:1.25rem;width:26px;text-align:center;}
+.inst-rij .t{flex:1;font-weight:600;}
+.inst-rij .w{color:var(--muted);font-size:.85rem;max-width:45%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.inst-rij .pijl{color:var(--dim);font-size:1.3rem;line-height:1;}
+.inst-sub-kop{margin:0 0 4px;}
+#viewInst .agenda summary{display:none;}
+#viewInst .agenda .agenda-in{padding-top:14px;}
+.inst-terug{border:0;background:none;color:var(--t-blauw);font-weight:700;font-size:.95rem;padding:4px 0;cursor:pointer;}
 .thema-keus{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
 .thema-keus button{border:1px solid var(--border);background:var(--s2);color:var(--text);border-radius:9px;padding:10px 6px;font-weight:700;font-size:.85rem;cursor:pointer;}
 .thema-keus button:first-child{grid-column:1/-1;}
@@ -1687,39 +1700,59 @@ async function laadMijnStats(){
 // ══════════════════════════════════════════
 function renderInst(){
   const el=document.getElementById('viewInst');
-  const opts = S.spelers.map(n=>`<option value="${esc(n)}"${n===S.ik?' selected':''}>${esc(n)}</option>`).join('');
-  let html = `<div class="avond-titel"><h2>Instellingen</h2></div>
-    <div class="inst-blok"><b>👤 Wie ben jij?</b>
+  const sub = S.instSub || null;
+  const THEMAS=[['auto','📱 Automatisch'],['donker','🌙 Donker'],['licht','☀️ Licht'],['vice','🌴 Vice City'],['kerst','🎄 Kerst']];
+  const tk = window.themaKeuze ? window.themaKeuze() : 'donker';
+  const push = S.ik ? pushHtml() : '';
+  let pushAan=false; try{ const st=pushStaat(); pushAan = !!(st && st.speler===S.ik && Notification.permission==='granted'); }catch(e){}
+  const terug = t => `<div class="inst-sub-kop"><button class="inst-terug" data-inst="">‹ Instellingen</button></div><div class="avond-titel"><h2>${t}</h2></div>`;
+  let html='';
+  if (!sub){
+    const rij=(k,ico,t,w)=>`<button class="inst-rij" data-inst="${k}"><span class="ico">${ico}</span><span class="t">${t}</span><span class="w">${w||''}</span><span class="pijl">›</span></button>`;
+    html = `<div class="avond-titel"><h2>Instellingen</h2></div><div class="inst-menu">`
+      + rij('naam','👤','Wie ben jij?', S.ik ? esc(S.ik) : 'Kies je naam')
+      + (S.ik && push ? rij('push','🔔','Meldingen', pushAan?'Aan':'Uit') : '')
+      + (S.ik ? rij('agenda','📅','Agenda','') : '')
+      + rij('weergave','🎨','Weergave', (THEMAS.find(x=>x[0]===tk)||THEMAS[1])[1].replace(/^\S+\s/,''))
+      + rij('delen','📲','Delen','')
+      + `</div>`;
+    const apId = lezen('kb_schema_apparaat');
+    if (apId) html += `<div class="apparaat-id" style="margin:18px 0 6px;text-align:center;font-size:.72rem;opacity:.45;user-select:all;-webkit-user-select:all">Apparaat-ID: ${esc(apId.slice(0,8))}</div>`;
+  } else if (sub==='naam'){
+    const opts = S.spelers.map(n=>`<option value="${esc(n)}"${n===S.ik?' selected':''}>${esc(n)}</option>`).join('');
+    html = terug('👤 Wie ben jij?') + `<div class="inst-blok">
       <select id="instNaam"><option value="">— kies je naam —</option>${opts}</select>
       <p>Je keuze wordt op dit toestel onthouden. Daarmee zie je bij Schema en Statistieken je eigen wedstrijden en cijfers.</p></div>`;
-  if (S.ik){
-    html += pushHtml();
-    const ag = agendaHtml();
-    if (ag) html += ag;
-  }
-  { const tk = window.themaKeuze ? window.themaKeuze() : 'donker';
-    const opties=[['auto','📱 Automatisch'],['donker','🌙 Donker'],['licht','☀️ Licht'],['vice','🌴 Vice City'],['kerst','🎄 Kerst']];
-    html += `<div class="inst-blok"><b>🎨 Weergave</b><div class="thema-keus">${opties.map(([k,t])=>`<button data-thema="${k}" class="${k===tk?'actief':''}">${t}</button>`).join('')}</div>
-      <p>Alleen voor jouw toestel. Automatisch volgt de licht/donker-stand van je telefoon.</p></div>`; }
-  html += `<div class="inst-blok"><b>📲 Delen</b><p>Stuur de app door naar een clubgenoot${S.ik ? ', of deel je eigen wedstrijden' : ''}.</p>
+  } else if (sub==='push'){
+    html = terug('🔔 Meldingen') + (push || '<p class="stand-noot">Meldingen zijn op dit toestel niet beschikbaar.</p>');
+  } else if (sub==='agenda'){
+    html = terug('📅 Agenda') + (agendaHtml() || '<p class="stand-noot">Even laden…</p>');
+  } else if (sub==='weergave'){
+    html = terug('🎨 Weergave') + `<div class="inst-blok"><div class="thema-keus">${THEMAS.map(([k,t])=>`<button data-thema="${k}" class="${k===tk?'actief':''}">${t}</button>`).join('')}</div>
+      <p>Alleen voor jouw toestel. Automatisch volgt de licht/donker-stand van je telefoon.</p></div>`;
+  } else if (sub==='delen'){
+    html = terug('📲 Delen') + `<div class="inst-blok"><p style="margin-top:0">Stuur de app door naar een clubgenoot${S.ik ? ', of deel je eigen wedstrijden' : ''}.</p>
       <div class="inst-knoppen"><button class="deel" id="deelApp">📲 Stuur de app door</button>${S.ik ? '<button class="knop-klein" id="deelMijn">Deel mijn wedstrijden</button>' : ''}</div></div>`;
-  { const apId = lezen('kb_schema_apparaat');
-    if (apId) html += `<div class="apparaat-id" style="margin:18px 0 6px;text-align:center;font-size:.72rem;opacity:.45;user-select:all;-webkit-user-select:all">Apparaat-ID: ${esc(apId.slice(0,8))}</div>`; }
+  }
   el.innerHTML = html;
-  el.querySelector('#instNaam').addEventListener('change', e=>{
+  el.querySelectorAll('[data-inst]').forEach(b=>b.addEventListener('click',()=>{ S.instSub=b.dataset.inst||null; renderInst(); window.scrollTo(0,0); }));
+  const nm = el.querySelector('#instNaam');
+  if (nm) nm.addEventListener('change', e=>{
     S.ik = e.target.value || null; S.ikId=null; S.ikIdVoor=null; S.mijnStats=null;
     opslaan('kb_schema_ik', S.ik); opslaan('kb_schema_ikid', null);
-    renderInst(); haalIkId();
+    S.instSub=null; renderInst(); haalIkId();
   });
   el.querySelectorAll('[data-thema]').forEach(b=>b.addEventListener('click',()=>{ window.zetThema && window.zetThema(b.dataset.thema); renderInst(); }));
-  el.querySelector('#deelApp').addEventListener('click', deelApp);
+  const da = el.querySelector('#deelApp'); if (da) da.addEventListener('click', deelApp);
   const dm = el.querySelector('#deelMijn');
   if (dm) dm.addEventListener('click', ()=>{ const vd=vandaag(); deelMijn(S.rijen.filter(w=>(w.thuis===S.ik||w.uit===S.ik) && w.datum>=vd)); });
-  koppelPush(el);
+  if (sub==='push') koppelPush(el);
   const ag = el.querySelector('.agenda');
-  if (ag){ ag.open = lezen('kb_schema_agenda_open')!=='0'; ag.addEventListener('toggle',()=>opslaan('kb_schema_agenda_open', ag.open?'1':'0')); }
+  if (ag){ ag.open = true; }
   haalIkId();
 }
+// Tik op Instellingen in het menu onderin: altijd terug naar het overzicht
+document.getElementById('tabInst').addEventListener('click',()=>{ S.instSub=null; }, true);
 
 function knoppen(attr, opties, actief){
   return opties.map(([w,l])=>`<button data-${attr}="${w}" class="${String(actief)===String(w)?'actief':''}">${l}</button>`).join('');
