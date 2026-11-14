@@ -25,6 +25,10 @@
   window.pasThemaToe=function(){ pas(keuze()); };
   if(mq&&mq.addEventListener) mq.addEventListener('change',function(){ if(keuze()==='auto') pas('auto'); });
   pas(keuze());
+  window.tekstKeuze=function(){ try{return localStorage.getItem('kb_schema_tekst')||'normaal';}catch(e){return 'normaal';} };
+  window.zetTekst=function(t){ try{localStorage.setItem('kb_schema_tekst',t);}catch(e){}
+    var h=document.documentElement; h.classList.remove('tekst-groot','tekst-xgroot'); if(t==='groot'||t==='xgroot') h.classList.add('tekst-'+t); };
+  window.zetTekst(window.tekstKeuze());
 })();
 </script>
 <link rel="manifest" href="manifest.webmanifest">
@@ -261,6 +265,25 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 #viewInst .agenda summary{display:none;}
 #viewInst .agenda .agenda-in{padding-top:14px;}
 .inst-terug{border:0;background:none;color:var(--t-blauw);font-weight:700;font-size:.95rem;padding:4px 0;cursor:pointer;}
+.h2h-schema{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-4px 0 12px;}
+.h2h-schema button{border:1px solid var(--border);background:var(--s2);color:var(--text);border-radius:9px;padding:8px 6px;font-weight:700;font-size:.78rem;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.update-balk{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:31;display:flex;align-items:center;gap:10px;
+  background:var(--eerste);color:#fff;border:0;border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;font-size:.9rem;text-align:left;cursor:pointer;
+  box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:616px;margin:0 auto;}
+.update-balk span{flex:1;}
+.nieuws{position:fixed;inset:0;z-index:46;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.55);}
+.nieuws-kaart{background:var(--s3);border:1px solid var(--border);border-radius:16px;padding:18px 18px 14px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;color:var(--text);}
+.nieuws-kaart h3{margin:0 0 4px;font-size:1.15rem;}
+.nieuws-kaart .sub{color:var(--muted);font-size:.8rem;margin-bottom:12px;}
+.nieuws-kaart ul{list-style:none;margin:0;padding:0;}
+.nieuws-kaart li{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:.9rem;line-height:1.4;}
+.nieuws-kaart li:first-child{border-top:0;}
+.nieuws-kaart li .ico{font-size:1.3rem;line-height:1.2;}
+.nieuws-kaart li b{display:block;}
+.nieuws-kaart li small{color:var(--muted);font-size:.82rem;}
+.nieuws-kaart .ok{width:100%;margin-top:12px;background:var(--eerste);color:#fff;border:0;border-radius:10px;padding:12px;font:inherit;font-weight:800;cursor:pointer;}
+html.tekst-groot,html.tekst-groot body{font-size:18px;}
+html.tekst-xgroot,html.tekst-xgroot body{font-size:20px;}
 .thema-keus{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
 .thema-keus button{border:1px solid var(--border);background:var(--s2);color:var(--text);border-radius:9px;padding:10px 6px;font-weight:700;font-size:.85rem;cursor:pointer;}
 .thema-keus button:first-child{grid-column:1/-1;}
@@ -1729,7 +1752,9 @@ function renderInst(){
     html = terug('📅 Agenda') + (agendaHtml() || '<p class="stand-noot">Even laden…</p>');
   } else if (sub==='weergave'){
     html = terug('🎨 Weergave') + `<div class="inst-blok"><div class="thema-keus">${THEMAS.map(([k,t])=>`<button data-thema="${k}" class="${k===tk?'actief':''}">${t}</button>`).join('')}</div>
-      <p>Alleen voor jouw toestel. Automatisch volgt de licht/donker-stand van je telefoon.</p></div>`;
+      <p>Alleen voor jouw toestel. Automatisch volgt de licht/donker-stand van je telefoon.</p></div>
+      <div class="inst-blok"><b>🔠 Tekstgrootte</b><div class="seg" style="margin:0">${[['normaal','Normaal'],['groot','Groot'],['xgroot','Extra groot']].map(([k,t])=>`<button data-tekst="${k}" class="${k===(window.tekstKeuze?window.tekstKeuze():'normaal')?'actief':''}">${t}</button>`).join('')}</div>
+      <p>Maakt alle tekst in de app groter.</p></div>`;
   } else if (sub==='delen'){
     html = terug('📲 Delen') + `<div class="inst-blok"><p style="margin-top:0">Stuur de app door naar een clubgenoot${S.ik ? ', of deel je eigen wedstrijden' : ''}.</p>
       <div class="inst-knoppen"><button class="deel" id="deelApp">📲 Stuur de app door</button>${S.ik ? '<button class="knop-klein" id="deelMijn">Deel mijn wedstrijden</button>' : ''}</div></div>`;
@@ -1743,6 +1768,7 @@ function renderInst(){
     S.instSub=null; renderInst(); haalIkId();
   });
   el.querySelectorAll('[data-thema]').forEach(b=>b.addEventListener('click',()=>{ window.zetThema && window.zetThema(b.dataset.thema); renderInst(); }));
+  el.querySelectorAll('[data-tekst]').forEach(b=>b.addEventListener('click',()=>{ window.zetTekst && window.zetTekst(b.dataset.tekst); renderInst(); }));
   const da = el.querySelector('#deelApp'); if (da) da.addEventListener('click', deelApp);
   const dm = el.querySelector('#deelMijn');
   if (dm) dm.addEventListener('click', ()=>{ const vd=vandaag(); deelMijn(S.rijen.filter(w=>(w.thuis===S.ik||w.uit===S.ik) && w.datum>=vd)); });
@@ -2011,8 +2037,9 @@ function h2hKop(w, A, B){
   const nm = n => { const [v,r]=naamDelen(n); return `<div class="nm${n===S.ik?' ik':''}">${esc(v)}<small>${esc(r)}</small></div>`; };
   const [la,lb] = legsVan(w,A);
   const midden = w.status==='gespeeld' && la!==null ? `<div class="x score">${la} – ${lb}</div>` : `<div class="x">VS</div>`;
+  const sk = n => `<button data-schema-speler="${esc(n)}">📅 Schema ${esc(naamDelen(n)[0])}</button>`;
   return `<div class="h2h-meta"><span>${esc(wanneer)}</span><span class="chip ${k}">${esc(divLabel(w))}</span>${rondeHtml(w)}${inhaal}</div>
-    <div class="h2h-vs">${nm(A)}${midden}${nm(B)}</div>`;
+    <div class="h2h-vs">${nm(A)}${midden}${nm(B)}</div><div class="h2h-schema">${sk(A)}${sk(B)}</div>`;
 }
 
 function h2hBody(D, hist, w, A, B){
@@ -2340,8 +2367,35 @@ async function openSpeler(naam){
   }
 }
 
+// Schema van een (andere) speler: knoppen in het wedstrijdpaneel
+function openSchemaSpeler(naam){
+  if (!naam) return;
+  telScherm('schema_speler');
+  const eerder = !!H.open;
+  const open = { schema:naam }; H.open = open;
+  document.getElementById('h2hTitel').textContent = '📅 Schema';
+  h2hEl.hidden=false; document.body.style.overflow='hidden';
+  if (!eerder){ try{ history.pushState({h2h:1}, ''); }catch(e){} }
+  const vd=vandaag();
+  const zijn = S.rijen.filter(w=>(w.thuis===naam||w.uit===naam) && w.datum>=vd && !isBye(w));
+  const nnb = S.nnb.filter(w=>w.thuis===naam||w.uit===naam);
+  let html = `<div class="h2h-vs" style="grid-template-columns:1fr"><div class="nm${naam===S.ik?' ik':''}">${esc(naam)}</div></div>`;
+  if (!zijn.length && !nnb.length) html += `<div class="leeg"><span class="ico">🎯</span>Geen komende wedstrijden in de vrijgegeven planning.</div>`;
+  if (nnb.length) html += `<div class="datumkop">Nog in te plannen</div>` + nnb.map(w=>kaartHtml(w,{nnb:true})).join('');
+  const perDag={}; zijn.forEach(w=>{ (perDag[w.datum]=perDag[w.datum]||[]).push(w); });
+  Object.keys(perDag).forEach(d=>{
+    html += `<div class="datumkop${d===vd?' vandaag':''}">${d===vd?'Vandaag · ':''}${esc(fmtLang.format(alsDatum(d)))}</div>`;
+    html += perDag[d].map(w=>kaartHtml(w,{metTijd:true})).join('');
+  });
+  html += `<div class="stand-noot">Alleen wedstrijden uit de planning die al is vrijgegeven. Tik op een wedstrijd voor de head-to-head.</div>`;
+  h2hInhoud.innerHTML = html;
+  h2hEl.querySelector('.h2h-paneel').scrollTop = 0;
+}
+
 document.addEventListener('click', e=>{
   if (e.target.closest('[data-h2h-sluit]')) { sluitH2H(false); return; }
+  const ss = e.target.closest('[data-schema-speler]');
+  if (ss) { openSchemaSpeler(ss.dataset.schemaSpeler); return; }
   if (e.target.closest('a,button')) return;
   const sp = e.target.closest('tr[data-speler]');
   if (sp) { openSpeler(sp.dataset.speler); return; }
@@ -2407,6 +2461,58 @@ window.addEventListener('online', ()=>{ laad(); laadLive(); });
 // ══════════════════════════════════════════
 const TESTVERSIE = false;  // op true zetten voor een testpagina: geen service worker, geen telling
 if (!TESTVERSIE && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope:'./' }).catch(()=>{});
+
+// ══════════════════════════════════════════
+//  NIEUWE VERSIE — balk "tik om te verversen" zodra er een update online staat.
+//  Vergelijkt het versienummer in sw.js (kb-schema-vNN) met dat van bij het openen.
+// ══════════════════════════════════════════
+(function updateCheck(){
+  let basis=null, getoond=false, laatst=0;
+  const haal = () => fetch('sw.js?u='+Date.now(), { cache:'no-store' }).then(r=>r.ok?r.text():null)
+    .then(t=>{ const m=t && t.match(/kb-schema-v(\d+)/); return m ? m[1] : null; }).catch(()=>null);
+  const toon = () => {
+    if (getoond) return; getoond=true;
+    const b=document.createElement('button'); b.className='update-balk';
+    b.innerHTML='<span>🎯 Nieuwe versie van de app beschikbaar</span><b>Verversen ›</b>';
+    b.addEventListener('click',()=>location.reload());
+    document.body.appendChild(b);
+  };
+  const check = async () => {
+    if (getoond || Date.now()-laatst < 60000) return; laatst=Date.now();
+    const v = await haal(); if (!v) return;
+    if (basis===null) basis=v; else if (v!==basis) toon();
+  };
+  check();
+  document.addEventListener('visibilitychange',()=>{ if (document.visibilityState==='visible') check(); });
+  setInterval(check, 10*60*1000);
+})();
+
+// ══════════════════════════════════════════
+//  WAT IS ER NIEUW — één keer tonen na een flinke update (alleen aan bestaande gebruikers).
+//  Nieuw bericht? Zet een nieuwe id en nieuwe punten.
+// ══════════════════════════════════════════
+const NIEUWS = {
+  id: '2026-11-14',
+  titel: 'Nieuw in de app',
+  punten: [
+    ['🎨','Kies je eigen look','Donker, licht, Vice City of Kerst. Bij Instellingen → Weergave.'],
+    ['🔠','Grotere tekst','Ook bij Weergave: maak alle tekst groter als je dat prettiger leest.'],
+    ['⚙️','Instellingen opgeruimd','Alles staat nu netjes in een menu.'],
+    ['📅','Schema van een andere speler','Tik op een wedstrijd en kies "Schema" bij een naam om al diens wedstrijden te zien.'],
+  ]
+};
+(function watIsErNieuw(){
+  if (lezen('kb_schema_nieuws')===NIEUWS.id) return;
+  if (!lezen('kb_schema_ik')) { opslaan('kb_schema_nieuws', NIEUWS.id); return; }   // nieuwe gebruiker: niet lastigvallen
+  const d=document.createElement('div'); d.className='nieuws';
+  d.innerHTML = `<div class="nieuws-kaart" role="dialog" aria-modal="true"><h3>✨ ${esc(NIEUWS.titel)}</h3><div class="sub">De Kaale Bull · Speelschema</div><ul>${
+    NIEUWS.punten.map(([i,t,u])=>`<li><span class="ico">${i}</span><div><b>${esc(t)}</b><small>${esc(u)}</small></div></li>`).join('')
+  }</ul><button class="ok">Top, verder!</button></div>`;
+  const weg = () => { opslaan('kb_schema_nieuws', NIEUWS.id); d.remove(); };
+  d.querySelector('.ok').addEventListener('click', weg);
+  d.addEventListener('click', e=>{ if (e.target===d) weg(); });
+  document.body.appendChild(d);
+})();
 
 // ══════════════════════════════════════════
 //  ANONIEME TELLING — één seintje per apparaat per dag (browser of geïnstalleerde app).
