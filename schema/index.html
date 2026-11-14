@@ -262,6 +262,16 @@ table.stand tr.streep td{border-top:2px solid var(--border);}
 .inst-rij .w{color:var(--muted);font-size:.85rem;max-width:45%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .inst-rij .pijl{color:var(--dim);font-size:1.3rem;line-height:1;}
 .inst-sub-kop{margin:0 0 4px;}
+.schakel{display:inline-flex;align-items:center;gap:10px;border:0;background:none;padding:2px 0 4px;cursor:pointer;color:var(--text);font:inherit;font-weight:700;}
+.schakel .knopje{width:46px;height:28px;border-radius:14px;background:var(--s3);border:1px solid var(--border);position:relative;transition:background .2s;}
+.schakel .knopje::after{content:'';position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.schakel.aan .knopje{background:var(--green);border-color:var(--green);}
+.schakel.aan .knopje::after{transform:translateX(18px);}
+#viewInst textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font:inherit;resize:vertical;}
+.vink-rij{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:.88rem;color:var(--muted);}
+.vink-rij input{width:18px;height:18px;}
+#viewInst .inst-blok p.fout,#viewInst .inst-blok .fout{color:var(--t-rood);}
+#viewInst .inst-blok p.ok{color:var(--t-groen);}
 #viewInst .agenda summary{display:none;}
 #viewInst .agenda .agenda-in{padding-top:14px;}
 .inst-terug{border:0;background:none;color:var(--t-blauw);font-weight:700;font-size:.95rem;padding:4px 0;cursor:pointer;}
@@ -876,10 +886,11 @@ function render(){
 //  ANONIEME SCHERMTELLING — welk menu/scherm wordt gebruikt (per apparaat per dag, max. 1x per scherm per keer openen)
 // ══════════════════════════════════════════
 
+const teltMee = () => lezen('kb_schema_tellen')!=='0';   // speler kan dit uitzetten bij Instellingen → Over deze app
 function telScherm(naam){
   try{
     const gt = (window._kbGeteld = window._kbGeteld || new Set());
-    if (TESTVERSIE || !naam || gt.has(naam)) return;   // try: ook veilig als dit al bij het opstarten loopt
+    if (TESTVERSIE || !naam || gt.has(naam) || !teltMee()) return;   // try: ook veilig als dit al bij het opstarten loopt
     gt.add(naam);
     const id = lezen('kb_schema_apparaat'); if (!id) return;
     fetch(`${SB_URL}/rest/v1/rpc/tel_tik`, {
@@ -1738,6 +1749,8 @@ function renderInst(){
       + (S.ik ? rij('agenda','📅','Agenda','') : '')
       + rij('weergave','🎨','Weergave', (THEMAS.find(x=>x[0]===tk)||THEMAS[1])[1].replace(/^\S+\s/,''))
       + rij('delen','📲','Delen','')
+      + rij('idee','💡','Idee of tip insturen','')
+      + rij('over','ℹ️','Over deze app & privacy', teltMee()?'':'Telt niet mee')
       + `</div>`;
     const apId = lezen('kb_schema_apparaat');
     if (apId) html += `<div class="apparaat-id" style="margin:18px 0 6px;text-align:center;font-size:.72rem;opacity:.45;user-select:all;-webkit-user-select:all">Apparaat-ID: ${esc(apId.slice(0,8))}</div>`;
@@ -1755,6 +1768,21 @@ function renderInst(){
       <p>Alleen voor jouw toestel. Automatisch volgt de licht/donker-stand van je telefoon.</p></div>
       <div class="inst-blok"><b>🔠 Tekstgrootte</b><div class="seg" style="margin:0">${[['normaal','Normaal'],['groot','Groot'],['xgroot','Extra groot']].map(([k,t])=>`<button data-tekst="${k}" class="${k===(window.tekstKeuze?window.tekstKeuze():'normaal')?'actief':''}">${t}</button>`).join('')}</div>
       <p>Maakt alle tekst in de app groter.</p></div>`;
+  } else if (sub==='over'){
+    const aan = teltMee();
+    html = terug('ℹ️ Over deze app') + `<div class="inst-blok"><b>📊 Help de app verbeteren</b>
+      <button class="schakel${aan?' aan':''}" id="tellenKnop" role="switch" aria-checked="${aan}"><span class="knopje"></span><span class="lbl">${aan?'Aan':'Uit'}</span></button>
+      <p>De app houdt anoniem bij welke schermen geopend worden (bijvoorbeeld Schema, Ranglijst of Statistieken), zodat we zien wat er gebruikt wordt en waar we de app beter kunnen maken.</p>
+      <p>Daarvoor krijgt dit toestel een willekeurig nummer. Er wordt <strong>geen naam, geen locatie en niets over je uitslagen</strong> aan gekoppeld, en we kunnen niet zien wie welk toestel heeft.</p>
+      <p>Zet je dit uit, dan stopt het tellen meteen en worden ook alle eerdere tellingen van dit toestel gewist.</p>
+      <div class="fout" id="tellenMelding"></div></div>
+      <div class="inst-blok"><b>🎯 De Kaale Bull · Speelschema</b><p style="margin-top:0">Gemaakt door en voor de wedstrijdleiding van De Kaale Bull. Je wedstrijden en uitslagen komen uit de clubplanning en DartConnect. Vragen? Spreek de wedstrijdleiding aan, of stuur een idee of tip via Instellingen.</p></div>`;
+  } else if (sub==='idee'){
+    html = terug('💡 Idee of tip') + `<div class="inst-blok"><b>Wat kan er beter of handiger?</b>
+      <textarea id="ideeTekst" maxlength="1000" rows="6" placeholder="Bijvoorbeeld: ik zou graag … willen zien, of: dit werkt bij mij niet goed …"></textarea>
+      ${S.ik ? `<label class="vink-rij"><input type="checkbox" id="ideeNaam" checked> Stuur mijn naam mee (${esc(S.ik)})</label>` : ''}
+      <button class="deel" id="ideeStuur" style="margin-top:10px">Versturen</button>
+      <p id="ideeMelding">Je bericht gaat naar de wedstrijdleiding. Met je naam erbij kunnen we je eventueel even terugspreken.</p></div>`;
   } else if (sub==='delen'){
     html = terug('📲 Delen') + `<div class="inst-blok"><p style="margin-top:0">Stuur de app door naar een clubgenoot${S.ik ? ', of deel je eigen wedstrijden' : ''}.</p>
       <div class="inst-knoppen"><button class="deel" id="deelApp">📲 Stuur de app door</button>${S.ik ? '<button class="knop-klein" id="deelMijn">Deel mijn wedstrijden</button>' : ''}</div></div>`;
@@ -1773,6 +1801,37 @@ function renderInst(){
   const dm = el.querySelector('#deelMijn');
   if (dm) dm.addEventListener('click', ()=>{ const vd=vandaag(); deelMijn(S.rijen.filter(w=>(w.thuis===S.ik||w.uit===S.ik) && w.datum>=vd)); });
   if (sub==='push') koppelPush(el);
+  const tk2 = el.querySelector('#tellenKnop');
+  if (tk2) tk2.addEventListener('click', async ()=>{
+    if (teltMee()){
+      opslaan('kb_schema_tellen','0');
+      const id = lezen('kb_schema_apparaat');
+      if (id){ try{ await fetch(`${SB_URL}/rest/v1/rpc/wis_mijn_tellingen`, { method:'POST', headers:{ ...HDR, 'Content-Type':'application/json' }, body: JSON.stringify({ p_apparaat:id }) }); }catch(e){} }
+    } else {
+      opslaan('kb_schema_tellen', null);
+    }
+    renderInst();
+  });
+  const is = el.querySelector('#ideeStuur');
+  if (is) is.addEventListener('click', async ()=>{
+    const tekst = (el.querySelector('#ideeTekst').value||'').trim();
+    const m = el.querySelector('#ideeMelding');
+    if (tekst.length < 3){ m.className='fout'; m.textContent='Typ eerst even je idee of tip.'; return; }
+    const metNaam = el.querySelector('#ideeNaam'); 
+    is.disabled = true; is.textContent='Versturen…';
+    try{
+      const r = await fetch(`${SB_URL}/rest/v1/rpc/stuur_idee`, { method:'POST', headers:{ ...HDR, 'Content-Type':'application/json' },
+        body: JSON.stringify({ p_tekst:tekst, p_naam: (metNaam && metNaam.checked) ? S.ik : null }) });
+      const d = await r.json().catch(()=>null);
+      if (!r.ok || d==='te_kort') throw new Error('Typ eerst even je idee of tip.');
+      if (d==='te_veel') throw new Error('Je hebt vandaag al een paar berichten gestuurd. Probeer het morgen nog eens.');
+      el.querySelector('#ideeTekst').value='';
+      m.className='ok'; m.textContent='✅ Bedankt! Je bericht is verstuurd naar de wedstrijdleiding.';
+    }catch(e){
+      m.className='fout'; m.textContent = e && e.message && !/fetch/i.test(e.message) ? e.message : 'Versturen lukte niet. Controleer je internet en probeer het nog eens.';
+    }
+    is.disabled = false; is.textContent='Versturen';
+  });
   const ag = el.querySelector('.agenda');
   if (ag){ ag.open = true; }
   haalIkId();
@@ -1918,7 +1977,7 @@ function openScorebord(b){
 }
 // Anonieme telling: één seintje per apparaat per bord per dag (geen naam)
 function telScorebord(b){
-  if (TESTVERSIE) return;
+  if (TESTVERSIE || !teltMee()) return;
   try{
     const id=lezen('kb_schema_apparaat'); if (!id) return;
     const sleutel='kb_schema_bord_'+b;
@@ -2491,24 +2550,28 @@ if (!TESTVERSIE && 'serviceWorker' in navigator) navigator.serviceWorker.registe
 //  WAT IS ER NIEUW — één keer tonen na een flinke update (alleen aan bestaande gebruikers).
 //  Nieuw bericht? Zet een nieuwe id en nieuwe punten.
 // ══════════════════════════════════════════
-const NIEUWS = {
-  id: '2026-11-14',
-  titel: 'Nieuw in de app',
-  punten: [
+const NIEUWS = [   // nieuwste onderaan; elke update een nieuwe id (oplopend)
+  { id:'2026-11-14', punten:[
     ['🎨','Kies je eigen look','Donker, licht, Vice City of Kerst. Bij Instellingen → Weergave.'],
     ['🔠','Grotere tekst','Ook bij Weergave: maak alle tekst groter als je dat prettiger leest.'],
     ['⚙️','Instellingen opgeruimd','Alles staat nu netjes in een menu.'],
     ['📅','Schema van een andere speler','Tik op een wedstrijd en kies "Schema" bij een naam om al diens wedstrijden te zien.'],
-  ]
-};
+  ]},
+  { id:'2026-11-14b', punten:[
+    ['💡','Idee of tip insturen','Iets wat beter kan of handig zou zijn? Stuur het via Instellingen → Idee of tip.'],
+    ['📊','Anonieme telling','De app telt anoniem welke schermen gebruikt worden, zonder naam. Uitzetten kan bij Instellingen → Over deze app.'],
+  ]},
+];
 (function watIsErNieuw(){
-  if (lezen('kb_schema_nieuws')===NIEUWS.id) return;
-  if (!lezen('kb_schema_ik')) { opslaan('kb_schema_nieuws', NIEUWS.id); return; }   // nieuwe gebruiker: niet lastigvallen
+  const laatste = NIEUWS[NIEUWS.length-1].id, gezien = lezen('kb_schema_nieuws') || '';
+  if (gezien >= laatste) return;
+  if (!lezen('kb_schema_ik')) { opslaan('kb_schema_nieuws', laatste); return; }   // nieuwe gebruiker: niet lastigvallen
+  const punten = NIEUWS.filter(n=>n.id>gezien).flatMap(n=>n.punten);
   const d=document.createElement('div'); d.className='nieuws';
-  d.innerHTML = `<div class="nieuws-kaart" role="dialog" aria-modal="true"><h3>✨ ${esc(NIEUWS.titel)}</h3><div class="sub">De Kaale Bull · Speelschema</div><ul>${
-    NIEUWS.punten.map(([i,t,u])=>`<li><span class="ico">${i}</span><div><b>${esc(t)}</b><small>${esc(u)}</small></div></li>`).join('')
+  d.innerHTML = `<div class="nieuws-kaart" role="dialog" aria-modal="true"><h3>✨ Nieuw in de app</h3><div class="sub">De Kaale Bull · Speelschema</div><ul>${
+    punten.map(([i,t,u])=>`<li><span class="ico">${i}</span><div><b>${esc(t)}</b><small>${esc(u)}</small></div></li>`).join('')
   }</ul><button class="ok">Top, verder!</button></div>`;
-  const weg = () => { opslaan('kb_schema_nieuws', NIEUWS.id); d.remove(); };
+  const weg = () => { opslaan('kb_schema_nieuws', laatste); d.remove(); };
   d.querySelector('.ok').addEventListener('click', weg);
   d.addEventListener('click', e=>{ if (e.target===d) weg(); });
   document.body.appendChild(d);
@@ -2529,7 +2592,7 @@ const NIEUWS = {
     }
     const app = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     const sleutel = 'kb_schema_geteld_' + (app ? 'app' : 'web');
-    if (lezen(sleutel) === vandaag()) return;      // vandaag al geteld
+    if (lezen(sleutel) === vandaag() || lezen('kb_schema_tellen')==='0') return;      // vandaag al geteld, of speler telt niet mee
     fetch(`${SB_URL}/rest/v1/app_bezoeken`, {
       method:'POST',
       headers:{ ...HDR, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
