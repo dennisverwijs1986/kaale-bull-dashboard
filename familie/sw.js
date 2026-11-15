@@ -1,7 +1,7 @@
 // Service worker voor de Familie Verwijs-app (alleen de map /familie/).
 // Alleen de app-bestanden worden bewaard; gezinsdata uit Supabase wordt nooit gecachet.
 
-const CACHE = 'fv-app-v1';   // ophogen (v2, v3, ...) als iedereen de app-bestanden opnieuw moet ophalen
+const CACHE = 'fv-app-v2';   // ophogen (v2, v3, ...) als iedereen de app-bestanden opnieuw moet ophalen
 const SHELL = [
   './',
   'index.html',
