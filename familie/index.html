@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f5d50">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Familie">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>Familie Verwijs</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f6f3ec;--card:#fff;--ink:#1f2a26;--muted:#6b766f;--line:#e4dfd3;
+  --acc:#2f5d50;--acc-soft:#e3ece8;--warn:#b5532f;--warn-soft:#f6e4dc;--ok:#4f8a5b;--r:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#141917;--card:#1d2421;--ink:#e8ece9;--muted:#93a199;--line:#2c3631;
+  --acc:#7fbfa9;--acc-soft:#22322c;--warn:#e58a63;--warn-soft:#3a261e;--ok:#7fc28c;}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{padding:env(safe-area-inset-top) 0 calc(78px + env(safe-area-inset-bottom))}
+body.no-nav{padding-bottom:0}
+button{font:inherit;color:inherit}
+header{padding:18px 18px 6px;max-width:640px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+header .date{color:var(--muted);font-size:14px}
+header h1{font-size:26px;letter-spacing:-.02em;margin-top:2px}
+.me-chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:5px 10px 5px 5px;font-size:14px;cursor:pointer}
+.dot{width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex:none}
+main{max-width:640px;margin:0 auto;padding:0 14px}
+.offline{background:var(--warn-soft);color:var(--warn);text-align:center;font-size:13px;padding:6px;display:none}
+.offline.show{display:block}
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;margin:10px 0 14px}
+.seg button{flex:1;border:none;background:none;padding:8px;border-radius:9px;font-size:14px;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--acc);color:var(--bg);font-weight:600}
+.summary{display:flex;gap:10px;margin:4px 0 16px}
+.pill{flex:1;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.pill b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.pill span{font-size:13px;color:var(--muted)}
+.pill.warn b{color:var(--warn)}
+.progress{height:6px;background:var(--line);border-radius:6px;overflow:hidden;margin:-6px 0 16px}
+.progress i{display:block;height:100%;background:var(--ok);transition:width .3s}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 4px 8px;font-weight:600;display:flex;justify-content:space-between}
+.list{display:flex;flex-direction:column;gap:8px}
+.task{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px}
+.task.late{border-color:var(--warn);background:linear-gradient(90deg,var(--warn-soft),var(--card) 45%)}
+.task.done{opacity:.55}
+.task.done .name{text-decoration:line-through}
+.check{flex:none;width:32px;height:32px;border-radius:50%;border:2px solid var(--acc);background:none;cursor:pointer;display:grid;place-items:center;color:#fff;font-size:16px}
+.task.done .check{background:var(--ok);border-color:var(--ok)}
+.info{flex:1;min-width:0}
+.name{font-weight:600}
+.meta{font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;align-items:center}
+.meta .late{color:var(--warn);font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:1px 7px 1px 2px;border-radius:10px;background:var(--acc-soft);color:var(--ink)}
+.badge .dot{width:16px;height:16px;font-size:9px}
+.small-btn{flex:none;border:1px solid var(--line);background:none;color:var(--muted);border-radius:10px;padding:6px 9px;font-size:13px;cursor:pointer}
+.empty{text-align:center;color:var(--muted);padding:26px 10px;background:var(--card);border:1px dashed var(--line);border-radius:var(--r)}
+.days{display:flex;flex-direction:column;gap:8px}
+.day{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.day-head{display:flex;justify-content:space-between;align-items:baseline;cursor:pointer}
+.day-head b{text-transform:capitalize}
+.day-head span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bars{display:flex;height:9px;border-radius:9px;overflow:hidden;background:var(--acc-soft);margin-top:8px}
+.bars i{display:block;height:100%}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+.day ul{list-style:none;margin-top:10px;display:none;font-size:14px}
+.day.open ul{display:block}
+.day li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.day li em{color:var(--muted);font-style:normal;white-space:nowrap}
+.hint{font-size:13px;color:var(--muted);margin:8px 4px}
+.toolbar{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.btn{border:none;background:var(--acc);color:var(--bg);border-radius:12px;padding:11px 14px;font-weight:600;font-size:15px;cursor:pointer}
+.btn.ghost{background:none;color:var(--acc);border:1px solid var(--line)}
+.btn.danger{background:var(--warn)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5}
+.search{width:100%;font:inherit;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;cursor:pointer}
+.row.inactive{opacity:.5}
+.row small{color:var(--muted)}
+.row .right{text-align:right;flex:none;font-size:13px;color:var(--muted)}
+details.cat{margin-top:8px}
+details.cat summary{list-style:none;cursor:pointer;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:10px 4px;display:flex;justify-content:space-between}
+details.cat summary::-webkit-details-marker{display:none}
+details.cat .list{margin-bottom:6px}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;z-index:20}
+.sheet-bg.show{display:flex}
+.sheet{background:var(--card);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+.sheet h3{margin-bottom:12px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+textarea{min-height:60px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions{display:flex;gap:8px;margin-top:18px}
+.actions .btn{flex:1}
+.who-pick{display:flex;gap:6px;flex-wrap:wrap}
+.who-pick button{border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:6px 10px 6px 6px;display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
+.who-pick button.on{border-color:var(--acc);background:var(--acc-soft);font-weight:600}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav div{display:flex;max-width:640px;width:100%}
+nav button{flex:1;background:none;border:none;padding:10px 0 12px;color:var(--muted);font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+nav button svg{width:22px;height:22px}
+nav button.on{color:var(--acc);font-weight:600}
+nav .count{position:absolute;top:6px;left:calc(50% + 6px);background:var(--warn);color:#fff;font-size:10px;border-radius:8px;padding:0 5px;font-weight:700}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:90vw}
+.toast.show{opacity:1}
+.login{max-width:380px;margin:0 auto;padding:40px 22px}
+.login img{width:84px;height:84px;border-radius:20px;display:block;margin:0 auto 14px}
+.login h1{text-align:center;font-size:26px}
+.login p{text-align:center;color:var(--muted);margin:4px 0 18px}
+.err{color:var(--warn);font-size:14px;margin-top:10px;min-height:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.member{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.member:first-child{border-top:none}
+.member .grow{flex:1}
+.member small{color:var(--muted)}
+.loading{text-align:center;color:var(--muted);padding:40px}
+</style>
+</head>
+<body class="no-nav">
+<div class="offline" id="offline">Geen verbinding — je ziet de laatst bekende stand</div>
+<div id="app"><div class="loading">Laden…</div></div>
+<nav id="nav" style="display:none"><div>
+  <button data-v="vandaag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Vandaag</button>
+  <button data-v="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Week</button>
+  <button data-v="taken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Taken<span class="count" id="inboxCount" style="display:none"></span></button>
+  <button data-v="meer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Gezin</button>
+</div></nav>
+<div class="sheet-bg" id="sheetBg"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== Instellingen ===== */
+const SUPABASE_URL='https://ibnyljkbxpheostfhupu.supabase.co';
+const SUPABASE_KEY='sb_publishable_i8gba4Lo-bTJhvfoTXTTPg_dtaqSPs9';
+const MAILDOMEIN='@familie-verwijs.app';
+const CACHE_KEY='fv-cache-v1';
+
+/* ===== Datum-helpers (lokale tijd, YYYY-MM-DD) ===== */
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const diff=(a,b)=>Math.round((parse(a)-parse(b))/864e5);
+const today=()=>iso(new Date());
+const DAGEN=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+const MAANDEN=['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+
+const FREQ={
+  dag:{label:'Dagelijks',d:1}, '23pw':{label:'2-3x per week',d:3}, week:{label:'Wekelijks',d:7},
+  '2week':{label:'Om de week',d:14}, maand:{label:'Maandelijks',d:30}, kwartaal:{label:'Per kwartaal',d:91},
+  halfjaar:{label:'Halfjaarlijks',d:182}, jaar:{label:'Jaarlijks',d:365}, meerjaar:{label:'Om de paar jaar',d:1095},
+  nodig:{label:'Wanneer nodig',d:null}, doorlopend:{label:'Doorlopend',d:null}
+};
+const CATS=['Keuken','Badkamer & toilet','Woonkamer','Slaapkamers','Werkkamer & studeerplek','Hal, trap & overloop','Vloeren & algemeen','Was & kleding','Opruimen & organiseren','Boodschappen & voorraad','Koken & maaltijden','Afval','Tuin & buiten','Planten','Huisdieren','Kinderen','Onderhoud woning binnen','Onderhoud woning buiten','Installaties','Apparaten','Veiligheid','Auto & fiets','Administratie & financiën','Afspraken & gezondheid','Sociaal & familie','Seizoen & feestdagen','Digitaal','Huishouden organiseren','Verhuizen & grote projecten','Algemeen'];
+
+/* Zelfde logica als public.volgende_na in de database */
+function nextAfter(t,from){
+  if(!FREQ[t.freq].d)return null;
+  if(t.freq==='week'&&t.weekdag!=null){const d=parse(from);let n=(t.weekdag-d.getDay()+7)%7;if(n===0)n=7;return addDays(from,n)}
+  if(t.freq==='jaar'&&t.maand!=null){const d=parse(from);return iso(new Date(d.getFullYear()+1,t.maand,1))}
+  return addDays(from,t.interval_dagen||FREQ[t.freq].d);
+}
+function firstDue(t){
+  const td=today(),d=parse(td);
+  if(!FREQ[t.freq].d)return null;
+  if(t.freq==='week'&&t.weekdag!=null)return addDays(td,(t.weekdag-d.getDay()+7)%7);
+  if(t.freq==='jaar'&&t.maand!=null){let y=d.getFullYear();if(t.maand<d.getMonth())y++;const f=iso(new Date(y,t.maand,1));return f<td?td:f}
+  return td;
+}
+function occurrences(t,start,end){
+  const out=[];if(!t.volgende||!t.actief||t.inbox)return out;
+  let d=t.volgende<start?start:t.volgende,g=0;
+  while(d&&d<=end&&g++<400){out.push(d);d=nextAfter(t,d)}
+  return out;
+}
+
+/* ===== Hulpjes ===== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let toastT;function toast(m){const el=$('#toast');el.textContent=m;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2400)}
+function fmtShort(s){if(!s)return'—';const d=parse(s),n=diff(s,today());
+  if(n===0)return'vandaag';if(n===1)return'morgen';if(n===-1)return'gisteren';
+  if(n>1&&n<7)return DAGEN[d.getDay()];return`${d.getDate()} ${MAANDEN[d.getMonth()].slice(0,3)}${d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():''}`}
+function freqText(t){
+  if(t.freq==='week'&&t.weekdag!=null)return'elke '+DAGEN[t.weekdag];
+  if(t.freq==='jaar'&&t.maand!=null)return'elk jaar in '+MAANDEN[t.maand];
+  return FREQ[t.freq].label.toLowerCase();
+}
+const lid=id=>S.leden.find(l=>l.id===id);
+function dot(l,size){if(!l)return'';return`<span class="dot" style="background:${l.kleur}${size?`;width:${size}px;height:${size}px`:''}">${esc(l.naam[0])}</span>`}
+function badge(id){const l=lid(id);return l?`<span class="badge">${dot(l)}${esc(l.naam)}</span>`:'<span class="badge" style="padding-left:7px">Nog niet verdeeld</span>'}
+
+/* ===== Staat ===== */
+let sb=null, S={me:null,leden:[],taken:[],voltooid:[]}, view='vandaag', filter='mijn', zoek='';
+const isOuder=()=>S.me&&S.me.rol==='ouder';
+function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({leden:S.leden,taken:S.taken,voltooid:S.voltooid,me:S.me}))}catch(e){}}
+function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');if(c){Object.assign(S,c);return true}}catch(e){}return false}
+
+/* ===== Start ===== */
+async function start(){
+  if(!window.supabase){ // geen internet bij eerste laden
+    if(loadCache()){showOffline(true);showApp();}else{$('#app').innerHTML='<div class="loading">Geen verbinding. Probeer het zo opnieuw.</div>'}
+    return;
+  }
+  sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)return showLogin();
+  await afterLogin();
+}
+
+function showLogin(msg){
+  document.body.classList.add('no-nav');$('#nav').style.display='none';
+  $('#app').innerHTML=`<div class="login">
+    <img src="icons/icon-192.png" alt="">
+    <h1>Familie Verwijs</h1><p>Log in met je eigen naam</p>
+    <form id="lf">
+      <label>Gebruikersnaam</label><input name="u" autocomplete="username" autocapitalize="none" autocorrect="off" required>
+      <label>Wachtwoord</label><input name="p" type="password" autocomplete="current-password" required>
+      <div class="err" id="lerr">${esc(msg||'')}</div>
+      <button class="btn block" style="margin-top:6px">Inloggen</button>
+    </form></div>`;
+  $('#lf').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;
+    const u=f.u.value.trim().toLowerCase().replace(/ë/g,'e');
+    const {error}=await sb.auth.signInWithPassword({email:u+MAILDOMEIN,password:f.p.value});
+    b.disabled=false;
+    if(error){$('#lerr').textContent='Gebruikersnaam of wachtwoord klopt niet.';return}
+    await afterLogin();
+  };
+}
+
+async function afterLogin(){
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user)return showLogin();
+  const {data:leden,error}=await sb.from('gezinsleden').select('*').order('created_at');
+  if(error){if(loadCache()){showOffline(true);return showApp()}return showLogin('Kon gegevens niet laden.')}
+  S.leden=leden;S.me=leden.find(l=>l.id===user.id);
+  if(!S.me){await sb.auth.signOut();return showLogin('Dit account hoort niet bij het gezin.')}
+  if(S.me.moet_wachtwoord_wijzigen)return showPasswordChange(true);
+  await loadData();subscribe();showApp();
+}
+
+function showPasswordChange(first){
+  document.body.classList.add('no-nav');$('#nav').style.display='none';
+  $('#app').innerHTML=`<div class="login">
+    <h1>${first?'Welkom, '+esc(S.me.naam)+'!':'Wachtwoord wijzigen'}</h1>
+    <p>${first?'Kies eerst je eigen wachtwoord.':'Kies een nieuw wachtwoord.'}</p>
+    <form id="pf">
+      <label>Nieuw wachtwoord (minimaal 6 tekens)</label><input name="a" type="password" autocomplete="new-password" minlength="6" required>
+      <label>Nog een keer</label><input name="b" type="password" autocomplete="new-password" minlength="6" required>
+      <div class="err" id="perr"></div>
+      <button class="btn block">Opslaan</button>
+      ${first?'':'<button type="button" class="btn ghost block" id="pcancel" style="margin-top:8px">Annuleren</button>'}
+    </form></div>`;
+  if(!first)$('#pcancel').onclick=showApp;
+  $('#pf').onsubmit=async e=>{e.preventDefault();const f=e.target;
+    if(f.a.value!==f.b.value){$('#perr').textContent='De wachtwoorden zijn niet gelijk.';return}
+    const {error}=await sb.auth.updateUser({password:f.a.value});
+    if(error){$('#perr').textContent=error.message.includes('different')?'Kies een ander wachtwoord dan het huidige.':'Opslaan lukte niet: '+error.message;return}
+    await sb.rpc('wachtwoord_gewijzigd');S.me.moet_wachtwoord_wijzigen=false;
+    toast('Wachtwoord opgeslagen');
+    if(first){await loadData();subscribe()}showApp();
+  };
+}
+
+async function loadData(){
+  const sinds=addDays(today(),-14);
+  const [l,t,v]=await Promise.all([
+    sb.from('gezinsleden').select('*').order('created_at'),
+    sb.from('taken').select('*').order('naam'),
+    sb.from('voltooiingen').select('*').gte('datum',sinds).order('created_at',{ascending:false})
+  ]);
+  if(l.error||t.error||v.error){showOffline(true);return}
+  showOffline(false);
+  S.leden=l.data;S.taken=t.data;S.voltooid=v.data;S.me=S.leden.find(x=>x.id===S.me.id)||S.me;
+  saveCache();
+}
+let subT,channel;
+function subscribe(){
+  if(channel)return;
+  channel=sb.channel('gezin')
+    .on('postgres_changes',{event:'*',schema:'public',table:'taken'},refreshSoon)
+    .on('postgres_changes',{event:'*',schema:'public',table:'voltooiingen'},refreshSoon)
+    .subscribe();
+}
+function refreshSoon(){clearTimeout(subT);subT=setTimeout(async()=>{await loadData();render()},400)}
+function showOffline(on){$('#offline').classList.toggle('show',on)}
+window.addEventListener('online',()=>{if(sb&&S.me)refreshSoon()});
+window.addEventListener('offline',()=>showOffline(true));
+let lastDay=today();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sb&&S.me){if(today()!==lastDay)lastDay=today();refreshSoon()}});
+
+function showApp(){
+  document.body.classList.remove('no-nav');$('#nav').style.display='';
+  const h=location.hash.slice(1);if(['vandaag','week','taken','meer'].includes(h))view=h;
+  render();
+}
+
+/* ===== Acties ===== */
+async function rpc(name,args,okMsg){
+  const {data,error}=await sb.rpc(name,args);
+  if(error){toast('Lukte niet: '+error.message);return null}
+  if(data&&data.id){const i=S.taken.findIndex(t=>t.id===data.id);if(i>-1)S.taken[i]=data}
+  if(okMsg)toast(okMsg(data));
+  refreshSoon();render();return data;
+}
+const complete=id=>rpc('voltooi_taak',{p_taak:id},t=>`✓ ${t.naam}${t.volgende?' — volgende keer '+fmtShort(t.volgende):''}`);
+const undo=id=>rpc('herstel_taak',{p_taak:id},t=>`Teruggezet: ${t.naam}`);
+const snooze=id=>rpc('schuif_taak',{p_taak:id,p_dagen:1},t=>`${t.naam} → morgen`);
+
+/* ===== Weergave ===== */
+function render(){
+  const d=new Date();
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
+  const inbox=S.taken.filter(t=>t.inbox&&t.actief).length;
+  const ic=$('#inboxCount');ic.style.display=isOuder()&&inbox?'':'none';ic.textContent=inbox;
+  const titles={vandaag:'Vandaag',week:'Komende 7 dagen',taken:'Alle taken',meer:'Gezin'};
+  $('#app').innerHTML=`<header><div><div class="date">${DAGEN[d.getDay()]} ${d.getDate()} ${MAANDEN[d.getMonth()]}</div><h1>${titles[view]}</h1></div>
+    <div class="me-chip" id="meChip">${dot(S.me)}${esc(S.me.naam)}</div></header><main id="view"></main>`;
+  $('#meChip').onclick=()=>{view='meer';location.hash='meer';render()};
+  ({vandaag:viewToday,week:viewWeek,taken:viewTasks,meer:viewMore})[view]($('#view'));
+}
+
+function taskRow(t,state){
+  const td=today(),late=state==='open'&&t.volgende<td,n=-diff(t.volgende||td,td);
+  const doneBy=state==='done'?lid((S.voltooid.find(v=>v.taak_id===t.id&&v.datum===td)||{}).door):null;
+  return `<div class="task ${late?'late':''} ${state==='done'?'done':''}">
+    <button class="check" data-act="${state==='done'?'undo':'done'}" data-id="${t.id}" aria-label="${state==='done'?'Terugzetten':'Afvinken'}">${state==='done'?'✓':''}</button>
+    <div class="info"><div class="name">${esc(t.naam)}</div>
+      <div class="meta"><span>${t.duur_min} min</span>${filter==='iedereen'||!t.wie?badge(t.wie):''}
+      ${late?`<span class="late">${n} dag${n>1?'en':''} te laat</span>`:''}
+      ${doneBy?`<span>door ${esc(doneBy.naam)}</span>`:''}</div></div>
+    ${state==='open'?`<button class="small-btn" data-act="snooze" data-id="${t.id}">Morgen</button>`:''}
+  </div>`;
+}
+
+function viewToday(v){
+  const td=today(),me=S.me.id;
+  const scope=t=>filter==='iedereen'||t.wie===me;
+  const live=S.taken.filter(t=>t.actief&&!t.inbox);
+  const open=live.filter(t=>t.volgende&&t.volgende<=td);
+  const mine=open.filter(scope).sort((a,b)=>a.volgende.localeCompare(b.volgende)||(a.urgentie==='Hoog'?-1:0));
+  const free=filter==='mijn'?open.filter(t=>!t.wie):[];
+  const doneIds=new Set(S.voltooid.filter(x=>x.datum===td).map(x=>x.taak_id));
+  const done=live.filter(t=>doneIds.has(t.id)&&!(t.volgende&&t.volgende<=td)&&(filter==='iedereen'||t.wie===me||S.voltooid.some(x=>x.taak_id===t.id&&x.datum===td&&x.door===me)));
+  const late=mine.filter(t=>t.volgende<td);
+  const minOpen=mine.reduce((s,t)=>s+t.duur_min,0),minDone=done.reduce((s,t)=>s+t.duur_min,0);
+  const pct=minOpen+minDone?Math.round(minDone/(minOpen+minDone)*100):100;
+  v.innerHTML=`
+    <div class="seg"><button data-f="mijn" class="${filter==='mijn'?'on':''}">Mijn taken</button><button data-f="iedereen" class="${filter==='iedereen'?'on':''}">Iedereen</button></div>
+    <div class="summary">
+      <div class="pill"><b>${minOpen}</b><span>minuten te gaan</span></div>
+      <div class="pill"><b>${done.length}/${mine.length+done.length}</b><span>klaar</span></div>
+      ${late.length?`<div class="pill warn"><b>${late.length}</b><span>te laat</span></div>`:''}
+    </div>
+    <div class="progress"><i style="width:${pct}%"></i></div>
+    ${mine.length?`<h2>Te doen</h2><div class="list">${mine.map(t=>taskRow(t,'open')).join('')}</div>`
+      :`<div class="empty">${filter==='mijn'?'Niks meer voor jou vandaag 🎉':'Alles gedaan voor vandaag 🎉'}</div>`}
+    ${free.length?`<h2>Nog niet verdeeld <span>wie pakt 'm?</span></h2><div class="list">${free.map(t=>taskRow(t,'open')).join('')}</div>`:''}
+    ${done.length?`<h2>Gedaan vandaag</h2><div class="list">${done.map(t=>taskRow(t,'done')).join('')}</div>`:''}`;
+  v.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filter=b.dataset.f;render()});
+}
+
+function viewWeek(v){
+  const td=today(),end=addDays(td,6),days=[];
+  for(let i=0;i<7;i++)days.push({date:addDays(td,i),items:[]});
+  // te late taken tellen mee op vandaag (occurrences begint dan bij vandaag)
+  S.taken.filter(t=>t.actief&&!t.inbox).forEach(t=>occurrences(t,td,end).forEach(o=>days[diff(o,td)].items.push(t)));
+  const who=[...S.leden.map(l=>({id:l.id,kleur:l.kleur,naam:l.naam})),{id:null,kleur:'#9aa59f',naam:'Niet verdeeld'}];
+  const max=Math.max(60,...days.map(x=>x.items.reduce((s,t)=>s+t.duur_min,0)));
+  const tot={};days.forEach(x=>x.items.forEach(t=>tot[t.wie||'']=(tot[t.wie||'']||0)+t.duur_min));
+  v.innerHTML=`<div class="card" style="margin-top:10px"><b style="font-size:14px">Deze week per persoon</b>
+    <div class="legend" style="font-size:13px">${who.map(w=>`<span><span class="dot" style="background:${w.kleur};width:10px;height:10px;display:inline-block;vertical-align:middle"></span> ${esc(w.naam)}: ${tot[w.id||'']||0} min</span>`).join('')}</div></div>
+  <p class="hint">Tik op een dag voor de taken.</p>
+  <div class="days">${days.map((x,i)=>{
+    const m=x.items.reduce((s,t)=>s+t.duur_min,0),d=parse(x.date);
+    const seg=who.map(w=>{const mm=x.items.filter(t=>(t.wie||null)===w.id).reduce((s,t)=>s+t.duur_min,0);return mm?`<i style="width:${mm/max*100}%;background:${w.kleur}"></i>`:''}).join('');
+    return `<div class="day ${i===0?'open':''}"><div class="day-head"><b>${i===0?'Vandaag':i===1?'Morgen':DAGEN[d.getDay()]+' '+d.getDate()}</b><span>${m} min · ${x.items.length}</span></div>
+      <div class="bars">${seg}</div>
+      <ul>${x.items.sort((a,b)=>(a.wie||'z').localeCompare(b.wie||'z')||b.duur_min-a.duur_min).map(t=>`<li><span>${dot(lid(t.wie),16)} ${esc(t.naam)}</span><em>${t.duur_min} min</em></li>`).join('')||'<li><em>Niets gepland</em></li>'}</ul></div>`;
+  }).join('')}</div>`;
+  v.querySelectorAll('.day-head').forEach(h=>h.onclick=()=>h.parentElement.classList.toggle('open'));
+}
+
+function viewTasks(v){
+  const q=zoek.toLowerCase();
+  const match=t=>!q||t.naam.toLowerCase().includes(q)||t.categorie.toLowerCase().includes(q)||(t.omschrijving||'').toLowerCase().includes(q);
+  const inbox=S.taken.filter(t=>t.inbox&&t.actief&&match(t));
+  const rest=S.taken.filter(t=>!t.inbox&&match(t));
+  const cats=[...new Set(rest.map(t=>t.categorie))].sort((a,b)=>(CATS.indexOf(a)+1||99)-(CATS.indexOf(b)+1||99));
+  const row=t=>`<div class="row ${t.actief?'':'inactive'}" data-edit="${t.id}"><div style="min-width:0"><div class="name">${esc(t.naam)}</div>
+      <small>${freqText(t)} · ${t.duur_min} min${t.actief?'':' · uit'}</small></div>
+      <div class="right">${dot(lid(t.wie))}<div>${fmtShort(t.volgende)}</div></div></div>`;
+  v.innerHTML=`<div class="toolbar"><button class="btn" id="addBtn">${isOuder()?'+ Nieuwe taak':'+ Idee toevoegen'}</button></div>
+    <input class="search" id="zoek" placeholder="Zoek een taak…" value="${esc(zoek)}">
+    ${inbox.length?`<h2>Nog in te plannen <span>${inbox.length}</span></h2><p class="hint" style="margin-top:-4px">${isOuder()?'Tik om een vaste frequentie en persoon te kiezen.':'Deze ideeën worden nog ingepland.'}</p><div class="list">${inbox.map(row).join('')}</div>`:''}
+    ${cats.map(c=>{const it=rest.filter(t=>t.categorie===c);return`<details class="cat" ${q?'open':''}><summary><span>${esc(c)}</span><span>${it.length}</span></summary><div class="list">${it.map(row).join('')}</div></details>`}).join('')||'<div class="empty" style="margin-top:12px">Geen taken gevonden</div>'}`;
+  const z=$('#zoek');z.oninput=()=>{zoek=z.value;const pos=z.selectionStart;viewTasks(v);const n=$('#zoek');n.focus();n.setSelectionRange(pos,pos)};
+  $('#addBtn').onclick=()=>openEditor(null);
+  v.querySelectorAll('[data-edit]').forEach(r=>r.onclick=()=>openEditor(+r.dataset.edit));
+}
+
+function viewMore(v){
+  const st=S.voltooid.filter(x=>x.datum>=addDays(today(),-6));
+  v.innerHTML=`<div class="card" style="margin-top:10px">${S.leden.map(l=>{
+      const n=st.filter(x=>x.door===l.id).length,mins=st.filter(x=>x.door===l.id).reduce((s,x)=>s+((S.taken.find(t=>t.id===x.taak_id)||{}).duur_min||0),0);
+      return`<div class="member">${dot(l,34)}<div class="grow"><b>${esc(l.naam)}</b>${l.id===S.me.id?' <small>(jij)</small>':''}<br><small>${l.rol==='ouder'?'Ouder':'Kind'} · gebruikersnaam: ${esc(l.gebruikersnaam)}<br>Afgelopen 7 dagen: ${n} taken, ${mins} min</small></div>
+      ${isOuder()&&l.id!==S.me.id?`<button class="small-btn" data-reset="${l.id}">Wachtwoord</button>`:''}</div>`}).join('')}</div>
+    <div class="toolbar" style="margin-top:14px"><button class="btn ghost" id="pw">Mijn wachtwoord wijzigen</button><button class="btn ghost" id="out">Uitloggen</button></div>
+    <p class="hint">Binnenkort: agenda en verjaardagen, Zoë's schoolrooster, boodschappen, vakanties en cadeaulijstjes.</p>`;
+  $('#pw').onclick=()=>showPasswordChange(false);
+  $('#out').onclick=async()=>{await sb.auth.signOut();try{localStorage.removeItem(CACHE_KEY)}catch(e){}S={me:null,leden:[],taken:[],voltooid:[]};channel&&sb.removeChannel(channel);channel=null;showLogin()};
+  v.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>openReset(b.dataset.reset));
+}
+
+/* ===== Paneel ===== */
+const bg=$('#sheetBg'),sheet=$('#sheet');
+function closeSheet(){bg.classList.remove('show')}
+bg.onclick=e=>{if(e.target===bg)closeSheet()};
+
+function openReset(id){
+  const l=lid(id);
+  sheet.innerHTML=`<h3>Nieuw wachtwoord voor ${esc(l.naam)}</h3><p class="hint">${esc(l.naam)} moet het na het inloggen zelf meteen weer wijzigen.</p>
+    <form id="rf"><label>Tijdelijk wachtwoord</label><input name="p" minlength="6" required autocomplete="off">
+    <div class="actions"><button type="button" class="btn ghost" id="c">Annuleer</button><button class="btn">Instellen</button></div></form>`;
+  $('#c').onclick=closeSheet;
+  $('#rf').onsubmit=async e=>{e.preventDefault();const {error}=await sb.rpc('reset_wachtwoord',{p_lid:id,p_wachtwoord:e.target.p.value});
+    if(error)return toast('Lukte niet: '+error.message);closeSheet();toast('Wachtwoord ingesteld voor '+l.naam)};
+  bg.classList.add('show');
+}
+
+function openEditor(id){
+  const ouder=isOuder();
+  const t=id?S.taken.find(x=>x.id===id):{naam:'',categorie:'Algemeen',omschrijving:'',freq:ouder?'week':'nodig',duur_min:15,urgentie:'Midden',wie:null,weekdag:null,maand:null,actief:true,inbox:!ouder};
+  if(id&&!ouder){ // kind: alleen bekijken
+    sheet.innerHTML=`<h3>${esc(t.naam)}</h3><p class="hint">${esc(t.omschrijving||'')}</p>
+      <div class="card"><small>${freqText(t)} · ${t.duur_min} min · ${esc(t.categorie)}</small><div style="margin-top:6px">${badge(t.wie)} · volgende keer: ${fmtShort(t.volgende)}</div></div>
+      <div class="actions"><button class="btn ghost" id="c">Sluiten</button></div>`;
+    $('#c').onclick=closeSheet;bg.classList.add('show');return;
+  }
+  const cats=[...new Set([...CATS,...S.taken.map(x=>x.categorie)])];
+  let wie=t.wie;
+  sheet.innerHTML=`<h3>${id?(t.inbox?'Inplannen':'Taak bewerken'):(ouder?'Nieuwe taak':'Idee toevoegen')}</h3>
+  <form id="f">
+    <label>Wat moet er gebeuren?</label><input name="naam" required value="${esc(t.naam)}">
+    <label>Wat hoort erbij (optioneel)</label><textarea name="omschrijving">${esc(t.omschrijving||'')}</textarea>
+    ${ouder?`
+    <div class="two"><div><label>Categorie</label><select name="categorie">${cats.map(c=>`<option ${c===t.categorie?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+      <div><label>Duur (min)</label><input name="duur" type="number" min="1" value="${t.duur_min}"></div></div>
+    <div class="two"><div><label>Hoe vaak</label><select name="freq">${Object.entries(FREQ).map(([k,f])=>`<option value="${k}" ${k===t.freq?'selected':''}>${f.label}</option>`).join('')}</select></div>
+      <div id="fixWrap"></div></div>
+    <div class="two"><div><label>Urgentie</label><select name="urgentie">${['Hoog','Midden','Laag'].map(u=>`<option ${u===t.urgentie?'selected':''}>${u}</option>`).join('')}</select></div>
+      <div><label>Volgende keer</label><input name="volgende" type="date" value="${t.inbox?'':(t.volgende||'')}"></div></div>
+    <label>Wie</label><div class="who-pick" id="who">${[...S.leden,{id:null,naam:'Niet verdeeld',kleur:'#9aa59f'}].map(l=>`<button type="button" data-w="${l.id||''}" class="${(wie||'')===(l.id||'')?'on':''}">${dot(l)}${esc(l.naam)}</button>`).join('')}</div>
+    ${id?`<label style="display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--ink)"><input type="checkbox" name="actief" style="width:auto" ${t.actief?'checked':''}> Actief (uitzetten = tijdelijk niet inplannen)</label>`:''}
+    `:`<label>Categorie</label><select name="categorie">${cats.map(c=>`<option ${c===t.categorie?'selected':''}>${esc(c)}</option>`).join('')}</select>
+       <p class="hint">Papa of mama plant het daarna in.</p>`}
+    <div class="actions">${id&&ouder?'<button type="button" class="btn danger" id="del">Verwijder</button>':''}<button type="button" class="btn ghost" id="cancel">Annuleer</button><button class="btn">Opslaan</button></div>
+  </form>`;
+  const f=$('#f');
+  if(ouder){
+    const wrap=$('#fixWrap');
+    const drawFix=()=>{const fr=f.freq.value;
+      if(fr==='week')wrap.innerHTML=`<label>Vaste dag</label><select name="weekdag"><option value="">Geen (rollend)</option>${[1,2,3,4,5,6,0].map(i=>`<option value="${i}" ${t.weekdag===i?'selected':''}>${DAGEN[i]}</option>`).join('')}</select>`;
+      else if(fr==='jaar')wrap.innerHTML=`<label>Vaste maand</label><select name="maand"><option value="">Geen (rollend)</option>${MAANDEN.map((m,i)=>`<option value="${i}" ${t.maand===i?'selected':''}>${m}</option>`).join('')}</select>`;
+      else wrap.innerHTML=`<label>&nbsp;</label><p class="hint" style="margin:10px 0">${FREQ[fr].d?'Rollend vanaf afvinken':'Staat op de takenlijst, niet in het rooster'}</p>`;};
+    drawFix();f.freq.onchange=drawFix;
+    $('#who').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;wie=b.dataset.w||null;$('#who').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))};
+    if(id)$('#del').onclick=async()=>{if(!confirmDel){confirmDel=true;$('#del').textContent='Echt verwijderen?';return}
+      const {error}=await sb.from('taken').delete().eq('id',id);if(error)return toast('Lukte niet: '+error.message);
+      S.taken=S.taken.filter(x=>x.id!==id);closeSheet();render();toast('Taak verwijderd')};
+  }
+  let confirmDel=false;
+  $('#cancel').onclick=closeSheet;
+  f.onsubmit=async e=>{e.preventDefault();
+    const n={naam:f.naam.value.trim(),omschrijving:f.omschrijving.value.trim()||null,categorie:f.categorie.value};
+    if(ouder){
+      Object.assign(n,{duur_min:Math.max(1,+f.duur.value||1),freq:f.freq.value,urgentie:f.urgentie.value,wie,
+        weekdag:f.freq.value==='week'&&f.weekdag&&f.weekdag.value!==''?+f.weekdag.value:null,
+        maand:f.freq.value==='jaar'&&f.maand&&f.maand.value!==''?+f.maand.value:null,inbox:false});
+      if(id)n.actief=f.actief.checked;
+      const structural=!id||t.inbox||t.freq!==n.freq||t.weekdag!==n.weekdag||t.maand!==n.maand;
+      const chosen=f.volgende.value||null;
+      n.volgende=!FREQ[n.freq].d?null:(chosen&&!(structural&&chosen===t.volgende)?chosen:firstDue(n));
+    }else{Object.assign(n,{freq:'nodig',inbox:true,duur_min:15})}
+    const q=id?sb.from('taken').update(n).eq('id',id).select().single():sb.from('taken').insert(n).select().single();
+    const {data,error}=await q;
+    if(error)return toast('Opslaan lukte niet: '+error.message);
+    if(id)S.taken=S.taken.map(x=>x.id===id?data:x);else S.taken.push(data);
+    closeSheet();render();toast(ouder?'Opgeslagen':'Idee doorgegeven aan papa en mama');
+  };
+  bg.classList.add('show');
+}
+
+/* ===== Events ===== */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b||!sb)return;
+  const id=+b.dataset.id;b.disabled=true;
+  ({done:complete,undo,snooze})[b.dataset.act](id);
+});
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;history.replaceState(null,'','#'+view);render();scrollTo(0,0)});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+start();
+</script>
+</body>
+</html>
