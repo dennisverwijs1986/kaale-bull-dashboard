@@ -1003,6 +1003,14 @@ function beurtHtml(){
   return `<div class="beurt ${b.soort}"><div class="ico">${b.ico}</div><div><b>${esc(b.kop)}</b><span>${esc(b.sub)}</span></div></div>`;
 }
 
+// Actieve knop in een horizontale rij (avonden, bekerfasen) centreren door alléén die rij opzij te scrollen.
+// Niet scrollIntoView gebruiken: die scrolt ook de pagina zelf, waardoor je bij elke verversing (20 s) weer bovenaan stond.
+function centreerInRij(knop){
+  if (!knop || !knop.parentElement) return;
+  const rij=knop.parentElement, r=rij.getBoundingClientRect(), k=knop.getBoundingClientRect();
+  rij.scrollLeft += (k.left + k.width/2) - (r.left + r.width/2);
+}
+
 function avondenLijst(){ return [...new Set(S.rijen.map(w=>w.datum))]; }
 
 function renderAlles(){
@@ -1058,7 +1066,7 @@ function renderAlles(){
   koppelSchemaSeg(el);
 
   el.querySelectorAll('[data-avond]').forEach(b=>b.addEventListener('click',()=>{ S.gekozenAvond=b.dataset.avond; renderAlles(); }));
-  const actief=el.querySelector('.avond.actief'); if (actief) actief.scrollIntoView({block:'nearest',inline:'center'});
+  centreerInRij(el.querySelector('.avond.actief'));
 }
 
 function renderMijn(){
@@ -1858,7 +1866,7 @@ function renderStand(){
   el.querySelectorAll('[data-div]').forEach(b=>b.addEventListener('click',()=>{ S.standDiv=b.dataset.div; renderStand(); }));
   el.querySelectorAll('[data-periode]').forEach(b=>b.addEventListener('click',()=>{ const v=b.dataset.periode; S.standPeriode = v==='eind' ? 'eind' : Number(v); renderStand(); }));
   el.querySelectorAll('[data-bfase]').forEach(b=>b.addEventListener('click',()=>{ S.bekerFase=b.dataset.bfase; renderStand(); }));
-  const af = el.querySelector('.bfasen .actief'); if (af) af.scrollIntoView({block:'nearest',inline:'center'});
+  centreerInRij(el.querySelector('.bfasen .actief'));
   if (S.view==='stand') telHuidigScherm();
 }
 function voorlopigNoot(n){
