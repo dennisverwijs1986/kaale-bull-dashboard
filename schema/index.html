@@ -1780,7 +1780,7 @@ function renderInst(){
     const aan = teltMee();
     html = terug('ℹ️ Over deze app') + `<div class="inst-blok"><b>📊 Help de app verbeteren</b>
       <button class="schakel${aan?' aan':''}" id="tellenKnop" role="switch" aria-checked="${aan}"><span class="knopje"></span><span class="lbl">${aan?'Aan':'Uit'}</span></button>
-      <p>De app houdt anoniem bij welke schermen geopend worden (bijvoorbeeld Schema, Ranglijst of Statistieken), zodat we zien wat er gebruikt wordt en waar we de app beter kunnen maken.</p>
+      <p>De app houdt anoniem bij welke schermen geopend worden (bijvoorbeeld Schema, Ranglijst of Statistieken) en welk thema je gebruikt, zodat we zien wat er gebruikt wordt en waar we de app beter kunnen maken.</p>
       <p>Daarvoor krijgt dit toestel een willekeurig nummer. Er wordt <strong>geen naam, geen locatie en niets over je uitslagen</strong> aan gekoppeld, en we kunnen niet zien wie welk toestel heeft.</p>
       <p>Zet je dit uit, dan stopt het tellen meteen en worden ook alle eerdere tellingen van dit toestel gewist.</p>
       <div class="fout" id="tellenMelding"></div></div>
@@ -1803,7 +1803,7 @@ function renderInst(){
     opslaan('kb_schema_ik', S.ik); opslaan('kb_schema_ikid', null);
     S.instSub=null; renderInst(); haalIkId();
   });
-  el.querySelectorAll('[data-thema]').forEach(b=>b.addEventListener('click',()=>{ window.zetThema && window.zetThema(b.dataset.thema); renderInst(); }));
+  el.querySelectorAll('[data-thema]').forEach(b=>b.addEventListener('click',()=>{ window.zetThema && window.zetThema(b.dataset.thema); telScherm('thema_'+b.dataset.thema); renderInst(); }));
   el.querySelectorAll('[data-tekst]').forEach(b=>b.addEventListener('click',()=>{ window.zetTekst && window.zetTekst(b.dataset.tekst); renderInst(); }));
   const da = el.querySelector('#deelApp'); if (da) da.addEventListener('click', deelApp);
   const dm = el.querySelector('#deelMijn');
@@ -2608,6 +2608,8 @@ const NIEUWS = [   // nieuwste onderaan; elke update een nieuwe id (oplopend)
     }).then(r=>{ if (r.ok || r.status===409) opslaan(sleutel, vandaag()); }).catch(()=>{});
   }catch(e){}
 })();
+// Anoniem meetellen welk thema dit toestel gebruikt (thema_donker, thema_licht, thema_vice, thema_kerst, thema_auto)
+telScherm('thema_' + (window.themaKeuze ? window.themaKeuze() : 'donker'));
 
 (function installeerTip(){
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
