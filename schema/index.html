@@ -2571,6 +2571,14 @@ const NIEUWS = [   // nieuwste onderaan; elke update een nieuwe id (oplopend)
     ['💡','Vraag, idee of tip insturen','Een vraag, of iets wat beter kan? Stuur het via Instellingen → Vraag, idee of tip.'],
     ['📊','Anonieme telling','De app telt anoniem welke schermen gebruikt worden, zonder naam. Uitzetten kan bij Instellingen → Over deze app.'],
   ]},
+  { id:'2026-11-23', punten:[
+    ['📅','Zelf je wedstrijd verzetten','Tik op je wedstrijd en kies "Verzetten naar andere avond". Je kiest een avond, je tegenstander bevestigt met één tik. De tijd plant de wedstrijdleiding in.'],
+    ['🔔','Aanvragen voor jou','Wil je tegenstander verzetten? Je krijgt een melding en ziet het bovenaan je schema: Akkoord, Andere avond of Past mij niet.'],
+    ['🚫','Afmelden voor een avond','Ziek of verhinderd? Tik op je wedstrijd en kies "Afmelden voor deze avond". Je tegenstander en de wedstrijdleiding weten het meteen.'],
+    ['⏰','Ik ben later','Op de speelavond zelf geef je met één knop door hoe laat je er bent. Verzetten voor dezelfde avond kan tot 10:00.'],
+    ['💬','App je tegenstander','Bij elke wedstrijd staat een knop om je tegenstander direct te WhatsAppen.'],
+    ['🔐','Eén keer je code','De eerste keer vraagt de app je persoonlijke code uit de mail (dezelfde als voor de meldingen).'],
+  ]},
 ];
 (function watIsErNieuw(){
   const laatste = NIEUWS[NIEUWS.length-1].id, gezien = lezen('kb_schema_nieuws') || '';
