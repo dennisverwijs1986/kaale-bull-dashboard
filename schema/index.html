@@ -826,6 +826,7 @@ async function laad(){
     opslaan('kb_schema_cache', JSON.stringify({ t:Date.now(), rijen:S.rijen, byes:S.byes, nnb:S.nnb, kantel:S.kantel,
       mdd: mdd.hidden ? '' : mdd.textContent }));
     zetSync(true);
+    if (window.VZ) VZ.ververs();
     if (S.view==='stats' || S.view==='inst') werkNavBij(); else render();
   }catch(e){
     S.offline=true;
@@ -1093,6 +1094,7 @@ function renderMijn(){
 
   let html = schemaSegHtml() + `<div class="ik-balk"><h2>${esc(S.ik)}</h2></div>`;
   html += beurtHtml();
+  if (window.VZ) html += VZ.bannerHtml();
   if (!mijn.length && !mijnNnb.length){
     html += `<div class="leeg"><span class="ico">🎯</span>Geen komende wedstrijden in de vrijgegeven planning.</div>`;
   } else {
@@ -1100,7 +1102,7 @@ function renderMijn(){
       const meer = mijnNnb.length>1;
       html += `<div class="nnb-blok">
         <div class="nnb-kop">⚠️ ${meer ? `${mijnNnb.length} wedstrijden` : '1 wedstrijd'} nog in te plannen</div>
-        <p class="nnb-uitleg">Spreek samen met je tegenstander een datum af en geef die door aan de wedstrijdleiding.</p>
+        <p class="nnb-uitleg">${window.VZ && VZ.aan() ? 'Spreek samen met je tegenstander een avond af: tik op de wedstrijd en kies "Avond voorstellen".' : 'Spreek samen met je tegenstander een datum af en geef die door aan de wedstrijdleiding.'}</p>
         ${mijnNnb.map(w=>kaartHtml(w,{nnb:true})).join('')}
       </div>`;
     }
@@ -2199,15 +2201,15 @@ async function openH2H(id){
   if (!eerder){ try{ history.pushState({h2h:1}, ''); }catch(e){} }
   if (lezen('kb_schema_h2h_gezien')!=='1'){ opslaan('kb_schema_h2h_gezien','1'); }
   document.getElementById('h2hTitel').textContent = '⚔️ Head-to-head';
-  h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
+  h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + (window.VZ ? VZ.knoppenHtml(w) : '') + `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
   waNummerOphalen(w);
   h2hEl.querySelector('.h2h-paneel').scrollTop = 0;
   try{
     const [D, hist] = await Promise.all([h2hData(), h2hHist(A,B)]);
     if (!H.open || H.open.w!==w) return;
-    h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + h2hBody(D, hist, w, A, B);
+    h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + (window.VZ ? VZ.knoppenHtml(w) : '') + h2hBody(D, hist, w, A, B);
   }catch(e){
-    if (H.open && H.open.w===w) h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + `<div class="leeg"><span class="ico">📡</span>Kan de head-to-head nu niet ophalen.<br>Probeer het zo nog eens.</div>`;
+    if (H.open && H.open.w===w) h2hInhoud.innerHTML = h2hKop(w,A,B) + waKnopHtml(w) + (window.VZ ? VZ.knoppenHtml(w) : '') + `<div class="leeg"><span class="ico">📡</span>Kan de head-to-head nu niet ophalen.<br>Probeer het zo nog eens.</div>`;
   }
 }
 // ══════════════════════════════════════════
@@ -2218,7 +2220,7 @@ async function openH2H(id){
 const WA_TESTERS = ['Dennis Verwijs'];
 const WA = { nummers:{} };
 function waMag(w){
-  return !!S.ik && WA_TESTERS.includes(S.ik) && !isBye(w) && w.status!=='gespeeld' && (w.thuis===S.ik || w.uit===S.ik);
+  return !!S.ik && (WA_TESTERS.includes(S.ik) || (window.VZ && VZ.aan())) && !isBye(w) && w.status!=='gespeeld' && (w.thuis===S.ik || w.uit===S.ik);
 }
 function waKnopHtml(w){
   if (!waMag(w)) return '';
@@ -2637,6 +2639,446 @@ telScherm('thema_' + (window.themaKeuze ? window.themaKeuze() : 'donker'));
   window.addEventListener('appinstalled',()=>{ box.hidden=true; opslaan('kb_schema_tip_weg','1'); });
 })();
 </script>
+<script>
+// ══════════════════════════════════════════
+//  VERZETTEN VIA DE APP (Dashboard 2.0)
+//  Alles loopt via de Edge Function verzet-app. Aan/uit per speler via instellingen.verzetten_app.
+//  Spelers kiezen een AVOND (geen tijd); de tegenstander bevestigt. De WL kijkt mee in de WL-app.
+//  Identificatie: persoonlijke code (dezelfde als voor de pushmeldingen), één keer per toestel.
+// ══════════════════════════════════════════
+(function(){
+const FN = `${SB_URL}/functions/v1/verzet-app`;
+const DEADLINE_MIN = 10*60 + 10;   // spelers horen "tot 10:00", in werkelijkheid tot 10:10
+const DRUK = 3;                     // vanaf zoveel wedstrijden op een avond: oranje waarschuwing
+const VZ = window.VZ = { aanVoor:null, aanStaat:false, data:null, laatst:0, zonderCode:false };
+
+async function post(body){
+  const r = await fetch(FN, { method:'POST', headers:{ ...HDR, 'Content-Type':'application/json' }, body:JSON.stringify(body), cache:'no-store' });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok){ const e=new Error(d.error || 'Er ging iets mis. Probeer het zo nog eens.'); e.status=r.status; throw e; }
+  return d;
+}
+function code(){
+  const p = pushStaat(); if (p && p.code && p.speler===S.ik) return p.code;
+  try{ const c=JSON.parse(lezen('kb_code')||'null'); if (c && c.code && c.speler===S.ik) return c.code; }catch(e){}
+  return null;
+}
+function nlMin(){
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA',{ timeZone:'Europe/Amsterdam', hour:'2-digit', minute:'2-digit', hourCycle:'h23' })
+    .formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return (+p.hour%24)*60 + +p.minute;
+}
+const kort = d => d ? `${fmtKort.format(alsDatum(d))} ${fmtDag.format(alsDatum(d))}` : 'NNB';
+const lang = d => d ? fmtLang.format(alsDatum(d)) : 'nog niet gepland';
+const mijnW = w => !!S.ik && (w.thuis===S.ik || w.uit===S.ik);
+const tegVan = (w, ik=S.ik) => w.thuis===ik ? w.uit : w.thuis;
+const allesW = () => [...S.rijen, ...S.nnb];
+VZ.aan = () => VZ.aanVoor===S.ik && VZ.aanStaat===true;
+
+// ── Gegevens ophalen (na elke verversing van het schema) ──
+VZ.ververs = async (force) => {
+  if (!S.ik) return;
+  if (!force && Date.now()-VZ.laatst < 15000) return;
+  VZ.laatst = Date.now();
+  try{ const st = await post({ actie:'status', naam:S.ik }); VZ.aanVoor=S.ik; VZ.aanStaat=!!st.actief; }catch(e){ return; }
+  if (!VZ.aanStaat){ VZ.data=null; return; }
+  const c = code();
+  if (!c){ VZ.data=null; VZ.zonderCode=true; }
+  else {
+    try{ VZ.data = await post({ actie:'mijn', code:c, naam:S.ik }); VZ.zonderCode=false; }
+    catch(e){ if (e.status===401 || e.status===403){ opslaan('kb_code', null); VZ.data=null; VZ.zonderCode=true; } }
+  }
+  if (S.view==='mijn') renderMijn();
+};
+function lopendVoor(w){
+  if (!VZ.data) return null;
+  return [...VZ.data.van_mij, ...VZ.data.voor_mij].find(v=>String(v.wedstrijd_id)===String(w.id)) || null;
+}
+function deadlineVoorbij(datum){ return datum===vandaag() && nlMin() >= DEADLINE_MIN; }
+
+// ── Blok bovenaan "Mijn wedstrijden" ──
+function gezien(){ try{ return JSON.parse(lezen('kb_vz_gezien')||'[]'); }catch(e){ return []; } }
+VZ.bannerHtml = () => {
+  if (!VZ.aan()) return '';
+  let h = '';
+  if (VZ.zonderCode){
+    h += `<div class="vz-blok"><b>📅 Verzetten via de app</b><p>Je kunt je wedstrijden nu zelf verzetten of je afmelden. Voer eenmalig je persoonlijke code in (dezelfde als voor de meldingen).</p><button class="vz-knop blauw" data-vz-code>Code invoeren</button></div>`;
+    return h + laterHtml();
+  }
+  const d = VZ.data; if (!d) return laterHtml();
+  d.voor_mij.forEach(v=>{
+    const van = v.door_mij ? `${v.van} (test)` : v.van;
+    const zin = v.soort==='inplannen' ? `wil jullie wedstrijd inplannen op <b>${esc(kort(v.nieuwe_datum))}</b>`
+      : `${v.ronde>1?'stelt voor':'wil'} jullie wedstrijd${v.oude_datum?` van ${esc(kort(v.oude_datum))}`:''} ${v.ronde>1?'te spelen op':'te verzetten naar'} <b>${esc(kort(v.nieuwe_datum))}</b>`;
+    h += `<div class="vz-blok geel"><b>🔔 ${v.ronde>1?'Tegenvoorstel':'Aanvraag'} voor jou</b><p><b>${esc(van)}</b> ${zin}.${v.vervalt_at?' Reageer vóór 16:00.':''}</p><button class="vz-knop geel" data-vz-aanvraag="${esc(v.antwoord)}">Bekijken</button></div>`;
+  });
+  d.van_mij.filter(v=>!d.voor_mij.some(x=>x.id===v.id)).forEach(v=>{
+    const teg = v.thuis===S.ik ? v.uit : v.thuis;
+    h += `<div class="vz-blok"><b>⏳ Wacht op ${esc(voorn(teg))}</b><p>Je verzoek: ${esc(v.thuis)} – ${esc(v.uit)} naar <b>${esc(kort(v.nieuwe_datum))}</b>${v.soort==='wachtlijst'?' (avond vol, dan op de wachtlijst)':''}.</p><button class="vz-knop rood-rand" data-vz-intrek="${esc(v.id)}">Intrekken</button></div>`;
+  });
+  const weg = gezien();
+  d.uitslag.filter(v=>!weg.includes(v.id)).slice(0,3).forEach(v=>{
+    const teg = v.thuis===S.ik ? v.uit : v.thuis;
+    const t = { geaccepteerd:`✅ ${voorn(teg)} is akkoord: ${kort(v.nieuwe_datum)}${v.soort==='wachtlijst'?' (wachtlijst)':''}`,
+      afgewezen:`❌ ${voorn(teg)} kan niet op ${kort(v.nieuwe_datum)}${[v.reden_keuze,v.antwoord_reden].filter(Boolean).length?': '+[v.reden_keuze,v.antwoord_reden].filter(Boolean).join(' · '):''}`,
+      verlopen:`⌛ Geen reactie van ${voorn(teg)} op je verzoek (${kort(v.nieuwe_datum)})`,
+      ingetrokken:`↩️ Verzoek ingetrokken (${kort(v.nieuwe_datum)})`,
+      vervallen_door_wijziging:`ℹ️ Verzoek vervallen: de wedstrijd is intussen gewijzigd` }[v.status];
+    if (!t) return;
+    const opnieuw = v.status==='afgewezen' || v.status==='verlopen';
+    h += `<div class="vz-regel"><span>${esc(t)}</span>${opnieuw?`<button class="knop-klein" data-vz-verzet="${esc(v.wedstrijd_id)}">Andere avond</button>`:''}<button class="knop-klein" data-vz-weg="${esc(v.id)}" aria-label="Verbergen">✕</button></div>`;
+  });
+  return h + laterHtml();
+};
+function laterHtml(){
+  const vd = vandaag();
+  const vanavond = S.rijen.filter(w=>w.datum===vd && mijnW(w) && w.status!=='gespeeld' && !w.bord);
+  if (!vanavond.length) return '';
+  return `<button class="vz-knop cyaan" data-vz-later>⏰ Ik ben vanavond later</button>`;
+}
+
+// ── Knoppen in het wedstrijdpaneel ──
+VZ.knoppenHtml = (w) => {
+  if (!VZ.aan() || !w || !mijnW(w) || isBye(w) || w.status==='gespeeld' || w.bord) return '';
+  const lv = lopendVoor(w);
+  if (lv){
+    const tekst = lv.door_mij && !VZ.data.voor_mij.some(x=>x.id===lv.id) ? `Je hebt voorgesteld: ${kort(lv.nieuwe_datum)}. Wacht op ${voorn(tegVan(w))}.`
+      : `${voorn(lv.van)} stelt ${kort(lv.nieuwe_datum)} voor.`;
+    return `<div class="vz-blok"><b>📅 Lopend verzoek</b><p>${esc(tekst)}</p>${lv.antwoord?`<button class="vz-knop geel" data-vz-aanvraag="${esc(lv.antwoord)}">Bekijken</button>`:''}</div>`;
+  }
+  if (!w.datum_nnb && deadlineVoorbij(w.datum))
+    return `<div class="vz-blok"><b>🔒 Wijzigen voor vanavond kon tot 10:00</b><p>App je tegenstander of gebruik "Ik ben vanavond later".</p></div>`;
+  if (w.datum_nnb) return `<button class="vz-knop blauw" data-vz-verzet="${esc(w.id)}">🗓 Avond voorstellen</button>`;
+  return `<button class="vz-knop blauw" data-vz-verzet="${esc(w.id)}">📅 Verzetten naar andere avond</button>
+    <button class="vz-knop rood-rand" data-vz-afmeld="${esc(w.datum)}">🚫 Afmelden voor deze avond</button>`;
+};
+
+// ── Paneel tonen (zelfde onderpaneel als de head-to-head) ──
+function toon(titel, html){
+  const eerder = !!H.open;
+  H.open = { vz:true };
+  document.getElementById('h2hTitel').textContent = titel;
+  h2hInhoud.innerHTML = html;
+  h2hEl.hidden = false; document.body.style.overflow='hidden';
+  if (!eerder){ try{ history.pushState({h2h:1}, ''); }catch(e){} }
+  h2hEl.querySelector('.h2h-paneel').scrollTop = 0;
+}
+const laden = () => `<div class="leeg"><span class="ico">⏳</span>Laden…</div>`;
+const foutHtml = e => `<div class="vz-fout">${esc(e.message||e)}</div>`;
+function metCode(verder){ if (code()) verder(); else codeScherm(verder); }
+
+// ── Code invoeren (eenmalig) ──
+function codeScherm(verder){
+  toon('🔐 Wie ben jij?', `<div class="vz-midden"><div class="vz-groot">Voer je persoonlijke code in</div>
+    <p>Je hebt deze code per mail gekregen (dezelfde als voor de pushmeldingen). Je hoeft dit maar één keer te doen.</p></div>
+    <label class="vz-label" for="vzCode">Code</label>
+    <input id="vzCode" class="vz-code" maxlength="8" autocomplete="one-time-code" autocapitalize="characters" placeholder="ABC123">
+    <button class="vz-knop blauw" id="vzCodeOk">Bevestigen</button><div id="vzCodeFout"></div>
+    <p class="vz-noot">Kijken naar schema's en standen kan altijd, ook zonder code. De code is alleen nodig om je eigen wedstrijden te verzetten of af te melden. Code kwijt? Vraag de wedstrijdleiding.</p>`);
+  const inp = h2hInhoud.querySelector('#vzCode'), ok = h2hInhoud.querySelector('#vzCodeOk');
+  const doe = async () => {
+    const c = (inp.value||'').replace(/[^0-9a-z]/gi,'').toUpperCase();
+    if (c.length!==6){ h2hInhoud.querySelector('#vzCodeFout').innerHTML = foutHtml('De code bestaat uit 6 tekens.'); return; }
+    ok.disabled = true;
+    try{
+      VZ.data = await post({ actie:'mijn', code:c, naam:S.ik });
+      opslaan('kb_code', JSON.stringify({ speler:S.ik, code:c })); VZ.zonderCode=false;
+      telScherm('vz_code');
+      if (verder) verder(); else { sluitH2H(false); renderMijn(); }
+    }catch(e){ ok.disabled=false; h2hInhoud.querySelector('#vzCodeFout').innerHTML = foutHtml(e); }
+  };
+  ok.addEventListener('click', doe);
+  inp.addEventListener('keydown', e=>{ if (e.key==='Enter') doe(); });
+  setTimeout(()=>inp.focus(), 250);
+}
+
+// ── Avond kiezen (verzetten, inplannen of tegenvoorstel) ──
+function avondRij(a, tegNaam, gekozen){
+  const kleur = a.vol ? 'rood' : a.bijna ? 'oranje' : 'groen';
+  const stat = a.vol ? 'Vol' : a.bijna ? 'Bijna vol' : 'Plek';
+  const tegDruk = a.teg >= DRUK, ikDruk = a.ik >= DRUK;
+  const w = n => n ? String(n) : 'geen';
+  let let_op = '';
+  if (tegDruk) let_op += `<div class="vz-let">${esc(voorn(tegNaam))} speelt die avond al ${a.teg} wedstrijden, dit wordt zijn ${a.teg+1}e.</div>`;
+  if (ikDruk) let_op += `<div class="vz-let">Je speelt die avond zelf al ${a.ik} wedstrijden.</div>`;
+  if (a.vol) let_op += `<div class="vz-let rood">Avond vol: jullie komen op de wachtlijst. De wedstrijd blijft staan tot er een plek vrijkomt.</div>`;
+  if (a.vandaag) let_op += `<div class="vz-let">Vanavond: je tegenstander moet vóór 16:00 akkoord geven.</div>`;
+  return `<button class="vz-avond${a.datum===gekozen?' sel':''}" data-vz-kies="${esc(a.datum)}"${a.huidig?' disabled':''}>
+    <span class="vz-radio"></span>
+    <span class="vz-av-tekst"><b>${esc(a.vandaag?'Vanavond':kort(a.datum).replace(/^./,c=>c.toUpperCase()))}</b>
+      <small>${a.huidig?'Hier staat de wedstrijd nu':`${a.totaal} van ${a.max} wedstrijden`}${a.voorgesteld?' · voorstel van '+esc(voorn(tegNaam)):''}</small>
+      <span class="vz-chips"><span class="vz-chip${ikDruk?' druk':''}">Jij: ${w(a.ik)}</span><span class="vz-chip${tegDruk?' druk':''}">${esc(voorn(tegNaam))}: ${w(a.teg)}</span></span>
+      ${let_op}</span>
+    <span class="vz-stat ${kleur}">${stat}</span></button>`;
+}
+async function avondScherm(opts){
+  // opts: { w } voor verzetten/inplannen, of { antwoord, van } voor een tegenvoorstel
+  const tegen = !!opts.antwoord;
+  toon(tegen ? '🔁 Andere avond' : (opts.w && opts.w.datum_nnb ? '🗓 Avond voorstellen' : '📅 Verzetten'), laden());
+  let d;
+  try{ d = await post(tegen ? { actie:'avonden', antwoord:opts.antwoord } : { actie:'avonden', code:code(), naam:S.ik, wedstrijd_id:opts.w.id }); }
+  catch(e){ h2hInhoud.innerHTML = foutHtml(e); return; }
+  const st = { gekozen:null };
+  const tegNaam = d.teg;
+  const teken = () => {
+    const kop = tegen
+      ? `<div class="vz-blok blauw"><b>Tegenvoorstel aan ${esc(voorn(tegNaam))}</b><p>${esc(d.wedstrijd.thuis)} – ${esc(d.wedstrijd.uit)} · staat nu op ${esc(kort(d.wedstrijd.datum))}</p></div>`
+      : `<div class="vz-blok"><b>${esc(d.wedstrijd.thuis)} – ${esc(d.wedstrijd.uit)}</b><p>Nu: ${esc(d.wedstrijd.datum ? lang(d.wedstrijd.datum) : 'nog niet gepland (NNB)')}</p></div>`;
+    const lijst = d.avonden.length ? d.avonden.map(a=>avondRij(a, tegNaam, st.gekozen)).join('')
+      : `<div class="leeg"><span class="ico">🌙</span>Er zijn nu geen avonden in de vrijgegeven planning om naartoe te verzetten.</div>`;
+    h2hInhoud.innerHTML = kop + `<div class="vz-label">${tegen?'Kies een avond die jou beter past':'Kies een avond'}</div>` + lijst +
+      `<p class="vz-noot">Je kiest een avond, de tijd plant de wedstrijdleiding in. Verder vooruit kan pas als de planning vrijkomt (op de ${S.kantel}e).</p>
+      <label class="vz-label" for="vzReden">Toelichting voor ${esc(voorn(tegNaam))} (niet verplicht)</label>
+      <textarea id="vzReden" class="vz-tekst" rows="2" maxlength="300" placeholder="Bijvoorbeeld: werk, oppas, vakantie…">${esc(st.reden||'')}</textarea>
+      <button class="vz-knop groen" id="vzStuur"${st.gekozen?'':' disabled'}>${tegen?'Tegenvoorstel sturen':`Voorstel sturen naar ${esc(voorn(tegNaam))}`}</button><div id="vzFout"></div>`;
+    h2hInhoud.querySelectorAll('[data-vz-kies]').forEach(b=>b.addEventListener('click',()=>{ st.reden=h2hInhoud.querySelector('#vzReden').value; st.gekozen=b.dataset.vzKies; teken(); }));
+    h2hInhoud.querySelector('#vzStuur').addEventListener('click', async e=>{
+      const knop=e.currentTarget; knop.disabled=true;
+      const reden = h2hInhoud.querySelector('#vzReden').value;
+      try{
+        const r = tegen ? await post({ actie:'tegenvoorstel', antwoord:opts.antwoord, datum:st.gekozen, reden })
+                        : await post({ actie:'voorstel', code:code(), naam:S.ik, wedstrijd_id:opts.w.id, datum:st.gekozen, reden });
+        telScherm(tegen ? 'vz_tegenvoorstel' : 'vz_voorstel');
+        verstuurdScherm({ teg:tegNaam, datum:st.gekozen, avond:d.avonden.find(a=>a.datum===st.gekozen), proef:r.proef, wedstrijd:d.wedstrijd, tegen });
+        VZ.ververs(true);
+      }catch(err){ knop.disabled=false; h2hInhoud.querySelector('#vzFout').innerHTML = foutHtml(err); }
+    });
+  };
+  teken();
+}
+function verstuurdScherm(o){
+  const vol = o.avond && o.avond.vol;
+  toon('📅 Verstuurd', `<div class="vz-midden"><div class="vz-vink">✓</div><div class="vz-groot">${o.tegen?'Tegenvoorstel':'Voorstel'} verstuurd</div>
+    <p>${esc(voorn(o.teg))} krijgt een melding. ${vol?`${esc(kort(o.datum))} is vol: na akkoord komen jullie op de wachtlijst.`:`Zodra ${esc(voorn(o.teg))} akkoord geeft, staat de wedstrijd op <b>${esc(kort(o.datum))}</b>.`}</p></div>
+    <div class="vz-blok"><p>Tot ${esc(voorn(o.teg))} reageert, blijft de wedstrijd staan waar hij nu staat. ${o.avond&&o.avond.vandaag?'Zonder akkoord vóór 16:00 vervalt het verzoek.':'Na 3 dagen krijgt hij een herinnering, na 7 dagen vervalt het voorstel.'}</p></div>
+    ${o.proef?`<div class="vz-blok geel"><b>Test</b><p>${esc(voorn(o.teg))} doet nog niet mee met de test. Jij krijgt de melding die voor hem bedoeld is, en er wordt niets echt verzet.</p></div>`:''}
+    <button class="vz-knop" data-h2h-sluit>Klaar</button>`);
+}
+
+// ── Aanvraag bekijken (tegenstander, ook via de link uit mail/push) ──
+async function aanvraagScherm(token){
+  toon('🔔 Aanvraag', laden());
+  let a;
+  try{ a = await post({ actie:'bekijk', antwoord:token }); }catch(e){ h2hInhoud.innerHTML = foutHtml(e); return; }
+  telScherm('vz_aanvraag');
+  if (a.status!=='voorgesteld' || a.gewijzigd){
+    const t = { geaccepteerd:'Dit verzoek is al geaccepteerd.', afgewezen:'Dit verzoek is al afgewezen.', verlopen:'Dit verzoek is verlopen.',
+      ingetrokken:'Dit verzoek is ingetrokken.', tegenvoorstel:'Op dit verzoek is al een tegenvoorstel gedaan.' }[a.status] || 'Dit verzoek loopt niet meer: de wedstrijd is intussen gewijzigd.';
+    h2hInhoud.innerHTML = `<div class="vz-blok"><b>${esc(a.thuis)} – ${esc(a.uit)}</b><p>${esc(t)}</p></div><button class="vz-knop" data-h2h-sluit>Sluiten</button>`;
+    return;
+  }
+  const av = a.avond;
+  const tegDruk = av && av.ik >= DRUK;
+  const w = allesW().find(x=>x.thuis===a.thuis && x.uit===a.uit && (S.ik===a.ik));
+  const wa = w && typeof waKnopHtml==='function' ? waKnopHtml(w) : '';
+  h2hInhoud.innerHTML = `
+    <div class="vz-groot" style="margin:4px 0 10px">${esc(a.van)} ${a.ronde>1?'doet een tegenvoorstel':a.soort==='inplannen'?'wil inplannen':'wil verzetten'}</div>
+    ${a.proef?`<div class="vz-blok geel"><b>Test</b><p>In het echt gaat dit scherm naar ${esc(a.ik)}. Er wordt niets echt verzet.</p></div>`:''}
+    <div class="vz-twee"><div class="vz-vak"><small>Nu</small><b class="oud">${esc(a.oude_datum?kort(a.oude_datum):'NNB')}</b></div>
+      <div class="vz-vak nieuw"><small>${a.ronde>1?'Tegenvoorstel':'Voorstel'}</small><b>${esc(kort(a.nieuwe_datum))}</b></div></div>
+    <div class="vz-sub">${esc(a.thuis)} – ${esc(a.uit)}${a.speelronde?` · ronde ${esc(a.speelronde)}`:''}</div>
+    ${av?`<div class="vz-blok"><b>Op ${esc(kort(a.nieuwe_datum))}</b><p>${av.vol?'Avond vol: bij akkoord komen jullie op de wachtlijst.':`${av.totaal} van ${av.max} wedstrijden`}</p>
+      <span class="vz-chips"><span class="vz-chip${tegDruk?' druk':''}">Jij: ${av.ik||'geen'}</span><span class="vz-chip${av.teg>=DRUK?' druk':''}">${esc(voorn(a.van))}: ${av.teg||'geen'}</span></span>
+      ${tegDruk?`<div class="vz-let">Je speelt die avond al ${av.ik} wedstrijden, dit wordt je ${av.ik+1}e.</div>`:''}</div>`:''}
+    ${a.reden?`<div class="vz-blok"><b>Toelichting van ${esc(voorn(a.van))}</b><p>${esc(a.reden)}</p></div>`:''}
+    <button class="vz-knop groen" id="vzAkkoord">✓ Akkoord</button>
+    <div class="vz-twee-knop">${a.mag_tegenvoorstel?`<button class="vz-knop blauw" id="vzAnder">Andere avond</button>`:''}<button class="vz-knop rood-rand" id="vzNiet">Past mij niet</button></div>
+    ${a.mag_tegenvoorstel?'':`<p class="vz-noot">Jullie zijn al ${a.ronde} keer heen en weer gegaan. App elkaar even om samen een avond te kiezen.</p>`}
+    ${wa}<div id="vzFout"></div>
+    <p class="vz-noot">${a.vervalt_at?'Reageer vóór 16:00 vandaag, anders vervalt het verzoek.':'Geen reactie? Na 3 dagen een herinnering, na 7 dagen vervalt het voorstel.'}</p>`;
+  if (w && typeof waNummerOphalen==='function') waNummerOphalen(w);
+  h2hInhoud.querySelector('#vzAkkoord').addEventListener('click', async e=>{
+    e.currentTarget.disabled=true;
+    try{
+      const r = await post({ actie:'antwoord', antwoord:token, besluit:'akkoord' });
+      telScherm('vz_akkoord');
+      toon('✅ Akkoord', `<div class="vz-midden"><div class="vz-vink">✓</div><div class="vz-groot">Akkoord gegeven</div>
+        <p>${r.wachtlijst?`${esc(kort(a.nieuwe_datum))} is vol. Jullie staan op de wachtlijst; de wedstrijd blijft staan tot er een plek vrijkomt.`
+          : r.proef?'Test: de wedstrijd is niet echt verzet.':`Jullie spelen op <b>${esc(kort(a.nieuwe_datum))}</b>${r.tijd?` om <b>${esc(r.tijd)}</b>`:''}. Jullie krijgen allebei de gewone verzetmelding.`}</p></div>
+        <button class="vz-knop" data-h2h-sluit>Klaar</button>`);
+      VZ.ververs(true); setTimeout(()=>laad(), 1500);
+    }catch(err){ e.currentTarget.disabled=false; h2hInhoud.querySelector('#vzFout').innerHTML = foutHtml(err); }
+  });
+  const ander = h2hInhoud.querySelector('#vzAnder');
+  if (ander) ander.addEventListener('click', ()=>avondScherm({ antwoord:token, van:a.van }));
+  h2hInhoud.querySelector('#vzNiet').addEventListener('click', ()=>afwijsScherm(token, a));
+}
+function afwijsScherm(token, a){
+  const st = { keuze:null };
+  const KEUZES = ['Ik kan niet op die avond','Te druk voor mij die avond','Liever een andere avond'];
+  const teken = () => {
+    toon('Past mij niet', `<div class="vz-blok"><b>${esc(voorn(a.van))} wil naar ${esc(kort(a.nieuwe_datum))}</b><p>${esc(a.thuis)} – ${esc(a.uit)} · nu ${esc(a.oude_datum?kort(a.oude_datum):'NNB')}</p></div>
+      <div class="vz-label">Reden (niet verplicht)</div>
+      ${KEUZES.map(k=>`<button class="vz-keuze${st.keuze===k?' sel':''}" data-vz-reden="${esc(k)}">${esc(k)}</button>`).join('')}
+      <label class="vz-label" for="vzToel">Toelichting voor ${esc(voorn(a.van))} (niet verplicht)</label>
+      <textarea id="vzToel" class="vz-tekst" rows="3" maxlength="300">${esc(st.toel||'')}</textarea>
+      <p class="vz-noot">Alleen ${esc(voorn(a.van))} ziet de reden. De wedstrijd blijft staan waar hij nu staat.</p>
+      <button class="vz-knop rood" id="vzAfwijs">Afwijzen</button>
+      ${a.mag_tegenvoorstel?`<button class="vz-knop blauw" id="vzAnder2">Andere avond voorstellen</button>`:''}<div id="vzFout"></div>`);
+    h2hInhoud.querySelectorAll('[data-vz-reden]').forEach(b=>b.addEventListener('click',()=>{ st.toel=h2hInhoud.querySelector('#vzToel').value; st.keuze = st.keuze===b.dataset.vzReden ? null : b.dataset.vzReden; teken(); }));
+    const a2 = h2hInhoud.querySelector('#vzAnder2'); if (a2) a2.addEventListener('click',()=>avondScherm({ antwoord:token, van:a.van }));
+    h2hInhoud.querySelector('#vzAfwijs').addEventListener('click', async e=>{
+      e.currentTarget.disabled=true;
+      try{
+        await post({ actie:'antwoord', antwoord:token, besluit:'afwijzen', reden_keuze:st.keuze, reden:h2hInhoud.querySelector('#vzToel').value });
+        telScherm('vz_afwijzen');
+        toon('Afgewezen', `<div class="vz-midden"><div class="vz-groot">Verzoek afgewezen</div><p>${esc(voorn(a.van))} krijgt een melding. De wedstrijd blijft staan waar hij nu staat.</p></div><button class="vz-knop" data-h2h-sluit>Klaar</button>`);
+        VZ.ververs(true);
+      }catch(err){ e.currentTarget.disabled=false; h2hInhoud.querySelector('#vzFout').innerHTML = foutHtml(err); }
+    });
+  };
+  teken();
+}
+
+// ── Afmelden voor een avond ──
+function afmeldScherm(datum){
+  const lijst = S.rijen.filter(w=>w.datum===datum && mijnW(w) && w.status!=='gespeeld' && !w.bord);
+  const st = { aan:new Set(lijst.map(w=>String(w.id))) };
+  const teken = () => {
+    toon('🚫 Afmelden', `<div class="vz-groot" style="margin:4px 0 4px">Afmelden voor ${esc(lang(datum))}</div>
+      <p class="vz-noot" style="margin-top:0">Welke wedstrijden kun je niet spelen?</p>
+      ${lijst.map(w=>`<button class="vz-vinkrij${st.aan.has(String(w.id))?' sel':''}" data-vz-vink="${esc(w.id)}"><span class="vz-box">${st.aan.has(String(w.id))?'✓':''}</span><b>${esc(w.tijdstip||'')}</b><span>tegen ${esc(tegVan(w))}</span></button>`).join('')}
+      <div class="vz-blok"><b>Wat er gebeurt</b><p>• De wedstrijden gaan op NNB (nog niet bekend).<br>• Je tegenstander krijgt een melding en kan je appen.<br>• Plan daarna samen een nieuwe avond via "Avond voorstellen".<br>• De wedstrijdleiding ziet het meteen.</p></div>
+      <button class="vz-knop rood" id="vzAfmeld"${st.aan.size?'':' disabled'}>Afmelden (${st.aan.size} wedstrijd${st.aan.size===1?'':'en'})</button><div id="vzFout"></div>`);
+    h2hInhoud.querySelectorAll('[data-vz-vink]').forEach(b=>b.addEventListener('click',()=>{ const id=b.dataset.vzVink; st.aan.has(id)?st.aan.delete(id):st.aan.add(id); teken(); }));
+    h2hInhoud.querySelector('#vzAfmeld').addEventListener('click', async e=>{
+      e.currentTarget.disabled=true;
+      try{
+        const r = await post({ actie:'afmelden', code:code(), naam:S.ik, datum, wedstrijd_ids:[...st.aan] });
+        telScherm('vz_afmelden');
+        toon('🚫 Afgemeld', `<div class="vz-midden"><div class="vz-groot">Je bent afgemeld</div>
+          <p>${r.proef?'Test: er is niets echt veranderd. De meldingen voor je tegenstanders zijn naar jou gestuurd.':`${r.aantal} wedstrijd${r.aantal===1?' staat':'en staan'} nu op NNB. Je tegenstander${r.aantal===1?' weet':'s weten'} het.`}</p></div>
+          <button class="vz-knop" data-h2h-sluit>Klaar</button>`);
+        VZ.ververs(true); setTimeout(()=>laad(), 1200);
+      }catch(err){ e.currentTarget.disabled=false; h2hInhoud.querySelector('#vzFout').innerHTML = foutHtml(err); }
+    });
+  };
+  teken();
+}
+
+// ── Ik ben later ──
+function laterScherm(){
+  const nu = nlMin();
+  const tijden = []; for (let m = Math.max(19*60+30, Math.ceil((nu+15)/30)*30); m <= 22*60+30; m += 30) tijden.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
+  if (!tijden.length) tijden.push('22:30');
+  const st = { tijd:null };
+  const teken = () => {
+    toon('⏰ Ik ben later', `<div class="vz-groot" style="margin:4px 0 10px">Hoe laat ben je er?</div>
+      <div class="vz-tijden">${tijden.map(t=>`<button class="vz-keuze${st.tijd===t?' sel':''}" data-vz-tijd="${t}">${t}</button>`).join('')}</div>
+      <button class="vz-knop cyaan" id="vzLater"${st.tijd?'':' disabled'}>Doorgeven aan de wedstrijdleiding</button><div id="vzFout"></div>
+      <p class="vz-noot">De WL krijgt meteen een melding en schuift je wedstrijd zo nodig door. Je tegenstander ziet de nieuwe tijd in de app.</p>`);
+    h2hInhoud.querySelectorAll('[data-vz-tijd]').forEach(b=>b.addEventListener('click',()=>{ st.tijd=b.dataset.vzTijd; teken(); }));
+    h2hInhoud.querySelector('#vzLater').addEventListener('click', async e=>{
+      e.currentTarget.disabled=true;
+      try{
+        await post({ actie:'later', code:code(), naam:S.ik, tijd:st.tijd });
+        telScherm('vz_later');
+        toon('⏰ Doorgegeven', `<div class="vz-midden"><div class="vz-vink">✓</div><div class="vz-groot">Doorgegeven</div><p>De wedstrijdleiding weet dat je er rond ${esc(st.tijd)} bent.</p></div><button class="vz-knop" data-h2h-sluit>Klaar</button>`);
+      }catch(err){ e.currentTarget.disabled=false; h2hInhoud.querySelector('#vzFout').innerHTML = foutHtml(err); }
+    });
+  };
+  teken();
+}
+
+// ── Klikken ──
+document.addEventListener('click', async e=>{
+  const t = e.target.closest && e.target.closest('[data-vz-code],[data-vz-aanvraag],[data-vz-intrek],[data-vz-verzet],[data-vz-afmeld],[data-vz-later],[data-vz-weg]');
+  if (!t) return;
+  e.preventDefault(); e.stopPropagation();
+  if (t.hasAttribute('data-vz-code')) return codeScherm(null);
+  if (t.dataset.vzAanvraag) return aanvraagScherm(t.dataset.vzAanvraag);
+  if (t.dataset.vzVerzet){
+    const w = allesW().find(x=>String(x.id)===t.dataset.vzVerzet);
+    if (w) metCode(()=>avondScherm({ w }));
+    return;
+  }
+  if (t.dataset.vzAfmeld) return metCode(()=>afmeldScherm(t.dataset.vzAfmeld));
+  if (t.hasAttribute('data-vz-later')) return metCode(laterScherm);
+  if (t.dataset.vzWeg){ opslaan('kb_vz_gezien', JSON.stringify([...gezien(), t.dataset.vzWeg].slice(-50))); renderMijn(); return; }
+  if (t.dataset.vzIntrek){
+    if (!confirm('Verzoek intrekken?')) return;
+    try{ await post({ actie:'intrekken', code:code(), naam:S.ik, voorstel_id:t.dataset.vzIntrek }); telScherm('vz_intrekken'); }catch(err){ alert(err.message); }
+    VZ.ververs(true);
+  }
+}, true);
+
+// ── Link uit mail/push: ?aanvraag=<token> ──
+(function leesAanvraag(){
+  const p = new URLSearchParams(location.search), tok = p.get('aanvraag');
+  if (!tok || !/^[0-9a-f-]{36}$/i.test(tok)) return;
+  p.delete('aanvraag');
+  try{ history.replaceState(null, '', location.pathname + (p.toString() ? '?'+p : '')); }catch(e){}
+  setTimeout(()=>aanvraagScherm(tok), 50);
+})();
+VZ.ververs(true);
+})();
+</script>
+<style>
+.vz-blok{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:0 0 10px;}
+.vz-blok b{display:block;font-size:.98rem;}
+.vz-blok p{margin:4px 0 0;color:var(--muted);font-size:.85rem;line-height:1.45;}
+.vz-blok p b{display:inline;color:var(--text);font-size:inherit;}
+.vz-blok.geel{border-color:rgba(245,158,11,.6);background:rgba(245,158,11,.1);}
+.vz-blok.geel>b{color:var(--t-geel);}
+.vz-blok.blauw{border-color:rgba(59,130,246,.55);background:rgba(59,130,246,.1);}
+.vz-blok .vz-knop{margin:10px 0 0;}
+.vz-knop{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;margin:0 0 10px;padding:10px 14px;border-radius:12px;
+  border:1px solid var(--border);background:var(--s2);color:var(--text);font:inherit;font-weight:800;font-size:.95rem;cursor:pointer;}
+.vz-knop:disabled{opacity:.5;cursor:default;}
+.vz-knop.blauw{background:var(--eerste);border-color:var(--eerste);color:#fff;}
+.vz-knop.groen{background:var(--green);border-color:var(--green);color:#052e1f;}
+.vz-knop.geel{background:var(--orange);border-color:var(--orange);color:#1f1300;}
+.vz-knop.rood{background:var(--red);border-color:var(--red);color:#fff;}
+.vz-knop.rood-rand{background:transparent;border-color:var(--red);color:var(--t-rood);}
+.vz-knop.cyaan{background:transparent;border-color:var(--cyan);color:var(--cyan);}
+.vz-twee-knop{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;}
+.vz-regel{display:flex;align-items:center;gap:8px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin:0 0 8px;font-size:.85rem;}
+.vz-regel span{flex:1;}
+.vz-fout{color:var(--t-rood);background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.45);border-radius:10px;padding:10px 12px;margin:6px 0 10px;font-size:.88rem;}
+.vz-label{display:block;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 2px 8px;}
+.vz-noot{color:var(--muted);font-size:.8rem;line-height:1.45;margin:8px 2px 12px;}
+.vz-tekst,.vz-code{width:100%;box-sizing:border-box;background:var(--s1);border:1px solid var(--border);border-radius:12px;color:var(--text);font:inherit;padding:10px 12px;margin:0 0 10px;}
+.vz-tekst{resize:vertical;}
+.vz-code{font-size:1.4rem;font-weight:800;letter-spacing:.2em;text-align:center;text-transform:uppercase;font-family:ui-monospace,monospace;min-height:54px;}
+.vz-midden{text-align:center;padding:16px 6px 8px;}
+.vz-midden p{color:var(--muted);font-size:.92rem;line-height:1.45;}
+.vz-midden p b{color:var(--text);}
+.vz-groot{font-size:1.2rem;font-weight:800;line-height:1.25;}
+.vz-vink{width:60px;height:60px;border-radius:50%;margin:0 auto 10px;background:rgba(16,185,129,.15);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:900;}
+.vz-avond{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;background:var(--s1);border:1px solid var(--border);border-radius:12px;
+  padding:11px 12px;margin:0 0 8px;color:var(--text);font:inherit;cursor:pointer;}
+.vz-avond:disabled{opacity:.55;cursor:default;}
+.vz-avond.sel{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset;}
+.vz-radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--dim);flex:none;margin-top:1px;box-sizing:border-box;}
+.vz-avond.sel .vz-radio{border-color:var(--green);background:radial-gradient(circle,var(--green) 0 4px,transparent 5px);}
+.vz-av-tekst{flex:1;min-width:0;}
+.vz-av-tekst b{display:block;}
+.vz-av-tekst small{display:block;color:var(--muted);font-size:.8rem;}
+.vz-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.vz-chip{font-size:.75rem;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--bg);border:1px solid var(--border);}
+.vz-chip.druk{border-color:var(--orange);color:var(--t-geel);}
+.vz-let{font-size:.78rem;color:var(--t-geel);margin-top:5px;line-height:1.35;}
+.vz-let.rood{color:var(--t-rood);}
+.vz-stat{font-size:.75rem;font-weight:800;border-radius:999px;padding:3px 9px;white-space:nowrap;}
+.vz-stat.groen{background:rgba(16,185,129,.15);color:var(--t-groen);}
+.vz-stat.oranje{background:rgba(245,158,11,.15);color:var(--t-geel);}
+.vz-stat.rood{background:rgba(239,68,68,.15);color:var(--t-rood);}
+.vz-twee{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.vz-vak{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;}
+.vz-vak small{display:block;color:var(--muted);font-size:.75rem;}
+.vz-vak b{font-size:1.05rem;}
+.vz-vak b.oud{color:var(--muted);text-decoration:line-through;}
+.vz-vak.nieuw{border-color:var(--green);background:rgba(16,185,129,.08);}
+.vz-sub{color:var(--muted);font-size:.82rem;margin:0 2px 10px;}
+.vz-keuze{display:block;width:100%;text-align:left;min-height:46px;margin:0 0 8px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--s1);color:var(--text);font:inherit;font-weight:600;cursor:pointer;}
+.vz-keuze.sel{border-color:var(--red);background:rgba(239,68,68,.12);color:var(--t-rood);}
+.vz-tijden{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:10px;}
+.vz-tijden .vz-keuze{text-align:center;padding:10px 4px;margin:0;}
+.vz-tijden .vz-keuze.sel{border-color:var(--cyan);background:rgba(6,182,212,.15);color:var(--cyan);}
+.vz-vinkrij{display:flex;align-items:center;gap:12px;width:100%;min-height:50px;margin:0 0 8px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--s1);color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+.vz-box{width:22px;height:22px;border-radius:6px;border:2px solid var(--dim);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.8rem;flex:none;}
+.vz-vinkrij.sel .vz-box{background:var(--green);border-color:var(--green);color:#052e1f;}
+</style>
 <!-- ===== Easter egg: tik 3x snel op 🎯 voor een 180 ===== -->
 <style>
   #ee-pijl { font-weight:inherit; cursor:pointer; display:inline-block; -webkit-tap-highlight-color:transparent; user-select:none; transition:transform .12s; }

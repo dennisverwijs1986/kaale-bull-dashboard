@@ -42,10 +42,26 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 
 /* ── BOTTOM NAV ── */
 .nav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:#080d16;border-top:1px solid var(--border);
-  display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot);}
+  display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:var(--bot);}
 .nav button{height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   font-size:.72rem;color:var(--muted);font-weight:600;position:relative;}
 .nav button .ic{font-size:1.25rem;line-height:1;}
+.av-h{font-size:1.1rem;margin:4px 0 10px;}
+.av-tabs{display:flex;gap:6px;margin-bottom:10px;}
+.av-tabs button{flex:1;min-height:40px;border-radius:9px;background:var(--s2);border:1px solid var(--border);font-weight:700;font-size:.82rem;color:var(--muted);}
+.av-tabs button.act{background:var(--s3);color:var(--text);border-color:var(--blue);}
+.av-lbl{font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 2px 6px;}
+.av-rij{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+.av-kop{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.av-sub{font-size:.8rem;color:var(--muted);margin-top:3px;}
+.av-stat{font-size:.72rem;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap;}
+.av-stat.oranje{background:rgba(245,158,11,.15);color:#fcd34d;}
+.av-stat.groen{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.av-stat.rood{background:rgba(239,68,68,.15);color:#fca5a5;}
+.av-stat.blauw{background:rgba(59,130,246,.15);color:#93c5fd;}
+.av-stat.grijs{background:var(--s3);color:var(--muted);}
+.av-noot{font-size:.78rem;color:var(--muted);margin:12px 2px;line-height:1.45;}
+
 .nav button.act{color:var(--text);}
 .nav button.act::before{content:'';position:absolute;top:0;left:25%;right:25%;height:3px;border-radius:0 0 3px 3px;background:var(--blue);}
 .badge{position:absolute;top:7px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;
@@ -335,6 +351,7 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
   <button data-v="nnb"    onclick="naarView('nnb')"><span class="ic">🕓</span>NNB<span class="badge" id="nnbBadge" hidden></span></button>
   <button data-v="beker"  onclick="naarView('beker')"><span class="ic">🏆</span>Beker</button>
   <button data-v="plan"   onclick="naarView('plan')"><span class="ic">🧩</span>Planner<span class="badge plan" id="planBadge" hidden></span></button>
+  <button data-v="aanvr"  onclick="naarView('aanvr')"><span class="ic">📨</span>Aanvragen<span class="badge" id="aanvrBadge" hidden></span></button>
 </nav>
 
 <div class="sheet-bg" id="sheetBg" onclick="sluitSheet()"></div>
@@ -691,6 +708,7 @@ function render(){
   if(S.view==='nnb')   el.innerHTML = `<div class="wrap">${fout}${htmlNNB()}</div>`;
   if(S.view==='beker') el.innerHTML = `<div class="wrap">${htmlBeker()}</div>`;
   if(S.view==='plan')  { el.innerHTML = `<div class="wrap">${fout}${htmlPlan()}</div>`; centreerDatum('#planDatums'); }
+  if(S.view==='aanvr') el.innerHTML = `<div class="wrap">${htmlAanvr()}</div>`;
   if(S.view==='avond') centreerDatum('#avondDatums');
 }
 
@@ -2150,6 +2168,77 @@ setInterval(()=>{ if(document.visibilityState==='visible' && S.view==='avond' &&
 setInterval(()=>{ if(document.visibilityState==='visible' && !mddSheet) verversMddLive(); }, 60000);
 window.addEventListener('online', ()=>laadData(true));
 naarView('avond');
+
+// ══════════════════════════════════════════
+//  AANVRAGEN — verzetten/afmelden door spelers via de spelers-app (alleen meekijken).
+//  Gegevens via Edge Function verzet-app (actie wl_overzicht) met het beheerwachtwoord.
+// ══════════════════════════════════════════
+const AV = { data:null, fout:'', bezig:false, tab:'open', t:0 };
+const VZ_FN = `${SB_URL}/functions/v1/verzet-app`;
+async function laadAanvr(force){
+  const ww = pushWw();
+  if(!ww || AV.bezig || (!force && Date.now()-AV.t < 30000)) return;
+  AV.bezig=true;
+  try{
+    const r = await fetch(VZ_FN,{ method:'POST', headers:{ 'Content-Type':'application/json', apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }, body:JSON.stringify({ actie:'wl_overzicht', wachtwoord:ww }) });
+    const d = await r.json().catch(()=>({}));
+    if(r.status===401){ try{ localStorage.removeItem('kb_wl_beheer_ww'); }catch(e){} AV.fout='Wachtwoord klopt niet meer, log opnieuw in.'; AV.data=null; }
+    else if(!r.ok) AV.fout = d.error || 'Kon de aanvragen niet ophalen.';
+    else { AV.data=d; AV.fout=''; AV.t=Date.now(); }
+  }catch(e){ AV.fout='Geen verbinding.'; }
+  AV.bezig=false;
+  const b=$('#aanvrBadge'); const n = AV.data ? AV.data.open.length : 0;
+  if(b){ b.hidden=!n; b.textContent=n; }
+  if(S.view==='aanvr') render();
+}
+function avLogin(){
+  const ww=($('#avWw')||{}).value||'';
+  if(!ww) return;
+  try{ localStorage.setItem('kb_wl_beheer_ww', ww); }catch(e){}
+  AV.fout=''; laadAanvr(true); render();
+}
+function avTab(t){ AV.tab=t; render(); }
+function avTijd(iso){ if(!iso) return ''; const d=new Date(iso), m=Math.round((Date.now()-d)/60000);
+  if(m<60) return `${Math.max(1,m)} min geleden`; const u=Math.round(m/60); if(u<24) return `${u} uur geleden`; const g=Math.round(u/24); return g===1?'gisteren':`${g} dagen geleden`; }
+function avRij(v){
+  const stat = { voorgesteld:['Wacht','oranje'], geaccepteerd:['Akkoord','groen'], afgewezen:['Afgewezen','rood'], verlopen:['Verlopen','grijs'],
+    ingetrokken:['Ingetrokken','grijs'], vervallen_door_wijziging:['Vervallen','grijs'] }[v.status] || [v.status,'grijs'];
+  const wat = v.soort==='inplannen' ? `inplannen op ${fmtKort(v.nieuwe_datum)}` : `${v.oude_datum?fmtKort(v.oude_datum):'NNB'} → ${fmtKort(v.nieuwe_datum)}`;
+  const extra = [v.soort==='wachtlijst'?'avond vol: wachtlijst':'', v.ronde>1?`tegenvoorstel (ronde ${v.ronde})`:'', v.vervalt_at&&v.status==='voorgesteld'?'vóór 16:00':'', v.reden_keuze||'', v.proef?'TEST':''].filter(Boolean).join(' · ');
+  return `<div class="av-rij"><div class="av-kop"><b>${esc(v.thuis||'?')} – ${esc(v.uit||'?')}</b><span class="av-stat ${stat[1]}">${esc(stat[0])}</span></div>
+    <div class="av-sub">${esc(wat)} · gevraagd door ${esc(v.van)} · ${esc(avTijd(v.status==='voorgesteld'?v.created_at:v.beantwoord_at))}</div>${extra?`<div class="av-sub">${esc(extra)}</div>`:''}</div>`;
+}
+function htmlAanvr(){
+  if(!pushWw()) return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:''}
+    <div class="info" style="display:block"><b>Inloggen</b><br><span>Vul het beheerwachtwoord in (hetzelfde als bij spelerbeheer). Het wordt onthouden op deze telefoon.</span></div>
+    <input class="inp" id="avWw" type="password" autocomplete="current-password" placeholder="Beheerwachtwoord" style="margin-top:10px" onkeydown="if(event.key==='Enter')avLogin()">
+    <button class="btn btn-pri" style="width:100%;margin-top:10px" onclick="avLogin()">Inloggen</button>`;
+  if(!AV.data){ laadAanvr(true); return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:'<div class="leeg">Laden…</div>'}`; }
+  const d=AV.data;
+  const tabs = [['open',`Open (${d.open.length})`],['klaar','Afgehandeld'],['acties','Afmeldingen']];
+  let lijst='';
+  if(AV.tab==='open'){
+    const wacht=d.open.filter(v=>v.soort!=='wachtlijst'), wl=d.open.filter(v=>v.soort==='wachtlijst');
+    lijst = (wacht.length?`<div class="av-lbl">Wacht op tegenstander</div>`+wacht.map(avRij).join(''):'') +
+            (wl.length?`<div class="av-lbl">Naar een volle avond (wachtlijst na akkoord)</div>`+wl.map(avRij).join(''):'') ||
+            `<div class="leeg">Geen openstaande aanvragen.</div>`;
+  } else if(AV.tab==='klaar'){
+    lijst = d.afgehandeld.length ? d.afgehandeld.map(avRij).join('') : `<div class="leeg">De afgelopen 7 dagen niets afgehandeld.</div>`;
+  } else {
+    lijst = d.acties.length ? d.acties.map(a=>`<div class="av-rij"><div class="av-kop"><b>${esc(a.speler)}</b><span class="av-stat ${a.soort==='later'?'blauw':'rood'}">${a.soort==='later'?'Later':'Afgemeld'}</span></div>
+      <div class="av-sub">${a.soort==='later'?`is er rond ${esc(a.tijd)} op ${esc(fmtKort(a.datum))}`:`${esc(fmtKort(a.datum))} · ${a.aantal} wedstrijd${a.aantal===1?'':'en'} op NNB`} · ${esc(avTijd(a.created_at))}</div></div>`).join('')
+      : `<div class="leeg">De afgelopen 7 dagen geen afmeldingen.</div>`;
+  }
+  return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:''}
+    <div class="av-tabs">${tabs.map(([k,t])=>`<button class="${AV.tab===k?'act':''}" onclick="avTab('${k}')">${esc(t)}</button>`).join('')}</div>
+    ${lijst}
+    <p class="av-noot">Alleen meekijken: je hoeft niets goed te keuren. Spelers regelen het samen; akkoord = de wedstrijd staat direct op de nieuwe avond (tijd automatisch, schuiven kan zoals altijd).</p>`;
+}
+setInterval(()=>{ if(document.visibilityState==='visible') laadAanvr(); }, 60000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') laadAanvr(); });
+laadAanvr(true);
+if(new URLSearchParams(location.search).get('view')==='aanvragen') setTimeout(()=>naarView('aanvr'), 0);
+
 laadData(true);
 </script>
 </body>
