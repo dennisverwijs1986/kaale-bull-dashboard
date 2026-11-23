@@ -2977,11 +2977,13 @@ function afmeldScherm(datum){
 function laterScherm(){
   const datum = laterAvond(); if (!datum) return;
   const nu = datum===vandaag() ? nlMin() : 0;
-  const tijden = []; for (let m = Math.max(20*60, Math.ceil((nu+15)/30)*30); m <= 22*60+30; m += 30) tijden.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
+  // Vaste tijden = de tijdsloten van de avond (dezelfde als in de planning), na het eerste slot
+  const SLOTTIJDEN = ['19:50','20:10','20:30','20:50','21:10','21:30','21:50','22:10','22:30'];
+  const tijden = SLOTTIJDEN.filter(t => { const [h,mi]=t.split(':').map(Number); return h*60+mi >= nu+10; });
   if (!tijden.length) tijden.push('22:30');
   const st = { tijd:null };
   const teken = () => {
-    toon('⏰ Ik ben later', `<div class="vz-groot" style="margin:4px 0 10px">Hoe laat ben je er ${esc(dagWoord(datum))}?</div>
+    toon('⏰ Ik ben later', `<div class="vz-groot" style="margin:4px 0 4px">Hoe laat ben je er ${esc(dagWoord(datum))}?</div><p class="vz-noot" style="margin-top:0">Kies het eerste tijdslot waarop je kunt spelen.</p>
       <div class="vz-tijden">${tijden.map(t=>`<button class="vz-keuze${st.tijd===t?' sel':''}" data-vz-tijd="${t}">${t}</button>`).join('')}</div>
       <button class="vz-knop cyaan" id="vzLater"${st.tijd?'':' disabled'}>Doorgeven aan de wedstrijdleiding</button><div id="vzFout"></div>
       <p class="vz-noot">${datum===vandaag()?'De WL krijgt meteen een melding':'De WL ziet het meteen in de WL-app'} en houdt er rekening mee bij het indelen. Je tegenstander krijgt een melding.</p>`);
