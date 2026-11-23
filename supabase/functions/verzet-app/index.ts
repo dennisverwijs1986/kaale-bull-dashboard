@@ -243,7 +243,12 @@ async function push(spelers: string[], titel: string, tekst: string, url: string
     });
   } catch (e) { console.error("push mislukt", e); }
 }
-const wlPush = (cfg: Cfg, tekst: string, titel = "🎯 Wedstrijdleiding") => push(cfg.wlSpelers, titel, tekst, "../wl.html?view=aanvragen", "wl_melding");
+/** Melding aan de wedstrijdleiding: push aan de WL-spelers + mail naar het WL-adres. */
+async function wlPush(cfg: Cfg, tekst: string, titel = "🎯 Wedstrijdleiding") {
+  await push(cfg.wlSpelers, titel, tekst, "../wl.html?view=aanvragen", "wl_melding");
+  if (cfg.wlMail) await mail({ naar: [cfg.wlMail], onderwerp: `${titel.replace(/^\S+\s/, "")}: ${tekst.slice(0, 60)}`, kopKlein: "Wedstrijdleiding", kopGroot: titel.replace(/^\S+\s/, ""),
+    rijen: tekstRij(`<p style="margin:0;">${esc(tekst)}</p>`) + knop("Open de WL-app", "https://dennisverwijs1986.github.io/kaale-bull-dashboard/wl.html?view=aanvragen"), tekst });
+}
 const aanvraagUrl = (token: string) => `${APP}?aanvraag=${token}`;
 
 /** Bericht aan de tegenstander over een (tegen)voorstel. In proef: naar de aanvrager zelf. */
@@ -556,7 +561,13 @@ async function actieIntrekken(b: any) {
   await sluitAf(v, "ingetrokken");
   const w = await wedstrijd(v.wedstrijd_id);
   const tegNaam = tegenstanderVan(w, sp.naam);
-  if (!v.proef) await push([tegNaam], "↩️ Verzoek ingetrokken", `${voornaam(sp.naam)} heeft het verzoek om jullie wedstrijd te verzetten ingetrokken. Alles blijft zoals het was.`, "./?view=mijn", "verzet_antwoord");
+  if (!v.proef) {
+    const zin = `${sp.naam} heeft het verzoek om jullie wedstrijd te verzetten ingetrokken. Alles blijft zoals het was.`;
+    await push([tegNaam], "↩️ Verzoek ingetrokken", zin, "./?view=mijn", "verzet_antwoord");
+    await mail({ naar: await emailVan(v.tegenstander_id), onderwerp: `Verzoek ingetrokken: ${w.thuis} vs ${w.uit}`, kopKlein: "Verzetten", kopGroot: "Verzoek ingetrokken", accent: KLEUR.grijs,
+      rijen: tekstRij(`<p style="margin:0;">${esc(zin)}</p>`), tekst: zin });
+    await sluitMail();
+  }
   return { ok: true };
 }
 
@@ -629,8 +640,14 @@ async function actieLater(b: any) {
     await wlPush(cfg, `${sp.naam} is er ${dag} rond ${tijd}. Tegen ${tegen}.`, "⏰ Later aanwezig");
   for (const w of mijnAvond) {
     const teg = tegenstanderVan(w, sp.naam);
-    if (!proefVoor(teg, cfg)) await push([teg], "⏰ Tegenstander later", `${voornaam(sp.naam)} is er ${dag} rond ${tijd}. De wedstrijdleiding houdt er rekening mee.`, "./?view=mijn", "later");
+    if (proefVoor(teg, cfg)) continue;
+    const zin = `${sp.naam} is er ${dag} rond ${tijd}. De wedstrijdleiding houdt er rekening mee bij het indelen.`;
+    await push([teg], "⏰ Tegenstander later", zin, "./?view=mijn", "later");
+    const t = await spelerOpNaam(teg);
+    await mail({ naar: await emailVan(t?.id || null), onderwerp: `Je tegenstander is later: ${w.thuis} vs ${w.uit} (${datumKort(datum)})`, kopKlein: "Speelavond", kopGroot: "Je tegenstander is wat later",
+      rijen: tekstRij(`<p style="margin:0 0 12px 0;">Beste ${esc(voornaam(teg))},</p><p style="margin:0;">${esc(zin)}</p>`), tekst: `Beste ${voornaam(teg)},\n\n${zin}` });
   }
+  await sluitMail();
   return { ok: true, datum, tijd };
 }
 
@@ -642,6 +659,7 @@ async function actieLaterIntrekken(b: any) {
   const { data } = await sb.from("speler_acties").delete().eq("soort", "later").eq("speler_id", sp.id).eq("datum", b.datum).select("id");
   if (data?.length && (b.datum === nu.datum || b.datum === plusDagen(nu.datum, 1)))
     await wlPush(cfg, `${sp.naam} is ${b.datum === nu.datum ? "vanavond" : "morgen"} toch gewoon op tijd.`, "⏰ Toch op tijd");
+  await sluitMail();
   return { ok: true };
 }
 
