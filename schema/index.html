@@ -127,6 +127,17 @@ button.bord{border:0;cursor:pointer;font-family:inherit;}
 main{padding:12px 16px;max-width:640px;margin:0 auto;}
 
 /* ── MEDEDELING ── */
+/* Kaale Bull Wrapped (seizoensoverzicht) — banner vanaf de releasedatum */
+.wrapped-banner{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;margin:0 0 12px;padding:14px 16px;border-radius:14px;
+  border:1px solid rgba(252,211,77,.55);color:#fff;font:inherit;
+  background:linear-gradient(120deg,#7a1020 0%,#1e2a6e 55%,#0f1520 100%);box-shadow:0 6px 22px rgba(0,0,0,.35);position:relative;overflow:hidden;}
+.wrapped-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%);
+  transform:translateX(-100%);animation:wrGlans 3.5s ease-in-out infinite;}
+@keyframes wrGlans{60%,100%{transform:translateX(100%)}}
+.wrapped-banner .wr-ic{font-size:1.9rem;line-height:1;}
+.wrapped-banner b{display:block;font-size:1.02rem;font-weight:800;}
+.wrapped-banner small{display:block;color:#fde68a;font-size:.82rem;margin-top:2px;}
+.wrapped-banner .wr-pijl{margin-left:auto;font-size:1.3rem;color:#fcd34d;}
 .mededeling{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--t-geel2);
   border-radius:10px;padding:10px 12px;font-size:.9rem;margin-bottom:12px;white-space:pre-line;}
 
@@ -641,6 +652,7 @@ if(document.documentElement.classList.contains('thema-kerst')) window.maakSneeuw
 
 <main>
   <div class="mededeling" id="mededeling" hidden></div>
+  <button class="wrapped-banner" id="wrappedBanner" hidden><span class="wr-ic">🎄</span><span><b>Jouw Kaale Bull Wrapped staat klaar</b><small>Je seizoen tot nu toe: average, beste leg, aartsvijand…</small></span><span class="wr-pijl">›</span></button>
   <section id="viewAlles"></section>
   <section id="viewMijn" hidden></section>
   <section id="viewLive" hidden></section>
@@ -2599,6 +2611,17 @@ const NIEUWS = [   // nieuwste onderaan; elke update een nieuwe id (oplopend)
 //  ANONIEME TELLING — één seintje per apparaat per dag (browser of geïnstalleerde app).
 //  Alleen een willekeurig apparaatnummer, geen naam of andere gegevens.
 // ══════════════════════════════════════════
+// Kaale Bull Wrapped: banner bovenin vanaf de releasedatum (kersteditie 18-12-2026 t/m 13-01-2027)
+(function wrappedBanner(){
+  const VAN='2026-12-18', TOT='2027-01-13';
+  const b=document.getElementById('wrappedBanner'); if(!b) return;
+  const d=vandaag(); if(d<VAN || d>TOT) return;
+  b.hidden=false;
+  b.addEventListener('click',()=>{
+    try{ telScherm('wrapped'); }catch(e){}
+    location.href = '../wrapped.html' + (S.ik ? '?speler='+encodeURIComponent(S.ik) : '');
+  });
+})();
 (function telBezoek(){
   if (TESTVERSIE) return;
   try{
