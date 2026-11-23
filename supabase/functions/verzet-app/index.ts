@@ -512,7 +512,7 @@ async function actieAntwoord(b: any) {
   // Aanvrager laten weten dat het akkoord is (de gewone verzetmail volgt apart; in test alleen dit bericht)
   const tekstAkkoord = naarWachtlijst
     ? `${voornaam(tegNaam)} is akkoord. ${nieuw} is vol, jullie staan op de wachtlijst. De wedstrijd blijft tot die tijd staan.`
-    : `${voornaam(tegNaam)} is akkoord: jullie spelen op ${nieuw}${tijd ? ` om ${tijd}` : ""}.`;
+    : `${voornaam(tegNaam)} is akkoord: jullie spelen op ${nieuw}. Je tijd zie je in de app.`;
   await push([oIni.naam], (v.proef ? "[TEST] " : "") + "✅ Akkoord", tekstAkkoord + (v.proef ? " (test: niets verzet)" : ""), "./?view=mijn", "verzet_antwoord");
   if (v.proef || naarWachtlijst) {
     await mail({

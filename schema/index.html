@@ -2911,7 +2911,7 @@ async function aanvraagScherm(token){
       telScherm('vz_akkoord');
       toon('✅ Akkoord', `<div class="vz-midden"><div class="vz-vink">✓</div><div class="vz-groot">Akkoord gegeven</div>
         <p>${r.wachtlijst?`${esc(kort(a.nieuwe_datum))} is vol. Jullie staan op de wachtlijst; de wedstrijd blijft staan tot er een plek vrijkomt.`
-          : r.proef?'Test: de wedstrijd is niet echt verzet.':`Jullie spelen op <b>${esc(kort(a.nieuwe_datum))}</b>${r.tijd?` om <b>${esc(r.tijd)}</b>`:''}. Jullie krijgen allebei de gewone verzetmelding.`}</p></div>
+          : r.proef?'Test: de wedstrijd is niet echt verzet.':`Jullie spelen op <b>${esc(kort(a.nieuwe_datum))}</b>. Jullie krijgen allebei een bevestiging; je tijd zie je in de app.`}</p></div>
         <button class="vz-knop" data-h2h-sluit>Klaar</button>`);
       VZ.ververs(true); setTimeout(()=>laad(), 1500);
     }catch(err){ e.currentTarget.disabled=false; h2hInhoud.querySelector('#vzFout').innerHTML = foutHtml(err); }
