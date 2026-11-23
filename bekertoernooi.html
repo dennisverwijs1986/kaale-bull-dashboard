@@ -493,7 +493,7 @@ function openPdfView(){
 }
 
 async function resetToernooi(){
-  if(!window.confirm('Weet je zeker dat je het hele bekertoernooi wilt resetten? Alle geloot wedstrijden, ingevoerde scores en de voortgang gaan verloren — inclusief eventuele bekerwedstrijden die al in de planning staan. De loting moet dan opnieuw via het rad.')) return;
+  if(!window.confirm('Weet je zeker dat je het hele bekertoernooi wilt resetten? Alle gelote wedstrijden, ingevoerde scores en de voortgang gaan verloren — inclusief eventuele bekerwedstrijden die al in de planning staan. De loting moet dan opnieuw via het rad.')) return;
   try{
     await fetch(`${SB_URL}/rest/v1/beker_toernooi?id=eq.${encodeURIComponent(SEIZOEN)}`, { method:'DELETE', headers:HDR });
   }catch(e){ toast('Kon toernooi niet resetten: '+e.message,'red'); return; }
@@ -975,7 +975,7 @@ function totaalVoortgangHtml(){
     const v = faseVoortgang(state.fases[id]);
     t.totaal+=v.totaal; t.gespeeld+=v.gespeeld; t.ingepland+=v.ingepland;
   });
-  return voortgangHtml(t, 'totaal', 'Voortgang tot nu toe geloote rondes');
+  return voortgangHtml(t, 'totaal', 'Voortgang tot nu toe gelote rondes');
 }
 
 function faseCardHtml(faseId){

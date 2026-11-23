@@ -81,13 +81,13 @@ h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 4px; display: flex; ali
 <div class="wrap">
 
   <h1>🎯 Kaale Bull — Planning Tool</h1>
-  <p class="sub">Upload je CSV, stel de avonden en tijdslots in, en download de planning met datums en tijden.</p>
+  <p class="sub">Upload je CSV, stel de avonden en tijdsloten in, en download de planning met datums en tijden.</p>
 
   <!-- STAP 1: CSV UPLOAD -->
   <div class="card">
     <div class="card-title">Stap 1 — CSV uploaden</div>
     <label class="csv-drop" for="csvIn" id="csvDropLabel">
-      📂 Klik om CSV te uploaden (zonder datum/tijdstip kolommen, of met lege waarden)
+      📂 Klik om CSV te uploaden (zonder datum- en tijdstipkolommen, of met lege waarden)
       <input type="file" id="csvIn" accept=".csv" style="display:none;" onchange="laadCSV(this)">
     </label>
     <div id="csvInfo" style="margin-top:10px;"></div>
@@ -107,12 +107,12 @@ h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 4px; display: flex; ali
       </div>
     </div>
     <div class="ig" style="margin-bottom:14px;">
-      <div class="lbl">UITGESLOTEN DATUMS (komma gescheiden, dd-mm-yyyy)</div>
+      <div class="lbl">UITGESLOTEN DATUMS (kommagescheiden, dd-mm-yyyy)</div>
       <input type="text" class="inp" id="uitgesloten" value="24-12-2026, 31-12-2026, 07-01-2027, 25-02-2027" placeholder="24-12-2026, 31-12-2026">
     </div>
 
     <!-- Tijdslots -->
-    <div class="lbl" style="margin-bottom:8px;">TIJDSLOTS — vul het aantal wedstrijden per slot in</div>
+    <div class="lbl" style="margin-bottom:8px;">TIJDSLOTEN — vul het aantal wedstrijden per slot in</div>
     <div class="slots-grid" id="slotsGrid"></div>
 
     <div style="margin-top:14px;">
@@ -264,7 +264,7 @@ function berekenAvonden() {
         <div class="stat"><div class="stat-val" style="color:var(--red);">${avonden.filter(a=>a.uitgesloten).length}</div><div class="stat-lbl">Uitgesloten</div></div>
         <div class="stat"><div class="stat-val" style="color:var(--green);">${actief.length}</div><div class="stat-lbl">Speelavonden</div></div>
         <div class="stat"><div class="stat-val" style="color:var(--orange);">${perAvond}</div><div class="stat-lbl">Wed. per avond</div></div>
-        <div class="stat"><div class="stat-val" style="color:var(--blue);">${actief.length * perAvond}</div><div class="stat-lbl">Totaal capaciteit</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--blue);">${actief.length * perAvond}</div><div class="stat-lbl">Totale capaciteit</div></div>
       </div>
       ${rijen.length > 0 ? `
         <div style="font-size:0.78rem;color:${rijen.length <= actief.length * perAvond ? 'var(--green)' : 'var(--red)'};">

@@ -687,7 +687,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 <!-- ── PLANNING VIEW ── -->
 <div class="planning-view" id="planningView">
   <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:4px;">🗓 Planning Tool</h2>
-  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:20px;">Upload je CSV, stel de avonden in en download de planning met datums en tijdslots.</p>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:20px;">Upload je CSV, stel de avonden in en download de planning met datums en tijdsloten.</p>
 
   <div class="pt-card">
     <div class="pt-title">Stap 1 — CSV uploaden</div>
@@ -705,7 +705,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
       <div class="pt-ig"><div class="pt-lbl">EINDDATUM</div><input type="date" class="inp" id="ptEind" value="2027-04-08"></div>
     </div>
     <div class="pt-ig" style="margin-bottom:12px;">
-      <div class="pt-lbl">UITGESLOTEN DATUMS (dd-mm-yyyy, komma gescheiden)</div>
+      <div class="pt-lbl">UITGESLOTEN DATUMS (dd-mm-yyyy, kommagescheiden)</div>
       <input type="text" class="inp" id="ptUitgesloten" value="24-12-2026, 31-12-2026, 07-01-2027, 25-02-2027">
     </div>
     <div class="pt-grid2" style="margin-bottom:12px;">
@@ -718,7 +718,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
         <input type="number" class="inp" id="ptStartAvond" placeholder="1" min="1">
       </div>
     </div>
-    <div class="pt-lbl" style="margin-bottom:6px;">TIJDSLOTS — wedstrijden per slot</div>
+    <div class="pt-lbl" style="margin-bottom:6px;">TIJDSLOTEN — wedstrijden per slot</div>
     <div class="pt-slots-grid" id="ptSlotsGrid"></div>
     <div style="margin-top:12px;">
       <button class="btn btn-ghost btn-sm" onclick="ptBerekenAvonden()">📅 Bereken avonden</button>
@@ -2098,7 +2098,7 @@ function renderQueue() {
   const raster = document.createElement('div');
   raster.className = 'slot-raster';
   raster.innerHTML = `<div class="slot-raster-kop">
-      <div class="queue-col-title ere">🔵 Ere Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${ereAlles.length} open</span></div>
+      <div class="queue-col-title ere">🔵 Eredivisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${ereAlles.length} open</span></div>
       <div class="queue-col-title eerste">🟠 1e Divisie <span style="margin-left:auto;font-size:0.65rem;opacity:0.7;">${eersteLijst.length} open</span></div>
     </div>`;
   const bekerMetTijd = bekerLijst.filter(m => m.tijdstip);
@@ -3183,7 +3183,7 @@ function h2hBody(D, hist, m){
     const c=x=>`<td class="num ${x.v>x.w?'w':'v'}">${x.v}-${x.w}</td>`;
     html += `<div class="h2h-blok"><b>Zelfde tegenstanders</b><table class="h2h-gz"><tr><th>Tegen</th><th class="num">${escapeHtml(vn(A))}</th><th class="num">${escapeHtml(vn(B))}</th></tr>${gz.map(t=>`<tr><td>${escapeHtml(t)}</td>${c(la[t])}${c(lb[t])}</tr>`).join('')}</table></div>`;
   }
-  const noten=[]; if (!zelfde) noten.push('Andere divisies: cijfers niet een-op-een te vergelijken.');
+  const noten=[]; if (!zelfde) noten.push('Andere divisies: cijfers niet één-op-één te vergelijken.');
   noten.push(`Stats DartConnect${D.peil?' t/m '+fmtDatum(D.peil):''}. Alleen competitie; plek op gewonnen legs (vrije ronde telt mee).`);
   return html + `<div class="h2h-noot">${noten.map(escapeHtml).join('<br>')}</div>`;
 }
@@ -3842,7 +3842,7 @@ function ptExportPDF() {
             <tr>
               <th class="th-tijd">Tijd</th>
               <th class="th-div">Div</th>
-              <th>🔵 Ere Divisie</th>
+              <th>🔵 Eredivisie</th>
               <th class="th-sr">SR</th>
               <th class="th-mid"></th>
               <th class="th-div">Div</th>
@@ -4034,7 +4034,7 @@ setInterval(laadData, 120000); // auto-refresh 2 min
     <div style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">Controleer de wedstrijden die worden opgeslagen. BYE's worden overgeslagen.</div>
     <div id="dbPreviewContent" style="margin-bottom:16px;background:var(--s2);border-radius:7px;overflow:hidden;max-height:300px;overflow-y:auto;"></div>
     <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:9px 12px;font-size:0.78rem;color:#ff8080;margin-bottom:14px;">
-      ⚠ Let op: bestaande wedstrijden worden niet automatisch verwijderd. Gebruik "🆕 Nieuw seizoen starten" op de Spelerbeheer-pagina als je bij de start van een nieuw seizoen alles wil vervangen.
+      ⚠ Let op: bestaande wedstrijden worden niet automatisch verwijderd. Gebruik "🆕 Nieuw seizoen starten" op de Spelerbeheer-pagina als je bij de start van een nieuw seizoen alles wilt vervangen.
     </div>
     <div class="modal-acts">
       <button class="btn btn-ghost" onclick="sluitModal('dbPreviewModal')">Annuleren</button>
