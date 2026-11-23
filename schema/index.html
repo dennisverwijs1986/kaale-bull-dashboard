@@ -2978,7 +2978,7 @@ function laterScherm(){
   const datum = laterAvond(); if (!datum) return;
   const nu = datum===vandaag() ? nlMin() : 0;
   // Vaste tijden per kwartier tot 21:00, plus zelf een tijd invullen als het later wordt
-  const VASTE_TIJDEN = ['19:45','20:00','20:15','20:30','20:45','21:00'];
+  const VASTE_TIJDEN = ['20:00','20:15','20:30','20:45','21:00'];
   const tijden = VASTE_TIJDEN.filter(t => { const [h,mi]=t.split(':').map(Number); return h*60+mi >= nu+10; });
   const st = { tijd:null, ander:tijden.length===0 };
   const teken = () => {
