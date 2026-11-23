@@ -428,7 +428,7 @@
       <h2>Spelers <small id="speler-telling"></small></h2>
       <div class="toolbar">
         <input type="text" id="search-input" placeholder="Zoek op naam..." oninput="bulkMode ? renderBulkList() : renderPlayers()">
-        <button onclick="toggleBulkMode()" id="bulk-toggle-btn">📋 Bulk divisie bewerken</button>
+        <button onclick="toggleBulkMode()" id="bulk-toggle-btn">📋 Divisies in bulk bewerken</button>
       </div>
     </div>
 
@@ -677,7 +677,7 @@
     bulkMode = !bulkMode;
     document.getElementById('bulk-view').style.display = bulkMode ? 'block' : 'none';
     document.getElementById('players-list').style.display = bulkMode ? 'none' : 'block';
-    document.getElementById('bulk-toggle-btn').textContent = bulkMode ? '✖ Sluit bulkweergave' : '📋 Bulk divisie bewerken';
+    document.getElementById('bulk-toggle-btn').textContent = bulkMode ? '✖ Sluit bulkweergave' : '📋 Divisies in bulk bewerken';
     if (bulkMode) renderBulkList();
   }
 
@@ -993,7 +993,7 @@
 
       const waarschuwing = `⚠ NIEUW SEIZOEN STARTEN\n\nDit verwijdert ALLE ${aantalHuidig ?? '?'} huidige wedstrijden — ook gespeelde wedstrijden en bekerwedstrijden — en importeert daarna de ${rijen.length} wedstrijden uit deze CSV.\n\nDit kan niet ongedaan worden gemaakt.\n\nWil je doorgaan?`;
       if (!confirm(waarschuwing)) { input.value=''; showStatus('Nieuw seizoen starten geannuleerd.', false); return; }
-      const typBevestiging = prompt('Typ NIEUW SEIZOEN (hoofdletters) om te bevestigen dat je alle wedstrijden wil wissen:');
+      const typBevestiging = prompt('Typ NIEUW SEIZOEN (hoofdletters) om te bevestigen dat je alle wedstrijden wilt wissen:');
       if (typBevestiging !== 'NIEUW SEIZOEN') { input.value=''; showStatus('Bevestiging klopte niet — niets verwijderd.', false); return; }
 
       try {

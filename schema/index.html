@@ -2197,7 +2197,7 @@ function h2hBody(D, hist, w, A, B){
   }
 
   const noten = [];
-  if (!zelfde) noten.push('Deze spelers zitten in een andere divisie, dus de cijfers zijn niet een-op-een te vergelijken.');
+  if (!zelfde) noten.push('Deze spelers zitten in een andere divisie, dus de cijfers zijn niet één-op-één te vergelijken.');
   noten.push(`Stats: DartConnect${D.peil ? ' t/m '+fmtDag.format(alsDatum(D.peil)) : ''}. Alleen competitie, beker telt niet mee. Plek zoals bij Standen. Vorm: oudste links, nieuwste rechts.`);
   return html + `<div class="stand-noot">${noten.map(esc).join('<br>')}</div>`;
 }
