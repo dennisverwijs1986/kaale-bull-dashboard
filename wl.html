@@ -2215,7 +2215,7 @@ function htmlAanvr(){
     <button class="btn btn-pri" style="width:100%;margin-top:10px" onclick="avLogin()">Inloggen</button>`;
   if(!AV.data){ laadAanvr(true); return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:'<div class="leeg">Laden…</div>'}`; }
   const d=AV.data;
-  const tabs = [['open',`Open (${d.open.length})`],['klaar','Afgehandeld'],['acties','Afmeldingen']];
+  const tabs = [['open',`Open (${d.open.length})`],['klaar','Afgehandeld'],['acties','Afmeld/later']];
   let lijst='';
   if(AV.tab==='open'){
     const wacht=d.open.filter(v=>v.soort!=='wachtlijst'), wl=d.open.filter(v=>v.soort==='wachtlijst');
@@ -2225,9 +2225,9 @@ function htmlAanvr(){
   } else if(AV.tab==='klaar'){
     lijst = d.afgehandeld.length ? d.afgehandeld.map(avRij).join('') : `<div class="leeg">De afgelopen 7 dagen niets afgehandeld.</div>`;
   } else {
-    lijst = d.acties.length ? d.acties.map(a=>`<div class="av-rij"><div class="av-kop"><b>${esc(a.speler)}</b><span class="av-stat ${a.soort==='later'?'blauw':'rood'}">${a.soort==='later'?'Later':'Afgemeld'}</span></div>
+    lijst = d.acties.length ? [...d.acties].sort((x,y)=>String(y.datum).localeCompare(String(x.datum))).map(a=>`<div class="av-rij"><div class="av-kop"><b>${esc(a.speler)}</b><span class="av-stat ${a.soort==='later'?'blauw':'rood'}">${a.soort==='later'?'Later':'Afgemeld'}</span></div>
       <div class="av-sub">${a.soort==='later'?`is er rond ${esc(a.tijd)} op ${esc(fmtKort(a.datum))}`:`${esc(fmtKort(a.datum))} · ${a.aantal} wedstrijd${a.aantal===1?'':'en'} op NNB`} · ${esc(avTijd(a.created_at))}</div></div>`).join('')
-      : `<div class="leeg">De afgelopen 7 dagen geen afmeldingen.</div>`;
+      : `<div class="leeg">Geen afmeldingen of 'later' doorgegeven.</div>`;
   }
   return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:''}
     <div class="av-tabs">${tabs.map(([k,t])=>`<button class="${AV.tab===k?'act':''}" onclick="avTab('${k}')">${esc(t)}</button>`).join('')}</div>

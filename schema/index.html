@@ -2575,7 +2575,7 @@ const NIEUWS = [   // nieuwste onderaan; elke update een nieuwe id (oplopend)
     ['📅','Zelf je wedstrijd verzetten','Tik op je wedstrijd en kies "Verzetten naar andere avond". Je kiest een avond, je tegenstander bevestigt met één tik. De tijd plant de wedstrijdleiding in.'],
     ['🔔','Aanvragen voor jou','Wil je tegenstander verzetten? Je krijgt een melding en ziet het bovenaan je schema: Akkoord, Andere avond of Past mij niet.'],
     ['🚫','Afmelden voor een avond','Ziek of verhinderd? Tik op je wedstrijd en kies "Afmelden voor deze avond". Je tegenstander en de wedstrijdleiding weten het meteen.'],
-    ['⏰','Ik ben later','Op de speelavond zelf geef je met één knop door hoe laat je er bent. Verzetten voor dezelfde avond kan tot 10:00.'],
+    ['⏰','Ik ben later','Vanaf de vrijdag vóór je speelavond geef je met één knop door hoe laat je er bent. Verzetten voor dezelfde avond kan tot 10:00.'],
     ['💬','App je tegenstander','Bij elke wedstrijd staat een knop om je tegenstander direct te WhatsAppen.'],
     ['🔐','Eén keer je code','De eerste keer vraagt de app je persoonlijke code uit de mail (dezelfde als voor de meldingen).'],
   ]},
@@ -2738,11 +2738,20 @@ VZ.bannerHtml = () => {
   });
   return h + laterHtml();
 };
+function plusD(d,n){ const x=alsDatum(d); x.setDate(x.getDate()+n); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; }
+const fmtWeekdag = new Intl.DateTimeFormat('nl-NL',{weekday:'long'});
+const dagWoord = d => d===vandaag() ? 'vanavond' : fmtWeekdag.format(alsDatum(d));
+// Eerstvolgende speelavond waarvoor je "later" kunt doorgeven: vanaf de vrijdag ervoor (6 dagen vooruit)
+function laterAvond(){
+  const vd = vandaag(), tot = plusD(vd, 6);
+  const ds = [...new Set(S.rijen.filter(w=>mijnW(w) && !isBye(w) && w.status!=='gespeeld' && !w.bord && w.datum>=vd && w.datum<=tot).map(w=>w.datum))].sort();
+  return ds[0] || null;
+}
 function laterHtml(){
-  const vd = vandaag();
-  const vanavond = S.rijen.filter(w=>w.datum===vd && mijnW(w) && w.status!=='gespeeld' && !w.bord);
-  if (!vanavond.length) return '';
-  return `<button class="vz-knop cyaan" data-vz-later>⏰ Ik ben vanavond later</button>`;
+  const d = laterAvond(); if (!d) return '';
+  const al = VZ.data && (VZ.data.later||[]).find(x=>x.datum===d);
+  if (al) return `<div class="vz-regel"><span>⏰ Doorgegeven: je bent er ${esc(dagWoord(d))} rond <b>${esc(al.tijd)}</b></span><button class="knop-klein" data-vz-later>Wijzigen</button><button class="knop-klein" data-vz-later-weg="${esc(d)}">Intrekken</button></div>`;
+  return `<button class="vz-knop cyaan" data-vz-later>⏰ Ik ben ${esc(dagWoord(d))} later</button>`;
 }
 
 // ── Knoppen in het wedstrijdpaneel ──
@@ -2755,7 +2764,7 @@ VZ.knoppenHtml = (w) => {
     return `<div class="vz-blok"><b>📅 Lopend verzoek</b><p>${esc(tekst)}</p>${lv.antwoord?`<button class="vz-knop geel" data-vz-aanvraag="${esc(lv.antwoord)}">Bekijken</button>`:''}</div>`;
   }
   if (!w.datum_nnb && deadlineVoorbij(w.datum))
-    return `<div class="vz-blok"><b>🔒 Wijzigen voor vanavond kon tot 10:00</b><p>App je tegenstander of gebruik "Ik ben vanavond later".</p></div>`;
+    return `<div class="vz-blok"><b>🔒 Wijzigen voor vanavond kon tot 10:00</b><p>App je tegenstander of gebruik "Ik ben vanavond later" bovenaan je schema.</p></div>`;
   if (w.datum_nnb) return `<button class="vz-knop blauw" data-vz-verzet="${esc(w.id)}">🗓 Avond voorstellen</button>`;
   return `<button class="vz-knop blauw" data-vz-verzet="${esc(w.id)}">📅 Verzetten naar andere avond</button>
     <button class="vz-knop rood-rand" data-vz-afmeld="${esc(w.datum)}">🚫 Afmelden voor deze avond</button>`;
@@ -2966,22 +2975,24 @@ function afmeldScherm(datum){
 
 // ── Ik ben later ──
 function laterScherm(){
-  const nu = nlMin();
-  const tijden = []; for (let m = Math.max(19*60+30, Math.ceil((nu+15)/30)*30); m <= 22*60+30; m += 30) tijden.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
+  const datum = laterAvond(); if (!datum) return;
+  const nu = datum===vandaag() ? nlMin() : 0;
+  const tijden = []; for (let m = Math.max(20*60, Math.ceil((nu+15)/30)*30); m <= 22*60+30; m += 30) tijden.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
   if (!tijden.length) tijden.push('22:30');
   const st = { tijd:null };
   const teken = () => {
-    toon('⏰ Ik ben later', `<div class="vz-groot" style="margin:4px 0 10px">Hoe laat ben je er?</div>
+    toon('⏰ Ik ben later', `<div class="vz-groot" style="margin:4px 0 10px">Hoe laat ben je er ${esc(dagWoord(datum))}?</div>
       <div class="vz-tijden">${tijden.map(t=>`<button class="vz-keuze${st.tijd===t?' sel':''}" data-vz-tijd="${t}">${t}</button>`).join('')}</div>
       <button class="vz-knop cyaan" id="vzLater"${st.tijd?'':' disabled'}>Doorgeven aan de wedstrijdleiding</button><div id="vzFout"></div>
-      <p class="vz-noot">De WL krijgt meteen een melding en schuift je wedstrijd zo nodig door. Je tegenstander ziet de nieuwe tijd in de app.</p>`);
+      <p class="vz-noot">${datum===vandaag()?'De WL krijgt meteen een melding':'De WL ziet het meteen in de WL-app'} en houdt er rekening mee bij het indelen. Je tegenstander krijgt een melding.</p>`);
     h2hInhoud.querySelectorAll('[data-vz-tijd]').forEach(b=>b.addEventListener('click',()=>{ st.tijd=b.dataset.vzTijd; teken(); }));
     h2hInhoud.querySelector('#vzLater').addEventListener('click', async e=>{
       e.currentTarget.disabled=true;
       try{
-        await post({ actie:'later', code:code(), naam:S.ik, tijd:st.tijd });
+        await post({ actie:'later', code:code(), naam:S.ik, datum, tijd:st.tijd });
         telScherm('vz_later');
-        toon('⏰ Doorgegeven', `<div class="vz-midden"><div class="vz-vink">✓</div><div class="vz-groot">Doorgegeven</div><p>De wedstrijdleiding weet dat je er rond ${esc(st.tijd)} bent.</p></div><button class="vz-knop" data-h2h-sluit>Klaar</button>`);
+        toon('⏰ Doorgegeven', `<div class="vz-midden"><div class="vz-vink">✓</div><div class="vz-groot">Doorgegeven</div><p>De wedstrijdleiding en je tegenstander weten dat je er ${esc(dagWoord(datum))} rond ${esc(st.tijd)} bent.</p></div><button class="vz-knop" data-h2h-sluit>Klaar</button>`);
+        VZ.ververs(true);
       }catch(err){ e.currentTarget.disabled=false; h2hInhoud.querySelector('#vzFout').innerHTML = foutHtml(err); }
     });
   };
@@ -2990,7 +3001,7 @@ function laterScherm(){
 
 // ── Klikken ──
 document.addEventListener('click', async e=>{
-  const t = e.target.closest && e.target.closest('[data-vz-code],[data-vz-aanvraag],[data-vz-intrek],[data-vz-verzet],[data-vz-afmeld],[data-vz-later],[data-vz-weg]');
+  const t = e.target.closest && e.target.closest('[data-vz-code],[data-vz-aanvraag],[data-vz-intrek],[data-vz-verzet],[data-vz-afmeld],[data-vz-later],[data-vz-later-weg],[data-vz-weg]');
   if (!t) return;
   e.preventDefault(); e.stopPropagation();
   if (t.hasAttribute('data-vz-code')) return codeScherm(null);
@@ -3002,6 +3013,10 @@ document.addEventListener('click', async e=>{
   }
   if (t.dataset.vzAfmeld) return metCode(()=>afmeldScherm(t.dataset.vzAfmeld));
   if (t.hasAttribute('data-vz-later')) return metCode(laterScherm);
+  if (t.dataset.vzLaterWeg){
+    try{ await post({ actie:'later_intrekken', code:code(), naam:S.ik, datum:t.dataset.vzLaterWeg }); telScherm('vz_later_weg'); }catch(err){ alert(err.message); }
+    VZ.ververs(true); return;
+  }
   if (t.dataset.vzWeg){ opslaan('kb_vz_gezien', JSON.stringify([...gezien(), t.dataset.vzWeg].slice(-50))); renderMijn(); return; }
   if (t.dataset.vzIntrek){
     if (!confirm('Verzoek intrekken?')) return;

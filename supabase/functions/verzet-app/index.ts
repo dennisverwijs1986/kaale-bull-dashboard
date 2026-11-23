@@ -15,7 +15,8 @@ import { esc, KLEUR, datumKort, datumLang, tekstRij, detailKaart, knop, mailHtml
 //    voorstel      { code, naam, wedstrijd_id, datum, reden? }
 //    intrekken     { code, naam, voorstel_id }
 //    afmelden      { code, naam, datum, wedstrijd_ids[] }  -> wedstrijden van die avond op NNB
-//    later         { code, naam, tijd }             -> "Ik ben later" (alleen vandaag), melding aan de WL
+//    later         { code, naam, datum?, tijd }     -> "Ik ben later", vanaf de vrijdag vóór de speelavond
+//    later_intrekken { code, naam, datum }
 //  Tegenstander (met de geheime link uit mail/push, geen code nodig):
 //    bekijk        { antwoord }
 //    avonden       { antwoord }                     -> avonden voor een tegenvoorstel
@@ -37,7 +38,8 @@ const VERVAL_ZELFDE_DAG_MIN = 16 * 60;     // voorstel voor dezelfde avond: beve
 const MIN_RUST = 20;
 const HERINNER_NA_DAGEN = 3;
 const VERVAL_NA_DAGEN = 7;
-const MAX_RONDES = 3;                       // na 3 rondes heen-en-weer: "App elkaar even"
+const MAX_RONDES = 3;
+const LATER_DAGEN_VOORUIT = 6;               // "Ik ben later" vanaf de vrijdag vóór de speelavond (do)                       // na 3 rondes heen-en-weer: "App elkaar even"
 const BYE = /vrije ronde/i;
 const STANDAARD_SLOTS: Record<string, number> = { "19:30": 4, "19:50": 4, "20:10": 4, "20:30": 4, "20:50": 4, "21:10": 4, "21:30": 4, "21:50": 3, "22:10": 3, "22:30": 3, "22:50": 3 };
 
@@ -360,7 +362,8 @@ async function actieMijn(b: any) {
     if (v.status === "tegenvoorstel") continue;
     const s = await voorstelSamenvatting(v, sp.id); if (s) uitslag.push(s);
   }
-  return { speler: sp.naam, actief: actiefVoor(sp.naam, cfg), voor_mij: voorMij, van_mij: vanMij, uitslag };
+  const { data: later } = await sb.from("speler_acties").select("datum, tijd").eq("soort", "later").eq("speler_id", sp.id).gte("datum", nlNu().datum);
+  return { speler: sp.naam, actief: actiefVoor(sp.naam, cfg), voor_mij: voorMij, van_mij: vanMij, uitslag, later: later || [] };
 }
 
 async function actieAvonden(b: any) {
@@ -613,15 +616,32 @@ async function actieLater(b: any) {
   const tijd = String(b.tijd || "");
   if (!/^\d{2}:\d{2}$/.test(tijd)) throw new Fout("Kies hoe laat je er bent.");
   const nu = nlNu();
-  const vanavond = (await avondRijen(nu.datum)).filter((w: any) => (w.thuis === sp.naam || w.uit === sp.naam) && !gespeeld(w));
-  if (!vanavond.length) throw new Fout("Je hebt vanavond geen wedstrijden meer.");
-  await sb.from("speler_acties").insert({ soort: "later", speler_id: sp.id, datum: nu.datum, wedstrijd_ids: vanavond.map((w: any) => w.id), tijd });
-  const tegen = vanavond.map((w: any) => voornaam(tegenstanderVan(w, sp.naam))).join(", ");
-  await wlPush(cfg, `${sp.naam} is er rond ${tijd}. Vanavond tegen ${tegen}.`, "⏰ Later aanwezig");
-  for (const w of vanavond) {
+  const datum = isDatum(b.datum) ? String(b.datum) : nu.datum;
+  // Vanaf de vrijdag vóór de speelavond (6 dagen vooruit) t/m de speelavond zelf
+  if (datum < nu.datum || datum > plusDagen(nu.datum, LATER_DAGEN_VOORUIT)) throw new Fout("Doorgeven kan vanaf de vrijdag vóór je speelavond.");
+  const mijnAvond = (await avondRijen(datum)).filter((w: any) => (w.thuis === sp.naam || w.uit === sp.naam) && !gespeeld(w));
+  if (!mijnAvond.length) throw new Fout("Je hebt op die avond geen wedstrijden (meer).");
+  await sb.from("speler_acties").delete().eq("soort", "later").eq("speler_id", sp.id).eq("datum", datum);
+  await sb.from("speler_acties").insert({ soort: "later", speler_id: sp.id, datum, wedstrijd_ids: mijnAvond.map((w: any) => w.id), tijd });
+  const dag = datum === nu.datum ? "vanavond" : datumKort(datum);
+  const tegen = mijnAvond.map((w: any) => voornaam(tegenstanderVan(w, sp.naam))).join(", ");
+  if (datum === nu.datum || datum === plusDagen(nu.datum, 1))
+    await wlPush(cfg, `${sp.naam} is er ${dag} rond ${tijd}. Tegen ${tegen}.`, "⏰ Later aanwezig");
+  for (const w of mijnAvond) {
     const teg = tegenstanderVan(w, sp.naam);
-    if (!proefVoor(teg, cfg)) await push([teg], "⏰ Tegenstander later", `${voornaam(sp.naam)} is er vanavond rond ${tijd}. De wedstrijdleiding schuift jullie wedstrijd zo nodig door.`, "./?view=mijn", "later");
+    if (!proefVoor(teg, cfg)) await push([teg], "⏰ Tegenstander later", `${voornaam(sp.naam)} is er ${dag} rond ${tijd}. De wedstrijdleiding houdt er rekening mee.`, "./?view=mijn", "later");
   }
+  return { ok: true, datum, tijd };
+}
+
+async function actieLaterIntrekken(b: any) {
+  const sp = await spelerVanCode(b.code, b.naam);
+  const cfg = await config();
+  if (!isDatum(b.datum)) throw new Fout("Geen avond gekozen.");
+  const nu = nlNu();
+  const { data } = await sb.from("speler_acties").delete().eq("soort", "later").eq("speler_id", sp.id).eq("datum", b.datum).select("id");
+  if (data?.length && (b.datum === nu.datum || b.datum === plusDagen(nu.datum, 1)))
+    await wlPush(cfg, `${sp.naam} is ${b.datum === nu.datum ? "vanavond" : "morgen"} toch gewoon op tijd.`, "⏰ Toch op tijd");
   return { ok: true };
 }
 
@@ -722,6 +742,7 @@ Deno.serve(async (req) => {
       case "intrekken": return json(await actieIntrekken(b));
       case "afmelden": return json(await actieAfmelden(b));
       case "later": return json(await actieLater(b));
+      case "later_intrekken": return json(await actieLaterIntrekken(b));
       case "wl_overzicht": return json(await actieWlOverzicht(b));
       case "opvolging":
         if (!(await isSysteem(req))) return json({ error: "niet toegestaan" }, 401);
