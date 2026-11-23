@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Kaale Bull Wrapped</title>
+<meta name="description" content="Jouw persoonlijke seizoensoverzicht bij dartsclub De Kaale Bull.">
+<meta name="theme-color" content="#070b14">
+<link rel="icon" href="schema/icons/favicon-48.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b14; --paneel:#0f1830; --rand:#24345a;
+  --tekst:#f8fafc; --muted:#9fb0cc;
+  --goud:#fcd34d; --rood:#ef4444; --groen:#10b981;
+  --ere:#a855f7; --eerste:#3b82f6;
+  --accent:var(--eerste);
+  --kop:'Oswald','Impact','Arial Narrow',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--tekst);font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;overflow:hidden;}
+body.ere{--accent:var(--ere);}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;}
+
+/* ── Achtergrond: tv-studio met schuine lichtbanen ── */
+.studio{position:fixed;inset:0;overflow:hidden;z-index:0;
+  background:radial-gradient(120% 80% at 50% 0%, color-mix(in srgb,var(--accent) 35%,transparent) 0%, transparent 60%),
+             radial-gradient(90% 60% at 50% 110%, rgba(239,68,68,.28) 0%, transparent 60%), var(--bg);}
+.studio i{position:absolute;top:-50%;width:22%;height:200%;transform:rotate(24deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.05),transparent);animation:baan 9s linear infinite;}
+.studio i:nth-child(2){animation-delay:-3s;width:12%;}
+.studio i:nth-child(3){animation-delay:-6s;width:30%;}
+@keyframes baan{from{left:-40%}to{left:120%}}
+.studio::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px);pointer-events:none;}
+
+/* ── Verhaal-frame ── */
+.app{position:fixed;inset:0;z-index:1;display:flex;justify-content:center;}
+.frame{position:relative;width:100%;max-width:480px;height:100%;
+  padding:calc(env(safe-area-inset-top) + 26px) 22px calc(env(safe-area-inset-bottom) + 22px);}
+.balkjes{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:14px;right:14px;display:flex;gap:4px;z-index:5;}
+.balkjes span{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.22);overflow:hidden;}
+.balkjes span b{display:block;height:100%;width:0;background:#fff;}
+.balkjes span.klaar b{width:100%;}
+.balkjes span.nu b{animation:vul var(--duur,7s) linear forwards;}
+.pauze .balkjes span.nu b{animation-play-state:paused;}
+@keyframes vul{to{width:100%}}
+.kopbalk{position:absolute;top:calc(env(safe-area-inset-top) + 20px);left:16px;right:16px;display:flex;align-items:center;justify-content:space-between;z-index:5;
+  font-family:var(--kop);letter-spacing:.12em;font-size:.72rem;text-transform:uppercase;color:var(--muted);}
+.kopbalk .live{display:flex;align-items:center;gap:6px;color:#fff;}
+.kopbalk .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--rood);box-shadow:0 0 8px var(--rood);animation:knipper 1.4s infinite;}
+@keyframes knipper{50%{opacity:.3}}
+.kopbalk .sluit{font-size:1.3rem;line-height:1;color:#fff;padding:4px 6px;}
+.tik{position:absolute;inset:0;display:flex;z-index:4;}
+.tik div{flex:1;} .tik div:last-child{flex:2;}
+
+.dia{position:absolute;inset:0;padding:calc(env(safe-area-inset-top) + 64px) 22px calc(env(safe-area-inset-bottom) + 30px);
+  display:flex;flex-direction:column;justify-content:center;gap:18px;opacity:0;pointer-events:none;}
+.dia.actief{opacity:1;}
+.dia.actief .in{animation:inSchuif .7s cubic-bezier(.2,.9,.25,1.2) both;}
+.dia.actief .in.d1{animation-delay:.15s}.dia.actief .in.d2{animation-delay:.35s}.dia.actief .in.d3{animation-delay:.6s}
+.dia.actief .in.d4{animation-delay:.9s}.dia.actief .in.d5{animation-delay:1.25s}.dia.actief .in.d6{animation-delay:1.6s}
+.dia .in{opacity:0;}
+@keyframes inSchuif{from{opacity:0;transform:translateX(-40px) skewX(-8deg)}to{opacity:1;transform:none}}
+.dia.actief .pop{animation:pop .6s cubic-bezier(.2,1.4,.4,1) both;}
+@keyframes pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+
+/* tv-graphics */
+.label{display:inline-flex;align-self:flex-start;font-family:var(--kop);font-weight:700;text-transform:uppercase;letter-spacing:.14em;font-size:.8rem;
+  background:var(--accent);color:#fff;padding:6px 14px 6px 12px;clip-path:polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%);}
+.label.goud{background:var(--goud);color:#111;}
+.label.rood{background:var(--rood);}
+.kop{font-family:var(--kop);font-weight:700;text-transform:uppercase;line-height:1.02;font-size:2.3rem;letter-spacing:.01em;}
+.kop em{font-style:normal;color:var(--goud);}
+.sub{color:var(--muted);font-size:1.02rem;line-height:1.45;}
+.sub b{color:#fff;}
+.groot{font-family:var(--kop);font-weight:700;font-size:7.2rem;line-height:.9;letter-spacing:-.01em;
+  background:linear-gradient(180deg,#fff 30%,var(--goud));-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 6px 24px color-mix(in srgb,var(--accent) 60%,transparent));}
+.groot small{font-size:.32em;-webkit-text-fill-color:var(--muted);margin-left:6px;letter-spacing:.05em;}
+
+.strook{display:flex;align-items:stretch;background:linear-gradient(90deg,var(--paneel),rgba(15,24,48,.6));border-left:5px solid var(--accent);}
+.strook .w{font-family:var(--kop);font-weight:700;font-size:2.1rem;min-width:96px;padding:10px 14px;background:rgba(255,255,255,.06);
+  display:flex;align-items:center;justify-content:center;}
+.strook .t{padding:10px 14px;display:flex;flex-direction:column;justify-content:center;gap:2px;}
+.strook .t b{font-family:var(--kop);text-transform:uppercase;letter-spacing:.06em;font-size:1.02rem;}
+.strook .t span{color:var(--muted);font-size:.86rem;}
+.strook.goud{border-left-color:var(--goud);} .strook.rood{border-left-color:var(--rood);} .strook.groen{border-left-color:var(--groen);}
+
+.raster{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.tegel{background:var(--paneel);border:1px solid var(--rand);padding:14px;position:relative;overflow:hidden;}
+.tegel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent);}
+.tegel .w{font-family:var(--kop);font-weight:700;font-size:2.4rem;line-height:1;}
+.tegel .n{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;margin-top:6px;}
+
+.balken{display:flex;flex-direction:column;gap:10px;}
+.balk .r{display:flex;justify-content:space-between;font-family:var(--kop);text-transform:uppercase;letter-spacing:.06em;font-size:.95rem;margin-bottom:4px;}
+.balk .r b{font-size:1.3rem;color:var(--goud);}
+.balk .s{height:12px;background:rgba(255,255,255,.08);overflow:hidden;clip-path:polygon(0 0,100% 0,calc(100% - 6px) 100%,0 100%);}
+.balk .s i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--goud));transition:width 1.4s cubic-bezier(.2,.9,.3,1);}
+
+.duel{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.duel .kaart{background:var(--paneel);border:1px solid var(--rand);padding:16px 12px;text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center;}
+.duel .kaart .ic{font-size:2.2rem;}
+.duel .kaart b{font-family:var(--kop);text-transform:uppercase;font-size:1.15rem;line-height:1.1;}
+.duel .kaart span{color:var(--muted);font-size:.84rem;}
+.duel .kaart.rood{border-top:4px solid var(--rood);} .duel .kaart.groen{border-top:4px solid var(--groen);}
+
+.persona{font-size:5.5rem;text-align:center;}
+.midden{text-align:center;align-items:center;}
+.midden .label{align-self:center;}
+
+/* intro dartbord */
+.bord{width:210px;height:210px;align-self:center;animation:draai 14s linear infinite;filter:drop-shadow(0 10px 40px rgba(0,0,0,.6));}
+@keyframes draai{to{transform:rotate(360deg)}}
+.pijl{position:absolute;left:50%;top:50%;font-size:3rem;transform:translate(-50%,-50%);}
+.dia.actief .pijl{animation:gooi .9s .6s cubic-bezier(.3,1.6,.5,1) both;}
+@keyframes gooi{from{opacity:0;transform:translate(120%,-220%) rotate(-30deg) scale(1.6)}to{opacity:1;transform:translate(-30%,-70%) rotate(0)}}
+.bordwrap{position:relative;align-self:center;}
+
+.knop{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--kop);font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  background:var(--goud);color:#111;padding:14px 22px;font-size:1rem;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);position:relative;z-index:6;}
+.knop.stil{background:rgba(255,255,255,.1);color:#fff;}
+.knoppen{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;position:relative;z-index:6;}
+.dia.actief .knoppen{pointer-events:auto;}
+
+/* eindkaart */
+.eind{background:linear-gradient(160deg,var(--paneel),#0a1122);border:1px solid var(--rand);padding:18px;position:relative;overflow:hidden;}
+.eind::after{content:"";position:absolute;right:-40px;top:-40px;width:140px;height:140px;border-radius:50%;border:16px solid color-mix(in srgb,var(--accent) 40%,transparent);}
+.eind h3{font-family:var(--kop);text-transform:uppercase;font-size:1.5rem;line-height:1.05;}
+.eind .regels{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:14px;}
+.eind .regels div span{display:block;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;}
+.eind .regels div b{font-family:var(--kop);font-size:1.35rem;}
+.eind .voet{margin-top:14px;font-family:var(--kop);letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;color:var(--muted);}
+
+/* kiezen / wachten */
+.scherm{position:relative;z-index:6;height:100%;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:30px 22px;max-width:480px;margin:0 auto;}
+.zoek{width:100%;padding:14px;background:var(--paneel);border:1px solid var(--rand);color:#fff;font-size:1rem;outline:none;}
+.lijst{max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:6px;}
+.lijst button{text-align:left;padding:12px 14px;background:var(--paneel);border-left:4px solid var(--rand);}
+.lijst button[data-div="Eredivisie"]{border-left-color:var(--ere);}
+.lijst button[data-div="Eerste Divisie"]{border-left-color:var(--eerste);}
+.verborgen{display:none !important;}
+@media (max-height:680px){ .groot{font-size:5.6rem;} .kop{font-size:1.9rem;} .bord{width:160px;height:160px;} .dia{gap:13px;} }
+@media (prefers-reduced-motion:reduce){ *{animation-duration:.01s !important;transition-duration:.01s !important;} }
+</style>
+</head>
+<body>
+<div class="studio"><i></i><i></i><i></i></div>
+<div class="app" id="app"><div class="scherm"><p class="sub">Laden…</p></div></div>
+
+<script>
+// ══════════════════════════════════════════
+// Kaale Bull Wrapped — persoonlijk seizoensoverzicht
+// Data: Supabase-functie wrapped_speler (berekend uit het By Leg report, historie_legs)
+// ══════════════════════════════════════════
+const SB_URL = 'https://ctxurzqtglckairgbjno.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0eHVyenF0Z2xja2Fpcmdiam5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzExNjYsImV4cCI6MjA5NDcwNzE2Nn0.Ty3nNEyNfZVebxqXRS5RALM7JA5AdghIYAS6VjfFITQ';
+// Editie: kerstversie (deel 1) t/m de laatste speelavond van 2026
+const EDITIE = { seizoen:'2026-27', tot:'2026-12-17', vrij:'2026-12-18', titel:'Kersteditie', deel:'Deel 1 · t/m 17 december', volgende:'donderdag 14 januari' };
+
+const P = new URLSearchParams(location.search);
+const PREVIEW = P.has('preview');
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Number(n||0).toLocaleString('nl-NL');
+const fmtGem = n => Number(n||0).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});
+const MAAND = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+const datumTxt = iso => { if(!iso) return ''; const [y,m,d]=iso.split('-').map(Number); return `${d} ${MAAND[m-1]}`; };
+const tijdTxt = min => min==null ? '' : `${Math.floor(min/60)}:${String(min%60).padStart(2,'0')}`;
+const voornaam = n => String(n||'').split(' ')[0];
+function lezen(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function opslaan(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+const HDR = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' };
+
+async function haalWrapped(naam){
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/wrapped_speler`, { method:'POST', headers:HDR,
+    body: JSON.stringify({ p_speler:naam, p_seizoen:EDITIE.seizoen, p_tot:EDITIE.tot }) });
+  if (!r.ok) throw new Error('Ophalen mislukt');
+  return r.json();
+}
+async function haalSpelers(){
+  const r = await fetch(`${SB_URL}/rest/v1/spelers?select=naam,divisie&order=naam.asc`, { headers:HDR });
+  const rij = r.ok ? await r.json() : [];
+  return rij.filter(s => s.naam && s.naam !== 'Vrije Ronde' && (s.divisie==='Eredivisie' || s.divisie==='Eerste Divisie'));
+}
+
+// ── Start ──
+(async function start(){
+  const vandaag = new Date().toISOString().slice(0,10);
+  if (!PREVIEW && vandaag < EDITIE.vrij) return wachtScherm();
+  const naam = (P.get('speler') || lezen('kb_schema_ik') || '').trim();
+  if (!naam) return kiesScherm();
+  laadVoor(naam);
+})();
+
+async function laadVoor(naam){
+  $('#app').innerHTML = `<div class="scherm"><p class="sub">Je seizoen wordt opgewarmd… 🎯</p></div>`;
+  try{
+    const d = await haalWrapped(naam);
+    if (!d) return kiesScherm(`Voor <b>${esc(naam)}</b> zijn nog geen legs gevonden. Kies je naam:`);
+    opslaan('kb_schema_ik', naam);
+    toonVerhaal(d);
+  }catch(e){
+    $('#app').innerHTML = `<div class="scherm"><span class="label rood">Storing</span><p class="sub">Het lukte niet om je overzicht op te halen. Probeer het zo nog eens.</p>
+      <div class="knoppen"><button class="knop" onclick="location.reload()">Opnieuw</button></div></div>`;
+  }
+}
+
+function wachtScherm(){
+  $('#app').innerHTML = `<div class="scherm midden">
+    <span class="label goud">Kaale Bull Wrapped</span>
+    <div class="kop">Nog even <em>geduld</em></div>
+    <p class="sub">Jouw persoonlijke seizoensoverzicht komt online na de laatste speelavond van 2026 (17 december).</p>
+  </div>`;
+}
+
+async function kiesScherm(tekst){
+  const sp = await haalSpelers().catch(()=>[]);
+  $('#app').innerHTML = `<div class="scherm">
+    <span class="label goud">Kaale Bull Wrapped</span>
+    <div class="kop">Wie <em>ben</em> jij?</div>
+    <p class="sub">${tekst || 'Kies je naam om je seizoensoverzicht te bekijken.'}</p>
+    <input class="zoek" id="zoek" placeholder="Zoek je naam…" autocomplete="off">
+    <div class="lijst" id="lijst">${sp.map(s=>`<button data-naam="${esc(s.naam)}" data-div="${esc(s.divisie)}">${esc(s.naam)}</button>`).join('')}</div>
+  </div>`;
+  $('#zoek').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('#lijst button').forEach(b => b.classList.toggle('verborgen', !b.dataset.naam.toLowerCase().includes(q)));
+  });
+  $('#lijst').addEventListener('click', e => { const b = e.target.closest('button'); if (b) laadVoor(b.dataset.naam); });
+}
+
+// ── Dia's opbouwen ──
+function dartbord(){
+  const seg = []; const N=20, R=100;
+  for (let i=0;i<N;i++){
+    const a0=(i*18-99)*Math.PI/180, a1=((i+1)*18-99)*Math.PI/180;
+    const ring=(r0,r1,kleur)=>{ const p=(r,a)=>`${100+r*Math.cos(a)},${100+r*Math.sin(a)}`;
+      return `<path d="M${p(r0,a0)} L${p(r1,a0)} A${r1},${r1} 0 0 1 ${p(r1,a1)} L${p(r0,a1)} A${r0},${r0} 0 0 0 ${p(r0,a0)}Z" fill="${kleur}"/>`; };
+    const even=i%2===0;
+    seg.push(ring(10,58, even?'#111':'#f1e6c8'), ring(58,64, even?'#d92a2a':'#1f8f4a'), ring(64,90, even?'#111':'#f1e6c8'), ring(90,98, even?'#d92a2a':'#1f8f4a'));
+  }
+  return `<svg class="bord" viewBox="0 0 200 200"><circle cx="100" cy="100" r="${R}" fill="#0b0b0b"/>${seg.join('')}
+    <circle cx="100" cy="100" r="10" fill="#1f8f4a"/><circle cx="100" cy="100" r="5" fill="#d92a2a"/></svg>`;
+}
+const strook = (w, b, s, kl='') => `<div class="strook ${kl}"><div class="w">${w}</div><div class="t"><b>${b}</b><span>${s}</span></div></div>`;
+const teller = (n, dec=0) => `<span class="tel" data-n="${n}" data-dec="${dec}">0</span>`;
+
+function bouwDias(d){
+  const v = voornaam(d.speler);
+  const dias = [];
+  const winPct = d.wedstrijden ? Math.round(d.gewonnen*100/d.wedstrijden) : 0;
+  const divKort = d.divisie === 'Eredivisie' ? 'Eredivisie' : 'Eerste Divisie';
+
+  // 1 Intro
+  dias.push(`<div class="dia midden">
+    <div class="bordwrap in pop">${dartbord()}<span class="pijl">🎯</span></div>
+    <span class="label goud in d2">Kaale Bull Wrapped · ${EDITIE.titel}</span>
+    <div class="kop in d3">Game on,<br><em>${esc(v)}</em></div>
+    <p class="sub in d4">Jouw seizoen 2026-27 tot nu toe, in de ${esc(divKort)}. Tik rechts voor verder, links voor terug.</p>
+  </div>`);
+
+  // 2 Seizoen in cijfers
+  dias.push(`<div class="dia">
+    <span class="label in">Het seizoen in cijfers</span>
+    <div class="kop in d1">${d.avonden} avonden<br>in <em>Duyf</em></div>
+    <div class="raster">
+      <div class="tegel in d2"><div class="w">${teller(d.wedstrijden)}</div><div class="n">Wedstrijden</div></div>
+      <div class="tegel in d3"><div class="w">${teller(d.gewonnen)}</div><div class="n">Gewonnen (${winPct}%)</div></div>
+      <div class="tegel in d4"><div class="w">${teller(d.legs_gewonnen)}</div><div class="n">Legs gewonnen</div></div>
+      <div class="tegel in d5"><div class="w">${teller(d.legs_gewonnen + d.legs_verloren)}</div><div class="n">Legs gespeeld</div></div>
+    </div>
+    <p class="sub in d6">Je gooide <b>${fmt(d.darts)} pijlen</b> en scoorde daarmee <b>${fmt(d.punten)} punten</b>.</p>
+  </div>`);
+
+  // 3 Gemiddelde
+  let vgl = '';
+  if (d.vorig_gem){
+    const diff = Number(d.gem) - Number(d.vorig_gem);
+    vgl = Math.abs(diff) < 0.05 ? `Precies even sterk als vorig seizoen (${fmtGem(d.vorig_gem)}).`
+      : diff > 0 ? `Dat is <b>${fmtGem(diff)} hoger</b> dan vorig seizoen (${fmtGem(d.vorig_gem)}). 📈`
+      : `Vorig seizoen was het ${fmtGem(d.vorig_gem)}. Na de kerst halen we dat weer in! 💪`;
+  }
+  dias.push(`<div class="dia">
+    <span class="label in">3-dart average</span>
+    <div class="groot in d1 pop">${teller(d.gem,2)}</div>
+    ${d.gem_rang ? `<div class="in d2">${strook(`#${d.gem_rang}`, `van ${d.div_n} in de ${esc(divKort)}`, 'Plek op gemiddelde', d.gem_rang<=3?'goud':'')}</div>` : ''}
+    <p class="sub in d3">${vgl}</p>
+  </div>`);
+
+  // 4 Power scoring
+  const s180 = d.s180 ?? 0, t140 = d.t140 ?? 0, t100 = d.t100 ?? 0;
+  const max = Math.max(t100, t140, s180, 1);
+  dias.push(`<div class="dia">
+    <span class="label rood in">Power scoring</span>
+    <div class="kop in d1">${s180 > 0 ? `${s180}× <em>ONE HUNDRED<br>AND EIGHTY!</em>` : `Op jacht naar<br>de <em>180</em>`}</div>
+    <div class="balken">
+      <div class="balk in d2"><div class="r"><span>180's</span><b>${s180}</b></div><div class="s"><i data-w="${s180/max*100}"></i></div></div>
+      <div class="balk in d3"><div class="r"><span>140+</span><b>${t140}</b></div><div class="s"><i data-w="${t140/max*100}"></i></div></div>
+      <div class="balk in d4"><div class="r"><span>100+</span><b>${t100}</b></div><div class="s"><i data-w="${t100/max*100}"></i></div></div>
+    </div>
+    <p class="sub in d5">${s180 > 0 ? 'Het hele café hoorde het. 🔥' : t100 > 0 ? `${t100} keer de ton of meer. De 180 komt nog!` : 'De eerste ton komt eraan!'}</p>
+  </div>`);
+
+  // 5 Beste leg + beste wedstrijd
+  if (d.beste_leg){
+    const bw = d.beste_wedstrijd;
+    dias.push(`<div class="dia">
+      <span class="label goud in">Je beste leg</span>
+      <div class="groot in d1 pop">${teller(d.beste_leg.darts)}<small>DARTS</small></div>
+      <p class="sub in d2">Tegen <b>${esc(d.beste_leg.tegen)}</b> op ${datumTxt(d.beste_leg.datum)}.</p>
+      ${bw ? `<div class="in d3">${strook(fmtGem(bw.gem), 'Je hoogste wedstrijd-average', `${bw.lw}-${bw.ll} tegen ${esc(bw.tegen)}, ${datumTxt(bw.datum)}`, 'goud')}</div>` : ''}
+    </div>`);
+  }
+
+  // 6 Marathonleg
+  if (d.marathon){
+    const m = d.marathon;
+    dias.push(`<div class="dia">
+      <span class="label in">De marathonleg</span>
+      <div class="kop in d1">${m.darts} pijlen<br>voor <em>één</em> leg</div>
+      <p class="sub in d2">Tegen <b>${esc(m.tegen)}</b> op ${datumTxt(m.datum)}. ${m.gewonnen ? 'En je wón hem nog ook! 🏃‍♂️🏁' : 'Helaas ging hij naar je tegenstander. 😮‍💨'}</p>
+      <div class="in d3">${strook(`${Math.round(m.darts/3)}`, 'beurten aan het bord', 'Tijd voor een extra drankje tussendoor 🍺')}</div>
+    </div>`);
+  }
+
+  // 7 Finishes
+  if (d.finishes > 0){
+    const hf = d.hoogste_finish, ff = d.fav_finish, fd = d.fav_dubbel;
+    dias.push(`<div class="dia">
+      <span class="label groen in" style="background:var(--groen)">Checkout</span>
+      <div class="kop in d1">${d.finishes} keer<br><em>uitgegooid</em></div>
+      ${hf ? `<div class="in d2">${strook(hf.finish, 'Hoogste finish', `Tegen ${esc(hf.tegen)}, ${datumTxt(hf.datum)}`, 'goud')}</div>` : ''}
+      ${ff ? `<div class="in d3">${strook(ff.finish, 'Favoriete finish', `${ff.keer} keer uitgegooid op ${ff.finish}`, 'groen')}</div>` : ''}
+      ${fd && (!ff || fd.dubbel !== 'D'+(ff.finish/2)) ? `<div class="in d4">${strook(fd.dubbel, 'Lievelingsdubbel', `${fd.keer} keer raak`, 'groen')}</div>` : ''}
+      ${d.ton_finishes > 0 ? `<p class="sub in d5">Waarvan <b>${d.ton_finishes}</b> ton-plus finish${d.ton_finishes>1?'es':''}! 💯</p>` : ''}
+    </div>`);
+  }
+
+  // 8 Op de dubbel verloren
+  if (d.op_dubbel_verloren > 0){
+    const r = d.op_dubbel_verloren_rest;
+    const restTxt = r ? (r.rest === 50 ? 'de bull' : `${r.rest} (D${r.rest/2})`) : '';
+    dias.push(`<div class="dia">
+      <span class="label rood in">Zo dichtbij…</span>
+      <div class="groot in d1 pop">${teller(d.op_dubbel_verloren)}<small>LEGS</small></div>
+      <p class="sub in d2">Zo vaak stond je al op een dubbel en gooide je tegenstander nét eerder uit. 😤</p>
+      ${r && r.keer > 1 ? `<div class="in d3">${strook(r.rest===50?'BULL':`D${r.rest/2}`, `Meest gemist op ${restTxt}`, `${r.keer} keer bleef je daarop staan`, 'rood')}</div>` : ''}
+    </div>`);
+  }
+
+  // 9 Aartsvijand & lievelingstegenstander
+  if (d.aartsvijand || d.lieveling){
+    const a = d.aartsvijand, l = d.lieveling;
+    dias.push(`<div class="dia">
+      <span class="label in">Head-to-head</span>
+      <div class="kop in d1">Vriend <em>&amp;</em> vijand</div>
+      <div class="duel">
+        ${a ? `<div class="kaart rood in d2"><div class="ic">😈</div><span>Aartsvijand</span><b>${esc(a.naam)}</b><span>${a.v}× verloren · legs ${a.lw}-${a.ll}</span></div>` : ''}
+        ${l ? `<div class="kaart groen in d3"><div class="ic">😇</div><span>Lievelingstegenstander</span><b>${esc(l.naam)}</b><span>${l.w}× gewonnen · legs ${l.lw}-${l.ll}</span></div>` : ''}
+      </div>
+      <p class="sub in d4">${a ? `Na de kerst krijg je revanche op ${esc(voornaam(a.naam))}?` : 'Niemand kreeg je dit seizoen nog klein!'}</p>
+    </div>`);
+  }
+
+  // 10 Vroege vogel / nachtbraker
+  const t = d.tijd;
+  if (t && t.gem_minuut != null){
+    const pr = t.pr ?? .5;
+    const [ic, type, uitleg] = pr <= .33 ? ['🐦','Vroege vogel','Jij staat meestal vroeg op de avond al aan het bord.']
+      : pr >= .67 ? ['🦉','Nachtbraker','Als de rest al naar huis gaat, begint jouw avond pas.']
+      : ['📺','Prime time','Jij speelt het liefst midden op de avond, als het café vol zit.'];
+    const pv = n => n ? `${Math.round((n===t.vroeg_n?t.vroeg_w:t.laat_w)*100/n)}%` : '–';
+    let vorm = '';
+    if (t.vroeg_n >= 2 && t.laat_n >= 2){
+      const vp = t.vroeg_w/t.vroeg_n, lp = t.laat_w/t.laat_n;
+      vorm = Math.abs(vp-lp) < .15 ? 'Vroeg of laat: jij bent even scherp.' : vp > lp ? 'Je bent vóór 21:00 het gevaarlijkst. ☀️' : 'Je wordt beter naarmate de avond vordert. 🌙';
+    }
+    dias.push(`<div class="dia midden">
+      <span class="label in">Jouw speeltijd</span>
+      <div class="persona in d1 pop">${ic}</div>
+      <div class="kop in d2"><em>${type}</em></div>
+      <p class="sub in d3">${uitleg} Gemiddeld begon je wedstrijd om <b>${tijdTxt(t.gem_minuut)}</b>${t.laatst ? `, de laatste pas om <b>${tijdTxt(t.laatst)}</b>` : ''}.</p>
+      ${t.vroeg_n && t.laat_n ? `<div class="raster" style="width:100%">
+        <div class="tegel in d4"><div class="w">${pv(t.vroeg_n)}</div><div class="n">Gewonnen vóór 21:00</div></div>
+        <div class="tegel in d5"><div class="w">${pv(t.laat_n)}</div><div class="n">Gewonnen na 21:00</div></div></div>` : ''}
+      ${vorm ? `<p class="sub in d6">${vorm}</p>` : ''}
+    </div>`);
+  }
+
+  // 11 De club
+  if (d.club){
+    dias.push(`<div class="dia">
+      <span class="label goud in">De Kaale Bull</span>
+      <div class="kop in d1">Samen gooiden we</div>
+      <div class="groot in d2 pop" style="font-size:4.6rem">${teller(d.club.darts)}</div>
+      <p class="sub in d3"><b>pijlen</b> in ${fmt(d.club.wedstrijden)} wedstrijden en ${fmt(d.club.legs)} legs.</p>
+      <p class="sub in d4">En jij was er <b>${fmt(d.darts)}</b> van. Bedankt dat je erbij bent! 🍻</p>
+    </div>`);
+  }
+
+  // 12 Eindkaart
+  dias.push(`<div class="dia">
+    <span class="label goud in">Jouw seizoen tot nu toe</span>
+    <div class="eind in d1">
+      <h3>${esc(d.speler)}</h3>
+      <p class="sub" style="font-size:.85rem">${esc(divKort)} · Kaale Bull 2026-27</p>
+      <div class="regels">
+        <div><span>Average</span><b>${fmtGem(d.gem)}</b></div>
+        <div><span>Wedstrijden</span><b>${d.gewonnen}-${d.verloren}</b></div>
+        <div><span>Beste leg</span><b>${d.beste_leg ? d.beste_leg.darts+' darts' : '–'}</b></div>
+        <div><span>Hoogste finish</span><b>${d.hoogste_finish ? d.hoogste_finish.finish : '–'}</b></div>
+        <div><span>180's</span><b>${s180}</b></div>
+        <div><span>Aartsvijand</span><b>${d.aartsvijand ? esc(voornaam(d.aartsvijand.naam)) : '–'}</b></div>
+      </div>
+      <div class="voet">Kaale Bull Wrapped · ${EDITIE.deel}</div>
+    </div>
+    <p class="sub in d2">Fijne feestdagen! We zien je weer op ${EDITIE.volgende}. 🎄🎯</p>
+    <div class="knoppen in d3">
+      <button class="knop" id="deel">Deel met de club</button>
+      <button class="knop stil" id="opnieuw">Nog een keer</button>
+    </div>
+  </div>`);
+  return dias;
+}
+
+// ── Verhaal afspelen ──
+let IDX = 0, TIMER = null, DUUR = 7000, PAUZE = false;
+function toonVerhaal(d){
+  document.body.classList.toggle('ere', d.divisie === 'Eredivisie');
+  const dias = bouwDias(d);
+  $('#app').innerHTML = `<div class="frame" id="frame">
+    <div class="balkjes">${dias.map(()=>'<span><b></b></span>').join('')}</div>
+    <div class="kopbalk"><span class="live">Kaale Bull Wrapped</span><button class="sluit" id="sluit" aria-label="Andere speler">⋯</button></div>
+    ${dias.join('')}
+    <div class="tik"><div id="terug"></div><div id="verder"></div></div>
+  </div>`;
+  $('#terug').onclick = () => ga(IDX-1);
+  $('#verder').onclick = () => ga(IDX+1);
+  $('#sluit').onclick = e => { e.stopPropagation(); kiesScherm(); };
+  const frame = $('#frame');
+  // ingedrukt houden = pauze (zoals bij stories)
+  let houdT;
+  frame.addEventListener('pointerdown', () => { houdT = setTimeout(()=>{ PAUZE=true; frame.classList.add('pauze'); clearTimeout(TIMER); }, 250); });
+  const los = () => { clearTimeout(houdT); if (PAUZE){ PAUZE=false; frame.classList.remove('pauze'); plan(); } };
+  frame.addEventListener('pointerup', e => { if (PAUZE){ e.stopPropagation(); los(); } });
+  frame.addEventListener('pointercancel', los);
+  document.addEventListener('keydown', e => { if (e.key==='ArrowRight') ga(IDX+1); if (e.key==='ArrowLeft') ga(IDX-1); });
+  // knoppen op de eindkaart
+  frame.addEventListener('click', e => {
+    if (e.target.id === 'deel'){ e.stopPropagation(); deel(d); }
+    if (e.target.id === 'opnieuw'){ e.stopPropagation(); ga(0); }
+  }, true);
+  ga(0);
+}
+function ga(i){
+  const dias = document.querySelectorAll('.dia');
+  if (i < 0) i = 0;
+  if (i >= dias.length) return;
+  IDX = i;
+  dias.forEach((el,k) => el.classList.toggle('actief', k===i));
+  document.querySelectorAll('.balkjes span').forEach((el,k) => {
+    el.classList.remove('nu','klaar'); void el.offsetWidth;
+    if (k < i) el.classList.add('klaar'); else if (k === i) el.classList.add('nu');
+  });
+  const laatste = i === dias.length-1;
+  $('#verder').style.pointerEvents = laatste ? 'none' : '';
+  animeer(dias[i]);
+  plan();
+}
+function plan(){
+  clearTimeout(TIMER);
+  const dias = document.querySelectorAll('.dia');
+  if (IDX < dias.length-1 && !PAUZE) TIMER = setTimeout(()=>ga(IDX+1), DUUR);
+  document.documentElement.style.setProperty('--duur', DUUR+'ms');
+}
+function animeer(dia){
+  dia.querySelectorAll('.tel').forEach(el => {
+    const doel = Number(el.dataset.n)||0, dec = Number(el.dataset.dec)||0, start = performance.now(), dur = 1300;
+    const stap = nu => { const p = Math.min(1,(nu-start)/dur), e = 1-Math.pow(1-p,3), w = doel*e;
+      el.textContent = dec ? w.toLocaleString('nl-NL',{minimumFractionDigits:dec,maximumFractionDigits:dec}) : Math.round(w).toLocaleString('nl-NL');
+      if (p<1) requestAnimationFrame(stap); };
+    el.textContent = '0'; setTimeout(()=>requestAnimationFrame(stap), 250);
+  });
+  dia.querySelectorAll('.balk .s i').forEach(el => { el.style.width='0'; setTimeout(()=>{ el.style.width = Math.max(2,el.dataset.w)+'%'; }, 500); });
+}
+async function deel(d){
+  const url = location.origin + location.pathname;
+  const tekst = `🎯 Mijn Kaale Bull Wrapped: average ${fmtGem(d.gem)}, ${d.gewonnen} wedstrijden gewonnen${d.beste_leg?`, beste leg ${d.beste_leg.darts} darts`:''}. Bekijk die van jou:`;
+  try{
+    if (navigator.share) await navigator.share({ title:'Kaale Bull Wrapped', text:tekst, url });
+    else { await navigator.clipboard.writeText(`${tekst} ${url}`); $('#deel').textContent = 'Gekopieerd ✓'; }
+  }catch(e){}
+}
+</script>
+</body>
+</html>
