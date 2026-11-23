@@ -2816,7 +2816,7 @@ function avondRij(a, tegNaam, gekozen){
   const tegDruk = a.teg >= DRUK, ikDruk = a.ik >= DRUK;
   const w = n => n ? String(n) : 'geen';
   let let_op = '';
-  if (tegDruk) let_op += `<div class="vz-let">${esc(voorn(tegNaam))} speelt die avond al ${a.teg} wedstrijden, dit wordt zijn ${a.teg+1}e.</div>`;
+  if (tegDruk) let_op += `<div class="vz-let">${esc(voorn(tegNaam))} speelt die avond al ${a.teg} wedstrijden, dit wordt de ${a.teg+1}e.</div>`;
   if (ikDruk) let_op += `<div class="vz-let">Je speelt die avond zelf al ${a.ik} wedstrijden.</div>`;
   if (a.vol) let_op += `<div class="vz-let rood">Avond vol: jullie komen op de wachtlijst. De wedstrijd blijft staan tot er een plek vrijkomt.</div>`;
   if (a.vandaag) let_op += `<div class="vz-let">Vanavond: je tegenstander moet vóór 16:00 akkoord geven.</div>`;
@@ -2867,8 +2867,8 @@ function verstuurdScherm(o){
   const vol = o.avond && o.avond.vol;
   toon('📅 Verstuurd', `<div class="vz-midden"><div class="vz-vink">✓</div><div class="vz-groot">${o.tegen?'Tegenvoorstel':'Voorstel'} verstuurd</div>
     <p>${esc(voorn(o.teg))} krijgt een melding. ${vol?`${esc(kort(o.datum))} is vol: na akkoord komen jullie op de wachtlijst.`:`Zodra ${esc(voorn(o.teg))} akkoord geeft, staat de wedstrijd op <b>${esc(kort(o.datum))}</b>.`}</p></div>
-    <div class="vz-blok"><p>Tot ${esc(voorn(o.teg))} reageert, blijft de wedstrijd staan waar hij nu staat. ${o.avond&&o.avond.vandaag?'Zonder akkoord vóór 16:00 vervalt het verzoek.':'Na 3 dagen krijgt hij een herinnering, na 7 dagen vervalt het voorstel.'}</p></div>
-    ${o.proef?`<div class="vz-blok geel"><b>Test</b><p>${esc(voorn(o.teg))} doet nog niet mee met de test. Jij krijgt de melding die voor hem bedoeld is, en er wordt niets echt verzet.</p></div>`:''}
+    <div class="vz-blok"><p>Tot ${esc(voorn(o.teg))} reageert, blijft de wedstrijd staan waar hij nu staat. ${o.avond&&o.avond.vandaag?'Zonder akkoord vóór 16:00 vervalt het verzoek.':`Na 3 dagen krijgt ${esc(voorn(o.teg))} een herinnering, na 7 dagen vervalt het voorstel.`}</p></div>
+    ${o.proef?`<div class="vz-blok geel"><b>Test</b><p>${esc(voorn(o.teg))} doet nog niet mee met de test. Jij krijgt de melding die voor je tegenstander bedoeld is, en er wordt niets echt verzet.</p></div>`:''}
     <button class="vz-knop" data-h2h-sluit>Klaar</button>`);
 }
 
