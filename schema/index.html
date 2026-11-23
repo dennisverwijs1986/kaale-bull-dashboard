@@ -2573,7 +2573,7 @@ const NIEUWS = [   // nieuwste onderaan; elke update een nieuwe id (oplopend)
   ]},
   { id:'2026-11-23', punten:[
     ['📅','Zelf je wedstrijd verzetten','Tik op je wedstrijd en kies "Verzetten naar andere avond". Je kiest een avond, je tegenstander bevestigt met één tik. De tijd plant de wedstrijdleiding in.'],
-    ['🔔','Aanvragen voor jou','Wil je tegenstander verzetten? Je krijgt een melding en ziet het bovenaan je schema: Akkoord, Andere avond of Past mij niet.'],
+    ['🔔','Aanvragen voor jou','Wil je tegenstander verzetten? Je krijgt een melding en ziet het bovenaan je schema: Akkoord, Stel andere avond voor of Afwijzen.'],
     ['🚫','Afmelden voor een avond','Ziek of verhinderd? Tik op je wedstrijd en kies "Afmelden voor deze avond". Je tegenstander en de wedstrijdleiding weten het meteen.'],
     ['⏰','Ik ben later','Vanaf de vrijdag vóór je speelavond geef je met één knop door hoe laat je er bent. Verzetten voor dezelfde avond kan tot 10:00.'],
     ['💬','App je tegenstander','Bij elke wedstrijd staat een knop om je tegenstander direct te WhatsAppen.'],
@@ -2831,7 +2831,7 @@ function avondRij(a, tegNaam, gekozen){
 async function avondScherm(opts){
   // opts: { w } voor verzetten/inplannen, of { antwoord, van } voor een tegenvoorstel
   const tegen = !!opts.antwoord;
-  toon(tegen ? '🔁 Andere avond' : (opts.w && opts.w.datum_nnb ? '🗓 Avond voorstellen' : '📅 Verzetten'), laden());
+  toon(tegen ? '🔁 Stel andere avond voor' : (opts.w && opts.w.datum_nnb ? '🗓 Avond voorstellen' : '📅 Verzetten'), laden());
   let d;
   try{ d = await post(tegen ? { actie:'avonden', antwoord:opts.antwoord } : { actie:'avonden', code:code(), naam:S.ik, wedstrijd_id:opts.w.id }); }
   catch(e){ h2hInhoud.innerHTML = foutHtml(e); return; }
@@ -2899,7 +2899,7 @@ async function aanvraagScherm(token){
       ${tegDruk?`<div class="vz-let">Je speelt die avond al ${av.ik} wedstrijden, dit wordt je ${av.ik+1}e.</div>`:''}</div>`:''}
     ${a.reden?`<div class="vz-blok"><b>Toelichting van ${esc(voorn(a.van))}</b><p>${esc(a.reden)}</p></div>`:''}
     <button class="vz-knop groen" id="vzAkkoord">✓ Akkoord</button>
-    <div class="vz-twee-knop">${a.mag_tegenvoorstel?`<button class="vz-knop blauw" id="vzAnder">Andere avond</button>`:''}<button class="vz-knop rood-rand" id="vzNiet">Past mij niet</button></div>
+    ${a.mag_tegenvoorstel?`<button class="vz-knop blauw" id="vzAnder">🔁 Stel andere avond voor</button>`:''}<button class="vz-knop rood-rand" id="vzNiet">✕ Afwijzen</button>
     ${a.mag_tegenvoorstel?'':`<p class="vz-noot">Jullie zijn al ${a.ronde} keer heen en weer gegaan. App elkaar even om samen een avond te kiezen.</p>`}
     ${wa}<div id="vzFout"></div>
     <p class="vz-noot">${a.vervalt_at?'Reageer vóór 16:00 vandaag, anders vervalt het verzoek.':'Geen reactie? Na 3 dagen een herinnering, na 7 dagen vervalt het voorstel.'}</p>`;
@@ -2924,14 +2924,14 @@ function afwijsScherm(token, a){
   const st = { keuze:null };
   const KEUZES = ['Ik kan niet op die avond','Te druk voor mij die avond','Liever een andere avond'];
   const teken = () => {
-    toon('Past mij niet', `<div class="vz-blok"><b>${esc(voorn(a.van))} wil naar ${esc(kort(a.nieuwe_datum))}</b><p>${esc(a.thuis)} – ${esc(a.uit)} · nu ${esc(a.oude_datum?kort(a.oude_datum):'NNB')}</p></div>
+    toon('✕ Afwijzen', `<div class="vz-blok"><b>${esc(voorn(a.van))} wil naar ${esc(kort(a.nieuwe_datum))}</b><p>${esc(a.thuis)} – ${esc(a.uit)} · nu ${esc(a.oude_datum?kort(a.oude_datum):'NNB')}</p></div>
       <div class="vz-label">Reden (niet verplicht)</div>
       ${KEUZES.map(k=>`<button class="vz-keuze${st.keuze===k?' sel':''}" data-vz-reden="${esc(k)}">${esc(k)}</button>`).join('')}
       <label class="vz-label" for="vzToel">Toelichting voor ${esc(voorn(a.van))} (niet verplicht)</label>
       <textarea id="vzToel" class="vz-tekst" rows="3" maxlength="300">${esc(st.toel||'')}</textarea>
       <p class="vz-noot">Alleen ${esc(voorn(a.van))} ziet de reden. De wedstrijd blijft staan waar hij nu staat.</p>
       <button class="vz-knop rood" id="vzAfwijs">Afwijzen</button>
-      ${a.mag_tegenvoorstel?`<button class="vz-knop blauw" id="vzAnder2">Andere avond voorstellen</button>`:''}<div id="vzFout"></div>`);
+      ${a.mag_tegenvoorstel?`<button class="vz-knop blauw" id="vzAnder2">🔁 Stel liever een andere avond voor</button>`:''}<div id="vzFout"></div>`);
     h2hInhoud.querySelectorAll('[data-vz-reden]').forEach(b=>b.addEventListener('click',()=>{ st.toel=h2hInhoud.querySelector('#vzToel').value; st.keuze = st.keuze===b.dataset.vzReden ? null : b.dataset.vzReden; teken(); }));
     const a2 = h2hInhoud.querySelector('#vzAnder2'); if (a2) a2.addEventListener('click',()=>avondScherm({ antwoord:token, van:a.van }));
     h2hInhoud.querySelector('#vzAfwijs').addEventListener('click', async e=>{
