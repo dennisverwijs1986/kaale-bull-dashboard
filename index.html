@@ -2890,10 +2890,8 @@ async function verplaatsNaarSlot(id, nieuweTijd) {
   }
 
   const isVandaag = m.datum === lokaleDatumVandaag();
-  let mailen = false;
-  if (!isVandaag) {
-    mailen = confirm(`${m.thuis} vs ${m.uit}\n${oudeTijd || '—'} → ${nieuweTijd} op ${fmtDatum(m.datum)}\n\nSpelers een mail sturen over de nieuwe tijd?\n\nOK = verplaatsen + mailen\nAnnuleren = alleen verplaatsen, geen mail`);
-  }
+  // 23-11-2026: geen mail meer over tijden; spelers zien hun tijd in de app, agenda en de speeldag-mail.
+  const mailen = false; void isVandaag;
 
   const door = 'Wedstrijdleiding (sleep naar slot)';
   try {
