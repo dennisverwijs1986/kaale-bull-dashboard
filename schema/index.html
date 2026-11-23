@@ -2977,17 +2977,20 @@ function afmeldScherm(datum){
 function laterScherm(){
   const datum = laterAvond(); if (!datum) return;
   const nu = datum===vandaag() ? nlMin() : 0;
-  // Vaste tijden = de tijdsloten van de avond (dezelfde als in de planning), na het eerste slot
-  const SLOTTIJDEN = ['19:50','20:10','20:30','20:50','21:10','21:30','21:50','22:10','22:30'];
-  const tijden = SLOTTIJDEN.filter(t => { const [h,mi]=t.split(':').map(Number); return h*60+mi >= nu+10; });
-  if (!tijden.length) tijden.push('22:30');
-  const st = { tijd:null };
+  // Vaste tijden per kwartier tot 21:00, plus zelf een tijd invullen als het later wordt
+  const VASTE_TIJDEN = ['19:45','20:00','20:15','20:30','20:45','21:00'];
+  const tijden = VASTE_TIJDEN.filter(t => { const [h,mi]=t.split(':').map(Number); return h*60+mi >= nu+10; });
+  const st = { tijd:null, ander:tijden.length===0 };
   const teken = () => {
-    toon('⏰ Ik ben later', `<div class="vz-groot" style="margin:4px 0 4px">Hoe laat ben je er ${esc(dagWoord(datum))}?</div><p class="vz-noot" style="margin-top:0">Kies het eerste tijdslot waarop je kunt spelen.</p>
-      <div class="vz-tijden">${tijden.map(t=>`<button class="vz-keuze${st.tijd===t?' sel':''}" data-vz-tijd="${t}">${t}</button>`).join('')}</div>
+    toon('⏰ Ik ben later', `<div class="vz-groot" style="margin:4px 0 10px">Hoe laat denk je er ${esc(dagWoord(datum))} te zijn?</div>
+      <div class="vz-tijden">${tijden.map(t=>`<button class="vz-keuze${st.tijd===t&&!st.ander?' sel':''}" data-vz-tijd="${t}">${t}</button>`).join('')}<button class="vz-keuze${st.ander?' sel':''}" data-vz-ander>Andere tijd</button></div>
+      ${st.ander?`<label class="vz-label" for="vzAnder">Vul zelf een tijd in</label><input id="vzAnder" class="vz-tekst" type="time" min="19:00" max="23:59" step="300" value="${esc(st.tijd||'')}">`:''}
       <button class="vz-knop cyaan" id="vzLater"${st.tijd?'':' disabled'}>Doorgeven aan de wedstrijdleiding</button><div id="vzFout"></div>
       <p class="vz-noot">${datum===vandaag()?'De WL krijgt meteen een melding':'De WL ziet het meteen in de WL-app'} en houdt er rekening mee bij het indelen. Je tegenstander krijgt een melding.</p>`);
-    h2hInhoud.querySelectorAll('[data-vz-tijd]').forEach(b=>b.addEventListener('click',()=>{ st.tijd=b.dataset.vzTijd; teken(); }));
+    h2hInhoud.querySelectorAll('[data-vz-tijd]').forEach(b=>b.addEventListener('click',()=>{ st.tijd=b.dataset.vzTijd; st.ander=false; teken(); }));
+    const ab = h2hInhoud.querySelector('[data-vz-ander]'); if (ab) ab.addEventListener('click',()=>{ st.ander=true; st.tijd=null; teken(); const i=h2hInhoud.querySelector('#vzAnder'); if(i) i.focus(); });
+    const ai = h2hInhoud.querySelector('#vzAnder');
+    if (ai) ai.addEventListener('input',()=>{ st.tijd = /^\d{2}:\d{2}$/.test(ai.value) ? ai.value : null; h2hInhoud.querySelector('#vzLater').disabled = !st.tijd; });
     h2hInhoud.querySelector('#vzLater').addEventListener('click', async e=>{
       e.currentTarget.disabled=true;
       try{
