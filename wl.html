@@ -54,6 +54,7 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 .av-rij{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
 .av-kop{display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .av-sub{font-size:.8rem;color:var(--muted);margin-top:3px;}
+.av-knop{display:flex;gap:8px;margin-top:9px;}.av-knop .btn{flex:1;min-height:40px;font-size:.85rem;white-space:normal;}.av-knop .btn:not(.btn-pri){border:1px solid var(--border);color:var(--text);}
 .av-stat{font-size:.72rem;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap;}
 .av-stat.oranje{background:rgba(245,158,11,.15);color:#fcd34d;}
 .av-stat.groen{background:rgba(16,185,129,.15);color:#6ee7b7;}
@@ -2170,7 +2171,7 @@ window.addEventListener('online', ()=>laadData(true));
 naarView('avond');
 
 // ══════════════════════════════════════════
-//  AANVRAGEN — verzetten/afmelden door spelers via de spelers-app (alleen meekijken).
+//  AANVRAGEN — verzetten/afmelden door spelers via de spelers-app. WL kan akkoord/afwijzen namens de tegenstander.
 //  Gegevens via Edge Function verzet-app (actie wl_overzicht) met het beheerwachtwoord.
 // ══════════════════════════════════════════
 const AV = { data:null, fout:'', bezig:false, tab:'open', t:0 };
@@ -2198,6 +2199,25 @@ function avLogin(){
   AV.fout=''; laadAanvr(true); render();
 }
 function avTab(t){ AV.tab=t; render(); }
+function voornaamWl(n){ return String(n||'').split(' ')[0]; }
+function avTeg(v){ return v.van===v.thuis ? v.uit : v.thuis; }
+async function avBesluit(id, besluit){
+  const v=(AV.data?.open||[]).find(x=>x.id===id); if(!v) return;
+  const teg=avTeg(v);
+  const vraag = besluit==='akkoord'
+    ? `Akkoord namens ${teg}?\n\n${v.thuis} – ${v.uit} gaat naar ${fmtKort(v.nieuwe_datum)}. Beide spelers krijgen de gewone verzetmail.`
+    : `Afwijzen namens ${teg}?\n\n${v.van} krijgt bericht dat ${fmtKort(v.nieuwe_datum)} niet kan.`;
+  if(!confirm(vraag)) return;
+  AV.bezigId=id; render();
+  try{
+    const r = await fetch(VZ_FN,{ method:'POST', headers:{ 'Content-Type':'application/json', apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` },
+      body:JSON.stringify({ actie:'wl_besluit', wachtwoord:pushWw(), id, besluit }) });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok) AV.fout = d.error || 'Dat lukte niet.';
+    else { AV.fout=''; toast(besluit==='akkoord' ? (d.wachtlijst?'Akkoord, avond vol: op de wachtlijst':`Akkoord, staat op ${fmtKort(v.nieuwe_datum)}${d.tijd?' om '+d.tijd:''}`) : 'Afgewezen'); }
+  }catch(e){ AV.fout='Geen verbinding.'; }
+  AV.bezigId=null; await laadAanvr(true); render();
+}
 function avTijd(iso){ if(!iso) return ''; const d=new Date(iso), m=Math.round((Date.now()-d)/60000);
   if(m<60) return `${Math.max(1,m)} min geleden`; const u=Math.round(m/60); if(u<24) return `${u} uur geleden`; const g=Math.round(u/24); return g===1?'gisteren':`${g} dagen geleden`; }
 function avRij(v){
@@ -2206,7 +2226,9 @@ function avRij(v){
   const wat = v.soort==='inplannen' ? `inplannen op ${fmtKort(v.nieuwe_datum)}` : `${v.oude_datum?fmtKort(v.oude_datum):'NNB'} → ${fmtKort(v.nieuwe_datum)}`;
   const extra = [v.soort==='wachtlijst'?'avond vol: wachtlijst':'', v.ronde>1?`tegenvoorstel (ronde ${v.ronde})`:'', v.vervalt_at&&v.status==='voorgesteld'?'vóór 16:00':'', v.reden_keuze||'', v.proef?'TEST':''].filter(Boolean).join(' · ');
   return `<div class="av-rij"><div class="av-kop"><b>${esc(v.thuis||'?')} – ${esc(v.uit||'?')}</b><span class="av-stat ${stat[1]}">${esc(stat[0])}</span></div>
-    <div class="av-sub">${esc(wat)} · gevraagd door ${esc(v.van)} · ${esc(avTijd(v.status==='voorgesteld'?v.created_at:v.beantwoord_at))}</div>${extra?`<div class="av-sub">${esc(extra)}</div>`:''}</div>`;
+    <div class="av-sub">${esc(wat)} · gevraagd door ${esc(v.van)} · ${esc(avTijd(v.status==='voorgesteld'?v.created_at:v.beantwoord_at))}</div>${extra?`<div class="av-sub">${esc(extra)}</div>`:''}${v.via_wl?`<div class="av-sub">door de WL namens ${esc(avTeg(v))}</div>`:''}
+    ${v.status==='voorgesteld' ? (AV.bezigId===v.id ? `<div class="av-sub">Bezig…</div>` :
+      `<div class="av-knop"><button class="btn btn-pri" onclick="avBesluit('${v.id}','akkoord')">✓ Akkoord namens ${esc(voornaamWl(avTeg(v)))}</button><button class="btn" onclick="avBesluit('${v.id}','afwijzen')">Afwijzen</button></div>`) : ''}</div>`;
 }
 function htmlAanvr(){
   if(!pushWw()) return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:''}
@@ -2232,7 +2254,7 @@ function htmlAanvr(){
   return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:''}
     <div class="av-tabs">${tabs.map(([k,t])=>`<button class="${AV.tab===k?'act':''}" onclick="avTab('${k}')">${esc(t)}</button>`).join('')}</div>
     ${lijst}
-    <p class="av-noot">Alleen meekijken: je hoeft niets goed te keuren. Spelers regelen het samen; akkoord = de wedstrijd staat direct op de nieuwe avond (tijd automatisch, schuiven kan zoals altijd).</p>`;
+    <p class="av-noot">Je hoeft niets goed te keuren: spelers regelen het samen. Heeft de tegenstander buiten de app om akkoord gegeven (mail, telefoon), dan kun je hier namens hem of haar akkoord geven. Akkoord = de wedstrijd staat direct op de nieuwe avond (tijd automatisch, schuiven kan zoals altijd).</p>`;
 }
 setInterval(()=>{ if(document.visibilityState==='visible') laadAanvr(); }, 60000);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') laadAanvr(); });

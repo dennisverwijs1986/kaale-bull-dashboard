@@ -24,6 +24,7 @@ import { esc, KLEUR, datumKort, datumLang, tekstRij, detailKaart, knop, mailHtml
 //    tegenvoorstel { antwoord, datum, reden? }
 //  Wedstrijdleiding:
 //    wl_overzicht  { wachtwoord }                   -> beheerwachtwoord van spelerbeheer
+//    wl_besluit    { wachtwoord, id, besluit }      -> akkoord/afwijzen namens de tegenstander
 //  Systeem (x-cron-secret of service role):
 //    opvolging                                      -> elk uur: herinneren / laten vervallen
 //
@@ -432,7 +433,20 @@ async function sluitAf(v: any, status: string, extra: Record<string, unknown> = 
 }
 
 async function actieAntwoord(b: any) {
-  const v = await laadVoorstel(b.antwoord);
+  return await verwerkAntwoord(await laadVoorstel(b.antwoord), b, false);
+}
+
+/** De WL zegt akkoord/afwijzen namens de tegenstander (bijv. na een mailtje of telefoontje). */
+async function actieWlBesluit(b: any) {
+  const { data: ok } = await sb.rpc("controleer_beheer_wachtwoord", { invoer: String(b.wachtwoord || "") });
+  if (ok !== true) { await new Promise((r) => setTimeout(r, 800)); throw new Fout("Onjuist wachtwoord", 401); }
+  if (!isUuid(b.id)) throw new Fout("Ongeldig verzoek.");
+  const { data: v } = await sb.from("verzet_voorstel").select("*").eq("id", b.id).maybeSingle();
+  if (!v) throw new Fout("Dit verzoek bestaat niet (meer).", 404);
+  return await verwerkAntwoord(v, b, true);
+}
+
+async function verwerkAntwoord(v: any, b: any, viaWl: boolean) {
   if (v.status !== "voorgesteld") throw new Fout("Op dit verzoek is al gereageerd.");
   const besluit = b.besluit === "akkoord" ? "geaccepteerd" : b.besluit === "afwijzen" ? "afgewezen" : null;
   if (!besluit) throw new Fout("Kies akkoord of afwijzen.");
@@ -452,7 +466,7 @@ async function actieAntwoord(b: any) {
   const nieuw = datumKort(v.nieuwe_datum);
 
   if (besluit === "afgewezen") {
-    await sluitAf(v, "afgewezen", { antwoord_reden: reden, reden_keuze: redenKeuze });
+    await sluitAf(v, "afgewezen", { antwoord_reden: viaWl ? `[via WL] ${reden || ""}`.trim() : reden, reden_keuze: redenKeuze });
     const wat = [redenKeuze, reden].filter(Boolean).join(" · ");
     await push([oIni.naam], (v.proef ? "[TEST] " : "") + "❌ Verzoek afgewezen", `${voornaam(tegNaam)} kan niet op ${nieuw}${wat ? `: ${wat}` : "."} Stel een andere avond voor of app ${voornaam(tegNaam)}.`, "./?view=mijn", "verzet_antwoord");
     await mail({
@@ -476,8 +490,8 @@ async function actieAntwoord(b: any) {
   const rijen = await avondRijen(String(v.nieuwe_datum));
   const totaal = rijen.filter((x) => x.id !== w.id).length;
   const naarWachtlijst = totaal >= cfg.MAX;
-  await sluitAf(v, "geaccepteerd", { antwoord_reden: reden });
-  const door = `${ini.naam} (app, akkoord ${tegNaam})`;
+  await sluitAf(v, "geaccepteerd", { antwoord_reden: viaWl ? `[via WL] ${reden || ""}`.trim() : reden });
+  const door = viaWl ? `${ini.naam} (app, akkoord ${tegNaam} via WL)` : `${ini.naam} (app, akkoord ${tegNaam})`;
 
   let tijd: string | null = null;
   if (!v.proef) {
@@ -711,7 +725,7 @@ async function actieOpvolging() {
   return { ok: true, open: (open || []).length, herinnerd, verlopen };
 }
 
-// ── Overzicht voor de WL-app (alleen meekijken) ──
+// ── Overzicht voor de WL-app ──
 async function actieWlOverzicht(b: any) {
   const { data: ok } = await sb.rpc("controleer_beheer_wachtwoord", { invoer: String(b.wachtwoord || "") });
   if (ok !== true) { await new Promise((r) => setTimeout(r, 800)); throw new Fout("Onjuist wachtwoord", 401); }
@@ -730,7 +744,8 @@ async function actieWlOverzicht(b: any) {
     const w: any = wm.get(v.wedstrijd_id) || {};
     return { id: v.id, status: v.status, soort: v.soort, ronde: v.ronde, proef: v.proef, thuis: w.thuis, uit: w.uit, divisie: w.divisie,
       van: naam.get(v.initiator_id) || "?", oude_datum: v.oude_datum, nieuwe_datum: v.nieuwe_datum, created_at: v.created_at,
-      beantwoord_at: v.beantwoord_at, vervalt_at: v.vervalt_at, reden_keuze: v.reden_keuze };
+      beantwoord_at: v.beantwoord_at, vervalt_at: v.vervalt_at, reden_keuze: v.reden_keuze,
+      via_wl: String(v.antwoord_reden || "").startsWith("[via WL]") };
   };
   return {
     open: (open || []).map(rij), afgehandeld: (klaar || []).map(rij),
@@ -764,6 +779,7 @@ Deno.serve(async (req) => {
       case "later": return json(await actieLater(b));
       case "later_intrekken": return json(await actieLaterIntrekken(b));
       case "wl_overzicht": return json(await actieWlOverzicht(b));
+      case "wl_besluit": return json(await actieWlBesluit(b));
       case "opvolging":
         if (!(await isSysteem(req))) return json({ error: "niet toegestaan" }, 401);
         return json(await actieOpvolging());
