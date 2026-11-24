@@ -87,7 +87,7 @@ const voornaam = (n: string) => String(n || "").split(" ")[0];
 // ── Instellingen ──
 async function config() {
   const { data } = await sb.from("instellingen").select("sleutel, waarde")
-    .in("sleutel", ["verzetten_app", "wl_push_spelers", "slot_cap_standaard", "planning_kantel_dag", "wedstrijdleiding_email"]);
+    .in("sleutel", ["verzetten_app", "wl_push_spelers", "slot_cap_standaard", "planning_kantel_dag", "wedstrijdleiding_email", "beker_deadlines"]);
   const I: Record<string, string> = Object.fromEntries((data || []).map((r: any) => [r.sleutel, r.waarde]));
   const lijst = (s: string | undefined) => String(s || "").split(",").map((x) => x.trim()).filter(Boolean);
   let slots = STANDAARD_SLOTS;
@@ -95,7 +95,10 @@ async function config() {
   const SLOTS = Object.entries(slots).map(([tijd, cap]) => ({ tijd, cap: Number(cap) || 0 })).sort((a, b) => a.tijd.localeCompare(b.tijd));
   const app = String(I.verzetten_app || "uit").trim();
   const kantel = parseInt(I.planning_kantel_dag || "", 10);
+  let bekerDeadlines: Record<string, string> = {};
+  try { const p = JSON.parse(I.beker_deadlines || "{}"); if (p && typeof p === "object") bekerDeadlines = p; } catch { /* geen */ }
   return {
+    bekerDeadlines,
     iedereen: app.toLowerCase() === "iedereen",
     testers: app.toLowerCase() === "uit" ? [] : lijst(app),
     wlSpelers: lijst(I.wl_push_spelers),
@@ -173,9 +176,27 @@ async function avondRijen(datum: string) {
 }
 const telSpeler = (rijen: any[], naam: string, behalve: string) => rijen.filter((x) => x.id !== behalve && (x.thuis === naam || x.uit === naam)).length;
 
+/** Uiterste speelavond voor een bekerwedstrijd (instellingen.beker_deadlines per fase), of null. */
+async function bekerDeadline(w: any, cfg: Cfg): Promise<string | null> {
+  if (!isBeker(w) || !Object.keys(cfg.bekerDeadlines).length) return null;
+  const { data } = await sb.from("beker_toernooi").select("staat");
+  for (const r of (data || []) as any[]) {
+    const fases = r?.staat?.fases || {};
+    for (const [fase, f] of Object.entries(fases) as [string, any][]) {
+      if ((f?.matches || []).some((m: any) => m?._wedstrijdId === w.id)) {
+        const d = cfg.bekerDeadlines[fase];
+        return isDatum(d) ? d : null;
+      }
+    }
+  }
+  return null;
+}
+
 /** Speelavonden om naartoe te verzetten, met drukte vanuit het perspectief van `ik`. */
 async function avondenVoor(w: any, ik: string, cfg: Cfg, nu = nlNu()) {
-  const tot = horizon(nu.datum, cfg.kantel);
+  const hor = horizon(nu.datum, cfg.kantel);
+  const bd = await bekerDeadline(w, cfg);
+  const tot = bd && bd < hor ? bd : hor;   // bekerwedstrijd: uiterlijk op de rondedeadline
   const vanaf = plusDagen(nu.datum, 1);   // nooit naar vanavond: op de speeldag zelf alleen "Ik ben later" / afmelden
   const { data } = await sb.from("wedstrijden").select("id, datum, tijdstip, thuis, uit, datum_nnb, status")
     .gte("datum", vanaf).lte("datum", tot).eq("datum_nnb", false);
@@ -385,14 +406,14 @@ async function actieAvonden(b: any) {
     const ini = await naamVan(v.initiator_id);
     const ik = tegenstanderVan(w, ini || "");
     const avonden = (await avondenVoor(w, ik, cfg)).map((a) => ({ ...a, voorgesteld: a.datum === String(v.nieuwe_datum) }));
-    return { avonden, ik, teg: ini, wedstrijd: { thuis: w.thuis, uit: w.uit, datum: w.datum_nnb ? null : w.datum } };
+    return { avonden, ik, teg: ini, wedstrijd: { thuis: w.thuis, uit: w.uit, datum: w.datum_nnb ? null : w.datum }, beker_deadline: await bekerDeadline(w, cfg) };
   }
   const sp = await spelerVanCode(b.code, b.naam);
   if (!actiefVoor(sp.naam, cfg)) throw new Fout("Verzetten via de app staat nog niet aan.", 403);
   if (!isUuid(b.wedstrijd_id)) throw new Fout("Geen wedstrijd gekozen.");
   const w = await wedstrijd(b.wedstrijd_id);
   const bz = bezwaar(w, sp.naam); if (bz) throw new Fout(bz);
-  return { avonden: await avondenVoor(w, sp.naam, cfg), ik: sp.naam, teg: tegenstanderVan(w, sp.naam), wedstrijd: { thuis: w.thuis, uit: w.uit, datum: w.datum_nnb ? null : w.datum } };
+  return { avonden: await avondenVoor(w, sp.naam, cfg), ik: sp.naam, teg: tegenstanderVan(w, sp.naam), wedstrijd: { thuis: w.thuis, uit: w.uit, datum: w.datum_nnb ? null : w.datum }, beker_deadline: await bekerDeadline(w, cfg) };
 }
 
 async function actieVoorstel(b: any) {

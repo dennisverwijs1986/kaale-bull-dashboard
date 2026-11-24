@@ -2790,7 +2790,7 @@ VZ.knoppenHtml = (w) => {
   if (!w.datum_nnb && w.datum===vandaag() && nlMin() >= AFMELD_DEADLINE_MIN)
     return `<div class="vz-blok"><b>🔒 Wijzigen voor vanavond kon tot 19:00</b><p>Neem contact op met de wedstrijdleiding.</p></div>`;
   if (!w.datum_nnb && deadlineVoorbij(w.datum))
-    return `<div class="vz-blok"><b>Verzetten kon tot 10:00</b><p>Kun je vanavond toch niet? Meld je af, dan plant de wedstrijdleiding de wedstrijd opnieuw in.</p></div>
+    return `<div class="vz-blok"><b>Verzetten kon tot 10:00</b><p>Kun je vanavond toch niet? Meld je af; plan daarna samen een nieuwe avond.</p></div>
     <button class="vz-knop rood-rand" data-vz-afmeld="${esc(w.datum)}">🚫 Ik kan vanavond niet</button>`;
   if (w.datum_nnb) return `<button class="vz-knop blauw" data-vz-verzet="${esc(w.id)}">🗓 Avond voorstellen</button>`;
   return `<button class="vz-knop blauw" data-vz-verzet="${esc(w.id)}">📅 Verzetten naar andere avond</button>
@@ -2871,7 +2871,7 @@ async function avondScherm(opts){
     const lijst = d.avonden.length ? d.avonden.map(a=>avondRij(a, tegNaam, st.gekozen)).join('')
       : `<div class="leeg"><span class="ico">🌙</span>Er zijn nu geen avonden in de vrijgegeven planning om naartoe te verzetten.</div>`;
     h2hInhoud.innerHTML = kop + `<div class="vz-label">${tegen?'Kies een avond die jou beter past':'Kies een avond'}</div>` + lijst +
-      `<p class="vz-noot">Je kiest een avond, de tijd plant de wedstrijdleiding in. Verder vooruit kan pas als de planning vrijkomt (op de ${S.kantel}e).</p>
+      `${d.beker_deadline?`<div class="vz-let">🏆 Bekerwedstrijd: deze ronde moet uiterlijk ${esc(lang(d.beker_deadline))} gespeeld zijn.</div>`:''}<p class="vz-noot">Je kiest een avond, de tijd plant de wedstrijdleiding in. Verder vooruit kan pas als de planning vrijkomt (op de ${S.kantel}e).</p>
       <label class="vz-label" for="vzReden">Toelichting voor ${esc(voorn(tegNaam))} (niet verplicht)</label>
       <textarea id="vzReden" class="vz-tekst" rows="2" maxlength="300" placeholder="Bijvoorbeeld: werk, oppas, vakantie…">${esc(st.reden||'')}</textarea>
       <button class="vz-knop groen" id="vzStuur"${st.gekozen?'':' disabled'}>${tegen?'Tegenvoorstel sturen':`Voorstel sturen naar ${esc(voorn(tegNaam))}`}</button><div id="vzFout"></div>`;
@@ -2987,7 +2987,7 @@ function afmeldScherm(datum){
       <p class="vz-noot" style="margin-top:0">Welke wedstrijden kun je niet spelen?</p>
       ${lijst.map(w=>`<button class="vz-vinkrij${st.aan.has(String(w.id))?' sel':''}" data-vz-vink="${esc(w.id)}"><span class="vz-box">${st.aan.has(String(w.id))?'✓':''}</span><b>${esc(w.tijdstip||'')}</b><span>tegen ${esc(tegVan(w))}</span></button>`).join('')}
       <div class="vz-blok"><b>Wat er gebeurt</b><p>${datum===vandaag()
-        ? '• De wedstrijden gaan op NNB (nog niet bekend).<br>• Je tegenstander en de wedstrijdleiding krijgen meteen een melding.<br>• De wedstrijdleiding plant de wedstrijd opnieuw in.'
+        ? '• De wedstrijden gaan op NNB (nog niet bekend).<br>• Je tegenstander en de wedstrijdleiding krijgen meteen een melding.<br>• Plan daarna samen een nieuwe avond via "Avond voorstellen".'
         : '• De wedstrijden gaan op NNB (nog niet bekend).<br>• Je tegenstander krijgt een melding en kan je appen.<br>• Plan daarna samen een nieuwe avond via "Avond voorstellen".<br>• De wedstrijdleiding ziet het meteen.'}</p></div>
       <button class="vz-knop rood" id="vzAfmeld"${st.aan.size?'':' disabled'}>Afmelden (${st.aan.size} wedstrijd${st.aan.size===1?'':'en'})</button><div id="vzFout"></div>`);
     h2hInhoud.querySelectorAll('[data-vz-vink]').forEach(b=>b.addEventListener('click',()=>{ const id=b.dataset.vzVink; st.aan.has(id)?st.aan.delete(id):st.aan.add(id); teken(); }));
