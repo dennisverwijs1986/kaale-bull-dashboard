@@ -250,6 +250,8 @@ async function wlPush(cfg: Cfg, tekst: string, titel = "🎯 Wedstrijdleiding") 
     rijen: tekstRij(`<p style="margin:0;">${esc(tekst)}</p>`) + knop("Open de WL-app", "https://dennisverwijs1986.github.io/kaale-bull-dashboard/wl.html?view=aanvragen"), tekst });
 }
 const aanvraagUrl = (token: string) => `${APP}?aanvraag=${token}`;
+/** Link naar de app die meteen het schema van deze speler opent (ook in de browser, zonder naam kiezen). */
+const appUrl = (naam: string) => `${APP}?speler=${encodeURIComponent(naam)}`;
 
 /** Bericht aan de tegenstander over een (tegen)voorstel. In proef: naar de aanvrager zelf. */
 async function meldVoorstel(v: any, w: any, vanNaam: string, naarId: string | null, naarNaam: string) {
@@ -458,8 +460,8 @@ async function actieAntwoord(b: any) {
       rijen: tekstRij(`<p style="margin:0;"><strong>${esc(tegNaam)}</strong> kan helaas niet op ${esc(datumLang(v.nieuwe_datum))}.</p>`) +
         (wat ? detailKaart([["Reden", esc(wat)]], KLEUR.inhaal) : "") +
         tekstRij(`<span style="font-size:14px;color:${KLEUR.grijs};">De wedstrijd blijft staan zoals hij stond. Je kunt in de app een andere avond voorstellen of ${esc(voornaam(tegNaam))} appen.</span>`, "10px 24px 0 24px") +
-        knop("Open de app", `${APP}?view=mijn`),
-      tekst: `${tegNaam} kan niet op ${datumLang(v.nieuwe_datum)}.${wat ? `\nReden: ${wat}` : ""}\nDe wedstrijd blijft staan zoals hij stond.\n\nOpen de app: ${APP}?view=mijn`,
+        knop("Open de app", appUrl(oIni.naam)),
+      tekst: `${tegNaam} kan niet op ${datumLang(v.nieuwe_datum)}.${wat ? `\nReden: ${wat}` : ""}\nDe wedstrijd blijft staan zoals hij stond.\n\nOpen de app: ${appUrl(oIni.naam)}`,
     });
     await sluitMail();
     return { ok: true, status: "afgewezen" };
@@ -606,8 +608,8 @@ async function actieAfmelden(b: any) {
       onderwerp: `Afmelding: ${w.thuis} vs ${w.uit} (${datumKort(w.datum)})`, kopKlein: "Afmelding", kopGroot: "Je tegenstander heeft zich afgemeld", accent: KLEUR.inhaal,
       rijen: tekstRij(`<p style="margin:0 0 12px 0;">Beste ${esc(voornaam(tegNaam))},</p><p style="margin:0;"><strong>${esc(sp.naam)}</strong> kan niet op ${esc(datumLang(w.datum))}. Jullie wedstrijd staat nu op <strong>NNB</strong> (nog niet bekend).</p>`) +
         tekstRij(`<span style="font-size:14px;color:${KLEUR.grijs};">Spreek samen een nieuwe avond af. In de app kun je je tegenstander appen of zelf een avond voorstellen.</span>`, "10px 24px 0 24px") +
-        knop("Open de app", `${APP}?view=mijn`),
-      tekst: `${sp.naam} kan niet op ${datumLang(w.datum)}. Jullie wedstrijd staat nu op NNB. Spreek samen een nieuwe avond af.\n\nOpen de app: ${APP}?view=mijn`,
+        knop("Open de app", appUrl(t?.naam || tegNaam)),
+      tekst: `${sp.naam} kan niet op ${datumLang(w.datum)}. Jullie wedstrijd staat nu op NNB. Spreek samen een nieuwe avond af.\n\nOpen de app: ${appUrl(t?.naam || tegNaam)}`,
     });
   }
   await sb.from("speler_acties").insert({ soort: "afmelding", speler_id: sp.id, datum: b.datum, wedstrijd_ids: lijst.map((w: any) => w.id) });

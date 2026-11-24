@@ -2901,6 +2901,10 @@ async function aanvraagScherm(token){
   let a;
   try{ a = await post({ actie:'bekijk', antwoord:token }); }catch(e){ h2hInhoud.innerHTML = foutHtml(e); return; }
   telScherm('vz_aanvraag');
+  // De link uit de mail hoort bij deze speler: in de browser hoeft niemand eerst zijn naam te kiezen.
+  if (!a.proef && a.ik && S.ik !== a.ik && !code()){ S.ik = a.ik; opslaan('kb_schema_ik', S.ik); if (S.geladen) render(); VZ.ververs(true); }
+  const inBrowser = !(window.matchMedia && matchMedia('(display-mode: standalone)').matches) && !navigator.standalone;
+  const browserNoot = inBrowser ? `<div class="vz-blok"><p>Je bent nu in de browser. Reageren kan gewoon hier, je hoeft niet in te loggen. Daarna kun je de Kaale Bull-app op je beginscherm weer gebruiken.</p></div>` : '';
   if (a.status!=='voorgesteld' || a.gewijzigd){
     const t = { geaccepteerd:'Dit verzoek is al geaccepteerd.', afgewezen:'Dit verzoek is al afgewezen.', verlopen:'Dit verzoek is verlopen.',
       ingetrokken:'Dit verzoek is ingetrokken.', tegenvoorstel:'Op dit verzoek is al een tegenvoorstel gedaan.' }[a.status] || 'Dit verzoek loopt niet meer: de wedstrijd is intussen gewijzigd.';
@@ -2912,7 +2916,7 @@ async function aanvraagScherm(token){
   const w = allesW().find(x=>x.thuis===a.thuis && x.uit===a.uit && (S.ik===a.ik));
   const wa = w && typeof waKnopHtml==='function' ? waKnopHtml(w) : '';
   h2hInhoud.innerHTML = `
-    <div class="vz-groot" style="margin:4px 0 10px">${esc(a.van)} ${a.ronde>1?'doet een tegenvoorstel':a.soort==='inplannen'?'wil inplannen':'wil verzetten'}</div>
+    ${browserNoot}<div class="vz-groot" style="margin:4px 0 10px">${esc(a.van)} ${a.ronde>1?'doet een tegenvoorstel':a.soort==='inplannen'?'wil inplannen':'wil verzetten'}</div>
     ${a.proef?`<div class="vz-blok geel"><b>Test</b><p>In het echt gaat dit scherm naar ${esc(a.ik)}. Er wordt niets echt verzet.</p></div>`:''}
     <div class="vz-twee"><div class="vz-vak"><small>Nu</small><b class="oud">${esc(a.oude_datum?kort(a.oude_datum):'NNB')}</b></div>
       <div class="vz-vak nieuw"><small>${a.ronde>1?'Tegenvoorstel':'Voorstel'}</small><b>${esc(kort(a.nieuwe_datum))}</b></div></div>
