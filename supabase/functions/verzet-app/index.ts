@@ -742,7 +742,7 @@ async function actieWlOverzicht(b: any) {
   ]);
   const naam = new Map((sps || []).map((s: any) => [s.id, s.naam]));
   const ids = [...new Set([...(open || []), ...(klaar || [])].map((v: any) => v.wedstrijd_id))];
-  const { data: ws } = ids.length ? await sb.from("wedstrijden").select("id, thuis, uit, divisie, datum, datum_nnb").in("id", ids) : { data: [] };
+  const { data: ws } = ids.length ? await sb.from("wedstrijden").select("id, thuis, uit, divisie, datum, datum_nnb, uitslag, status, legs_thuis").in("id", ids) : { data: [] };
   const wm = new Map((ws || []).map((w: any) => [w.id, w]));
   const rij = (v: any) => {
     const w: any = wm.get(v.wedstrijd_id) || {};
@@ -760,7 +760,9 @@ async function actieWlOverzicht(b: any) {
     const aantal = a.soort === "afmelding" ? ids.filter((i) => nnb.has(i)).length : ids.length;
     return { id: a.id, soort: a.soort, speler: naam.get(a.speler_id) || "?", datum: a.datum, tijd: a.tijd, aantal, created_at: a.created_at };
   }).filter((a: any) => a.soort !== "afmelding" || a.aantal > 0);
-  return { open: (open || []).map(rij), afgehandeld: (klaar || []).map(rij), acties: lijstActies };
+  // Afgehandeld: wedstrijden die inmiddels gespeeld zijn hoeven er niet meer tussen
+  const afgehandeld = (klaar || []).filter((v: any) => { const w: any = wm.get(v.wedstrijd_id); return !w || !gespeeld(w); });
+  return { open: (open || []).map(rij), afgehandeld: afgehandeld.map(rij), acties: lijstActies };
 }
 
 async function isSysteem(req: Request) {
