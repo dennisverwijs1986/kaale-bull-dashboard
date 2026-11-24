@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer/mod.ts";
 import { esc, KLEUR, datumKort, datumLang, tekstRij, detailKaart, knop, mailHtml, GROET_TEKST } from "./mail-layout.ts";
+import "./planner-kern.js";   // zet globalThis.AvondPlanner (zelfde rekenkern als de avondplanner)
 
 // ══════════════════════════════════════════════════════════════════════
 //  Verzetten via de spelers-app (Dashboard 2.0)
@@ -26,7 +27,8 @@ import { esc, KLEUR, datumKort, datumLang, tekstRij, detailKaart, knop, mailHtml
 //    wl_overzicht  { wachtwoord }                   -> beheerwachtwoord van spelerbeheer
 //    wl_besluit    { wachtwoord, id, besluit }      -> akkoord/afwijzen namens de tegenstander
 //  Systeem (x-cron-secret of service role):
-//    opvolging                                      -> elk uur: herinneren / laten vervallen
+//    opvolging                                      -> elk uur: herinneren / laten vervallen (+ 10:05 speeldag: autoLater)
+//    auto_later    { datum?, proef? }               -> handmatig de "later"-indeling draaien (standaard alleen tonen)
 //
 //  Schakelaar instellingen.verzetten_app: 'uit', komma-lijst met namen, of 'iedereen'.
 //  PROEF: zolang niet 'iedereen' en de tegenstander geen tester is, gaan de berichten voor de
@@ -704,6 +706,64 @@ async function actieLaterIntrekken(b: any) {
   return { ok: true };
 }
 
+// ── Speeldag 10:05: wedstrijden van spelers die "later" zijn niet vóór hun aankomsttijd ──
+// Alleen de nodige verschuivingen (verplaatsen of ruilen binnen de avond), de avond wordt niet later.
+async function autoLater(opts: { datum?: string; proef?: boolean } = {}) {
+  const nu = nlNu();
+  const datum = opts.datum || nu.datum;
+  const cfg = await config();
+  const { data: later } = await sb.from("speler_acties").select("speler_id, tijd").eq("soort", "later").eq("datum", datum);
+  if (!later?.length) return { datum, later: 0, verschoven: [] };
+  const namen = new Map<string, string>();
+  for (const l of later as any[]) { const n = await naamVan(l.speler_id); if (n) namen.set(n, String(l.tijd).slice(0, 5)); }
+  const AP = (globalThis as any).AvondPlanner.maak(cfg.SLOTS);
+  const { data: ws } = await sb.from("wedstrijden").select("*").eq("datum", datum).eq("datum_nnb", false);
+  const ms = ((ws || []) as any[]).filter((w) => !isBye(w) && AP.slotIndex(w.tijdstip) >= 0).map((w) => {
+    const laat = [w.thuis, w.uit].map((n: string) => namen.get(n)).filter(Boolean).sort().pop() || null;
+    return { ...w, vast: gespeeld(w) || w.bord != null, laat, vroegst: laat ? AP.slotVanaf(laat) : null };
+  });
+  if (!ms.length) return { datum, later: namen.size, verschoven: [] };
+  const orig = ms.map((w) => AP.slotIndex(w.tijdstip));
+  const laatste = Math.max(...orig);
+  const cap = AP.capaciteiten(orig, laatste);
+  let slots = orig.slice();
+  for (const i of AP.teVroeg(ms, slots)) {
+    if (ms[i].vast) continue;
+    let beste: number[] | null = null, besteC = AP.kosten(ms, slots, orig);
+    const bezet = new Array(cfg.SLOTS.length).fill(0); slots.forEach((s: number) => bezet[s]++);
+    for (let t = ms[i].vroegst; t <= laatste; t++) {
+      const kand: number[][] = [];
+      if (bezet[t] < cap[t]) { const n = slots.slice(); n[i] = t; kand.push(n); }
+      slots.forEach((s: number, j: number) => {
+        if (j === i || s !== t || ms[j].vast) return;
+        if (ms[j].vroegst != null && slots[i] < ms[j].vroegst) return;   // de ander mag er niet te vroeg door komen
+        const n = slots.slice(); n[i] = t; n[j] = slots[i]; kand.push(n);
+      });
+      for (const n of kand) { const c = AP.kosten(ms, n, orig); if (c < besteC) { besteC = c; beste = n; } }
+    }
+    if (beste) slots = beste;
+  }
+  const verschoven = ms.map((w, i) => ({ w, van: cfg.SLOTS[orig[i]].tijd, naar: cfg.SLOTS[slots[i]].tijd })).filter((x) => x.van !== x.naar);
+  if (!opts.proef) {
+    for (const x of verschoven) {
+      await sb.from("wedstrijden").update({ tijdstip: x.naar }).eq("id", x.w.id);
+      await sb.from("wijziging_log").insert({
+        wedstrijd_id: x.w.id, thuis: x.w.thuis, uit: x.w.uit, divisie: x.w.divisie || null, actie: "verzet",
+        oude_datum: datum, nieuwe_datum: datum, oude_tijdstip: x.van, nieuwe_tijdstip: x.naar,
+        gewijzigd_door: "Wedstrijdleiding (avondplanner, later)", notitie: "Ander tijdslot (zelfde avond) – speler later", mail_verstuurd: false,
+      });
+    }
+    const nogTeVroeg = AP.teVroeg(ms, slots).length;
+    if (verschoven.length || nogTeVroeg) {
+      const regels = verschoven.map((x) => `${x.w.thuis} – ${x.w.uit}: ${x.van} → ${x.naar}`);
+      await wlPush(cfg, (verschoven.length ? `Avondplanner heeft voor vanavond ${verschoven.length} wedstrijd${verschoven.length > 1 ? "en" : ""} geschoven vanwege "later". ${regels.join("; ")}.` : "")
+        + (nogTeVroeg ? ` Let op: ${nogTeVroeg} wedstrijd${nogTeVroeg > 1 ? "en staan" : " staat"} nog vóór de doorgegeven tijd.` : ""), "⏰ Avondplanner");
+      await sluitMail();
+    }
+  }
+  return { datum, later: namen.size, verschoven: verschoven.map((x) => ({ wedstrijd: `${x.w.thuis} – ${x.w.uit}`, van: x.van, naar: x.naar })), nog_te_vroeg: AP.teVroeg(ms, slots).length };
+}
+
 // ── Elk uur via cron: herinneren en laten vervallen ──
 async function actieOpvolging() {
   const nu = nlNu();
@@ -747,7 +807,10 @@ async function actieOpvolging() {
     }
   }
   await sluitMail();
-  return { ok: true, open: (open || []).length, herinnerd, verlopen };
+  // Speeldag tussen 10:00 en 10:15 (vóór de ochtendmail van 10:15): avondplanner voor "later"
+  let later = null;
+  if (nu.min >= 10 * 60 && nu.min < 10 * 60 + 15) later = await autoLater().catch((e) => ({ fout: String(e) }));
+  return { ok: true, open: (open || []).length, herinnerd, verlopen, later };
 }
 
 // ── Overzicht voor de WL-app ──
@@ -813,6 +876,9 @@ Deno.serve(async (req) => {
       case "later_intrekken": return json(await actieLaterIntrekken(b));
       case "wl_overzicht": return json(await actieWlOverzicht(b));
       case "wl_besluit": return json(await actieWlBesluit(b));
+      case "auto_later":
+        if (!(await isSysteem(req))) return json({ error: "niet toegestaan" }, 401);
+        return json(await autoLater({ datum: isDatum(b.datum) ? b.datum : undefined, proef: b.proef !== false }));
       case "opvolging":
         if (!(await isSysteem(req))) return json({ error: "niet toegestaan" }, 401);
         return json(await actieOpvolging());
