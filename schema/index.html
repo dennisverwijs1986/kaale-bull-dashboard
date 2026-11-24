@@ -2587,7 +2587,7 @@ const NIEUWS = [   // nieuwste onderaan; elke update een nieuwe id (oplopend)
     ['📅','Zelf je wedstrijd verzetten','Tik op je wedstrijd en kies "Verzetten naar andere avond". Je kiest een avond, je tegenstander bevestigt met één tik. De tijd plant de wedstrijdleiding in.'],
     ['🔔','Aanvragen voor jou','Wil je tegenstander verzetten? Je krijgt een melding en ziet het bovenaan je schema: Akkoord, Stel andere avond voor of Afwijzen.'],
     ['🚫','Afmelden voor een avond','Ziek of verhinderd? Tik op je wedstrijd en kies "Afmelden voor deze avond". Je tegenstander en de wedstrijdleiding weten het meteen.'],
-    ['⏰','Ik ben later','Vanaf de vrijdag vóór je speelavond geef je met één knop door hoe laat je er bent. Verzetten voor dezelfde avond kan tot 10:00.'],
+    ['⏰','Ik ben later','Vanaf de vrijdag vóór je speelavond geef je met één knop door hoe laat je er bent. Kun je vanavond toch niet? Verzetten of afmelden kan op de speeldag tot 19:00.'],
     ['💬','App je tegenstander','Bij elke wedstrijd staat een knop om je tegenstander direct te WhatsAppen.'],
     ['🔐','Eén keer je code','De eerste keer vraagt de app je persoonlijke code uit de mail (dezelfde als voor de meldingen).'],
   ]},
@@ -2679,7 +2679,7 @@ telScherm('thema_' + (window.themaKeuze ? window.themaKeuze() : 'donker'));
 // ══════════════════════════════════════════
 (function(){
 const FN = `${SB_URL}/functions/v1/verzet-app`;
-const DEADLINE_MIN = 10*60 + 10;   // spelers horen "tot 10:00", in werkelijkheid tot 10:10
+const DEADLINE_MIN = 19*60;   // op de speeldag: verzetten/afmelden van vanavond tot 19:00
 const DRUK = 3;                     // vanaf zoveel wedstrijden op een avond: oranje waarschuwing
 const VZ = window.VZ = { aanVoor:null, aanStaat:false, data:null, laatst:0, zonderCode:false };
 
@@ -2741,7 +2741,7 @@ VZ.bannerHtml = () => {
     const van = v.door_mij ? `${v.van} (test)` : v.van;
     const zin = v.soort==='inplannen' ? `wil jullie wedstrijd inplannen op <b>${esc(kort(v.nieuwe_datum))}</b>`
       : `${v.ronde>1?'stelt voor':'wil'} jullie wedstrijd${v.oude_datum?` van ${esc(kort(v.oude_datum))}`:''} ${v.ronde>1?'te spelen op':'te verzetten naar'} <b>${esc(kort(v.nieuwe_datum))}</b>`;
-    h += `<div class="vz-blok geel"><b>🔔 ${v.ronde>1?'Tegenvoorstel':'Aanvraag'} voor jou</b><p><b>${esc(van)}</b> ${zin}.${v.vervalt_at?' Reageer vóór 16:00.':''}</p><button class="vz-knop geel" data-vz-aanvraag="${esc(v.antwoord)}">Bekijken</button></div>`;
+    h += `<div class="vz-blok geel"><b>🔔 ${v.ronde>1?'Tegenvoorstel':'Aanvraag'} voor jou</b><p><b>${esc(van)}</b> ${zin}.${v.vervalt_at?' Reageer vóór 19:00.':''}</p><button class="vz-knop geel" data-vz-aanvraag="${esc(v.antwoord)}">Bekijken</button></div>`;
   });
   d.van_mij.filter(v=>!d.voor_mij.some(x=>x.id===v.id)).forEach(v=>{
     const teg = v.thuis===S.ik ? v.uit : v.thuis;
@@ -2787,7 +2787,7 @@ VZ.knoppenHtml = (w) => {
     return `<div class="vz-blok"><b>📅 Lopend verzoek</b><p>${esc(tekst)}</p>${lv.antwoord?`<button class="vz-knop geel" data-vz-aanvraag="${esc(lv.antwoord)}">Bekijken</button>`:''}</div>`;
   }
   if (!w.datum_nnb && deadlineVoorbij(w.datum))
-    return `<div class="vz-blok"><b>🔒 Wijzigen voor vanavond kon tot 10:00</b><p>App je tegenstander of gebruik "Ik ben vanavond later" bovenaan je schema.</p></div>`;
+    return `<div class="vz-blok"><b>🔒 Wijzigen voor vanavond kon tot 19:00</b><p>App je tegenstander of gebruik "Ik ben vanavond later" bovenaan je schema.</p></div>`;
   if (w.datum_nnb) return `<button class="vz-knop blauw" data-vz-verzet="${esc(w.id)}">🗓 Avond voorstellen</button>`;
   return `<button class="vz-knop blauw" data-vz-verzet="${esc(w.id)}">📅 Verzetten naar andere avond</button>
     <button class="vz-knop rood-rand" data-vz-afmeld="${esc(w.datum)}">🚫 Afmelden voor deze avond</button>`;
@@ -2842,7 +2842,7 @@ function avondRij(a, tegNaam, gekozen){
   if (tegDruk) let_op += `<div class="vz-let">${esc(voorn(tegNaam))} speelt die avond al ${a.teg} wedstrijden, dit wordt de ${a.teg+1}e.</div>`;
   if (ikDruk) let_op += `<div class="vz-let">Je speelt die avond zelf al ${a.ik} wedstrijden.</div>`;
   if (a.vol) let_op += `<div class="vz-let rood">Avond vol: jullie komen op de wachtlijst. De wedstrijd blijft staan tot er een plek vrijkomt.</div>`;
-  if (a.vandaag) let_op += `<div class="vz-let">Vanavond: je tegenstander moet vóór 16:00 akkoord geven.</div>`;
+  if (a.vandaag) let_op += `<div class="vz-let">Vanavond: je tegenstander moet vóór 19:00 akkoord geven.</div>`;
   return `<button class="vz-avond${a.datum===gekozen?' sel':''}" data-vz-kies="${esc(a.datum)}"${a.huidig?' disabled':''}>
     <span class="vz-radio"></span>
     <span class="vz-av-tekst"><b>${esc(a.vandaag?'Vanavond':kort(a.datum).replace(/^./,c=>c.toUpperCase()))}</b>
@@ -2879,7 +2879,7 @@ async function avondScherm(opts){
         const r = tegen ? await post({ actie:'tegenvoorstel', antwoord:opts.antwoord, datum:st.gekozen, reden })
                         : await post({ actie:'voorstel', code:code(), naam:S.ik, wedstrijd_id:opts.w.id, datum:st.gekozen, reden });
         telScherm(tegen ? 'vz_tegenvoorstel' : 'vz_voorstel');
-        verstuurdScherm({ teg:tegNaam, datum:st.gekozen, avond:d.avonden.find(a=>a.datum===st.gekozen), proef:r.proef, wedstrijd:d.wedstrijd, tegen });
+        verstuurdScherm({ teg:tegNaam, datum:st.gekozen, avond:d.avonden.find(a=>a.datum===st.gekozen), proef:r.proef, vervalt_at:r.vervalt_at, wedstrijd:d.wedstrijd, tegen });
         VZ.ververs(true);
       }catch(err){ knop.disabled=false; h2hInhoud.querySelector('#vzFout').innerHTML = foutHtml(err); }
     });
@@ -2890,7 +2890,7 @@ function verstuurdScherm(o){
   const vol = o.avond && o.avond.vol;
   toon('📅 Verstuurd', `<div class="vz-midden"><div class="vz-vink">✓</div><div class="vz-groot">${o.tegen?'Tegenvoorstel':'Voorstel'} verstuurd</div>
     <p>${esc(voorn(o.teg))} krijgt een melding. ${vol?`${esc(kort(o.datum))} is vol: na akkoord komen jullie op de wachtlijst.`:`Zodra ${esc(voorn(o.teg))} akkoord geeft, staat de wedstrijd op <b>${esc(kort(o.datum))}</b>.`}</p></div>
-    <div class="vz-blok"><p>Tot ${esc(voorn(o.teg))} reageert, blijft de wedstrijd staan waar hij nu staat. ${o.avond&&o.avond.vandaag?'Zonder akkoord vóór 16:00 vervalt het verzoek.':`Na 3 dagen krijgt ${esc(voorn(o.teg))} een herinnering, na 7 dagen vervalt het voorstel.`}</p></div>
+    <div class="vz-blok"><p>Tot ${esc(voorn(o.teg))} reageert, blijft de wedstrijd staan waar hij nu staat. ${o.vervalt_at?'Zonder akkoord vóór 19:00 vervalt het verzoek en blijft de wedstrijd vanavond staan.':`Na 3 dagen krijgt ${esc(voorn(o.teg))} een herinnering, na 7 dagen vervalt het voorstel.`}</p></div>
     ${o.proef?`<div class="vz-blok geel"><b>Test</b><p>${esc(voorn(o.teg))} doet nog niet mee met de test. Jij krijgt de melding die voor je tegenstander bedoeld is, en er wordt niets echt verzet.</p></div>`:''}
     <button class="vz-knop" data-h2h-sluit>Klaar</button>`);
 }
@@ -2929,7 +2929,7 @@ async function aanvraagScherm(token){
     ${a.mag_tegenvoorstel?`<button class="vz-knop blauw" id="vzAnder">🔁 Stel andere avond voor</button>`:''}<button class="vz-knop rood-rand" id="vzNiet">✕ Afwijzen</button>
     ${a.mag_tegenvoorstel?'':`<p class="vz-noot">Jullie zijn al ${a.ronde} keer heen en weer gegaan. App elkaar even om samen een avond te kiezen.</p>`}
     ${wa}<div id="vzFout"></div>
-    <p class="vz-noot">${a.vervalt_at?'Reageer vóór 16:00 vandaag, anders vervalt het verzoek.':'Geen reactie? Na 3 dagen een herinnering, na 7 dagen vervalt het voorstel.'}</p>`;
+    <p class="vz-noot">${a.vervalt_at?'Reageer vóór 19:00 vandaag, anders vervalt het verzoek.':'Geen reactie? Na 3 dagen een herinnering, na 7 dagen vervalt het voorstel.'}</p>`;
   if (w && typeof waNummerOphalen==='function') waNummerOphalen(w);
   h2hInhoud.querySelector('#vzAkkoord').addEventListener('click', async e=>{
     e.currentTarget.disabled=true;

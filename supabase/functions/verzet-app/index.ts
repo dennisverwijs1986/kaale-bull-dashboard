@@ -34,8 +34,8 @@ import { esc, KLEUR, datumKort, datumLang, tekstRij, detailKaart, knop, mailHtml
 // ══════════════════════════════════════════════════════════════════════
 
 const APP = "https://dennisverwijs1986.github.io/kaale-bull-dashboard/schema/";
-const DEADLINE_MIN = 10 * 60 + 10;         // speelavond zelf: verzoeken tot 10:10 (spelers horen 10:00)
-const VERVAL_ZELFDE_DAG_MIN = 16 * 60;     // voorstel voor dezelfde avond: bevestigen vóór 16:00
+const DEADLINE_MIN = 19 * 60;              // speeldag zelf: wedstrijd van vanavond verzetten/afmelden tot 19:00
+const VERVAL_ZELFDE_DAG_MIN = 19 * 60;     // verzoek op de speeldag: bevestigen vóór 19:00
 const MIN_RUST = 20;
 const HERINNER_NA_DAGEN = 3;
 const VERVAL_NA_DAGEN = 7;
@@ -160,7 +160,7 @@ function bezwaar(w: any, naam: string, nu = nlNu()) {
   if (!w.datum_nnb && w.datum) {
     const d = String(w.datum);
     if (d < nu.datum) return "Deze wedstrijd ligt al in het verleden. Neem contact op met de wedstrijdleiding.";
-    if (d === nu.datum && nu.min >= DEADLINE_MIN) return "Wijzigen voor vanavond kon tot 10:00. App je tegenstander of gebruik \"Ik ben later\".";
+    if (d === nu.datum && nu.min >= DEADLINE_MIN) return "Wijzigen voor vanavond kon tot 19:00. Neem contact op met de wedstrijdleiding.";
   }
   return null;
 }
@@ -272,7 +272,7 @@ async function meldVoorstel(v: any, w: any, vanNaam: string, naarId: string | nu
     [tegen ? "Tegenvoorstel" : "Voorstel", `<strong style="font-size:18px;">${esc(datumLang(v.nieuwe_datum))}</strong>`],
     ...(v.reden ? [["Toelichting", esc(v.reden)] as [string, string]] : []),
   ]);
-  const zelfdeDag = v.vervalt_at ? "Reageer graag vóór 16:00 vandaag, anders vervalt het verzoek." : `Reageer graag binnen ${HERINNER_NA_DAGEN} dagen. Zonder reactie vervalt het verzoek na ${VERVAL_NA_DAGEN} dagen.`;
+  const zelfdeDag = v.vervalt_at ? "Reageer graag vóór 19:00 vandaag, anders vervalt het verzoek en blijft de wedstrijd vanavond staan." : `Reageer graag binnen ${HERINNER_NA_DAGEN} dagen. Zonder reactie vervalt het verzoek na ${VERVAL_NA_DAGEN} dagen.`;
   await mail({
     naar: naarMails, proefVoor: o.test ? naarNaam : null,
     onderwerp: `${tegen ? "Tegenvoorstel" : "Verzoek"}: ${w.thuis} vs ${w.uit}`,
@@ -334,7 +334,7 @@ function gewijzigdSinds(v: any, w: any) {
 async function actieStatus(b: any) {
   const cfg = await config();
   const naam = String(b.naam || "");
-  return { actief: !!naam && actiefVoor(naam, cfg), deadline: "10:00" };
+  return { actief: !!naam && actiefVoor(naam, cfg), deadline: "19:00" };
 }
 
 async function voorstelSamenvatting(v: any, ikId: string) {
@@ -484,7 +484,7 @@ async function verwerkAntwoord(v: any, b: any, viaWl: boolean) {
   // ── Akkoord ──
   if (v.vervalt_at && Date.now() > Date.parse(v.vervalt_at)) {
     await sluitAf(v, "verlopen");
-    throw new Fout("Dit verzoek voor vandaag is verlopen (bevestigen kon tot 16:00).");
+    throw new Fout("Dit verzoek voor vandaag is verlopen (bevestigen kon tot 19:00).");
   }
   if (String(v.nieuwe_datum) < nu.datum) { await sluitAf(v, "verlopen"); throw new Fout("Die avond is al voorbij."); }
   const rijen = await avondRijen(String(v.nieuwe_datum));
@@ -529,6 +529,8 @@ async function verwerkAntwoord(v: any, b: any, viaWl: boolean) {
   const tekstAkkoord = naarWachtlijst
     ? `${voornaam(tegNaam)} is akkoord. ${nieuw} is vol, jullie staan op de wachtlijst. De wedstrijd blijft tot die tijd staan.`
     : `${voornaam(tegNaam)} is akkoord: jullie spelen op ${nieuw}. Je tijd zie je in de app.`;
+  if (!v.proef && !naarWachtlijst && String(v.oude_datum) === nu.datum)
+    await wlPush(cfg, `${w.thuis} – ${w.uit} speelt vanavond niet: verzet naar ${nieuw}.`, "📅 Verzet van vanavond");
   await push([oIni.naam], (v.proef ? "[TEST] " : "") + "✅ Akkoord", tekstAkkoord + (v.proef ? " (test: niets verzet)" : ""), "./?view=mijn", "verzet_antwoord");
   if (v.proef || naarWachtlijst) {
     await mail({
@@ -560,7 +562,7 @@ async function actieTegenvoorstel(b: any) {
   const reden = String(b.reden || "").trim().slice(0, 300) || null;
   try {
     const { v: nieuw } = await maakVoorstel(w, ik, b.datum, reden, cfg, { vorige: v });
-    return { ok: true, voorstel_id: nieuw.id, ronde: nieuw.ronde };
+    return { ok: true, voorstel_id: nieuw.id, ronde: nieuw.ronde, vervalt_at: nieuw.vervalt_at, proef: nieuw.proef };
   } catch (e) {
     // Tegenvoorstel lukte niet: oude voorstel weer openzetten
     await sb.from("verzet_voorstel").update({ status: "voorgesteld", beantwoord_at: null }).eq("id", v.id);
