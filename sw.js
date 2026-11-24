@@ -3,7 +3,7 @@
 // Wedstrijddata uit Supabase wordt NOOIT gecachet — die komt altijd live van de server.
 // Andere pagina's (index.html, tv.html, ...) worden niet aangeraakt.
 
-const CACHE = 'kb-wl-v12';   // ophogen (v2, v3, ...) als je wil dat iedereen de app-bestanden opnieuw ophaalt
+const CACHE = 'kb-wl-v13';   // ophogen (v2, v3, ...) als je wil dat iedereen de app-bestanden opnieuw ophaalt
 const SHELL = [
   'wl.html',
   'planner-kern.js',
@@ -43,4 +43,32 @@ self.addEventListener('fetch', e => {
       })
       .catch(() => caches.match(req, { ignoreSearch: true }))
   );
+});
+
+// ── Pushmeldingen voor de wedstrijdleiding (verstuurd door de Edge Function 'verzet-app') ──
+// Los van de spelers-app: deze meldingen openen altijd de WL-app.
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { tekst: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.titel || '🎯 Wedstrijdleiding', {
+    body: d.tekst || '',
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
+    tag: d.tag || d.soort || 'kb-wl',
+    data: { url: d.url || './wl.html' },
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const doel = new URL((e.notification.data && e.notification.data.url) || './wl.html', self.registration.scope);
+  const wl = new URL('wl.html', self.registration.scope).pathname;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(lijst => {
+    for (const c of lijst) {
+      if (new URL(c.url).pathname === wl && 'focus' in c) {
+        c.postMessage({ soort: 'open', view: doel.searchParams.get('view') || '' });
+        return c.focus();
+      }
+    }
+    return self.clients.openWindow(doel.href);
+  }));
 });

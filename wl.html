@@ -89,6 +89,11 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 .pl-knel .soort{font-size:.7rem;font-weight:800;padding:1px 6px;border-radius:6px;margin-left:4px;white-space:nowrap;}
 .pl-knel .soort.krap{background:rgba(245,158,11,.15);color:var(--orange);}
 .pl-knel .soort.rood{background:rgba(239,68,68,.15);color:var(--red);}
+.wlp{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:0 0 12px;}
+.wlp-kop{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:800;font-size:.92rem;}
+.wlp-sub{font-size:.8rem;color:var(--muted);margin-top:4px;line-height:1.45;}
+.wlp-st{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:6px;background:var(--s3);color:var(--muted);text-transform:uppercase;}
+.wlp-st.aan{background:var(--green);color:#022c1f;}
 .pl-auto{background:rgba(59,130,246,.08);border:1.5px solid var(--blue);border-radius:12px;padding:12px 14px;margin:0 0 12px;}
 .pl-auto.klaar{border-color:var(--border);background:var(--s1);}
 .pl-auto-kop{font-weight:800;font-size:.95rem;}
@@ -622,7 +627,8 @@ function plAutoHtml(d){
   const anderOpen=lijst.filter(x=>x.status==='open' && x.datum!==d);
   const elders = anderOpen.map(x=>`<button class="btn btn-sec" style="width:100%;margin:0 0 12px" onclick="plKiesAvond(${jsAttr(x.datum)})">🧩 Voorstel avondplanner voor ${esc(fmtKort(x.datum))} wacht op akkoord ›</button>`).join('');
   if(!pushWw()) return elders + `<div class="pl-auto klaar"><div class="pl-auto-sub">Log in bij Aanvragen (beheerwachtwoord) om de voorstellen van de automatische avondplanner te zien en goed te keuren.</div></div>`;
-  if(!p) return elders;
+  const meldHint = (pushWw() && WLP.aan===false) ? `<button class="btn btn-sec" style="width:100%;margin:0 0 12px" onclick="naarView('aanvr')">🔔 Zet WL-meldingen aan om voorstellen direct te krijgen ›</button>` : '';
+  if(!p) return elders + meldHint;
   const regels=(p.verschuivingen||[]).map(x=>`<div class="pl-auto-r"><span>${esc(x.thuis)} – ${esc(x.uit)}</span><span class="t">${esc(x.van)} → <b>${esc(x.naar)}</b></span></div>`).join('');
   const knel=(p.knelpunten||[]).length ? `<div class="pl-auto-k">⚠ Niet op te lossen binnen de avond:<br>${p.knelpunten.map(esc).join('<br>')}</div>` : '';
   if(p.status!=='open'){
@@ -633,7 +639,7 @@ function plAutoHtml(d){
   const sub = vandaagD
     ? 'De spelers krijgen hun tijden (ochtendmail en push) pas na je besluit, op z’n vroegst om 10:15. Zonder besluit voert de planner dit om 12:00 zelf door.'
     : 'Keur je nu goed, dan staat het er meteen in. Op de speeldag om 10:11 rekent de planner nog één keer (na de verzet-deadline).';
-  return elders + `<div class="pl-auto"><div class="pl-auto-kop">🧩 Voorstel avondplanner · ${esc(fmtKort(d))}</div>
+  return elders + meldHint + `<div class="pl-auto"><div class="pl-auto-kop">🧩 Voorstel avondplanner · ${esc(fmtKort(d))}</div>
     <div class="pl-auto-sub">Berekend ${esc(avTijd(p.created_at))}, met ‘Ik ben later’ erin. ${sub}</div>${regels}${knel}
     <div class="av-knop">${PL.autoBezig?'<div class="av-sub">Bezig…</div>':`<button class="btn btn-pri" onclick="plAutoBesluit(${jsAttr(p.id)},'goedkeuren')">✓ Goedkeuren (${(p.verschuivingen||[]).length})</button><button class="btn" onclick="plAutoBesluit(${jsAttr(p.id)},'zo_laten')">Zo laten</button>`}</div></div>`;
 }
@@ -2238,6 +2244,74 @@ window.addEventListener('online', ()=>laadData(true));
 naarView('avond');
 
 // ══════════════════════════════════════════
+//  WL-MELDINGEN — eigen pushmeldingen voor de WL-app (los van de spelers-app).
+//  Aanzetten met het beheerwachtwoord; verstuurd door de Edge Function verzet-app.
+// ══════════════════════════════════════════
+const WLP = { aan:null, bezig:false, fout:'', ok:'' };
+const wlpKan = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+async function wlpFn(body){
+  const r = await fetch(`${SB_URL}/functions/v1/verzet-app`,{ method:'POST', headers:{ 'Content-Type':'application/json', apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }, body:JSON.stringify(body) });
+  const d = await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error || ('Fout '+r.status)); return d;
+}
+async function wlpAbo(){ if(!wlpKan()) return null; const reg = await navigator.serviceWorker.ready; return reg.pushManager.getSubscription(); }
+async function wlpCheck(){
+  try{ const sub = await wlpAbo(); WLP.aan = sub ? !!(await wlpFn({ actie:'wl_push_status', endpoint:sub.endpoint })).aan : false; }
+  catch(e){ WLP.aan=false; }
+  if(S.view==='aanvr' || S.view==='plan') render();
+}
+function b64NaarBytes(b){ const p='='.repeat((4-b.length%4)%4), r=atob((b+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from([...r].map(c=>c.charCodeAt(0))); }
+async function wlpAan(){
+  WLP.fout=''; WLP.ok='';
+  if(!wlpKan()){ WLP.fout = isIos() ? 'Open de WL-app vanaf je beginscherm (niet in Safari), dan kan het wel.' : 'Deze browser ondersteunt geen meldingen.'; render(); return; }
+  if(isIos() && !isStandalone()){ WLP.fout='Op de iPhone werkt dit alleen in de WL-app vanaf je beginscherm, niet in Safari.'; render(); return; }
+  WLP.bezig=true; render();
+  try{
+    const toestemming = await Notification.requestPermission();
+    if(toestemming!=='granted') throw new Error('Meldingen zijn niet toegestaan. Zet ze aan in de instellingen van je telefoon.');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){ const { sleutel } = await wlpFn({ actie:'wl_push_sleutel' }); sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64NaarBytes(sleutel) }); }
+    await wlpFn({ actie:'wl_push_aan', wachtwoord:pushWw(), abonnement:sub.toJSON(), toestel:navigator.userAgent.slice(0,120), door:lsGet('wl_door')||'' });
+    WLP.aan=true; WLP.ok='Aan. Je krijgt zo een testmelding.';
+    await wlpFn({ actie:'wl_push_test', wachtwoord:pushWw(), endpoint:sub.endpoint }).catch(()=>{});
+  }catch(e){ WLP.fout=e.message; }
+  WLP.bezig=false; render();
+}
+async function wlpTest(){
+  WLP.fout=''; WLP.ok=''; WLP.bezig=true; render();
+  try{ const sub=await wlpAbo(); if(!sub) throw new Error('Meldingen staan niet aan op dit toestel.');
+    const d=await wlpFn({ actie:'wl_push_test', wachtwoord:pushWw(), endpoint:sub.endpoint });
+    WLP.ok = d.gelukt ? 'Testmelding verstuurd.' : 'Versturen lukte niet. Zet meldingen uit en weer aan.'; }
+  catch(e){ WLP.fout=e.message; }
+  WLP.bezig=false; render();
+}
+async function wlpUit(){
+  WLP.fout=''; WLP.ok=''; WLP.bezig=true; render();
+  try{ const sub=await wlpAbo(); if(sub){ await wlpFn({ actie:'wl_push_uit', endpoint:sub.endpoint }).catch(()=>{}); await sub.unsubscribe(); } WLP.aan=false; WLP.ok='Uit op dit toestel.'; }
+  catch(e){ WLP.fout=e.message; }
+  WLP.bezig=false; render();
+}
+function htmlWlp(){
+  const aan=WLP.aan===true;
+  return `<div class="wlp"><div class="wlp-kop"><span>🔔 WL-meldingen op dit toestel</span><span class="wlp-st ${aan?'aan':''}">${WLP.aan===null?'…':aan?'aan':'uit'}</span></div>
+    <div class="wlp-sub">Voorstellen van de avondplanner, afmeldingen en verzettingen voor vanavond of morgen. Los van de meldingen in de spelers-app.</div>
+    ${WLP.fout?`<div class="fout-box" style="margin-top:8px">⚠ ${esc(WLP.fout)}</div>`:''}${WLP.ok?`<div class="wlp-sub" style="color:var(--green)">${esc(WLP.ok)}</div>`:''}
+    <div class="av-knop">${WLP.bezig?'<div class="av-sub">Bezig…</div>': aan
+      ? `<button class="btn" onclick="wlpTest()">Testmelding</button><button class="btn" onclick="wlpUit()">Uitzetten</button>`
+      : `<button class="btn btn-pri" onclick="wlpAan()">Meldingen aanzetten</button>`}</div></div>`;
+}
+if(wlpKan()){
+  navigator.serviceWorker.addEventListener('message', e=>{
+    if(!e.data || e.data.soort!=='open') return;
+    if(e.data.view==='plan'){ const o=avPlanner().find(p=>p.status==='open'); if(o) PL.datum=o.datum; naarView('plan'); }
+    else if(e.data.view==='aanvragen') naarView('aanvr');
+    laadAanvr(true);
+  });
+  setTimeout(wlpCheck, 500);
+}
+
+// ══════════════════════════════════════════
 //  AANVRAGEN — verzetten/afmelden door spelers via de spelers-app. WL kan akkoord/afwijzen namens de tegenstander.
 //  Gegevens via Edge Function verzet-app (actie wl_overzicht) met het beheerwachtwoord.
 // ══════════════════════════════════════════
@@ -2320,6 +2394,7 @@ function htmlAanvr(){
       : `<div class="leeg">Geen afmeldingen of 'later' doorgegeven.</div>`;
   }
   return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:''}
+    ${htmlWlp()}
     <div class="av-tabs">${tabs.map(([k,t])=>`<button class="${AV.tab===k?'act':''}" onclick="avTab('${k}')">${esc(t)}</button>`).join('')}</div>
     ${lijst}
     <p class="av-noot">Je hoeft niets goed te keuren: spelers regelen het samen. Heeft de tegenstander buiten de app om akkoord gegeven (mail, telefoon), dan kun je hier namens hem of haar akkoord geven. Akkoord = de wedstrijd staat direct op de nieuwe avond (tijd automatisch, schuiven kan zoals altijd).</p>`;

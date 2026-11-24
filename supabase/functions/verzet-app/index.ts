@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer/mod.ts";
 import { esc, KLEUR, datumKort, datumLang, tekstRij, detailKaart, knop, mailHtml, GROET_TEKST } from "./mail-layout.ts";
+import webpush from "npm:web-push@3.6.7";
 import "./planner-kern.js";   // zet globalThis.AvondPlanner (zelfde rekenkern als de avondplanner)
 
 // ══════════════════════════════════════════════════════════════════════
@@ -31,6 +32,12 @@ import "./planner-kern.js";   // zet globalThis.AvondPlanner (zelfde rekenkern a
 //    auto_later    { datum?, proef? }               -> handmatig de "later"-indeling draaien (standaard alleen tonen)
 //    avondplanner  { fase:'vooraf'|'speeldag'|'deadline', datum?, proef? }
 //                  -> automatische avondplanner (cron 20:00 de avond ervoor, 10:11 en 12:00 op de speeldag)
+//  Wedstrijdleiding (meldingen in de WL-app, los van de spelers-app):
+//    wl_push_sleutel {}                             -> publieke VAPID-sleutel
+//    wl_push_aan   { wachtwoord, abonnement, toestel?, door? }
+//    wl_push_uit   { endpoint }
+//    wl_push_status { endpoint }                    -> staat dit toestel aan?
+//    wl_push_test  { wachtwoord, endpoint }
 //  Wedstrijdleiding (avondplanner):
 //    wl_planner    { wachtwoord, id, besluit:'goedkeuren'|'zo_laten'|'handmatig' }
 //
@@ -273,10 +280,76 @@ async function push(spelers: string[], titel: string, tekst: string, url: string
     });
   } catch (e) { console.error("push mislukt", e); }
 }
-/** Melding aan de wedstrijdleiding: push aan de WL-spelers + mail naar het WL-adres. */
+// ── Pushmeldingen in de WL-app (eigen abonnementen in wl_push_abonnementen, zelfde VAPID-sleutels als de spelers-app) ──
+let vapidPubliek: string | null = null;
+async function vapid() {
+  if (vapidPubliek) return vapidPubliek;
+  const { data } = await sb.from("push_config").select("sleutel, waarde").in("sleutel", ["vapid_public", "vapid_private"]);
+  const m: Record<string, string> = Object.fromEntries((data || []).map((r: any) => [r.sleutel, r.waarde]));
+  if (!m.vapid_public || !m.vapid_private) throw new Error("VAPID-sleutels ontbreken");
+  webpush.setVapidDetails("mailto:dennisverwijs1986@gmail.com", m.vapid_public, m.vapid_private);
+  vapidPubliek = m.vapid_public;
+  return vapidPubliek;
+}
+async function wlWebPush(titel: string, tekst: string, url: string, alleenEndpoint?: string) {
+  try {
+    await vapid();
+    let q = sb.from("wl_push_abonnementen").select("*");
+    if (alleenEndpoint) q = q.eq("endpoint", alleenEndpoint);
+    const { data: abos } = await q;
+    let gelukt = 0;
+    const payload = JSON.stringify({ titel, tekst, url, soort: "wl_melding" });
+    for (const a of (abos || []) as any[]) {
+      try {
+        await webpush.sendNotification({ endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } }, payload, { TTL: 60 * 60 * 12 });
+        gelukt++;
+        await sb.from("wl_push_abonnementen").update({ laatst_gelukt: new Date().toISOString(), fouten: 0 }).eq("id", a.id);
+      } catch (e: any) {
+        if (e?.statusCode === 404 || e?.statusCode === 410) await sb.from("wl_push_abonnementen").delete().eq("id", a.id);
+        else await sb.from("wl_push_abonnementen").update({ fouten: (a.fouten || 0) + 1 }).eq("id", a.id);
+      }
+    }
+    return { toestellen: (abos || []).length, gelukt };
+  } catch (e) { console.error("WL-push mislukt", e); return { toestellen: 0, gelukt: 0 }; }
+}
+async function wlWachtwoord(b: any) {
+  const { data: ok } = await sb.rpc("controleer_beheer_wachtwoord", { invoer: String(b.wachtwoord || "") });
+  if (ok !== true) { await new Promise((r) => setTimeout(r, 800)); throw new Fout("Onjuist wachtwoord", 401); }
+}
+const geldigEndpoint = (e: unknown) => typeof e === "string" && /^https:\/\//.test(e) && e.length < 1000;
+async function actieWlPush(b: any) {
+  if (b.actie === "wl_push_sleutel") return { sleutel: await vapid() };
+  if (b.actie === "wl_push_status") {
+    if (!geldigEndpoint(b.endpoint)) return { aan: false };
+    const { data } = await sb.from("wl_push_abonnementen").select("id").eq("endpoint", b.endpoint).maybeSingle();
+    return { aan: !!data };
+  }
+  if (b.actie === "wl_push_uit") {
+    if (geldigEndpoint(b.endpoint)) await sb.from("wl_push_abonnementen").delete().eq("endpoint", b.endpoint);
+    return { ok: true };
+  }
+  await wlWachtwoord(b);
+  if (b.actie === "wl_push_aan") {
+    const a = b.abonnement || {};
+    if (!geldigEndpoint(a.endpoint) || !a.keys?.p256dh || !a.keys?.auth) throw new Fout("Ongeldig abonnement");
+    const { error } = await sb.from("wl_push_abonnementen").upsert({
+      endpoint: a.endpoint, p256dh: a.keys.p256dh, auth: a.keys.auth, fouten: 0,
+      toestel: String(b.toestel || "").slice(0, 120), door: String(b.door || "").slice(0, 60) || null,
+    }, { onConflict: "endpoint" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  }
+  if (b.actie === "wl_push_test") {
+    if (!geldigEndpoint(b.endpoint)) throw new Fout("Geen toestel");
+    return { ok: true, ...(await wlWebPush("🎯 Wedstrijdleiding", "WL-meldingen werken op dit toestel.", "./wl.html?view=aanvragen", b.endpoint)) };
+  }
+  throw new Fout("Onbekende actie");
+}
+
+/** Melding aan de wedstrijdleiding: push in de WL-app + mail naar het WL-adres. */
 async function wlPush(cfg: Cfg, tekst: string, titel = "🎯 Wedstrijdleiding", opts: { view?: string; regels?: string[]; mailTekst?: string } = {}) {
   const view = opts.view || "aanvragen";
-  await push(cfg.wlSpelers, titel, tekst, `../wl.html?view=${view}`, "wl_melding");
+  await wlWebPush(titel, tekst, `./wl.html?view=${view}`);
   const mt = opts.mailTekst || tekst;
   const lijst = opts.regels?.length ? tekstRij(`<ul style="margin:0;padding-left:18px;">${opts.regels.map((r) => `<li style="margin:2px 0;">${esc(r)}</li>`).join("")}</ul>`, "10px 24px 0 24px") : "";
   if (cfg.wlMail) await mail({ naar: [cfg.wlMail], onderwerp: `${titel.replace(/^\S+\s/, "")}: ${tekst.slice(0, 60)}`, kopKlein: "Wedstrijdleiding", kopGroot: titel.replace(/^\S+\s/, ""),
@@ -1074,6 +1147,8 @@ Deno.serve(async (req) => {
       case "wl_overzicht": return json(await actieWlOverzicht(b));
       case "wl_besluit": return json(await actieWlBesluit(b));
       case "wl_planner": return json(await actieWlPlanner(b));
+      case "wl_push_sleutel": case "wl_push_status": case "wl_push_uit": case "wl_push_aan": case "wl_push_test":
+        return json(await actieWlPush(b));
       case "avondplanner":
         if (!(await isSysteem(req))) return json({ error: "niet toegestaan" }, 401);
         return json(await actieAvondplanner(b));
