@@ -166,7 +166,7 @@ function bezwaar(w: any, naam: string, nu = nlNu()) {
 }
 
 async function avondRijen(datum: string) {
-  const { data } = await sb.from("wedstrijden").select("id, datum, tijdstip, thuis, uit, datum_nnb, status").eq("datum", datum).eq("datum_nnb", false);
+  const { data } = await sb.from("wedstrijden").select("id, datum, tijdstip, thuis, uit, datum_nnb, status, is_inhaal").eq("datum", datum).eq("datum_nnb", false);
   return (data || []).filter((x: any) => !isBye(x));
 }
 const telSpeler = (rijen: any[], naam: string, behalve: string) => rijen.filter((x) => x.id !== behalve && (x.thuis === naam || x.uit === naam)).length;
@@ -192,10 +192,13 @@ async function avondenVoor(w: any, ik: string, cfg: Cfg, nu = nlNu()) {
   });
 }
 
-/** Kies een tijdslot op de nieuwe avond: plek in het slot en zoveel mogelijk rust voor beide spelers. */
+/** Kies een tijdslot op de nieuwe avond. Verzette wedstrijden komen na de reguliere planning,
+ *  met plek in het slot en zoveel mogelijk rust voor beide spelers. */
 function kiesSlot(w: any, rijen: any[], cfg: Cfg) {
   const anderen = rijen.filter((x) => x.id !== w.id);
-  const opties = cfg.SLOTS.map((s) => {
+  const laatsteRegulier = Math.max(-1, ...anderen.filter((x) => !x.is_inhaal).map((x) => naarMin(x.tijdstip) ?? -1));
+  const naRegulier = cfg.SLOTS.filter((s) => naarMin(s.tijd)! > laatsteRegulier);
+  const opties = (naRegulier.length ? naRegulier : cfg.SLOTS).map((s) => {
     const m = naarMin(s.tijd)!;
     const bezet = anderen.filter((x) => x.tijdstip === s.tijd).length;
     const gaps = anderen.filter((x) => [x.thuis, x.uit].some((n) => n === w.thuis || n === w.uit))
