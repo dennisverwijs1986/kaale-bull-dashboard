@@ -115,7 +115,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 <div id="toast"></div>
 
-<script src="planner-kern.js?v=1"></script>
+<script src="planner-kern.js?v=2"></script>
 <script>
 // ══════════════════════════════════════════
 //  SUPABASE (zelfde koppeling als het dashboard)
@@ -144,16 +144,26 @@ const PT_SLOTS = [
   {tijd:'22:30',cap:3},{tijd:'22:50',cap:3}
 ];
 const AP = AvondPlanner.maak(PT_SLOTS);
-const { slotIndex, knelpunten, telKnelpunten, capaciteiten, optimaliseer, slotsMetSelectie, overvol } = AP;
+const { slotIndex, knelpunten, telKnelpunten, capaciteiten, optimaliseer, slotsMetSelectie, overvol, teVroeg, slotVanaf } = AP;
 
 // ══════════════════════════════════════════
 //  STATE & UI
 // ══════════════════════════════════════════
 let alleWedstrijden = [];
 let huidige = null;   // { datum, ms, orig, voorstel, cap, gekozen:Set }
+let LATER = new Map(); // "datum|naam" -> "20:30" ("Ik ben later" uit de spelers-app)
+const laterVan = (d, n) => LATER.get(d + '|' + n) || null;
+async function laadLater(){
+  try{
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/later_aanwezig`, { method:'POST', headers:HDR, body:'{}' });
+    if (r.ok) LATER = new Map((await r.json()).map(x => [x.datum + '|' + x.naam, String(x.tijd).slice(0,5)]));
+  }catch(e){ console.warn('later laden', e); }
+}
+const klok = (d, n) => { const t = laterVan(d, n); return t ? ` <span class="pill oranje" title="Is er rond ${t}">⏰ ${t}</span>` : ''; };
 
 async function laadAvonden(){
   const vandaag = lokaleDatumVandaag();
+  await laadLater();
   alleWedstrijden = await sbGet('wedstrijden',
     `datum=gte.${vandaag}&datum_nnb=not.is.true&tijdstip=not.is.null&select=id,datum,tijdstip,thuis,uit,divisie,status,bord,is_inhaal,originele_datum,datum_nnb&order=datum.asc,tijdstip.asc`);
   const perDatum = groepeer();
@@ -175,7 +185,8 @@ function groepeer(){
   for (const w of alleWedstrijden){
     if (slotIndex(w.tijdstip) < 0) continue;   // afwijkende tijden laten we buiten de planner
     if (!m.has(w.datum)) m.set(w.datum, []);
-    m.get(w.datum).push({...w, vast: w.status === 'gespeeld' || w.bord != null});
+    const laat = [w.thuis, w.uit].map(n => laterVan(w.datum, n)).filter(Boolean).sort().pop();
+    m.get(w.datum).push({...w, vast: w.status === 'gespeeld' || w.bord != null, laat: laat || null, vroegst: laat ? slotVanaf(laat) : null});
   }
   return m;
 }
@@ -208,21 +219,24 @@ function render(){
     const t1 = PT_SLOTS[slots[k.a]].tijd, t2 = PT_SLOTS[slots[k.b]].tijd;
     const soort = {zelfde:'2× in hetzelfde slot', direct:'direct achter elkaar', eenErtussen:'spelen → schrijven → spelen'}[k.soort];
     return `<div class="knelpunt"><strong>${escapeHtml(k.speler)}</strong> · <span class="tijd">${t1}</span> en <span class="tijd">${t2}</span> <span class="pill ${k.soort==='eenErtussen'?'oranje':'rood'}">${soort}</span></div>`;
-  }).join('') : '<div class="leeg">Geen knelpunten 🎉</div>';
+  }).join('') : '';
+  const laatHtml = slots => teVroeg(ms, slots).map(i => { const w = ms[i];
+    return `<div class="knelpunt"><strong>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}</strong> · <span class="tijd">${PT_SLOTS[slots[i]].tijd}</span> <span class="pill oranje">⏰ er pas rond ${w.laat}</span></div>`; }).join('');
+  const knelBlok = (lijst, slots) => (knelHtml(lijst, slots) + laatHtml(slots)) || '<div class="leeg">Geen knelpunten 🎉</div>';
 
   const schemaHtml = PT_SLOTS.map((s,si) => {
     const hier = ms.map((w,i)=>({w,i})).filter(x => naSlots[x.i] === si);
     if (!hier.length && si > Math.max(...orig)) return '';
     return `<tr class="slotrij"><td class="tijd">${s.tijd}</td><td>${hier.map(({w,i}) => {
       const verpl = naSlots[i] !== orig[i];
-      return `<span class="wcard ${verpl?'verplaatst':''} ${w.vast?'vast':''}"><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${verpl?`<span class="van">was ${PT_SLOTS[orig[i]].tijd}</span>`:''}</span>`;
+      return `<span class="wcard ${verpl?'verplaatst':''} ${w.vast?'vast':''}"><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)}${klok(datum,w.thuis)} – ${escapeHtml(w.uit)}${klok(datum,w.uit)}${verpl?`<span class="van">was ${PT_SLOTS[orig[i]].tijd}</span>`:''}</span>`;
     }).join('') || '<span class="leeg">—</span>'}</td><td style="width:44px;color:var(--muted);font-size:0.75rem;text-align:right">${hier.length}/${cap[si]}</td></tr>`;
   }).join('');
 
   const verschHtml = verschuivingen.length ? `<div>${
     verschuivingen.map(({i,s}) => { const w = ms[i]; const aan = gekozen.has(i); return `<label class="vrij ${aan?'':'uit'}">
       <input type="checkbox" ${aan?'checked':''} onchange="toggle(${i}, this.checked)">
-      <span class="wie"><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)} – ${escapeHtml(w.uit)}${w.is_inhaal?` <span class="pill rood">${w.originele_datum&&String(w.datum)<String(w.originele_datum)?'vooruit':'inhaal'}</span>`:''}</span>
+      <span class="wie"><span class="div-dot" style="background:${divKleur(w.divisie)}"></span>${escapeHtml(w.thuis)}${klok(datum,w.thuis)} – ${escapeHtml(w.uit)}${klok(datum,w.uit)}${w.is_inhaal?` <span class="pill rood">${w.originele_datum&&String(w.datum)<String(w.originele_datum)?'vooruit':'inhaal'}</span>`:''}</span>
       <span class="tijden"><span class="oud">${PT_SLOTS[orig[i]].tijd}</span><span class="pijl">→</span><span class="tijd">${PT_SLOTS[s].tijd}</span></span>
     </label>`; }).join('')
   }</div>` : '<div class="leeg">Deze avond staat al goed, er hoeft niets te schuiven.</div>';
@@ -238,6 +252,7 @@ function render(){
         <div class="stat"><div class="lbl">Direct achter elkaar</div><div class="val">${nu.direct} <small>→ ${na.direct}</small></div></div>
         <div class="stat"><div class="lbl">Eén slot ertussen</div><div class="val">${nu.eenErtussen} <small>→ ${na.eenErtussen}</small></div></div>
         <div class="stat"><div class="lbl">Dubbel in één slot</div><div class="val">${nu.zelfde} <small>→ ${na.zelfde}</small></div></div>
+        ${ms.some(w=>w.laat)?`<div class="stat"><div class="lbl">⏰ Te vroeg ingepland</div><div class="val">${teVroeg(ms,orig).length} <small>→ ${teVroeg(ms,naSlots).length}</small></div></div>`:''}
         <div class="stat"><div class="lbl">Te verschuiven</div><div class="val">${gekozen.size} <small>/ ${verschuivingen.length}</small></div></div>
       </div>
       <p class="uitleg" style="margin-top:10px">Elke speler minstens twee tijdsloten rust, alleen schuiven binnen deze avond.<span class="uitleg-lang"> Zo heeft niemand spelen, schrijven en weer spelen achter elkaar. De avond wordt niet later en de slotcapaciteit blijft gelijk. Gespeelde wedstrijden en wedstrijden die op een bord staan blijven waar ze zijn.</span></p>
@@ -257,8 +272,8 @@ function render(){
     </div>
 
     <div class="twee">
-      <div class="panel"><h2>Knelpunten nu</h2>${knelHtml(knelpunten(ms, orig), orig)}</div>
-      <div class="panel"><h2>Knelpunten na selectie</h2>${knelHtml(naLijst, naSlots)}</div>
+      <div class="panel"><h2>Knelpunten nu</h2>${knelBlok(knelpunten(ms, orig), orig)}</div>
+      <div class="panel"><h2>Knelpunten na selectie</h2>${knelBlok(naLijst, naSlots)}</div>
     </div>
 
     <div class="panel"><h2>Schema na selectie</h2><table><tbody>${schemaHtml}</tbody></table></div>`;

@@ -847,7 +847,7 @@ a.nav-dropdown-item{text-decoration:none;display:block;}
 
 <div class="toast" id="toast"></div>
 
-<script src="planner-kern.js?v=1"></script>
+<script src="planner-kern.js?v=2"></script>
 <script>
 // ── Weergave: ruime kaarten of compacte regels (onthouden per laptop) ──
 function zetWeergave(compact) {
@@ -867,6 +867,15 @@ const HDR = { 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':
 
 const sbGet    = async (t,q='')    => { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 const sbPost   = async (t,b)       => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+
+// "Ik ben later" uit de spelers-app (RPC later_aanwezig): "datum|naam" -> "20:30"
+let LATER = new Map();
+async function laadLater(){ try{ const r = await sbPost('rpc/later_aanwezig', {}); LATER = new Map((r||[]).map(x=>[x.datum+'|'+x.naam, String(x.tijd).slice(0,5)])); }catch(e){ console.warn('Later laden mislukt:', e); } }
+const laterVan = (d, n) => LATER.get(d+'|'+n) || null;
+function laterInfo(w){
+  if (!w || !w.datum || w.datum_nnb) return [];
+  return [w.thuis, w.uit].map(n => { const t = laterVan(w.datum, n); return t ? { naam:n, tijd:t, teVroeg: !!(w.tijdstip && w.tijdstip < t) } : null; }).filter(Boolean);
+}
 const sbPatch  = async (t,id,b)    => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 const sbDelete = async (t,id)      => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:HDR}); if(!r.ok) throw new Error(await r.text()); };
 
@@ -992,6 +1001,7 @@ async function laadData() {
     // Bordstand komt uit de database, zodat elk scherm (kroeg, thuis, telefoon) hetzelfde ziet
     if (bordVersie === bordSyncVersie) pasBordStandToe(wedstrijden, dcRows.filter(r=>r.sleutel.startsWith('bord_schrijver_')));
     try { WACHT = await sbGet('wachtlijst','select=id,wedstrijd_id,datum,door,aangemaakt_op&order=aangemaakt_op.asc'); } catch(e) { console.warn('Wachtlijst laden mislukt:', e); }
+    await laadLater();
     wachtOpruimen();
     setSync('ok','● VERBONDEN');
     bouwDatumFilter();
@@ -2264,6 +2274,7 @@ function maakMatchCard(m, nr, bezetteIds, bezetteSpelers, besteBord) {
         ${m.speelronde?`<span class="sr-label">SR ${m.speelronde}</span>`:''}
         ${origDatumBadge}
         ${isBlocked?'<span class="bezig-label" style="color:var(--red);font-size:0.65rem;">⛔ speler bezig</span>':''}
+        ${m.status==='gespeeld' ? '' : laterInfo(m).map(x => `<span class="${x.teVroeg?'rust-chip':'warn-chip'}" ${x.teVroeg?'':'style="background:rgba(245,158,11,0.15);color:#fcd34d;"'} title="${escapeHtml(x.naam)} is er rond ${escapeHtml(x.tijd)} (doorgegeven in de app)">⏰ ${escapeHtml(naamDelen(x.naam)[0])} ${escapeHtml(x.tijd)}${x.teVroeg?' · te vroeg':''}</span>`).join('')}
         ${rustC.map(c => { const ander = c.a.id === m.id ? c.b : c.a; return `<span class="rust-chip" title="${escapeHtml(c.speler)} heeft ook ${escapeHtml(ander.thuis)} – ${escapeHtml(ander.uit)} om ${escapeHtml(ander.tijdstip||'')}">⚠ ${escapeHtml(naamDelen(c.speler)[0])} ook om ${escapeHtml(ander.tijdstip||'')}</span>`; }).join('')}
         ${reeksC.map(r => `<span class="rust-chip" title="${escapeHtml(r.speler)} speelt ${r.aantal} wedstrijden in aaneengesloten tijdsloten (${escapeHtml(r.van||'')}–${escapeHtml(r.tot||'')})">⚠ ${escapeHtml(naamDelen(r.speler)[0])} ${r.aantal}x op rij</span>`).join('')}
       </div>

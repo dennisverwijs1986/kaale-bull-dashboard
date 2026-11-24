@@ -11,9 +11,10 @@
 //  Wedstrijden (ms) zijn objecten met thuis, uit, tijdstip en optioneel:
 //    vast:true        → mag niet schuiven (gespeeld, op een bord, ...)
 //    vrijeKeuze:true  → schuiven kost niets (bv. de wedstrijd die je net verzet)
+//    vroegst:<index>  → slot-index waarvóór de wedstrijd liever niet begint ("Ik ben later")
 // ══════════════════════════════════════════
 (function (global) {
-  const GEWICHT = { zelfde: 1000, direct: 10, eenErtussen: 4, verschuiving: 1 };
+  const GEWICHT = { zelfde: 1000, direct: 10, eenErtussen: 4, verschuiving: 1, teVroeg: 30 };
 
   function maak(SLOTS) {
     const slotIndex = tijd => SLOTS.findIndex(s => s.tijd === tijd);
@@ -41,7 +42,11 @@
     function kosten(ms, slots, orig) {
       let c = 0;
       for (const k of knelpunten(ms, slots)) c += GEWICHT[k.soort];
-      for (let i = 0; i < slots.length; i++) if (slots[i] !== orig[i] && !ms[i].vrijeKeuze) c += GEWICHT.verschuiving;
+      for (let i = 0; i < slots.length; i++) {
+        if (slots[i] !== orig[i] && !ms[i].vrijeKeuze) c += GEWICHT.verschuiving;
+        if (ms[i].vroegst != null && slots[i] < ms[i].vroegst) c += GEWICHT.teVroeg * (ms[i].vroegst - slots[i]);
+        else if (ms[i].vroegst != null && slots[i] !== orig[i]) c += 0.01 * (slots[i] - ms[i].vroegst);   // liefst zo dicht mogelijk bij de aankomsttijd
+      }
       return c;
     }
     function capaciteiten(orig, laatste) {
@@ -135,7 +140,13 @@
       return niveau;
     }
 
-    return { GEWICHT, slotIndex, spelersVan, knelpunten, telKnelpunten, kosten, capaciteiten, optimaliseer, slotsMetSelectie, overvol, rustNiveau };
+    // Wedstrijden die beginnen vóór de doorgegeven aankomsttijd (index-lijst)
+    const teVroeg = (ms, slots) => ms.map((w, i) => (w.vroegst != null && slots[i] < w.vroegst) ? i : -1).filter(i => i >= 0);
+    // Eerste slot-index op of na een kloktijd ("20:30")
+    const slotVanaf = tijd => { const m = /^(\d{1,2}):(\d{2})/.exec(tijd || ''); if (!m) return null; const min = +m[1] * 60 + +m[2];
+      const i = SLOTS.findIndex(s => { const t = /^(\d{1,2}):(\d{2})/.exec(s.tijd); return +t[1] * 60 + +t[2] >= min; }); return i < 0 ? SLOTS.length - 1 : i; };
+
+    return { teVroeg, slotVanaf, GEWICHT, slotIndex, spelersVan, knelpunten, telKnelpunten, kosten, capaciteiten, optimaliseer, slotsMetSelectie, overvol, rustNiveau };
   }
 
   global.AvondPlanner = { maak };

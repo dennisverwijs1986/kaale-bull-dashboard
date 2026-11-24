@@ -359,7 +359,7 @@ details.bk-wacht summary{padding:12px;font-size:.85rem;font-weight:800;color:var
 <section class="sheet" id="sheet" aria-modal="true" role="dialog"></section>
 <div class="toast" id="toast"></div>
 
-<script src="planner-kern.js?v=1"></script>
+<script src="planner-kern.js?v=2"></script>
 <script>
 // ══════════════════════════════════════════
 //  SUPABASE (zelfde project en sleutel als index.html)
@@ -372,6 +372,15 @@ const isVooruit = w => !!(w && w.is_inhaal && w.originele_datum && w.datum && St
 const inhaalLabel = w => isVooruit(w) ? 'Vooruit' : 'Inhaal';
 const sbGet   = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:HDR,cache:'no-store'}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 const sbPost  = async (t,b)    => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
+
+// "Ik ben later" uit de spelers-app (RPC later_aanwezig): "datum|naam" -> "20:30"
+let LATER = new Map();
+async function laadLater(){ try{ const r = await sbPost('rpc/later_aanwezig', {}); LATER = new Map((r||[]).map(x=>[x.datum+'|'+x.naam, String(x.tijd).slice(0,5)])); }catch(e){ console.warn('Later laden mislukt:', e); } }
+const laterVan = (d, n) => LATER.get(d+'|'+n) || null;
+function laterInfo(w){
+  if (!w || !w.datum || w.datum_nnb) return [];
+  return [w.thuis, w.uit].map(n => { const t = laterVan(w.datum, n); return t ? { naam:n, tijd:t, teVroeg: !!(w.tijdstip && w.tijdstip < t) } : null; }).filter(Boolean);
+}
 const sbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',headers:HDR,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json(); };
 
 // Zelfde vaste tijdsloten en regels als de Planning Tool / verzet-modal in index.html
@@ -498,7 +507,8 @@ async function laadData(stil){
       sbGet('wedstrijdleiding','select=naam&actief=eq.true&order=naam.asc'),
       laadBeker(),
       sbGet('instellingen','sleutel=eq.planning_kantel_dag&select=waarde').catch(()=>[]),
-      sbGet('wachtlijst','select=id,wedstrijd_id,datum,door,aangemaakt_op&order=aangemaakt_op.asc').catch(()=>[])
+      sbGet('wachtlijst','select=id,wedstrijd_id,datum,door,aangemaakt_op&order=aangemaakt_op.asc').catch(()=>[]),
+      laadLater()
     ]);
     WACHT = wachtRijen||[];
     wachtOpruimen();
@@ -788,6 +798,7 @@ function kaart(w, opts={}){
     w.speelronde ? `<span class="chip">SR ${esc(w.speelronde)}</span>` : '',
     w.bord ? `<span class="chip groen">🎯 Bord ${esc(w.bord)}</span>` : '',
     ...wachtVan(w.id).map(x=>`<span class="chip oranje">⏳ wacht ${esc(fmtKort(x.datum))}</span>`),
+    ...(gespeeld ? [] : laterInfo(w).map(x=>`<span class="chip ${x.teVroeg?'rood':'oranje'}" title="${esc(x.naam)} is er rond ${esc(x.tijd)}">⏰ ${esc(x.naam.split(' ')[0])} ${esc(x.tijd)}${x.teVroeg?' · te vroeg':''}</span>`)),
     conflict ? `<span class="chip rood">⚠ &lt;${MIN_RUST_MIN} min rust</span>` : '',
     w.notitie ? '<span class="chip">📝</span>' : '',
     gespeeld ? '<span class="chip groen">✓ gespeeld</span>' : ''
