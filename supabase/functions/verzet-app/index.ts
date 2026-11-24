@@ -174,7 +174,7 @@ const telSpeler = (rijen: any[], naam: string, behalve: string) => rijen.filter(
 /** Speelavonden om naartoe te verzetten, met drukte vanuit het perspectief van `ik`. */
 async function avondenVoor(w: any, ik: string, cfg: Cfg, nu = nlNu()) {
   const tot = horizon(nu.datum, cfg.kantel);
-  const vanaf = nu.min < DEADLINE_MIN ? nu.datum : plusDagen(nu.datum, 1);
+  const vanaf = plusDagen(nu.datum, 1);   // nooit naar vanavond: op de speeldag zelf alleen "Ik ben later" / afmelden
   const { data } = await sb.from("wedstrijden").select("id, datum, tijdstip, thuis, uit, datum_nnb, status")
     .gte("datum", vanaf).lte("datum", tot).eq("datum_nnb", false);
   const rijen = (data || []).filter((x: any) => !isBye(x));
@@ -402,7 +402,7 @@ async function actieVoorstel(b: any) {
   const w = await wedstrijd(b.wedstrijd_id);
   const bz = bezwaar(w, sp.naam); if (bz) throw new Fout(bz);
   const nu = nlNu();
-  if (b.datum === nu.datum && nu.min >= DEADLINE_MIN) throw new Fout("Verzetten naar vanavond kon tot 10:00.");
+  if (b.datum <= nu.datum) throw new Fout("Verzetten naar vanavond kan niet. Kies een latere avond.");
   const reden = String(b.reden || "").trim().slice(0, 300) || null;
   const { v, avond } = await maakVoorstel(w, sp, b.datum, reden, cfg);
   return { ok: true, voorstel_id: v.id, soort: v.soort, proef: v.proef, tegenstander: tegenstanderVan(w, sp.naam), avond, vervalt_at: v.vervalt_at };
@@ -554,7 +554,7 @@ async function actieTegenvoorstel(b: any) {
   const ik = await spelerOpNaam(ikNaam);
   if (!ik) throw new Fout("Speler niet gevonden.");
   const nu = nlNu();
-  if (b.datum === nu.datum && nu.min >= DEADLINE_MIN) throw new Fout("Verzetten naar vanavond kon tot 10:00.");
+  if (b.datum <= nu.datum) throw new Fout("Verzetten naar vanavond kan niet. Kies een latere avond.");
   const bz = bezwaar(w, ikNaam); if (bz) throw new Fout(bz);
   await sluitAf(v, "tegenvoorstel");
   const reden = String(b.reden || "").trim().slice(0, 300) || null;
