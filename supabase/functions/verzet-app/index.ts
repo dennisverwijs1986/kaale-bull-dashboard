@@ -34,8 +34,9 @@ import { esc, KLEUR, datumKort, datumLang, tekstRij, detailKaart, knop, mailHtml
 // ══════════════════════════════════════════════════════════════════════
 
 const APP = "https://dennisverwijs1986.github.io/kaale-bull-dashboard/schema/";
-const DEADLINE_MIN = 19 * 60;              // speeldag zelf: wedstrijd van vanavond verzetten/afmelden tot 19:00
-const VERVAL_ZELFDE_DAG_MIN = 19 * 60;     // verzoek op de speeldag: bevestigen vóór 19:00
+const DEADLINE_MIN = 10 * 60 + 10;         // speelavond zelf: verzoeken tot 10:10 (spelers horen 10:00)
+const AFMELD_DEADLINE_MIN = 19 * 60;       // speeldag zelf: afmelden voor vanavond kan tot 19:00
+const VERVAL_ZELFDE_DAG_MIN = 16 * 60;     // voorstel voor dezelfde avond: bevestigen vóór 16:00
 const MIN_RUST = 20;
 const HERINNER_NA_DAGEN = 3;
 const VERVAL_NA_DAGEN = 7;
@@ -152,7 +153,7 @@ const tegenstanderVan = (w: any, naam: string) => (w.thuis === naam ? w.uit : w.
 const isBeker = (w: any) => /^beker/i.test(String(w.divisie || ""));
 
 /** Mag deze wedstrijd (nog) verzet/afgemeld worden door deze speler? Geeft een reden terug als het niet mag. */
-function bezwaar(w: any, naam: string, nu = nlNu()) {
+function bezwaar(w: any, naam: string, nu = nlNu(), afmelden = false) {
   if (w.thuis !== naam && w.uit !== naam) return "Dit is niet jouw wedstrijd.";
   if (isBye(w)) return "Een vrije ronde kan niet verzet worden.";
   if (gespeeld(w)) return "Deze wedstrijd is al gespeeld.";
@@ -160,7 +161,8 @@ function bezwaar(w: any, naam: string, nu = nlNu()) {
   if (!w.datum_nnb && w.datum) {
     const d = String(w.datum);
     if (d < nu.datum) return "Deze wedstrijd ligt al in het verleden. Neem contact op met de wedstrijdleiding.";
-    if (d === nu.datum && nu.min >= DEADLINE_MIN) return "Wijzigen voor vanavond kon tot 19:00. Neem contact op met de wedstrijdleiding.";
+    if (d === nu.datum && afmelden && nu.min >= AFMELD_DEADLINE_MIN) return "Afmelden voor vanavond kon tot 19:00. Neem contact op met de wedstrijdleiding.";
+    if (d === nu.datum && !afmelden && nu.min >= DEADLINE_MIN) return "Verzetten van vanavond kon tot 10:00. Kun je niet? Meld je af voor vanavond (kan tot 19:00).";
   }
   return null;
 }
@@ -272,7 +274,7 @@ async function meldVoorstel(v: any, w: any, vanNaam: string, naarId: string | nu
     [tegen ? "Tegenvoorstel" : "Voorstel", `<strong style="font-size:18px;">${esc(datumLang(v.nieuwe_datum))}</strong>`],
     ...(v.reden ? [["Toelichting", esc(v.reden)] as [string, string]] : []),
   ]);
-  const zelfdeDag = v.vervalt_at ? "Reageer graag vóór 19:00 vandaag, anders vervalt het verzoek en blijft de wedstrijd vanavond staan." : `Reageer graag binnen ${HERINNER_NA_DAGEN} dagen. Zonder reactie vervalt het verzoek na ${VERVAL_NA_DAGEN} dagen.`;
+  const zelfdeDag = v.vervalt_at ? "Reageer graag vóór 16:00 vandaag, anders vervalt het verzoek." : `Reageer graag binnen ${HERINNER_NA_DAGEN} dagen. Zonder reactie vervalt het verzoek na ${VERVAL_NA_DAGEN} dagen.`;
   await mail({
     naar: naarMails, proefVoor: o.test ? naarNaam : null,
     onderwerp: `${tegen ? "Tegenvoorstel" : "Verzoek"}: ${w.thuis} vs ${w.uit}`,
@@ -334,7 +336,7 @@ function gewijzigdSinds(v: any, w: any) {
 async function actieStatus(b: any) {
   const cfg = await config();
   const naam = String(b.naam || "");
-  return { actief: !!naam && actiefVoor(naam, cfg), deadline: "19:00" };
+  return { actief: !!naam && actiefVoor(naam, cfg), deadline: "10:00" };
 }
 
 async function voorstelSamenvatting(v: any, ikId: string) {
@@ -484,7 +486,7 @@ async function verwerkAntwoord(v: any, b: any, viaWl: boolean) {
   // ── Akkoord ──
   if (v.vervalt_at && Date.now() > Date.parse(v.vervalt_at)) {
     await sluitAf(v, "verlopen");
-    throw new Fout("Dit verzoek voor vandaag is verlopen (bevestigen kon tot 19:00).");
+    throw new Fout("Dit verzoek voor vandaag is verlopen (bevestigen kon tot 16:00).");
   }
   if (String(v.nieuwe_datum) < nu.datum) { await sluitAf(v, "verlopen"); throw new Fout("Die avond is al voorbij."); }
   const rijen = await avondRijen(String(v.nieuwe_datum));
@@ -600,7 +602,7 @@ async function actieAfmelden(b: any) {
   const { data: ws } = await sb.from("wedstrijden").select("*").in("id", ids);
   const lijst = (ws || []).filter((w: any) => String(w.datum) === b.datum && !w.datum_nnb);
   if (lijst.length !== ids.length) throw new Fout("Een of meer wedstrijden staan niet (meer) op deze avond. Ververs de app.");
-  for (const w of lijst) { const bz = bezwaar(w, sp.naam, nu); if (bz) throw new Fout(bz); }
+  for (const w of lijst) { const bz = bezwaar(w, sp.naam, nu, true); if (bz) throw new Fout(bz); }
   const proef = lijst.some((w: any) => proefVoor(tegenstanderVan(w, sp.naam), cfg));
   const door = `${sp.naam} (afgemeld via de app)`;
   for (const w of lijst) {
