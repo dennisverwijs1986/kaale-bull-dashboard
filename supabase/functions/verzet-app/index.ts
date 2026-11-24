@@ -747,10 +747,16 @@ async function actieWlOverzicht(b: any) {
       beantwoord_at: v.beantwoord_at, vervalt_at: v.vervalt_at, reden_keuze: v.reden_keuze,
       via_wl: String(v.antwoord_reden || "").startsWith("[via WL]") };
   };
-  return {
-    open: (open || []).map(rij), afgehandeld: (klaar || []).map(rij),
-    acties: (acties || []).map((a: any) => ({ id: a.id, soort: a.soort, speler: naam.get(a.speler_id) || "?", datum: a.datum, tijd: a.tijd, aantal: (a.wedstrijd_ids || []).length, created_at: a.created_at })),
-  };
+  // Afmeldingen alleen tonen zolang er nog wedstrijden van op NNB staan (opnieuw ingepland = klaar)
+  const afIds = [...new Set((acties || []).filter((a: any) => a.soort === "afmelding").flatMap((a: any) => a.wedstrijd_ids || []))];
+  const { data: nogNnb } = afIds.length ? await sb.from("wedstrijden").select("id").in("id", afIds).eq("datum_nnb", true) : { data: [] };
+  const nnb = new Set((nogNnb || []).map((x: any) => x.id));
+  const lijstActies = (acties || []).map((a: any) => {
+    const ids = (a.wedstrijd_ids || []) as string[];
+    const aantal = a.soort === "afmelding" ? ids.filter((i) => nnb.has(i)).length : ids.length;
+    return { id: a.id, soort: a.soort, speler: naam.get(a.speler_id) || "?", datum: a.datum, tijd: a.tijd, aantal, created_at: a.created_at };
+  }).filter((a: any) => a.soort !== "afmelding" || a.aantal > 0);
+  return { open: (open || []).map(rij), afgehandeld: (klaar || []).map(rij), acties: lijstActies };
 }
 
 async function isSysteem(req: Request) {

@@ -2248,7 +2248,7 @@ function htmlAanvr(){
     lijst = d.afgehandeld.length ? d.afgehandeld.map(avRij).join('') : `<div class="leeg">De afgelopen 7 dagen niets afgehandeld.</div>`;
   } else {
     lijst = d.acties.length ? [...d.acties].sort((x,y)=>String(y.datum).localeCompare(String(x.datum))).map(a=>`<div class="av-rij"><div class="av-kop"><b>${esc(a.speler)}</b><span class="av-stat ${a.soort==='later'?'blauw':'rood'}">${a.soort==='later'?'Later':'Afgemeld'}</span></div>
-      <div class="av-sub">${a.soort==='later'?`is er rond ${esc(a.tijd)} op ${esc(fmtKort(a.datum))}`:`${esc(fmtKort(a.datum))} · ${a.aantal} wedstrijd${a.aantal===1?'':'en'} op NNB`} · ${esc(avTijd(a.created_at))}</div></div>`).join('')
+      <div class="av-sub">${a.soort==='later'?`is er rond ${esc(a.tijd)} op ${esc(fmtKort(a.datum))}`:`${esc(fmtKort(a.datum))} · nog ${a.aantal} wedstrijd${a.aantal===1?'':'en'} op NNB`} · ${esc(avTijd(a.created_at))}</div></div>`).join('')
       : `<div class="leeg">Geen afmeldingen of 'later' doorgegeven.</div>`;
   }
   return `<h2 class="av-h">Aanvragen van spelers</h2>${AV.fout?`<div class="fout-box">⚠ ${esc(AV.fout)}</div>`:''}
