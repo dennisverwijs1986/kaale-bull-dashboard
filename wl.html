@@ -89,6 +89,14 @@ a.icon-btn{color:var(--text);text-decoration:none;}
 .pl-knel .soort{font-size:.7rem;font-weight:800;padding:1px 6px;border-radius:6px;margin-left:4px;white-space:nowrap;}
 .pl-knel .soort.krap{background:rgba(245,158,11,.15);color:var(--orange);}
 .pl-knel .soort.rood{background:rgba(239,68,68,.15);color:var(--red);}
+.pl-auto{background:rgba(59,130,246,.08);border:1.5px solid var(--blue);border-radius:12px;padding:12px 14px;margin:0 0 12px;}
+.pl-auto.klaar{border-color:var(--border);background:var(--s1);}
+.pl-auto-kop{font-weight:800;font-size:.95rem;}
+.pl-auto-sub{font-size:.8rem;color:var(--muted);margin-top:4px;line-height:1.45;}
+.pl-auto-r{font-size:.85rem;padding:6px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:8px;}
+.pl-auto-r:first-of-type{margin-top:8px;}
+.pl-auto-r .t{white-space:nowrap;color:var(--muted);} .pl-auto-r .t b{color:var(--text);}
+.pl-auto-k{font-size:.8rem;color:var(--orange);margin-top:6px;}
 .pl-balk{position:sticky;bottom:calc(66px + var(--bot));z-index:20;display:flex;gap:8px;margin:12px -16px 0;padding:10px 16px;background:rgba(15,21,32,.96);border-top:1px solid var(--border);backdrop-filter:blur(6px);}
 .pl-balk .btn{flex:1;min-height:46px;}
 .pl-balk .btn-pri{flex:2;}
@@ -547,7 +555,8 @@ const PL_SOORT = { zelfde:['2× in hetzelfde slot','rood'], direct:['direct acht
 
 function plWedstrijden(d){
   return W.filter(w=>w.datum===d && !w.datum_nnb && ap().slotIndex(w.tijdstip)>=0)
-    .map(w=>({...w, vast: w.status==='gespeeld' || w.bord!=null}));
+    .map(w=>{ const laat=[w.thuis,w.uit].map(n=>laterVan(d,n)).filter(Boolean).sort().pop()||null;
+      return {...w, vast: w.status==='gespeeld' || w.bord!=null, laat, vroegst: laat ? ap().slotVanaf(laat) : null}; });
 }
 function plTel(d){
   const ms=plWedstrijden(d); const AP=ap();
@@ -558,7 +567,8 @@ function updatePlanBadge(){
   const b=$('#planBadge'); if(!b || !geladen) return;
   const v=vandaag();
   const tot=plGedeeldTot();
-  const n=avonden().filter(d=>d>=v && d<=tot && plTel(d)>0).length;
+  const open=new Set(avPlanner().filter(p=>p.status==='open').map(p=>p.datum));
+  const n=new Set([...avonden().filter(d=>d>=v && d<=tot && plTel(d)>0), ...open]).size;
   b.hidden=!n; b.textContent=n;
 }
 function plKiesAvond(d){ PL.datum=d; render(); }
@@ -603,6 +613,49 @@ function plKnelHtml(ms, slots){
   }).join('')}</div>`;
 }
 
+function avPlanner(){ try{ return (AV.data && AV.data.planner) || []; }catch(e){ return []; } }   // AV wordt verderop gedeclareerd
+// ── Automatische avondplanner (voorstel van de server, 20:00 de avond ervoor en 10:11 op de speeldag) ──
+function plAutoOpen(d){ return avPlanner().find(p=>p.datum===d && p.status==='open') || null; }
+function plAutoHtml(d){
+  const lijst=avPlanner();
+  const p=lijst.find(x=>x.datum===d);
+  const anderOpen=lijst.filter(x=>x.status==='open' && x.datum!==d);
+  const elders = anderOpen.map(x=>`<button class="btn btn-sec" style="width:100%;margin:0 0 12px" onclick="plKiesAvond(${jsAttr(x.datum)})">🧩 Voorstel avondplanner voor ${esc(fmtKort(x.datum))} wacht op akkoord ›</button>`).join('');
+  if(!pushWw()) return elders + `<div class="pl-auto klaar"><div class="pl-auto-sub">Log in bij Aanvragen (beheerwachtwoord) om de voorstellen van de automatische avondplanner te zien en goed te keuren.</div></div>`;
+  if(!p) return elders;
+  const regels=(p.verschuivingen||[]).map(x=>`<div class="pl-auto-r"><span>${esc(x.thuis)} – ${esc(x.uit)}</span><span class="t">${esc(x.van)} → <b>${esc(x.naar)}</b></span></div>`).join('');
+  const knel=(p.knelpunten||[]).length ? `<div class="pl-auto-k">⚠ Niet op te lossen binnen de avond:<br>${p.knelpunten.map(esc).join('<br>')}</div>` : '';
+  if(p.status!=='open'){
+    const wat={goedgekeurd:'Goedgekeurd',zo_laten:'Zo gelaten',handmatig:'Zelf ingedeeld',auto:'Om 12:00 automatisch doorgevoerd',niets_nodig:'Niets te schuiven',vervangen:'Vervangen'}[p.status]||p.status;
+    return elders + `<div class="pl-auto klaar"><div class="pl-auto-kop">🧩 Avondplanner · ${esc(wat)}</div><div class="pl-auto-sub">${p.besloten_door&&p.status!=='niets_nodig'?`door ${esc(p.besloten_door)} · `:''}${esc(avTijd(p.besloten_at||p.created_at))}</div>${p.status==='niets_nodig'?'':regels}${knel}</div>`;
+  }
+  const vandaagD=d===vandaag();
+  const sub = vandaagD
+    ? 'De spelers krijgen hun tijden (ochtendmail en push) pas na je besluit, op z’n vroegst om 10:15. Zonder besluit voert de planner dit om 12:00 zelf door.'
+    : 'Keur je nu goed, dan staat het er meteen in. Op de speeldag om 10:11 rekent de planner nog één keer (na de verzet-deadline).';
+  return elders + `<div class="pl-auto"><div class="pl-auto-kop">🧩 Voorstel avondplanner · ${esc(fmtKort(d))}</div>
+    <div class="pl-auto-sub">Berekend ${esc(avTijd(p.created_at))}, met ‘Ik ben later’ erin. ${sub}</div>${regels}${knel}
+    <div class="av-knop">${PL.autoBezig?'<div class="av-sub">Bezig…</div>':`<button class="btn btn-pri" onclick="plAutoBesluit(${jsAttr(p.id)},'goedkeuren')">✓ Goedkeuren (${(p.verschuivingen||[]).length})</button><button class="btn" onclick="plAutoBesluit(${jsAttr(p.id)},'zo_laten')">Zo laten</button>`}</div></div>`;
+}
+async function plAutoBesluit(id, besluit, stil){
+  if(!stil){
+    const vraag = besluit==='goedkeuren' ? 'Voorstel van de avondplanner doorvoeren?\n\nSpelers krijgen geen verzetmail; de app, agenda en de ochtendmail tonen de nieuwe tijden.'
+      : 'Niets schuiven en de avond laten zoals hij staat?';
+    if(!confirm(vraag)) return;
+  }
+  PL.autoBezig=true; if(!stil) render();
+  try{
+    const r = await fetch(VZ_FN,{ method:'POST', headers:{ 'Content-Type':'application/json', apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` },
+      body:JSON.stringify({ actie:'wl_planner', wachtwoord:pushWw(), id, besluit, door: lsGet('wl_door') || 'Wedstrijdleiding' }) });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok) toast(d.error || 'Dat lukte niet.','rood');
+    else if(d.gewijzigd && !d.leeg) toast('De avond was intussen gewijzigd: hier is een nieuw voorstel.','rood');
+    else if(!stil) toast(besluit==='goedkeuren' ? `✓ ${d.doorgevoerd ?? 0} verschoven${d.vrijgegeven?' · mail en push zijn verstuurd':''}` : `Zo gelaten${d.vrijgegeven?' · mail en push zijn verstuurd':''}`,'groen');
+  }catch(e){ toast('Geen verbinding.','rood'); }
+  PL.autoBezig=false; PL.cache={};
+  await laadAanvr(true); await laadData(true);
+}
+
 function htmlPlan(){
   const v=vandaag();
   const datums=avonden().filter(d=>d>=v);
@@ -610,8 +663,9 @@ function htmlPlan(){
   if(!PL.datum || !datums.includes(PL.datum)) PL.datum = datums.find(d=>plTel(d)>0) || datums[0];
   const d=PL.datum;
   const kop = plDatumChips(d) + `<div class="pl-uitleg">Elke speler minstens twee tijdsloten rust, zodat niemand spelen, schrijven en weer spelen achter elkaar heeft. Alleen schuiven binnen de avond, geen mail.${d>plGedeeldTot()?'<br>🔒 Deze avond is nog niet met de leden gedeeld.':''}</div>`;
+  const auto=plAutoHtml(d);
   const vs=plVoorstel(d);
-  if(vs.rekenen) return kop + '<div class="leeg">🧩 Avond doorrekenen…</div>';
+  if(vs.rekenen) return auto + kop + '<div class="leeg">🧩 Avond doorrekenen…</div>';
 
   const AP=ap(); const { ms, orig, voorstel, gekozen, cap } = vs;
   const nu=AP.telKnelpunten(AP.knelpunten(ms, orig));
@@ -628,7 +682,7 @@ function htmlPlan(){
   </div>`;
 
   if(!versch.length){
-    return kop + stats + (totNu
+    return auto + kop + stats + (totNu
       ? `<div class="warn"><div>⚠ Hier vindt de planner geen betere indeling binnen de avond. Kijk of een wedstrijd naar een andere avond kan.</div></div><div class="sec-title">Knelpunten</div>${plKnelHtml(ms, orig)}`
       : '<div class="leeg">Deze avond staat goed 🎯<br>Iedereen heeft genoeg rust.</div>');
   }
@@ -648,8 +702,8 @@ function htmlPlan(){
     return `<div class="pl-slot"><span class="t">${sl.tijd}</span><div class="w">${hier.map(({w,i})=>`<div class="${naSlots[i]!==orig[i]?'nieuw':''}">${esc(w.thuis)} – ${esc(w.uit)}${naSlots[i]!==orig[i]?` <span class="muted">(was ${PT_SLOTS[orig[i]].tijd})</span>`:''}</div>`).join('')}</div></div>`;
   }).join('');
 
-  return kop + stats + `
-    <div class="sec-title">Voorgestelde verschuivingen</div>
+  return auto + kop + stats + `
+    <div class="sec-title">${auto?'Zelf kiezen':'Voorgestelde verschuivingen'}</div>
     <div class="pl-lijst">${rijen}</div>
     ${melding}
     ${totNa ? `<div class="sec-title">Knelpunten na selectie</div>${plKnelHtml(ms, naSlots)}` : ''}
@@ -694,6 +748,8 @@ async function plDoorvoeren(){
       }catch(e){ fouten++; console.error(e); }
     }
     toast(`✓ ${gelukt} verschoven${fouten?` · ${fouten} mislukt`:''}`, fouten?'rood':'groen');
+    const open=plAutoOpen(d);
+    if(open && gelukt) await plAutoBesluit(open.id,'handmatig',true);
   }catch(e){ toast(`Fout: ${e.message}`,'rood'); }
   PL.bezig=false; delete PL.cache[d];
   await laadData(true);
@@ -2201,7 +2257,8 @@ async function laadAanvr(force){
   AV.bezig=false;
   const b=$('#aanvrBadge'); const n = AV.data ? AV.data.open.length : 0;
   if(b){ b.hidden=!n; b.textContent=n; }
-  if(S.view==='aanvr') render();
+  if(S.view==='aanvr' || S.view==='plan') render();
+  updatePlanBadge();
 }
 function avLogin(){
   const ww=($('#avWw')||{}).value||'';
@@ -2271,6 +2328,7 @@ setInterval(()=>{ if(document.visibilityState==='visible') laadAanvr(); }, 60000
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') laadAanvr(); });
 laadAanvr(true);
 if(new URLSearchParams(location.search).get('view')==='aanvragen') setTimeout(()=>naarView('aanvr'), 0);
+if(new URLSearchParams(location.search).get('view')==='plan') setTimeout(()=>{ const o=avPlanner().find(p=>p.status==='open'); if(o) PL.datum=o.datum; naarView('plan'); }, 0);
 
 laadData(true);
 </script>

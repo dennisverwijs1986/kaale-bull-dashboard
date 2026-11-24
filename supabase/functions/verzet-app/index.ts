@@ -27,8 +27,12 @@ import "./planner-kern.js";   // zet globalThis.AvondPlanner (zelfde rekenkern a
 //    wl_overzicht  { wachtwoord }                   -> beheerwachtwoord van spelerbeheer
 //    wl_besluit    { wachtwoord, id, besluit }      -> akkoord/afwijzen namens de tegenstander
 //  Systeem (x-cron-secret of service role):
-//    opvolging                                      -> elk uur: herinneren / laten vervallen (+ 10:05 speeldag: autoLater)
+//    opvolging                                      -> elk uur: herinneren / laten vervallen
 //    auto_later    { datum?, proef? }               -> handmatig de "later"-indeling draaien (standaard alleen tonen)
+//    avondplanner  { fase:'vooraf'|'speeldag'|'deadline', datum?, proef? }
+//                  -> automatische avondplanner (cron 20:00 de avond ervoor, 10:11 en 12:00 op de speeldag)
+//  Wedstrijdleiding (avondplanner):
+//    wl_planner    { wachtwoord, id, besluit:'goedkeuren'|'zo_laten'|'handmatig' }
 //
 //  Schakelaar instellingen.verzetten_app: 'uit', komma-lijst met namen, of 'iedereen'.
 //  PROEF: zolang niet 'iedereen' en de tegenstander geen tester is, gaan de berichten voor de
@@ -270,10 +274,14 @@ async function push(spelers: string[], titel: string, tekst: string, url: string
   } catch (e) { console.error("push mislukt", e); }
 }
 /** Melding aan de wedstrijdleiding: push aan de WL-spelers + mail naar het WL-adres. */
-async function wlPush(cfg: Cfg, tekst: string, titel = "🎯 Wedstrijdleiding") {
-  await push(cfg.wlSpelers, titel, tekst, "../wl.html?view=aanvragen", "wl_melding");
+async function wlPush(cfg: Cfg, tekst: string, titel = "🎯 Wedstrijdleiding", opts: { view?: string; regels?: string[]; mailTekst?: string } = {}) {
+  const view = opts.view || "aanvragen";
+  await push(cfg.wlSpelers, titel, tekst, `../wl.html?view=${view}`, "wl_melding");
+  const mt = opts.mailTekst || tekst;
+  const lijst = opts.regels?.length ? tekstRij(`<ul style="margin:0;padding-left:18px;">${opts.regels.map((r) => `<li style="margin:2px 0;">${esc(r)}</li>`).join("")}</ul>`, "10px 24px 0 24px") : "";
   if (cfg.wlMail) await mail({ naar: [cfg.wlMail], onderwerp: `${titel.replace(/^\S+\s/, "")}: ${tekst.slice(0, 60)}`, kopKlein: "Wedstrijdleiding", kopGroot: titel.replace(/^\S+\s/, ""),
-    rijen: tekstRij(`<p style="margin:0;">${esc(tekst)}</p>`) + knop("Open de WL-app", "https://dennisverwijs1986.github.io/kaale-bull-dashboard/wl.html?view=aanvragen"), tekst });
+    rijen: tekstRij(`<p style="margin:0;">${esc(mt)}</p>`) + lijst + knop("Open de WL-app", `https://dennisverwijs1986.github.io/kaale-bull-dashboard/wl.html?view=${view}`),
+    tekst: mt + (opts.regels?.length ? "\n\n" + opts.regels.map((r) => "- " + r).join("\n") : "") });
 }
 const aanvraagUrl = (token: string) => `${APP}?aanvraag=${token}`;
 /** Link naar de app die meteen het schema van deze speler opent (ook in de browser, zonder naam kiezen). */
@@ -807,10 +815,194 @@ async function actieOpvolging() {
     }
   }
   await sluitMail();
-  // Speeldag tussen 10:00 en 10:15 (vóór de ochtendmail van 10:15): avondplanner voor "later"
-  let later = null;
-  if (nu.min >= 10 * 60 && nu.min < 10 * 60 + 15) later = await autoLater().catch((e) => ({ fout: String(e) }));
-  return { ok: true, open: (open || []).length, herinnerd, verlopen, later };
+  // "Ik ben later" zit sinds 24-11-2026 in de automatische avondplanner (10:11, zie actieAvondplanner).
+  return { ok: true, open: (open || []).length, herinnerd, verlopen };
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  AUTOMATISCHE AVONDPLANNER (24-11-2026)
+//  20:00 de avond ervoor  -> voorstel voor morgen, WL kan alvast goedkeuren
+//  10:11 op de speeldag   -> opnieuw rekenen (na de verzet-deadline, incl. "Ik ben later");
+//                            is er iets te schuiven, dan wacht de ochtendmail/push op akkoord van de WL
+//  12:00 op de speeldag   -> nog geen akkoord: de planner voert het voorstel zelf door
+//  Speeldag-mail en -push gaan via verstuur_speeldag(): om 10:15 als er geen open voorstel is,
+//  anders direct na het besluit (nooit vóór 10:15, nooit twee keer).
+//  Onoplosbare knelpunten worden alleen gemeld, niet geforceerd.
+// ══════════════════════════════════════════════════════════════════════
+const MAIL_MIN = 10 * 60 + 15;
+
+async function plannerInvoer(datum: string, cfg: Cfg) {
+  const AP = (globalThis as any).AvondPlanner.maak(cfg.SLOTS);
+  const { data: later } = await sb.from("speler_acties").select("speler_id, tijd").eq("soort", "later").eq("datum", datum);
+  const namen = new Map<string, string>();
+  for (const l of (later || []) as any[]) { const n = await naamVan(l.speler_id); if (n) namen.set(n, String(l.tijd).slice(0, 5)); }
+  const { data: ws } = await sb.from("wedstrijden").select("*").eq("datum", datum).eq("datum_nnb", false)
+    .order("tijdstip", { ascending: true }).order("id", { ascending: true });
+  const ms = ((ws || []) as any[]).filter((w) => !isBye(w) && AP.slotIndex(w.tijdstip) >= 0).map((w) => {
+    const laat = [w.thuis, w.uit].map((n: string) => namen.get(n)).filter(Boolean).sort().pop() || null;
+    return { ...w, vast: gespeeld(w) || w.bord != null, laat, vroegst: laat ? AP.slotVanaf(laat) : null };
+  });
+  const sig = ms.map((w) => `${w.id}@${w.tijdstip}@${w.vroegst ?? ""}${w.vast ? "!" : ""}`).sort().join("|");
+  return { AP, ms, sig };
+}
+
+function plannerReken(inv: Awaited<ReturnType<typeof plannerInvoer>>, cfg: Cfg) {
+  const { AP, ms } = inv;
+  if (!ms.length) return { verschuivingen: [], knelpunten: [], knelVoor: 0 };
+  const orig = ms.map((w: any) => AP.slotIndex(w.tijdstip));
+  const na = AP.optimaliseer(ms);
+  const T = (i: number) => cfg.SLOTS[i].tijd;
+  const verschuivingen = ms.map((w: any, i: number) => ({ id: w.id, thuis: w.thuis, uit: w.uit, divisie: w.divisie || null, van: T(orig[i]), naar: T(na[i]) }))
+    .filter((x: any) => x.van !== x.naar).sort((a: any, b: any) => a.van.localeCompare(b.van));
+  const SOORT: Record<string, string> = { zelfde: "2× in hetzelfde slot", direct: "direct achter elkaar", eenErtussen: "spelen → schrijven → spelen" };
+  const knelpunten = [
+    ...AP.knelpunten(ms, na).map((k: any) => `${k.speler}: ${T(na[k.a])} en ${T(na[k.b])} (${SOORT[k.soort]})`),
+    ...AP.teVroeg(ms, na).map((i: number) => `${ms[i].thuis} – ${ms[i].uit} om ${T(na[i])}, er pas rond ${ms[i].laat}`),
+  ];
+  const knelVoor = AP.knelpunten(ms, orig).length + AP.teVroeg(ms, orig).length;
+  return { verschuivingen, knelpunten, knelVoor };
+}
+
+/** Verschuivingen doorvoeren (alleen als de wedstrijd nog op de oude tijd staat). */
+async function plannerToepassen(datum: string, lijst: any[], door: string) {
+  let gelukt = 0;
+  for (const x of lijst) {
+    const { data } = await sb.from("wedstrijden").update({ tijdstip: x.naar }).eq("id", x.id).eq("datum", datum).eq("tijdstip", x.van).select("id");
+    if (!data?.length) continue;
+    gelukt++;
+    await sb.from("wijziging_log").insert({
+      wedstrijd_id: x.id, thuis: x.thuis, uit: x.uit, divisie: x.divisie || null, actie: "verzet",
+      oude_datum: datum, nieuwe_datum: datum, oude_tijdstip: x.van, nieuwe_tijdstip: x.naar,
+      gewijzigd_door: door, notitie: "Ander tijdslot (zelfde avond) – avondplanner", mail_verstuurd: false,
+    });
+  }
+  return gelukt;
+}
+
+/** Ochtendmail + speeldag-push vrijgeven (idempotent; alleen vandaag en vanaf 10:15). */
+async function plannerVrijgeven(datum: string, via: string) {
+  const nu = nlNu();
+  if (datum !== nu.datum || nu.min < MAIL_MIN) return false;
+  const { data, error } = await sb.rpc("verstuur_speeldag", { d: datum, via });
+  if (error) console.error("verstuur_speeldag", error);
+  return data === true;
+}
+
+const regelsVan = (lijst: any[]) => lijst.map((x) => `${x.thuis} – ${x.uit}: ${x.van} → ${x.naar}`);
+const meervoud = (n: number, een: string, meer: string) => `${n} ${n === 1 ? een : meer}`;
+
+async function actieAvondplanner(b: any) {
+  const nu = nlNu();
+  const fase = String(b.fase || "");
+  if (!["vooraf", "speeldag", "deadline"].includes(fase)) throw new Fout("Onbekende fase");
+  const datum = isDatum(b.datum) ? b.datum : fase === "vooraf" ? plusDagen(nu.datum, 1) : nu.datum;
+  const proef = b.proef === true;
+  const cfg = await config();
+
+  if (fase === "deadline") {
+    const { data: open } = await sb.from("avondplanner_voorstel").select("*").eq("datum", datum).eq("status", "open");
+    let doorgevoerd = 0;
+    if (open?.length && !proef) {
+      const inv = await plannerInvoer(datum, cfg);
+      const r = plannerReken(inv, cfg);
+      doorgevoerd = await plannerToepassen(datum, r.verschuivingen, "Wedstrijdleiding (avondplanner, automatisch 12:00)");
+      const na = await plannerInvoer(datum, cfg);
+      const ids = open.map((o: any) => o.id);
+      await sb.from("avondplanner_voorstel").update({ status: "vervangen", besloten_at: new Date().toISOString() }).in("id", ids.slice(0, -1));
+      await sb.from("avondplanner_voorstel").update({
+        status: "auto", verschuivingen: r.verschuivingen, knelpunten: r.knelpunten, sig_na: na.sig,
+        besloten_at: new Date().toISOString(), besloten_door: "automatisch 12:00",
+      }).eq("id", ids[ids.length - 1]);
+      await wlPush(cfg, `Geen akkoord ontvangen, dus de avondplanner heeft ${meervoud(doorgevoerd, "wedstrijd", "wedstrijden")} voor ${datumKort(datum)} zelf geschoven. De spelers krijgen nu hun tijden.`
+        + (r.knelpunten.length ? ` ${meervoud(r.knelpunten.length, "knelpunt blijft", "knelpunten blijven")} staan.` : ""),
+        "🧩 Avondplanner doorgevoerd", { view: "plan", regels: [...regelsVan(r.verschuivingen), ...r.knelpunten.map((k) => "Blijft: " + k)] });
+      await sluitMail();
+    }
+    const vrij = proef ? false : await plannerVrijgeven(datum, "12:00");
+    return { datum, fase, open: open?.length || 0, doorgevoerd, vrijgegeven: vrij };
+  }
+
+  // vooraf / speeldag
+  const inv = await plannerInvoer(datum, cfg);
+  if (!inv.ms.length) return { datum, fase, wedstrijden: 0 };
+  const { data: vorige } = await sb.from("avondplanner_voorstel").select("*").eq("datum", datum).order("created_at", { ascending: false }).limit(1);
+  const laatst: any = vorige?.[0] || null;
+
+  // Niets veranderd sinds het vorige besluit: dat besluit blijft staan.
+  if (laatst && laatst.status !== "open" && laatst.sig_na === inv.sig) return { datum, fase, ongewijzigd: true, status: laatst.status };
+
+  // Open voorstel en de planning is niet veranderd: alleen herinneren (speeldag).
+  if (laatst && laatst.status === "open" && laatst.sig === inv.sig) {
+    if (!proef && fase === "speeldag" && (laatst.verschuivingen || []).length) {
+      await wlPush(cfg, `Het voorstel voor vanavond wacht nog op je akkoord (${meervoud(laatst.verschuivingen.length, "verschuiving", "verschuivingen")}). De spelers krijgen hun tijden pas na akkoord; zonder akkoord voert de planner het om 12:00 zelf door.`,
+        "🧩 Avondplanner wacht op je", { view: "plan", regels: regelsVan(laatst.verschuivingen) });
+      await sluitMail();
+    }
+    return { datum, fase, open: true, herinnerd: fase === "speeldag", verschuivingen: laatst.verschuivingen };
+  }
+
+  const r = plannerReken(inv, cfg);
+  if (proef) return { datum, fase, proef: true, ...r };
+
+  await sb.from("avondplanner_voorstel").update({ status: "vervangen", besloten_at: new Date().toISOString() }).eq("datum", datum).eq("status", "open");
+  const leeg = !r.verschuivingen.length;
+  const { data: rij } = await sb.from("avondplanner_voorstel").insert({
+    datum, fase, status: leeg ? "niets_nodig" : "open", sig: inv.sig, sig_na: leeg ? inv.sig : null,
+    verschuivingen: r.verschuivingen, knelpunten: r.knelpunten, knel_voor: r.knelVoor,
+    besloten_at: leeg ? new Date().toISOString() : null, besloten_door: leeg ? "niets te schuiven" : null,
+  }).select("id").single();
+
+  const wanneer = fase === "vooraf" ? `morgen (${datumKort(datum)})` : "vanavond";
+  if (!leeg) {
+    const staart = fase === "vooraf"
+      ? "Keur je nu goed, dan staat het er meteen in. Morgen om 10:11 rekent de planner nog één keer."
+      : "De spelers krijgen hun tijden pas na je akkoord; zonder akkoord voert de planner het om 12:00 zelf door.";
+    await wlPush(cfg, `Voorstel voor ${wanneer}: ${meervoud(r.verschuivingen.length, "verschuiving", "verschuivingen")}`
+      + (r.knelpunten.length ? `, ${meervoud(r.knelpunten.length, "knelpunt is", "knelpunten zijn")} niet op te lossen` : "") + `. ${staart}`,
+      "🧩 Avondplanner: graag akkoord", { view: "plan", regels: [...regelsVan(r.verschuivingen), ...r.knelpunten.map((k) => "Blijft: " + k)] });
+  } else if (r.knelpunten.length && !(laatst && laatst.knelpunten && JSON.stringify(laatst.knelpunten) === JSON.stringify(r.knelpunten))) {
+    await wlPush(cfg, `Voor ${wanneer} kan de avondplanner niets verbeteren binnen de avond: ${meervoud(r.knelpunten.length, "knelpunt blijft", "knelpunten blijven")} staan. Kijk of een wedstrijd naar een andere avond kan.`,
+      "🧩 Avondplanner: knelpunt", { view: "plan", regels: r.knelpunten });
+  }
+  await sluitMail();
+  return { datum, fase, id: rij?.id, status: leeg ? "niets_nodig" : "open", ...r };
+}
+
+async function actieWlPlanner(b: any) {
+  const { data: ok } = await sb.rpc("controleer_beheer_wachtwoord", { invoer: String(b.wachtwoord || "") });
+  if (ok !== true) { await new Promise((r) => setTimeout(r, 800)); throw new Fout("Onjuist wachtwoord", 401); }
+  if (!isUuid(b.id)) throw new Fout("Onbekend voorstel");
+  const besluit = String(b.besluit || "");
+  if (!["goedkeuren", "zo_laten", "handmatig"].includes(besluit)) throw new Fout("Onbekend besluit");
+  const { data: v } = await sb.from("avondplanner_voorstel").select("*").eq("id", b.id).maybeSingle();
+  if (!v) throw new Fout("Onbekend voorstel", 404);
+  if (v.status !== "open") throw new Fout("Dit voorstel is al afgehandeld.");
+  const cfg = await config();
+  const door = String(b.door || "").trim().slice(0, 60) || "Wedstrijdleiding";
+  const inv = await plannerInvoer(v.datum, cfg);
+  const nuIso = new Date().toISOString();
+
+  if (besluit === "goedkeuren" && inv.sig !== v.sig) {
+    // De avond is intussen gewijzigd: opnieuw rekenen en een nieuw voorstel laten zien.
+    const r = plannerReken(inv, cfg);
+    if (!r.verschuivingen.length) {
+      await sb.from("avondplanner_voorstel").update({ status: "niets_nodig", sig_na: inv.sig, verschuivingen: [], knelpunten: r.knelpunten, besloten_at: nuIso, besloten_door: door }).eq("id", v.id);
+      return { ok: true, gewijzigd: true, leeg: true, vrijgegeven: await plannerVrijgeven(v.datum, "WL") };
+    }
+    await sb.from("avondplanner_voorstel").update({ status: "vervangen", besloten_at: nuIso }).eq("id", v.id);
+    const { data: nieuw } = await sb.from("avondplanner_voorstel").insert({
+      datum: v.datum, fase: v.fase, status: "open", sig: inv.sig, verschuivingen: r.verschuivingen, knelpunten: r.knelpunten, knel_voor: r.knelVoor,
+    }).select("*").single();
+    return { ok: true, gewijzigd: true, voorstel: nieuw };
+  }
+
+  let doorgevoerd = 0;
+  if (besluit === "goedkeuren") doorgevoerd = await plannerToepassen(v.datum, v.verschuivingen || [], `${door} (avondplanner, goedgekeurd)`);
+  const na = besluit === "goedkeuren" ? await plannerInvoer(v.datum, cfg) : inv;
+  await sb.from("avondplanner_voorstel").update({
+    status: besluit === "goedkeuren" ? "goedgekeurd" : besluit, sig_na: na.sig, besloten_at: nuIso, besloten_door: door,
+  }).eq("id", v.id);
+  return { ok: true, doorgevoerd, vrijgegeven: await plannerVrijgeven(v.datum, "WL") };
 }
 
 // ── Overzicht voor de WL-app ──
@@ -846,7 +1038,12 @@ async function actieWlOverzicht(b: any) {
   }).filter((a: any) => a.soort !== "afmelding" || a.aantal > 0);
   // Afgehandeld: wedstrijden die inmiddels gespeeld zijn hoeven er niet meer tussen
   const afgehandeld = (klaar || []).filter((v: any) => { const w: any = wm.get(v.wedstrijd_id); return !w || !gespeeld(w); });
-  return { open: (open || []).map(rij), afgehandeld: afgehandeld.map(rij), acties: lijstActies };
+  // Automatische avondplanner: laatste voorstel per komende avond
+  const { data: pv } = await sb.from("avondplanner_voorstel").select("id, datum, fase, status, verschuivingen, knelpunten, created_at, besloten_at, besloten_door")
+    .gte("datum", nlNu().datum).order("created_at", { ascending: false }).limit(20);
+  const gezien = new Set<string>();
+  const planner = (pv || []).filter((p: any) => !gezien.has(p.datum) && gezien.add(p.datum));
+  return { open: (open || []).map(rij), afgehandeld: afgehandeld.map(rij), acties: lijstActies, planner };
 }
 
 async function isSysteem(req: Request) {
@@ -876,6 +1073,10 @@ Deno.serve(async (req) => {
       case "later_intrekken": return json(await actieLaterIntrekken(b));
       case "wl_overzicht": return json(await actieWlOverzicht(b));
       case "wl_besluit": return json(await actieWlBesluit(b));
+      case "wl_planner": return json(await actieWlPlanner(b));
+      case "avondplanner":
+        if (!(await isSysteem(req))) return json({ error: "niet toegestaan" }, 401);
+        return json(await actieAvondplanner(b));
       case "auto_later":
         if (!(await isSysteem(req))) return json({ error: "niet toegestaan" }, 401);
         return json(await autoLater({ datum: isDatum(b.datum) ? b.datum : undefined, proef: b.proef !== false }));

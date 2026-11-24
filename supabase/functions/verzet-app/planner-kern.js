@@ -39,9 +39,33 @@
     function telKnelpunten(lijst) {
       const t = { zelfde: 0, direct: 0, eenErtussen: 0 }; lijst.forEach(k => t[k.soort]++); return t;
     }
+    // Per speler de indexen van zijn wedstrijden (eenmalig per wedstrijdlijst, voor snelle kosten-berekening).
+    const indexCache = new WeakMap();
+    function indexPerSpeler(ms) {
+      let lijst = indexCache.get(ms);
+      if (!lijst) {
+        const per = new Map();
+        ms.forEach((w, i) => spelersVan(w).forEach(n => { if (!per.has(n)) per.set(n, []); per.get(n).push(i); }));
+        lijst = [...per.values()].filter(idx => idx.length > 1);
+        indexCache.set(ms, lijst);
+      }
+      return lijst;
+    }
+    // Zelfde uitkomst als de knelpunten() optellen, maar zonder tussenobjecten (snel genoeg voor de server).
     function kosten(ms, slots, orig) {
       let c = 0;
-      for (const k of knelpunten(ms, slots)) c += GEWICHT[k.soort];
+      const s = [];
+      for (const idx of indexPerSpeler(ms)) {
+        s.length = 0;
+        for (const i of idx) {   // invoegen op volgorde (lijstjes van 2-4)
+          let k = s.length; s.push(slots[i]);
+          while (k > 0 && s[k - 1] > s[k]) { const t = s[k]; s[k] = s[k - 1]; s[k - 1] = t; k--; }
+        }
+        for (let k = 1; k < s.length; k++) {
+          const gap = s[k] - s[k - 1] - 1;
+          if (gap < 0) c += GEWICHT.zelfde; else if (gap === 0) c += GEWICHT.direct; else if (gap === 1) c += GEWICHT.eenErtussen;
+        }
+      }
       for (let i = 0; i < slots.length; i++) {
         if (slots[i] !== orig[i] && !ms[i].vrijeKeuze) c += GEWICHT.verschuiving;
         if (ms[i].vroegst != null && slots[i] < ms[i].vroegst) c += GEWICHT.teVroeg * (ms[i].vroegst - slots[i]);
