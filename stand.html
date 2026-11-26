@@ -190,7 +190,8 @@ async function laad(){
     const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
     const vorig={}; hist.forEach(h=>{ if (!(h.speler in vorig)) vorig[h.speler]=h.gem; });
     S.d = { pst, ere: voegGestoptToe(berekenEre(ere), 'Eredivisie'), eind: berekenEind(pst, eindRijen),
-            stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste, vorig };
+            stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste, vorig,
+            eindLegs: Object.fromEntries(eindRijen.map(r=>[r.speler, r])) };
     if (!S.periode){
       const rondes = volgende.map(w=>parseInt(w.speelronde,10)).filter(n=>!isNaN(n));
       const r = rondes.length ? Math.min(...rondes) : null;
@@ -225,6 +226,12 @@ function renderEre(){
     <div class="noot">Punten = gewonnen legs.${zonder?` * ${Math.round(zonder)} gespeelde wedstrijd(en) zonder legstand tellen nog niet mee voor de punten.`:''} Nr. 17–19 play-offs, 20–21 degradatie.</div>`;
 }
 
+// Legs voor/tegen en saldo uit de views (legs_voor, legs_tegen); voorlopige wedstrijden zonder legstand tellen hier niet mee
+function legsCellen(r){
+  if (!r || r.legs_voor==null || r.legs_tegen==null) return '<td class="num">–</td><td class="num">–</td>';
+  const v=Number(r.legs_voor), t=Number(r.legs_tegen), d=v-t;
+  return `<td class="num">${v}-${t}</td><td class="num">${d>0?'+':''}${d}</td>`;
+}
 function renderEerste(){
   const el = document.getElementById('blokEerste');
   const knop = (v,t) => `<button data-p="${v}" class="${S.periode===v?'actief':''}">${t}</button>`;
@@ -236,18 +243,18 @@ function renderEerste(){
       if (t.promo) tags.push('<span class="tag prom">⬆ promotie</span>');
       if (t.titels.length) tags.push(`<span class="tag titel">🏆 P${t.titels.join(', P')}</span>`);
       if (t.ticket) tags.push(`<span class="tag ticket">🎟 ${t.ticket==='E'?'eindstand':'P'+t.ticket}</span>`);
-      return `<tr class="${t.promo?'prom':''}"><td class="pos">${t.pos}</td><td>${esc(t.speler)}${tags.join('')}</td><td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num">${t.w-t.g}</td><td class="num"><b>${t.p}</b>${t.voorlopig?' *':''}</td></tr>`;
+      return `<tr class="${t.promo?'prom':''}"><td class="pos">${t.pos}</td><td>${esc(t.speler)}${tags.join('')}</td><td class="num">${t.w}</td><td class="num">${t.g}</td><td class="num">${t.w-t.g}</td>${legsCellen(S.d.eindLegs[t.speler])}<td class="num"><b>${t.p}</b>${t.voorlopig?' *':''}</td></tr>`;
     }).join('');
     noot = 'Nr. 1 en 2 promoveren direct. 🏆 periodetitel · 🎟 play-off ticket (per periode de beste zonder ticket, plus één via de eindstand).';
   } else {
     const rijen = S.d.pst.filter(r=>r.periode===S.periode);
-    tabel = rijen.map(r=>`<tr class="${r.positie==1?'leider':''}"><td class="pos">${r.positie==1?'🏆':r.positie}</td><td>${esc(r.speler)}</td><td class="num">${r.wedstrijden_gespeeld}</td><td class="num">${r.gewonnen}</td><td class="num">${r.wedstrijden_gespeeld-r.gewonnen}</td><td class="num"><b>${r.periodepunten}</b>${r.voorlopig?' *':''}</td></tr>`).join('');
+    tabel = rijen.map(r=>`<tr class="${r.positie==1?'leider':''}"><td class="pos">${r.positie==1?'🏆':r.positie}</td><td>${esc(r.speler)}</td><td class="num">${r.wedstrijden_gespeeld}</td><td class="num">${r.gewonnen}</td><td class="num">${r.wedstrijden_gespeeld-r.gewonnen}</td>${legsCellen(r)}<td class="num"><b>${r.periodepunten}</b>${r.voorlopig?' *':''}</td></tr>`).join('');
     noot = `${PERIODE_LABELS[S.periode]}. Punten = gewonnen legs.`;
   }
   const vl = (S.periode==='eind' ? S.d.eind : S.d.pst.filter(r=>r.periode===S.periode)).reduce((n,r)=>n+(r.voorlopig||0),0);
   if (vl) noot += ` * ${Math.round(vl/2)} gespeelde wedstrijd(en) zonder legstand: winst telt al mee, punten volgen na het inlezen.`;
   el.innerHTML = `<div class="blok-kop"><h2>Eerste Divisie</h2>${seg}</div>
-    ${tabel ? `<table><thead><tr><th></th><th>Speler</th><th class="num">G</th><th class="num">W</th><th class="num">V</th><th class="num">Ptn</th></tr></thead><tbody>${tabel}</tbody></table>` : '<div class="leeg">Nog geen gespeelde wedstrijden in deze periode.</div>'}
+    ${tabel ? `<table><thead><tr><th></th><th>Speler</th><th class="num">G</th><th class="num">W</th><th class="num">V</th><th class="num">Legs</th><th class="num">+/-</th><th class="num">Ptn</th></tr></thead><tbody>${tabel}</tbody></table>` : '<div class="leeg">Nog geen gespeelde wedstrijden in deze periode.</div>'}
     <div class="noot">${noot}</div>`;
   el.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ S.periode = b.dataset.p==='eind' ? 'eind' : Number(b.dataset.p); renderEerste(); });
 }
