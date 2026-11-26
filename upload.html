@@ -409,6 +409,7 @@
     }
 
     const normaal = [], beker = [], byes = [], problems = [];
+    let ereByesOvergeslagen = 0;
     for (let i = 1; i < rows.length; i++) {
       const cols = rows[i].map(c => String(c ?? '').trim());
       const div = cols[idx.division];
@@ -433,6 +434,9 @@
       }
 
       const isBye = bron === 'League Portal' || !legsField;
+      // Eredivisie kent bij ons geen byes (26-11-2026): byes in DC, bv. op de plek van een gestopte speler,
+      // leveren geen wedstrijd of punten op en worden altijd overgeslagen.
+      if (isBye && String(div || '').trim() === 'Eredivisie') { ereByesOvergeslagen++; continue; }
       if (isBye) {
         const homeFull = lastnameFirstMap[homeRaw], awayFull = lastnameFirstMap[awayRaw];
         const homeIsBye = !homeFull && isVrijeRonde(homeRaw), awayIsBye = !awayFull && isVrijeRonde(awayRaw);
@@ -548,6 +552,7 @@
     const totaal = IMPORT_DIVISIES.reduce((t, d) => t + matched[d], 0) + matched.Beker;
     let html = `<div class="log-line log-summary">${totaal} wedstrijd(en) gekoppeld en bijgewerkt (${perDiv})${byesToegevoegd ? `, ${byesToegevoegd} bye-overwinning(en) toegevoegd` : ''}.</div>`;
     if (byesOversloegen) html += `<div class="log-line">${byesOversloegen} bye-uitslag(en) stonden al in de planning, overgeslagen.</div>`;
+    if (ereByesOvergeslagen) html += `<div class="log-line">${ereByesOvergeslagen} bye-rij(en) in de Eredivisie overgeslagen (de Eredivisie kent geen byes).</div>`;
     if (updateFailed.length) html += `<div class="log-line log-err">${updateFailed.length} update(s) mislukt.</div>`;
     if (unmatched.length) {
       html += `<div class="log-line log-err">${unmatched.length} rij(en) niet gevonden in de planning (mogelijk datum/naam-verschil):</div>`;
