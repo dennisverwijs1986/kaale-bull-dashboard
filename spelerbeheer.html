@@ -207,15 +207,6 @@
   .save-btn:hover { background: #059669; }
   .save-btn:disabled { background: #4a5a76; color: var(--muted); cursor: default; }
 
-  #add-player-card {
-    background: var(--s1);
-    border: 2px dashed var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 20px;
-  }
-  #add-player-card h3 { margin-top: 0; font-size: 0.95rem; color: var(--text); }
-
   #swap-player-card {
     background: var(--s1);
     border: 2px dashed var(--orange);
@@ -353,6 +344,19 @@
   .sp-badge.pauze { color: var(--orange); border-color: var(--orange); }
   .sp-voet { padding: 8px 12px; font-size: 0.8rem; color: var(--muted); font-style: italic; text-align: center; border-top: 1px solid var(--border); background: var(--s2); }
 
+  /* Gelijke invoervelden en keuzelijsten (ook in Safari) */
+  .field-row { align-items: flex-end; }
+  .field-group input, .field-group select { height: 40px; }
+  .field-group select, .sp-filters select {
+    -webkit-appearance: none; appearance: none; padding-right: 30px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center;
+  }
+  .sp-filters select { height: 34px; }
+  #swap-player-card .btn { margin-top: 4px; }
+  .toolbar button.knop-nieuw { background: var(--green); color: #000; border-color: var(--green); }
+  .toolbar button.knop-nieuw:hover { background: #059669; }
+
   /* ── Bewerkvenster ── */
   .ed-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; overflow-y: auto; }
   .ed-overlay.open { display: flex; }
@@ -397,41 +401,12 @@
 
     <div class="sb-layout">
     <aside class="sb-zij">
-    <div id="add-player-card">
-      <h3>+ Nieuwe speler toevoegen</h3>
-      <div class="field-row">
-        <div class="field-group">
-          <label>Naam</label>
-          <input type="text" id="new-naam" placeholder="Volledige naam">
-        </div>
-        <div class="field-group">
-          <label>Divisie</label>
-          <select id="new-divisie">
-            <option value="">— geen —</option>
-            <option value="Eredivisie">Eredivisie</option>
-            <option value="Eerste Divisie">Eerste Divisie</option>
-          </select>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field-group">
-          <label>E-mail</label>
-          <input type="email" id="new-email" placeholder="naam@voorbeeld.nl">
-        </div>
-        <div class="field-group">
-          <label>Telefoon</label>
-          <input type="text" id="new-telefoon" placeholder="06-12345678">
-        </div>
-      </div>
-      <button class="btn" style="width:auto; padding: 9px 18px;" onclick="addPlayer()">Speler toevoegen</button>
-    </div>
-
     <div id="swap-player-card">
       <h3>🔁 Speler vervangen in planning</h3>
       <div style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Vervangt een naam rechtstreeks in álle geplande wedstrijden in de database — geen CSV nodig. Datum, tijdstip, speelronde en al het andere blijven exact staan.</div>
       <div class="field-row">
         <div class="field-group">
-          <label>Speler die vervangen wordt</label>
+          <label>Te vervangen speler</label>
           <select id="swap-oud"></select>
         </div>
         <div class="field-group">
@@ -442,7 +417,7 @@
           </select>
         </div>
       </div>
-      <div class="field-row" id="swap-nieuw-row">
+      <div class="field-row" id="swap-nieuw-row" style="margin-top:2px;">
         <div class="field-group">
           <label>Nieuwe naam</label>
           <input type="text" id="swap-nieuw" placeholder="bv. Michael van Beek" list="swap-suggesties">
@@ -476,6 +451,7 @@
       <h2>Spelers <small id="speler-telling"></small></h2>
       <div class="toolbar">
         <input type="text" id="search-input" placeholder="Zoek op naam..." oninput="bulkMode ? renderBulkList() : renderPlayers()">
+        <button onclick="openNieuw()" class="knop-nieuw">+ Speler toevoegen</button>
         <button onclick="toggleBulkMode()" id="bulk-toggle-btn">📋 Bulk divisie bewerken</button>
       </div>
     </div>
@@ -799,6 +775,47 @@
     document.getElementById('edit-overlay').classList.add('open');
   }
 
+  function openNieuw() {
+    openId = 'nieuw';
+    document.getElementById('edit-paneel').innerHTML = `
+      <div class="ed-kop">
+        <h3>Nieuwe speler toevoegen</h3>
+        <button title="Sluiten (Esc)" onclick="sluitEdit()">✕</button>
+      </div>
+      <div class="ed-body">
+        <div class="field-row">
+          <div class="field-group">
+            <label>Naam</label>
+            <input type="text" id="new-naam" placeholder="Voornaam Achternaam">
+          </div>
+          <div class="field-group">
+            <label>Divisie</label>
+            <select id="new-divisie">
+              <option value="">— geen —</option>
+              <option value="Eredivisie">Eredivisie</option>
+              <option value="Eerste Divisie">Eerste Divisie</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>E-mail</label>
+            <input type="email" id="new-email" placeholder="naam@voorbeeld.nl">
+          </div>
+          <div class="field-group">
+            <label>Telefoon</label>
+            <input type="text" id="new-telefoon" placeholder="06-12345678">
+          </div>
+        </div>
+        <div class="ed-knoppen">
+          <button class="save-btn" onclick="addPlayer()" style="flex:1;">Speler toevoegen</button>
+          <button class="save-btn" onclick="sluitEdit()" style="flex:0 0 auto;background:var(--s3);color:var(--text);">Annuleren</button>
+        </div>
+      </div>`;
+    document.getElementById('edit-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('new-naam')?.focus(), 50);
+  }
+
   function sluitEdit() {
     openId = null;
     document.getElementById('edit-overlay').classList.remove('open');
@@ -807,6 +824,7 @@
   document.addEventListener('keydown', e => {
     if (!openId) return;
     if (e.key === 'Escape') sluitEdit();
+    if (e.key === 'Enter' && openId === 'nieuw' && e.target.tagName === 'INPUT') addPlayer();
   });
 
   // NNB-herinnering pauzeren (03-11-2026): de Edge Function nnb-herinnering slaat
@@ -977,11 +995,7 @@
       }
     }
 
-    document.getElementById('new-naam').value = '';
-    document.getElementById('new-divisie').value = '';
-    document.getElementById('new-email').value = '';
-    document.getElementById('new-telefoon').value = '';
-
+    sluitEdit();
     showStatus('Speler toegevoegd: ' + naam, true);
     await loadPlayers();
   }
