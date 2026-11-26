@@ -168,6 +168,8 @@ main{padding:12px 16px;max-width:640px;margin:0 auto;}
 .kaart{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);
   border-left:4px solid var(--dim);border-radius:10px;padding:10px 12px;margin-bottom:6px;}
 .kaart.ere{border-left-color:var(--ere);}
+tr.gestopt td{opacity:.55;}
+.gestopt-tag{font-size:.85em;font-style:italic;}
 .kaart.eerste{border-left-color:var(--eerste);}
 .kaart.beker{border-left-color:var(--beker);}
 .kaart.gespeeld{opacity:.5;}
@@ -1492,7 +1494,7 @@ async function laadStand(force){
   if (standBezig || (!force && S.stand && Date.now()-S.standTijd < 60000)) { renderStand(); return; }
   standBezig=true;
   try{
-    const [pstRuw, ere, stats, volgende, bekerStaat, bekerLinks, eindRuw, eersteZonder] = await Promise.all([
+    const [pstRuw, ere, stats, volgende, bekerStaat, bekerLinks, eindRuw, eersteZonder, gestoptRuw] = await Promise.all([
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
       sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
       sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg,first9,checkout_pct&order=peildatum.desc&limit=300'),
@@ -1501,7 +1503,8 @@ async function laadStand(force){
       sbGet('wedstrijden','select=id,verslag_url&divisie=ilike.Beker*&verslag_url=not.is.null').catch(()=>[]),
       sbGet('eindstand_eerste_divisie','select=*&order=positie.asc'),
       // Eerste Divisie: gespeeld, uitslag bekend, maar legstand nog niet ingelezen (matchlog volgt na de avond)
-      sbGet('wedstrijden','select=thuis,uit,uitslag,speelronde&divisie=eq.Eerste%20Divisie&status=eq.gespeeld&or=(legs_thuis.is.null,legs_uit.is.null)').catch(()=>[])
+      sbGet('wedstrijden','select=thuis,uit,uitslag,speelronde&divisie=eq.Eerste%20Divisie&status=eq.gespeeld&or=(legs_thuis.is.null,legs_uit.is.null)').catch(()=>[]),
+      sbGet('instellingen','select=waarde&sleutel=eq.gestopt_spelers').catch(()=>[])
     ]);
     // Zoals bij de Eredivisie: wedstrijden zonder legstand tellen voorlopig mee (gespeeld + winst), met een *
     const pst = voorlopigEerste(pstRuw, eersteZonder, true);
@@ -1509,7 +1512,7 @@ async function laadStand(force){
     // Statistieken: per divisie alleen de laatste peildatum
     const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
     S.beker = { staat: bekerStaat[0]?.staat || null, links: Object.fromEntries(bekerLinks.map(r=>[r.id, r.verslag_url])) };
-    S.stand = { pst, ere: berekenEre(ere), eind: berekenEind(pst, eindRijen),
+    S.stand = { pst, ere: voegGestoptToe(berekenEre(ere), gestoptRuw, 'Eredivisie'), eind: berekenEind(pst, eindRijen),
                 stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
     S.standTijd = Date.now();
     if (!S.standPeriode){
@@ -1541,6 +1544,17 @@ function berekenEre(data){
   });
   const l=Object.values(t).sort((a,b)=>b.p-a.p||b.w-a.w||a.v-b.v||(b.lv-b.lt)-(a.lv-a.lt)||a.speler.localeCompare(b.speler));
   l.forEach((r,i)=>{ const v=l[i-1]; r.pos=(v&&v.p===r.p&&v.w===r.w&&v.v===r.v&&(v.lv-v.lt)===(r.lv-r.lt))?v.pos:i+1; });
+  return l;
+}
+// Spelers die tijdens het seizoen gestopt zijn: hun wedstrijden zijn verwijderd, maar ze blijven
+// met 0 onderaan de ranglijst staan. Alleen in het seizoen dat in instellingen.gestopt_spelers staat,
+// bv. {"seizoen":"2026-2027","Eredivisie":["Petra de Crom"]} — een nieuw seizoen toont ze dus vanzelf niet meer.
+function huidigSeizoen(){ const d=new Date(), j=d.getFullYear(); return d.getMonth()>=6 ? `${j}-${j+1}` : `${j-1}-${j}`; }
+function voegGestoptToe(l, ruw, divisie){
+  let cfg=null; try{ cfg = ruw && ruw[0] ? JSON.parse(ruw[0].waarde) : null; }catch(e){ cfg=null; }
+  if (!cfg || cfg.seizoen!==huidigSeizoen() || !Array.isArray(cfg[divisie])) return l;
+  cfg[divisie].filter(n=>!l.some(r=>r.speler===n))
+    .forEach(n=>l.push({speler:n,g:0,w:0,v:0,lv:0,lt:0,p:0,zonder:0,gestopt:true,pos:l.length+1}));
   return l;
 }
 // Eerste Divisie voorlopig bijwerken met gespeelde wedstrijden waarvan de legstand nog niet is ingelezen.
@@ -1922,7 +1936,7 @@ function ereHtml(){
     if (ERE_DEGRADATIE.includes(plek)){ cls='zone-deg'; if (plek===ERE_DEGRADATIE[0]) tag='<span class="zone-tag deg">degradatie</span>'; }
     if (plek===ERE_PLAYOFF[0]||plek===ERE_DEGRADATIE[0]) cls+=' streep';
     if (r.speler===S.ik) cls+=' ik';
-    return `<tr class="${cls}" data-speler="${esc(r.speler)}"><td class="pos">${r.pos}</td><td>${esc(r.speler)}${tag}</td><td class="num">${r.g}</td>` +
+    return `<tr class="${cls}${r.gestopt?' gestopt':''}"${r.gestopt?'':` data-speler="${esc(r.speler)}"`}><td class="pos">${r.pos}</td><td>${esc(r.speler)}${r.gestopt?' <span class="gestopt-tag">(gestopt)</span>':''}${tag}</td><td class="num">${r.g}</td>` +
       (geenLegs ? `<td class="num">${r.w}</td><td class="num">${r.v}</td>` : `<td class="num">${r.w}-${r.v}</td><td class="num"><b>${r.p}</b>${r.zonder?' *':''}</td>`) + `</tr>`;
   };
   const kop = geenLegs ? '<th class="num">G</th><th class="num">W</th><th class="num">V</th>' : '<th class="num">G</th><th class="num">W-V</th><th class="num">Ptn</th>';
