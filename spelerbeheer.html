@@ -321,6 +321,54 @@
   .gevaar summary::before { content: '▶ '; font-size: 0.7rem; }
   .gevaar[open] summary::before { content: '▼ '; }
   .gevaar p { margin-top: 10px; }
+  /* ── Spelerstabel (grid zoals DartConnect, 26-11-2026) ── */
+  .sp-filters { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; font-size: 0.85rem; color: var(--muted); }
+  .sp-filters select { padding: 7px 9px; background: var(--s2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; font-size: 0.85rem; }
+  .sp-filters label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .sp-filters .verborgen { color: var(--orange); font-weight: 600; }
+  .sp-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--s1); }
+  .sp-tabel { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .sp-tabel th { background: var(--s2); color: var(--muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
+  .sp-tabel th:hover { color: var(--text); }
+  .sp-tabel th.actief-sort { color: var(--text); }
+  .sp-tabel th.c, .sp-tabel td.c { text-align: center; }
+  .sp-tabel td { padding: 6px 10px; border-top: 1px solid rgba(42,58,86,0.6); white-space: nowrap; }
+  .sp-tabel tbody tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
+  .sp-tabel tbody tr:hover td { background: var(--s2); }
+  .sp-tabel tr.inactief td { opacity: 0.5; }
+  .sp-tabel .nr { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.78rem; }
+  .sp-naam { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; text-align: left; }
+  .sp-naam::before { content: '🔍'; font-size: 0.7rem; margin-right: 6px; opacity: 0.55; }
+  .sp-naam:hover { color: var(--blue); text-decoration: underline; }
+  .sp-mail { color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  .sp-leeg { color: #4a5a76; }
+  .sp-code { font-family: monospace; letter-spacing: 2px; color: var(--muted); }
+  .div-pil { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .div-pil.ere { background: rgba(168,85,247,0.15); color: #c084fc; }
+  .div-pil.eerste { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .act-ja { color: var(--green); font-weight: 800; }
+  .act-nee { color: var(--red); font-weight: 800; }
+  .sp-badge { display: inline-block; font-size: 0.68rem; font-weight: 700; border-radius: 4px; padding: 1px 6px; margin-right: 4px; border: 1px solid; }
+  .sp-badge.stop { color: var(--red); border-color: var(--red); }
+  .sp-badge.pauze { color: var(--orange); border-color: var(--orange); }
+  .sp-voet { padding: 8px 12px; font-size: 0.8rem; color: var(--muted); font-style: italic; text-align: center; border-top: 1px solid var(--border); background: var(--s2); }
+
+  /* ── Bewerkvenster ── */
+  .ed-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; overflow-y: auto; }
+  .ed-overlay.open { display: flex; }
+  .ed-paneel { background: var(--s1); border: 1px solid var(--border); border-radius: 10px; width: 100%; max-width: 620px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .ed-kop { display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: var(--s2); border-bottom: 1px solid var(--border); border-radius: 10px 10px 0 0; }
+  .ed-kop h3 { margin: 0; flex: 1; font-size: 1rem; }
+  .ed-kop button { background: var(--s3); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 11px; cursor: pointer; font-weight: 700; }
+  .ed-kop button:hover:not(:disabled) { border-color: var(--blue); }
+  .ed-kop button:disabled { opacity: 0.35; cursor: default; }
+  .ed-body { padding: 16px 18px 18px; }
+  .ed-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .ed-info div { background: var(--s2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+  .ed-info small { display: block; font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+  .ed-info b { font-size: 1rem; }
+  .ed-knoppen { display: flex; gap: 8px; margin-top: 6px; }
+
   @media (max-width: 960px) {
     .sb-layout { grid-template-columns: 1fr; }
     .sb-zij { position: static; max-height: none; overflow: visible; }
@@ -432,6 +480,17 @@
       </div>
     </div>
 
+    <div class="sp-filters" id="sp-filters">
+      <select id="filter-divisie" onchange="renderPlayers()">
+        <option value="">Alle divisies</option>
+        <option value="Eredivisie">Eredivisie</option>
+        <option value="Eerste Divisie">Eerste Divisie</option>
+        <option value="-">Zonder divisie</option>
+      </select>
+      <label><input type="checkbox" id="verberg-inactief" checked onchange="bewaarVerberg(); renderPlayers()"> Verberg inactieve spelers</label>
+      <span class="verborgen" id="verborgen-telling"></span>
+    </div>
+
     <div id="bulk-view" style="display:none;">
       <div id="bulk-list"></div>
       <button class="btn" style="width:auto; padding: 10px 20px; margin-top: 10px;" onclick="saveBulkDivisies()">Alles opslaan</button>
@@ -440,6 +499,10 @@
     <div id="players-list" class="loading">Spelers laden...</div>
     </section>
     </div>
+  </div>
+
+  <div class="ed-overlay" id="edit-overlay" onclick="if (event.target === this) sluitEdit()">
+    <div class="ed-paneel" id="edit-paneel"></div>
   </div>
 
 </main>
@@ -562,100 +625,189 @@
     renderPlayers();
   }
 
+  // ── Spelerstabel (26-11-2026): grid zoals de DartConnect League Portal ──
+  // Inactief = gestopt of zonder divisie; standaard verborgen (zoals "Hide Inactive Players").
+  let sorteer = { kol: 'naam', op: 1 };
+  let zichtbareIds = [];
+  let wedstrijdTelling = {};
+  let openId = null;
+
+  try { const v = localStorage.getItem('spelerbeheer_verberg'); if (v !== null) document.getElementById('verberg-inactief').checked = v === '1'; } catch (e) {}
+  function bewaarVerberg() { try { localStorage.setItem('spelerbeheer_verberg', document.getElementById('verberg-inactief').checked ? '1' : '0'); } catch (e) {} }
+
+  const isInactief = p => !!p.gestopt || (p.divisie !== 'Eredivisie' && p.divisie !== 'Eerste Divisie');
+  const divRang = d => d === 'Eredivisie' ? 0 : d === 'Eerste Divisie' ? 1 : 2;
+
+  function sorteerOp(kol) {
+    sorteer = sorteer.kol === kol ? { kol, op: -sorteer.op } : { kol, op: 1 };
+    renderPlayers();
+  }
+
+  function sorteerWaarde(p, kol) {
+    const c = allContacts[p.id] || {};
+    const t = wedstrijdTelling[p.naam] || { totaal: 0, gespeeld: 0 };
+    switch (kol) {
+      case 'act': return isInactief(p) ? 1 : 0;
+      case 'divisie': return divRang(p.divisie);
+      case 'email': return (c.email || '~').toLowerCase();
+      case 'telefoon': return c.telefoon || '~';
+      case 'code': return c.code || '~';
+      case 'wedstr': return t.totaal;
+      case 'status': return (p.gestopt ? 0 : 2) + (p.nnb_pauze ? 0 : 1);
+      default: return p.naam.toLowerCase();
+    }
+  }
+
   function renderPlayers() {
     const search = document.getElementById('search-input').value.toLowerCase();
+    const divFilter = document.getElementById('filter-divisie').value;
+    const verberg = document.getElementById('verberg-inactief').checked;
     const listEl = document.getElementById('players-list');
 
-    const filtered = allPlayers.filter(p => p.naam.toLowerCase().includes(search));
-    const telEl = document.getElementById('speler-telling');
-    if (telEl) telEl.textContent = search ? `${filtered.length} van ${allPlayers.length}` : `(${allPlayers.length})`;
+    const naZoek = allPlayers.filter(p => {
+      if (search && !p.naam.toLowerCase().includes(search)) return false;
+      if (divFilter === '-') return p.divisie !== 'Eredivisie' && p.divisie !== 'Eerste Divisie';
+      if (divFilter && p.divisie !== divFilter) return false;
+      return true;
+    });
+    const filtered = verberg ? naZoek.filter(p => !isInactief(p)) : naZoek;
+    const verborgen = naZoek.length - filtered.length;
+    document.getElementById('verborgen-telling').textContent = verberg && verborgen ? `${verborgen} verborgen` : '';
 
+    const telEl = document.getElementById('speler-telling');
+    if (telEl) telEl.textContent = filtered.length === allPlayers.length ? `(${allPlayers.length})` : `${filtered.length} van ${allPlayers.length}`;
+
+    filtered.sort((a, b) => {
+      const va = sorteerWaarde(a, sorteer.kol), vb = sorteerWaarde(b, sorteer.kol);
+      const r = va < vb ? -1 : va > vb ? 1 : 0;
+      return r * sorteer.op || a.naam.localeCompare(b.naam);
+    });
+    zichtbareIds = filtered.map(p => p.id);
+
+    listEl.className = '';
     if (filtered.length === 0) {
-      listEl.className = '';
       listEl.innerHTML = '<div class="empty-state">Geen spelers gevonden</div>';
       return;
     }
 
-    const groepen = [
-      ['Eredivisie', filtered.filter(p => p.divisie === 'Eredivisie')],
-      ['Eerste Divisie', filtered.filter(p => p.divisie === 'Eerste Divisie')],
-      ['Zonder divisie', filtered.filter(p => p.divisie !== 'Eredivisie' && p.divisie !== 'Eerste Divisie')],
-    ].filter(([, lijst]) => lijst.length);
+    const kolommen = [
+      ['', '#', 'c'], ['act', 'Act', 'c'], ['naam', 'Naam', ''], ['divisie', 'Divisie', ''],
+      ['email', 'E-mail', ''], ['telefoon', 'Telefoon', ''], ['code', 'Code app', ''],
+      ['wedstr', 'Wedstr.', 'c'], ['status', 'Status', '']
+    ];
+    const pijl = k => sorteer.kol === k ? (sorteer.op === 1 ? ' ▲' : ' ▼') : '';
+    const kop = kolommen.map(([k, t, cls]) =>
+      `<th class="${cls}${sorteer.kol === k ? ' actief-sort' : ''}" ${k ? `onclick="sorteerOp('${k}')"` : ''}>${t}${k ? pijl(k) : ''}</th>`).join('');
 
-    listEl.className = 'grid';
-    listEl.innerHTML = groepen.map(([titel, lijst]) =>
-      `<div class="div-kop">${escapeHtml(titel)} · ${lijst.length}</div>` + lijst.map(p => {
-      const contact = allContacts[p.id] || {};
-      const metaBits = [];
-      if (p.divisie) metaBits.push(p.divisie);
-      if (contact.email) metaBits.push(contact.email);
-      const meta = metaBits.length ? metaBits.join(' · ') : 'Geen gegevens ingevuld';
+    const rijen = filtered.map((p, i) => {
+      const c = allContacts[p.id] || {};
+      const t = wedstrijdTelling[p.naam];
+      const div = p.divisie === 'Eredivisie' ? '<span class="div-pil ere">Eredivisie</span>'
+                : p.divisie === 'Eerste Divisie' ? '<span class="div-pil eerste">Eerste Divisie</span>'
+                : '<span class="sp-leeg">—</span>';
+      const status = (p.gestopt ? '<span class="sp-badge stop">⛔ Gestopt</span>' : '')
+                   + (p.nnb_pauze ? '<span class="sp-badge pauze">⏸ NNB-mail</span>' : '');
+      return `<tr class="${isInactief(p) ? 'inactief' : ''}">
+        <td class="c nr">${i + 1}</td>
+        <td class="c">${isInactief(p) ? '<span class="act-nee" title="Inactief">✗</span>' : '<span class="act-ja" title="Actief">✓</span>'}</td>
+        <td><button class="sp-naam" onclick="openEdit('${p.id}')">${escapeHtml(p.naam)}</button></td>
+        <td>${div}</td>
+        <td class="sp-mail" title="${escapeAttr(c.email || '')}">${c.email ? escapeHtml(c.email) : '<span class="sp-leeg">—</span>'}</td>
+        <td>${c.telefoon ? escapeHtml(c.telefoon) : '<span class="sp-leeg">—</span>'}</td>
+        <td class="sp-code">${c.code ? escapeHtml(c.code) : '<span class="sp-leeg">—</span>'}</td>
+        <td class="c" title="gespeeld / totaal">${t ? `${t.gespeeld}/${t.totaal}` : '<span class="sp-leeg">0</span>'}</td>
+        <td>${status}</td>
+      </tr>`;
+    }).join('');
 
-      return `
-        <div class="player-card ${p.divisie === 'Eredivisie' ? 'div-ere' : p.divisie === 'Eerste Divisie' ? 'div-eerste' : ''}" id="card-${p.id}">
-          <div class="player-header" onclick="toggleCard('${p.id}')">
-            <div>
-              <div class="player-name">${escapeHtml(p.naam)}${p.gestopt ? ' <span title="Gestopt: geen mails of meldingen meer, met 0 onderaan de ranglijst" style="display:inline-block;font-size:0.7rem;font-weight:bold;color:#ef4444;border:1px solid #ef4444;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle;">⛔ Gestopt</span>' : ''}${p.nnb_pauze ? ' <span title="Geen NNB-herinnering (ook niet aan tegenstanders)" style="display:inline-block;font-size:0.7rem;font-weight:bold;color:#f59e0b;border:1px solid #f59e0b;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle;">⏸ NNB-mail gepauzeerd</span>' : ''}</div>
-              <div class="player-meta">${escapeHtml(meta)}</div>
-            </div>
-            <div class="chevron">▶</div>
+    listEl.innerHTML = `<div class="sp-wrap"><table class="sp-tabel"><thead><tr>${kop}</tr></thead><tbody>${rijen}</tbody></table>
+      <div class="sp-voet">${filtered.length} van ${allPlayers.length} spelers getoond${verborgen && verberg ? ` · ${verborgen} inactief verborgen` : ''}</div></div>`;
+  }
+
+  // ── Bewerkvenster (klik op een naam) ──
+  function openEdit(id) {
+    const p = allPlayers.find(x => x.id === id);
+    if (!p) return;
+    openId = id;
+    const contact = allContacts[p.id] || {};
+    const t = wedstrijdTelling[p.naam] || { totaal: 0, gespeeld: 0 };
+    const idx = zichtbareIds.indexOf(id);
+    const vorige = idx > 0 ? zichtbareIds[idx - 1] : null;
+    const volgende = idx !== -1 && idx < zichtbareIds.length - 1 ? zichtbareIds[idx + 1] : null;
+
+    document.getElementById('edit-paneel').innerHTML = `
+      <div class="ed-kop">
+        <h3>Speler bewerken</h3>
+        <button title="Vorige speler" ${vorige ? `onclick="openEdit('${vorige}')"` : 'disabled'}>‹</button>
+        <button title="Volgende speler" ${volgende ? `onclick="openEdit('${volgende}')"` : 'disabled'}>›</button>
+        <button title="Sluiten (Esc)" onclick="sluitEdit()">✕</button>
+      </div>
+      <div class="ed-body">
+        <div class="ed-info">
+          <div><small>Wedstrijden</small><b>${t.totaal}</b></div>
+          <div><small>Gespeeld</small><b>${t.gespeeld}</b></div>
+          <div><small>Nog te spelen</small><b>${t.totaal - t.gespeeld}</b></div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Naam</label>
+            <input type="text" id="naam-${p.id}" value="${escapeAttr(p.naam)}">
           </div>
-          <div class="player-body">
-            <div class="field-row">
-              <div class="field-group">
-                <label>Naam</label>
-                <input type="text" id="naam-${p.id}" value="${escapeAttr(p.naam)}">
-              </div>
-              <div class="field-group">
-                <label>Divisie</label>
-                <select id="divisie-${p.id}">
-                  <option value="" ${!p.divisie ? 'selected' : ''}>— geen —</option>
-                  <option value="Eredivisie" ${p.divisie === 'Eredivisie' ? 'selected' : ''}>Eredivisie</option>
-                  <option value="Eerste Divisie" ${p.divisie === 'Eerste Divisie' ? 'selected' : ''}>Eerste Divisie</option>
-                </select>
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field-group">
-                <label>E-mail</label>
-                <input type="email" id="email-${p.id}" value="${escapeAttr(contact.email || '')}">
-              </div>
-              <div class="field-group">
-                <label>Telefoon</label>
-                <input type="text" id="telefoon-${p.id}" value="${escapeAttr(contact.telefoon || '')}">
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field-group">
-                <label>Code meldingen (app)</label>
-                <input type="text" readonly value="${escapeAttr(contact.code || '–')}" style="font-family:monospace;letter-spacing:3px;font-weight:bold;">
-              </div>
-              <div class="field-group" style="justify-content:flex-end;">
-                <label>&nbsp;</label>
-                <button class="save-btn" id="uitnodig-${p.id}" onclick="stuurUitnodiging('${p.id}','${escapeAttr(p.naam)}')" ${contact.code && contact.email ? '' : 'disabled'} style="background:var(--s2, #334155);">📧 Code opnieuw mailen</button>
-              </div>
-            </div>
-            <label style="display:flex;align-items:flex-start;gap:10px;margin:4px 0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.85rem;line-height:1.4;">
-              <input type="checkbox" id="nnbpauze-${p.id}" ${p.nnb_pauze ? 'checked' : ''} onchange="zetNnbPauze('${p.id}', this.checked)" style="width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;">
-              <span><strong>NNB-herinnering pauzeren</strong><br><span style="color:var(--muted);">Bijv. bij blessure of operatie. Geen wekelijkse NNB-mail over wedstrijden van deze speler, ook niet aan zijn tegenstanders. Wordt direct opgeslagen.</span></span>
-            </label>
-            <label style="display:flex;align-items:flex-start;gap:10px;margin:-4px 0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.85rem;line-height:1.4;">
-              <input type="checkbox" id="gestopt-${p.id}" ${p.gestopt ? 'checked' : ''} onchange="zetGestopt('${p.id}', this.checked)" style="width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;">
-              <span><strong>Gestopt dit seizoen</strong><br><span style="color:var(--muted);">Geen mails en meldingen meer (ook niet "vanavond vrij"), niet meer te kiezen in de spelers-app, en met 0 onderaan de ranglijst van de divisie hierboven (laat die dus staan). Haal de wedstrijden zelf uit de planning. Wordt direct opgeslagen.</span></span>
-            </label>
-            <div style="display:flex;gap:8px;">
-              <button class="save-btn" onclick="savePlayer('${p.id}')" style="flex:1;">Opslaan</button>
-              <button class="save-btn delete-btn" onclick="deletePlayer('${p.id}','${escapeAttr(p.naam)}')" style="flex:0 0 auto;background:var(--red);">Verwijderen</button>
-            </div>
+          <div class="field-group">
+            <label>Divisie</label>
+            <select id="divisie-${p.id}">
+              <option value="" ${!p.divisie ? 'selected' : ''}>— geen —</option>
+              <option value="Eredivisie" ${p.divisie === 'Eredivisie' ? 'selected' : ''}>Eredivisie</option>
+              <option value="Eerste Divisie" ${p.divisie === 'Eerste Divisie' ? 'selected' : ''}>Eerste Divisie</option>
+            </select>
           </div>
         </div>
-      `;
-    }).join('')).join('');
+        <div class="field-row">
+          <div class="field-group">
+            <label>E-mail</label>
+            <input type="email" id="email-${p.id}" value="${escapeAttr(contact.email || '')}">
+          </div>
+          <div class="field-group">
+            <label>Telefoon</label>
+            <input type="text" id="telefoon-${p.id}" value="${escapeAttr(contact.telefoon || '')}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Code meldingen (app)</label>
+            <input type="text" readonly value="${escapeAttr(contact.code || '–')}" style="font-family:monospace;letter-spacing:3px;font-weight:bold;">
+          </div>
+          <div class="field-group">
+            <label>&nbsp;</label>
+            <button class="save-btn" id="uitnodig-${p.id}" onclick="stuurUitnodiging('${p.id}','${escapeAttr(p.naam)}')" ${contact.code && contact.email ? '' : 'disabled'} style="width:100%;background:var(--s3);color:var(--text);">📧 Code opnieuw mailen</button>
+          </div>
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:10px;margin:4px 0 10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.85rem;line-height:1.4;">
+          <input type="checkbox" id="nnbpauze-${p.id}" ${p.nnb_pauze ? 'checked' : ''} onchange="zetNnbPauze('${p.id}', this.checked)" style="width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;">
+          <span><strong>NNB-herinnering pauzeren</strong><br><span style="color:var(--muted);">Bijv. bij blessure of operatie. Geen wekelijkse NNB-mail over wedstrijden van deze speler, ook niet aan zijn tegenstanders. Wordt direct opgeslagen.</span></span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;margin:0 0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.85rem;line-height:1.4;">
+          <input type="checkbox" id="gestopt-${p.id}" ${p.gestopt ? 'checked' : ''} onchange="zetGestopt('${p.id}', this.checked)" style="width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;">
+          <span><strong>Gestopt dit seizoen</strong><br><span style="color:var(--muted);">Geen mails en meldingen meer (ook niet "vanavond vrij"), niet meer te kiezen in de spelers-app, en met 0 onderaan de ranglijst van de divisie hierboven (laat die dus staan). Haal de wedstrijden zelf uit de planning. Wordt direct opgeslagen.</span></span>
+        </label>
+        <div class="ed-knoppen">
+          <button class="save-btn" onclick="savePlayer('${p.id}')" style="flex:1;">Opslaan</button>
+          <button class="save-btn" onclick="sluitEdit()" style="flex:0 0 auto;background:var(--s3);color:var(--text);">Annuleren</button>
+          <button class="save-btn delete-btn" onclick="deletePlayer('${p.id}','${escapeAttr(p.naam)}')" style="flex:0 0 auto;background:var(--red);">Verwijderen</button>
+        </div>
+      </div>`;
+    document.getElementById('edit-overlay').classList.add('open');
   }
 
-  function toggleCard(id) {
-    document.getElementById('card-' + id).classList.toggle('open');
+  function sluitEdit() {
+    openId = null;
+    document.getElementById('edit-overlay').classList.remove('open');
   }
+
+  document.addEventListener('keydown', e => {
+    if (!openId) return;
+    if (e.key === 'Escape') sluitEdit();
+  });
 
   // NNB-herinnering pauzeren (03-11-2026): de Edge Function nnb-herinnering slaat
   // alle wedstrijden over waarin een speler met nnb_pauze = true speelt.
@@ -672,7 +824,7 @@
     if (p) p.nnb_pauze = aan;
     showStatus((p ? p.naam + ': ' : '') + (aan ? 'NNB-herinnering gepauzeerd' : 'NNB-herinnering weer aan'), true);
     renderPlayers();
-    document.getElementById('card-' + id)?.classList.add('open');
+    openEdit(id);
   }
 
   // Gestopt (26-11-2026): mails (speeldag, maandplanning) en de spelers-app slaan gestopte spelers over;
@@ -691,7 +843,7 @@
     if (p) p.gestopt = aan;
     showStatus((p ? p.naam + ': ' : '') + (aan ? 'op gestopt gezet' : 'weer actief'), true);
     renderPlayers();
-    document.getElementById('card-' + id)?.classList.add('open');
+    openEdit(id);
   }
 
   let bulkMode = false;
@@ -700,6 +852,7 @@
     bulkMode = !bulkMode;
     document.getElementById('bulk-view').style.display = bulkMode ? 'block' : 'none';
     document.getElementById('players-list').style.display = bulkMode ? 'none' : 'block';
+    document.getElementById('sp-filters').style.display = bulkMode ? 'none' : 'flex';
     document.getElementById('bulk-toggle-btn').textContent = bulkMode ? '✖ Sluit bulkweergave' : '📋 Bulk divisie bewerken';
     if (bulkMode) renderBulkList();
   }
@@ -789,9 +942,9 @@
       return;
     }
 
+    sluitEdit();
     showStatus('Opgeslagen: ' + naam, true);
     await loadPlayers();
-    document.getElementById('card-' + id).classList.add('open');
   }
 
   async function addPlayer() {
@@ -849,6 +1002,7 @@
       return;
     }
 
+    sluitEdit();
     showStatus('Speler verwijderd: ' + naam, true);
     await loadPlayers();
   }
@@ -857,7 +1011,7 @@
   async function loadSwapNamenlijst() {
     const { data, error } = await supabaseClient
       .from('wedstrijden')
-      .select('thuis, uit');
+      .select('thuis, uit, status');
 
     if (error) {
       showStatus('Kon spelerslijst voor vervangen niet laden: ' + error.message, false);
@@ -866,7 +1020,13 @@
 
     const isBye = v => /[-–]\s*bye\s*[-–]/i.test(v || '');
     const namen = new Set();
+    wedstrijdTelling = {};
     (data || []).forEach(r => {
+      [r.thuis, r.uit].forEach(n => {
+        if (!n || isBye(n)) return;
+        const t = wedstrijdTelling[n] || (wedstrijdTelling[n] = { totaal: 0, gespeeld: 0 });
+        t.totaal++; if (r.status === 'gespeeld') t.gespeeld++;
+      });
       if (!isBye(r.thuis)) namen.add(r.thuis);
       if (!isBye(r.uit)) namen.add(r.uit);
     });
@@ -876,6 +1036,7 @@
       sorted.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
     document.getElementById('swap-suggesties').innerHTML =
       sorted.map(n => `<option value="${escapeAttr(n)}">`).join('');
+    if (!bulkMode && allPlayers.length) renderPlayers();
   }
 
   function toggleSwapType() {
