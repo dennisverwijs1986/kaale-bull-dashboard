@@ -970,7 +970,7 @@ function htmlSpLijst(){
     const meta=[c.email||'geen e-mail', c.telefoon||''].filter(Boolean).join(' · ');
     return `<button class="card ${k}" onclick="openSpeler(${jsAttr(p.id)})">
       <div class="card-main"><div class="names"><span class="n">${esc(p.naam)}</span></div>
-        <div class="chips">${p.nnb_pauze?'<span class="chip beker">⏸ NNB-mail gepauzeerd</span>':''}<span class="chip" style="${c.email?'':'color:var(--orange)'}">${esc(meta)}</span></div>
+        <div class="chips">${p.gestopt?'<span class="chip" style="color:var(--red,#ef4444)">⛔ Gestopt</span>':''}${p.nnb_pauze?'<span class="chip beker">⏸ NNB-mail gepauzeerd</span>':''}<span class="chip" style="${c.email?'':'color:var(--orange)'}">${esc(meta)}</span></div>
       </div><span class="card-go">›</span></button>`;
   }).join('')).join('');
 }
@@ -981,7 +981,7 @@ function openSpeler(id){
   const c = p ? (SP.contact[p.id]||{}) : {};
   sheet=null; scoreSheet=null; mddSheet=null;
   spSheet = { id, nieuw:!p, naam:p?p.naam:'', divisie:p?(p.divisie||''):'', email:c.email||'', telefoon:c.telefoon||'',
-              pauze:!!(p&&p.nnb_pauze), code:c.code||'', bezig:false, fout:'', mailRes:'' };
+              pauze:!!(p&&p.nnb_pauze), gestopt:!!(p&&p.gestopt), code:c.code||'', bezig:false, fout:'', mailRes:'' };
   renderSpSheet();
   $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
   document.body.style.overflow='hidden';
@@ -1007,6 +1007,10 @@ function renderSpSheet(){
         <span>⏸ NNB-herinnering pauzeren</span>
         <label class="switch"><input type="checkbox" ${s.pauze?'checked':''} onchange="spVeld('pauze',this.checked)"><span></span></label></div>
       <p class="muted" style="font-size:.8rem;margin:4px 2px 0;line-height:1.4">Bijv. bij vakantie, ziekte of een operatie. Geen wekelijkse NNB-mail over wedstrijden van deze speler, ook niet aan zijn tegenstanders.</p>
+      ${s.nieuw?'':`<div class="toggle-row" style="margin:14px 2px 2px;color:var(--text);font-weight:700">
+        <span>⛔ Gestopt dit seizoen</span>
+        <label class="switch"><input type="checkbox" ${s.gestopt?'checked':''} onchange="spVeld('gestopt',this.checked)"><span></span></label></div>
+      <p class="muted" style="font-size:.8rem;margin:4px 2px 0;line-height:1.4">Geen mails en meldingen meer, niet meer te kiezen in de spelers-app, en met 0 onderaan de ranglijst. Haal de wedstrijden zelf uit de planning.</p>`}
       ${s.nieuw?'':`
       <div class="sec-title">Meldingen-code (app)</div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -1041,7 +1045,7 @@ async function slaSpelerOp(){
       const [rij] = await sbPost('spelers', { naam, divisie, nnb_pauze:s.pauze });
       id=rij.id;
     } else {
-      await sbPatch('spelers', id, { divisie, nnb_pauze:s.pauze });
+      await sbPatch('spelers', id, { divisie, nnb_pauze:s.pauze, gestopt:!!s.gestopt });
     }
     const oud=SP.contact[id]||{};
     if(s.nieuw ? (email||telefoon) : ((oud.email||null)!==email || (oud.telefoon||null)!==telefoon)){

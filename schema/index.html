@@ -810,8 +810,9 @@ async function laad(){
     const [rijen, nnb, bekerRij] = await Promise.all([
       sbGet('wedstrijden', `${velden}&datum=lte.${tot}&order=datum.asc,tijdstip.asc.nullslast,id.asc`),
       sbGet('wedstrijden', `${velden}&datum_nnb=eq.true&status=neq.gespeeld&order=id.asc`),
-      sbGet('beker_toernooi','select=staat&order=id.desc&limit=1').catch(()=>[])
-    ]);
+      sbGet('beker_toernooi','select=staat&order=id.desc&limit=1').catch(()=>[]),
+      sbGet('spelers','select=naam,divisie&gestopt=eq.true').catch(()=>null)
+    ]).then(([a,b,c,g])=>{ if (Array.isArray(g)) S.gestopt = g; return [a,b,c]; });
     // Bekeruitslagen staan in het bekertoernooi (score per wedstrijd), gekoppeld via _wedstrijdId
     S.bekerUitslag = {};
     const fasen = (bekerRij[0] && bekerRij[0].staat && bekerRij[0].staat.fases) || {};
@@ -830,7 +831,7 @@ async function laad(){
     S.nnb = nnb.filter(w=>!isBye(w));
     const namen = new Set();
     [...S.rijen, ...S.nnb].forEach(w=>{ namen.add(w.thuis); namen.add(w.uit); });
-    S.spelers = [...namen].filter(Boolean).sort((a,b)=>a.localeCompare(b,'nl'));
+    S.spelers = [...namen].filter(n=>n && !isGestopt(n)).sort((a,b)=>a.localeCompare(b,'nl'));
 
     const mdd = document.getElementById('mededeling');
     const tekst = (I.app_mededeling_tekst||'').trim();
@@ -870,7 +871,7 @@ function zetSync(ok){
     S.nnb = c.nnb || [];
     S.kantel = c.kantel || 24;
     const namen = new Set(); [...S.rijen, ...S.nnb].forEach(w=>{ namen.add(w.thuis); namen.add(w.uit); });
-    S.spelers = [...namen].filter(Boolean).sort((a,b)=>a.localeCompare(b,'nl'));
+    S.spelers = [...namen].filter(n=>n && !isGestopt(n)).sort((a,b)=>a.localeCompare(b,'nl'));
     if (c.mdd){ const m=document.getElementById('mededeling'); m.textContent=c.mdd; m.hidden=false; }
     S.cacheTijd = c.t; S.geladen = true;
     document.getElementById('syncTekst').textContent = `stand van ${hhmm(new Date(c.t))}`;
@@ -1504,15 +1505,16 @@ async function laadStand(force){
       sbGet('eindstand_eerste_divisie','select=*&order=positie.asc'),
       // Eerste Divisie: gespeeld, uitslag bekend, maar legstand nog niet ingelezen (matchlog volgt na de avond)
       sbGet('wedstrijden','select=thuis,uit,uitslag,speelronde&divisie=eq.Eerste%20Divisie&status=eq.gespeeld&or=(legs_thuis.is.null,legs_uit.is.null)').catch(()=>[]),
-      sbGet('instellingen','select=waarde&sleutel=eq.gestopt_spelers').catch(()=>[])
+      sbGet('spelers','select=naam,divisie&gestopt=eq.true').catch(()=>null)
     ]);
+    if (Array.isArray(gestoptRuw)) S.gestopt = gestoptRuw;
     // Zoals bij de Eredivisie: wedstrijden zonder legstand tellen voorlopig mee (gespeeld + winst), met een *
     const pst = voorlopigEerste(pstRuw, eersteZonder, true);
     const eindRijen = voorlopigEerste(eindRuw, eersteZonder, false);
     // Statistieken: per divisie alleen de laatste peildatum
     const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
     S.beker = { staat: bekerStaat[0]?.staat || null, links: Object.fromEntries(bekerLinks.map(r=>[r.id, r.verslag_url])) };
-    S.stand = { pst, ere: voegGestoptToe(berekenEre(ere), gestoptRuw, 'Eredivisie'), eind: berekenEind(pst, eindRijen),
+    S.stand = { pst, ere: voegGestoptToe(berekenEre(ere), 'Eredivisie'), eind: berekenEind(pst, eindRijen),
                 stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
     S.standTijd = Date.now();
     if (!S.standPeriode){
@@ -1546,14 +1548,14 @@ function berekenEre(data){
   l.forEach((r,i)=>{ const v=l[i-1]; r.pos=(v&&v.p===r.p&&v.w===r.w&&v.v===r.v&&(v.lv-v.lt)===(r.lv-r.lt))?v.pos:i+1; });
   return l;
 }
-// Spelers die tijdens het seizoen gestopt zijn: hun wedstrijden zijn verwijderd, maar ze blijven
-// met 0 onderaan de ranglijst staan. Alleen in het seizoen dat in instellingen.gestopt_spelers staat,
-// bv. {"seizoen":"2026-27","Eredivisie":["Petra de Crom"]} (zelfde notatie als huidigSeizoen()) — een nieuw seizoen toont ze dus vanzelf niet meer.
-function voegGestoptToe(l, ruw, divisie){
-  let cfg=null; try{ cfg = ruw && ruw[0] ? JSON.parse(ruw[0].waarde) : null; }catch(e){ cfg=null; }
-  if (!cfg || cfg.seizoen!==huidigSeizoen() || !Array.isArray(cfg[divisie])) return l;
-  cfg[divisie].filter(n=>!l.some(r=>r.speler===n))
-    .forEach(n=>l.push({speler:n,g:0,w:0,v:0,lv:0,lt:0,p:0,zonder:0,gestopt:true,pos:l.length+1}));
+// Spelers die tijdens het seizoen gestopt zijn (spelers.gestopt, schakelaar in spelerbeheer):
+// hun wedstrijden zijn uit de planning gehaald, maar ze blijven met 0 onderaan de ranglijst
+// van hun divisie staan. Ze zijn niet meer te kiezen bij "Wie ben jij?".
+// Nieuw seizoen: speler uit spelerbeheer halen of de schakelaar uitzetten.
+function isGestopt(naam){ return (S.gestopt||[]).some(g=>g.naam===naam); }
+function voegGestoptToe(l, divisie){
+  (S.gestopt||[]).filter(g=>g.divisie===divisie && !l.some(r=>r.speler===g.naam))
+    .forEach(g=>l.push({speler:g.naam,g:0,w:0,v:0,lv:0,lt:0,p:0,zonder:0,gestopt:true,pos:l.length+1}));
   return l;
 }
 // Eerste Divisie voorlopig bijwerken met gespeelde wedstrijden waarvan de legstand nog niet is ingelezen.
