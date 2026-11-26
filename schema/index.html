@@ -1548,8 +1548,7 @@ function berekenEre(data){
 }
 // Spelers die tijdens het seizoen gestopt zijn: hun wedstrijden zijn verwijderd, maar ze blijven
 // met 0 onderaan de ranglijst staan. Alleen in het seizoen dat in instellingen.gestopt_spelers staat,
-// bv. {"seizoen":"2026-2027","Eredivisie":["Petra de Crom"]} — een nieuw seizoen toont ze dus vanzelf niet meer.
-function huidigSeizoen(){ const d=new Date(), j=d.getFullYear(); return d.getMonth()>=6 ? `${j}-${j+1}` : `${j-1}-${j}`; }
+// bv. {"seizoen":"2026-27","Eredivisie":["Petra de Crom"]} (zelfde notatie als huidigSeizoen()) — een nieuw seizoen toont ze dus vanzelf niet meer.
 function voegGestoptToe(l, ruw, divisie){
   let cfg=null; try{ cfg = ruw && ruw[0] ? JSON.parse(ruw[0].waarde) : null; }catch(e){ cfg=null; }
   if (!cfg || cfg.seizoen!==huidigSeizoen() || !Array.isArray(cfg[divisie])) return l;
