@@ -20,6 +20,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .wrap{display:grid;grid-template-columns:260px 1fr;gap:16px;padding:16px 20px;max-width:1400px;margin:0 auto;}
 .panel{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;}
 .panel h2{font-size:0.7rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.avonden-lijst{max-height:calc(100vh - 140px);overflow-y:auto;padding-right:2px;}
 .avond{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;}
 .avond:hover{background:var(--s2);}
 .avond.actief{background:var(--s3);border-color:var(--blue);}
@@ -79,7 +80,7 @@ tr:last-child td{border-bottom:none;}
   .samenvatting{grid-template-columns:repeat(2,1fr);gap:8px;}
   .stat{padding:10px;}
   .stat .val{font-size:1.25rem;}
-  .avonden-lijst{display:flex;overflow-x:auto;gap:6px;margin:0 -14px;padding:0 14px 4px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;}
+  .avonden-lijst{max-height:none;overflow-y:visible;display:flex;overflow-x:auto;gap:6px;margin:0 -14px;padding:0 14px 4px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;}
   .avond{flex-direction:column;align-items:flex-start;gap:4px;min-width:112px;flex-shrink:0;margin-bottom:0;background:var(--s2);scroll-snap-align:start;}
   .uitleg-lang{display:none;}
   .vrij{align-items:flex-start;flex-wrap:wrap;}
@@ -168,7 +169,7 @@ async function laadAvonden(){
     `datum=gte.${vandaag}&datum_nnb=not.is.true&tijdstip=not.is.null&select=id,datum,tijdstip,thuis,uit,divisie,status,bord,is_inhaal,originele_datum,datum_nnb&order=datum.asc,tijdstip.asc`);
   const perDatum = groepeer();
   const el = document.getElementById('avonden');
-  const datums = [...perDatum.keys()].slice(0, 12);
+  const datums = [...perDatum.keys()];   // alle komende avonden t/m einde seizoen (26-11-2026, was de eerstvolgende 12)
   if (!datums.length){ el.innerHTML = '<div class="leeg">Geen komende avonden gevonden.</div>'; return; }
   el.innerHTML = datums.map(d => {
     const ms = perDatum.get(d);
