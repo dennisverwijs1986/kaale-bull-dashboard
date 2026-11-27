@@ -29,6 +29,8 @@ create table public.machines (
   id text primary key, name text not null, type text not null default '',
   service_org text not null default '', service_channel text not null default '', sort int not null default 0
 );
+-- migratie machines_model: machines met hetzelfde model delen hun storingsgeschiedenis (de vier Avinci's = 'Avinci')
+alter table public.machines add column model text not null default '';
 
 create table public.testprints (
   id bigint generated always as identity primary key,

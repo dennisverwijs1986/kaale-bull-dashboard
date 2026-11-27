@@ -380,6 +380,7 @@ mark{background:var(--brand-soft);color:inherit;padding:0 2px;border-radius:2px;
       </div>
       <label>Wat is er aan de hand?<input id="iTitle" required placeholder="Bijv. strepen in magenta, kop 3"></label>
       <label>Toelichting<textarea id="iDesc" rows="2" placeholder="Wat heb je al geprobeerd?"></textarea></label>
+      <div class="ai-box" id="likeOut" hidden aria-live="polite"></div>
       <div class="ai">
         <div class="row"><button class="btn ai-btn" type="button" id="aiBtn">&#10022; Zoek mogelijke oplossingen</button><button class="btn" type="button" id="aiStop" hidden>Stop</button></div>
         <div class="ai-box" id="aiOut" hidden></div>
@@ -436,6 +437,11 @@ const openIds = new Set(); const closedIds = new Set();
 const sameDay = (a,b) => a.toDateString()===b.toDateString();
 const workdaysAgo = n => { const d=new Date(now); let k=0; while(k<n){ d.setDate(d.getDate()-1); if(d.getDay()%6) k++; } return d; };
 const mName = id => (machines.find(x=>x.id===id)||{name:id}).name;
+// Machines met hetzelfde model (bijv. de vier Avinci's) delen hun storingsgeschiedenis
+const modelOf = id => (machines.find(x=>x.id===id)||{}).model||id;
+const siblings = id => machines.filter(x=>x.id!==id && x.model===modelOf(id));
+const modelPl = mo => /[aeiouy]$/i.test(mo) ? mo+"'s" : mo+'s';
+const sameModel = (a,b) => a===b || modelOf(a)===modelOf(b);
 const lastPrint = id => prints.filter(p=>p.m===id).sort((a,b)=>b.d-a.d)[0];
 const resLabel = {ok:['Goed','ok'],warn:['Afwijking','warn'],bad:['Afgekeurd','bad'],pending:['Te beoordelen','info']};
 let rerate = null;
@@ -515,6 +521,9 @@ function renderMachinePage(id){
   const w=worstOf(id), h=histStrip(id), p=lastPrint(id), today=p&&sameDay(p.d,now), word=statusWord(w,today);
   const openI=issues.filter(i=>i.m===id && i.st!=='Opgelost').sort((a,b)=>b.d-a.d);
   const solved=issues.filter(i=>i.m===id && i.st==='Opgelost').sort((a,b)=>b.d-a.d);
+  const sib=siblings(id), sibIds=new Set(sib.map(x=>x.id));
+  const sibSolved=issues.filter(i=>sibIds.has(i.m) && i.sol).sort((a,b)=>b.d-a.d);
+  const sibOpen=issues.filter(i=>sibIds.has(i.m) && i.st!=='Opgelost').sort((a,b)=>b.d-a.d);
   const all=prints.filter(x=>x.m===id).sort((a,b)=>b.d-a.d);
   const lastBad = p && (p.r==='bad'||p.r==='warn') ? p.gap : null;
   setTimeout(()=>{swipeDir=0},0);
@@ -530,13 +539,13 @@ function renderMachinePage(id){
     <div class="quick">
       <button type="button" data-upload="${id}">${IC.cam}<span>Testprint</span></button>
       <button type="button" data-report="${id}">${IC.alert}<span>Storing melden</span></button>
-      <button type="button" data-go="storingen" data-machine="${id}" data-focus-search>${IC.search}<span>Zoeken</span></button>
+      <button type="button" data-go="storingen" data-machine="${sib.length?'model:'+esc(m.model):id}" data-focus-search>${IC.search}<span>Zoeken</span></button>
       <button type="button" data-scroll="sec-chat">${IC.chat}<span>Bericht</span></button>
     </div>
     ${p&&(p.r==='pending'||rerate===id)?`<div class="block" style="margin-bottom:14px">${printPanel(m)}</div>`:''}
     <div class="tiles">
       <button type="button" class="tile ${openI.length?'alert':''}" data-scroll="sec-open">${IC.alert}<b>Open storingen</b><small>${openI.length?`${openI.length} open · ${esc(openI[0].title)}`:'Geen, de machine draait'}</small></button>
-      <button type="button" class="tile" data-scroll="sec-solved">${IC.wrench}<b>Oplossingen</b><small>${solved.length} opgeloste storingen</small></button>
+      <button type="button" class="tile" data-scroll="sec-solved">${IC.wrench}<b>Oplossingen</b><small>${solved.length} opgeloste storingen${sib.length?` · ${sibSolved.length} op andere ${esc(modelPl(m.model))}`:''}</small></button>
       <button type="button" class="tile" data-scroll="sec-chat">${IC.chat}<b>Berichten</b><small>${(()=>{const c=msgs.filter(x=>x.m===id);const l=c[c.length-1];return l?`${c.length} \u00b7 ${esc(l.by)}: ${esc(l.t.slice(0,40))}${l.t.length>40?'\u2026':''}`:'Nog geen berichten'})()}</small></button>
       <button type="button" class="tile" data-scroll="sec-prints">${IC.hist}<b>Alle testprints</b><small>${all.length} opgeslagen</small></button>
     </div>
@@ -548,6 +557,9 @@ function renderMachinePage(id){
       <div class="col">
         <div class="block" id="sec-open"><h3>Open storingen</h3>${openI.length?openI.map(i=>issueHTML(i,false)).join(''):'<p class="empty">Geen open storingen. De machine draait.</p>'}</div>
         <div class="block" id="sec-solved"><h3>Opgeloste storingen</h3>${solved.length?solved.map(i=>issueHTML(i,false)).join(''):'<p class="empty">Nog geen opgeloste storingen.</p>'}<p class="solvedcount">Tik op een storing om de oplossing te zien.</p></div>
+        ${sib.length?`<div class="block" id="sec-sib"><h3>Andere ${esc(modelPl(m.model))}</h3><p class="solvedcount" style="margin:0">Dezelfde machine, dus deze oplossingen werken vaak ook hier.</p>
+          ${sibOpen.length?`<span class="lbl">Staat nu open</span>${sibOpen.map(i=>issueHTML(i,false,true)).join('')}`:''}
+          ${sibSolved.length?`<span class="lbl">Opgelost</span>${sibSolved.map(i=>issueHTML(i,false,true)).join('')}`:'<p class="empty">Nog geen opgeloste storingen op de andere '+esc(modelPl(m.model))+'.</p>'}</div>`:''}
       </div>
     </div>
     <div class="block" id="sec-chat"><h3>Berichten over deze printer</h3>${chatHTML(id)}</div>
@@ -578,7 +590,8 @@ function renderIssues(){
   const terms=q.split(/\s+/).filter(Boolean);
   qTerms=terms;
   const hay=i=>[i.title,i.desc,i.sol,mName(i.m),...(notes[i.id]||[]).map(n=>n.t)].join(' ').toLowerCase();
-  let list=issues.filter(i=>(qm==='all'||i.m===qm)&&terms.every(t=>hay(i).includes(t)));
+  const inM=i=>qm==='all'||(qm.startsWith('model:')?modelOf(i.m)===qm.slice(6):i.m===qm);
+  let list=issues.filter(i=>inM(i)&&terms.every(t=>hay(i).includes(t)));
   if(terms.length) list.sort((a,b)=>(!!b.sol)-(!!a.sol)||b.d-a.d); else list.sort((a,b)=>order[a.st]-order[b.st]||b.d-a.d);
   const sc=document.getElementById('scount');
   sc.hidden=!(terms.length||qm!=='all');
@@ -596,7 +609,7 @@ const solMeta = i => i.src==='whatsapp'
   ? `<span class="mono">Uit de WhatsApp-geschiedenis · ${fmt(i.solD)}</span>`
   : `<span class="solby"><span class="pill ${i.solType==='monteur'?'warn':'info'}">${i.solType==='monteur'?'Monteur':'Intern'}</span><span class="mono">${esc(i.solBy||'')} · ${i.solD?fmt(i.solD):''}</span></span>`;
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function issueHTML(i, editable){
+function issueHTML(i, editable, showM){
   const auto = editable && qTerms.length && i.sol && qTerms.some(t=>i.sol.toLowerCase().includes(t));
   const open = openIds.has(i.id) || (auto && !closedIds.has(i.id)); const ctx = editable?'t':'d';
   const status = editable
@@ -620,7 +633,7 @@ function issueHTML(i, editable){
       <button class="itoggle" data-toggle="${i.id}" aria-expanded="${open}"><span>${editable?hl(i.title):esc(i.title)}</span><span class="chev" aria-hidden="true">›</span></button>
       ${status}
       ${i.desc?`<p>${editable?hl(i.desc):esc(i.desc)}</p>`:''}
-      <div class="meta"><span class="${editable?'mlabel':''}">${editable?mName(i.m):'ernst '+i.sev}</span><span class="mono">${fmt(i.d)} · ${esc(i.by)}${editable?' · ernst '+i.sev:''}</span></div>
+      <div class="meta"><span class="${editable||showM?'mlabel':''}">${editable||showM?mName(i.m):'ernst '+i.sev}</span><span class="mono">${fmt(i.d)} · ${esc(i.by)}${editable||showM?' · ernst '+i.sev:''}</span></div>
       ${i.esc&&i.st!=='Opgelost'?`<span class="escpill">Bij monteur \u00b7 ${esc(i.esc.to)} sinds ${fmt(i.esc.d)}</span>`:''}
       ${i.sol&&!open?'<span class="hint">Oplossing bekijken</span>':''}
       ${body}
@@ -878,7 +891,7 @@ async function loadAll(){
   const bad=[m,p,i,n,x].find(r=>r.error); if(bad) throw bad.error;
   const need=[...new Set(p.data.map(r=>r.photo_path).filter(Boolean))].filter(k=>!urlCache[k]);
   for(let k=0;k<need.length;k+=100){ const {data}=await sb.storage.from('testprints').createSignedUrls(need.slice(k,k+100),43200); (data||[]).forEach(d=>{ if(d.signedUrl&&d.path) urlCache[d.path]=d.signedUrl; }); }
-  machines=m.data.map(r=>({id:r.id,name:r.name,type:r.type}));
+  machines=m.data.map(r=>({id:r.id,name:r.name,type:r.type,model:r.model||r.id}));
   SERVICE=Object.fromEntries(m.data.map(r=>[r.id,{org:r.service_org||'Servicepartij',ch:r.service_channel||'E-mail'}]));
   prints=p.data.map(r=>({id:r.id,m:r.machine_id,d:toD(r.created_at),by:r.by_name||'',r:r.result,img:r.photo_path?urlCache[r.photo_path]||null:null}));
   issues=i.data.map(r=>({id:r.id,m:r.machine_id,sev:r.severity,title:r.title,desc:r.description||'',st:r.status,d:toD(r.created_at),by:r.by_name||'',
@@ -892,7 +905,9 @@ async function loadAll(){
 function fillSelects(){
   const opts=machines.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
   document.getElementById('iMachine').innerHTML=opts;
-  const q=document.getElementById('qMachine'), v=q.value; q.innerHTML='<option value="all">Alle machines</option>'+opts; q.value=v||'all';
+  const q=document.getElementById('qMachine'), v=q.value; const groups=[...new Set(machines.map(m=>m.model))].map(mo=>[mo,machines.filter(m=>m.model===mo).length]).filter(g=>g[1]>1);
+  q.innerHTML='<option value="all">Alle machines</option>'+groups.map(([mo,n])=>`<option value="model:${esc(mo)}">Alle ${esc(modelPl(mo))} (${n})</option>`).join('')+opts;
+  q.value=[...q.options].some(o=>o.value===v)?v:'all';
 }
 async function refresh(){
   try{ await loadAll(); }catch(err){ console.error(err); toast('Gegevens laden lukte niet. Controleer je verbinding.'); return; }
@@ -954,8 +969,8 @@ function logMatches(text, mid){
   const words=[...new Set(text.toLowerCase().split(/[^a-z0-9\u00e0-\u00ff]+/).filter(w=>w.length>3&&!STOP.has(w)))];
   if(!words.length) return [];
   return issues.filter(i=>i.sol).map(i=>{const h=(i.title+' '+i.desc+' '+i.sol).toLowerCase();
-      const sc=words.filter(w=>h.includes(w)).length; return {i,sc:sc?sc+(i.m===mid?0.5:0):0};})
-    .filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc).slice(0,3).map(x=>x.i);
+      const sc=words.filter(w=>h.includes(w)).length; return {i,sc:sc?sc+(i.m===mid?1:sameModel(i.m,mid)?0.75:0):0};})
+    .filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc||b.i.d-a.i.d).slice(0,3).map(x=>x.i);
 }
 const aiBtn=document.getElementById('aiBtn'), aiStop=document.getElementById('aiStop'), aiOut=document.getElementById('aiOut');
 function aiMsg(html){ const el=document.getElementById('aiSug'); if(el) el.innerHTML='<span class="lbl">AI-suggesties</span>'+html; }
@@ -999,8 +1014,22 @@ Antwoord met alleen JSON in deze vorm:
       : '<p class="empty">Het lukte niet om suggesties op te halen. Probeer het opnieuw.</p>');
   }finally{ aiBtn.disabled=false; aiStop.hidden=true; }
 };
-document.getElementById('cancelIssue').addEventListener('click',()=>{aiCtl?.abort(); aiOut.hidden=true; fromMsg=null;});
-document.getElementById('issueForm').addEventListener('submit',()=>{aiOut.hidden=true;});
+// Tijdens het typen: zoek in de storingen van deze printer en de machines van hetzelfde model
+const likeOut=document.getElementById('likeOut'); let likeT=null;
+function showLike(){
+  const mid=document.getElementById('iMachine').value, text=document.getElementById('iTitle').value+' '+document.getElementById('iDesc').value;
+  const words=[...new Set(text.toLowerCase().split(/[^a-z0-9\u00e0-\u00ff]+/).filter(w=>w.length>3&&!STOP.has(w)))];
+  if(!mid||!words.length){ likeOut.hidden=true; return; }
+  const sib=siblings(mid), scope=sib.length?'deze printer en de andere '+esc(modelPl(modelOf(mid))):'deze printer';
+  const hits=issues.filter(i=>sameModel(i.m,mid)&&(i.sol||i.st!=='Opgelost')).map(i=>{const h=(i.title+' '+i.desc+' '+(i.sol||'')).toLowerCase();
+      const sc=words.filter(w=>h.includes(w)).length; return {i,sc};}).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc||b.i.d-a.i.d).slice(0,4).map(x=>x.i);
+  likeOut.hidden=false;
+  likeOut.innerHTML=`<div class="ai-sec"><span class="lbl">Eerder gezien op ${scope}</span>${hits.length?hits.map(i=>`<div class="ai-hit" ${i.sol?'':'style="border-left-color:var(--warn)"'}><b>${esc(i.title)}</b> <span class="mono">${esc(mName(i.m))}${i.m===mid?' (deze printer)':''} \u00b7 ${fmt(i.d)}${i.sol?'':' \u00b7 staat nu open'}</span><p>${i.sol?esc(i.sol):'Nog geen oplossing. Overleg met wie dit gemeld heeft: '+esc(i.by)+'.'}</p></div>`).join(''):'<p class="empty">Niets vergelijkbaars gevonden.</p>'}</div>`;
+}
+['iTitle','iDesc'].forEach(k=>document.getElementById(k).addEventListener('input',()=>{clearTimeout(likeT);likeT=setTimeout(showLike,300);}));
+document.getElementById('iMachine').addEventListener('change',showLike);
+document.getElementById('cancelIssue').addEventListener('click',()=>{aiCtl?.abort(); aiOut.hidden=true; likeOut.hidden=true; fromMsg=null;});
+document.getElementById('issueForm').addEventListener('submit',()=>{aiOut.hidden=true; likeOut.hidden=true;});
 </script>
 </body>
 </html>
