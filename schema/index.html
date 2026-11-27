@@ -245,6 +245,8 @@ tr.gestopt td{opacity:.55;}
 table.stand{width:100%;border-collapse:collapse;font-size:.88rem;}
 table.stand th{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:6px 6px;border-bottom:1px solid var(--border);}
 table.stand td{padding:8px 6px;border-bottom:1px solid rgba(42,58,86,.6);}
+.stat-top{color:#f5c518;font-weight:800;}
+.stat-pijl{font-size:.7rem;font-weight:700;margin-left:4px;white-space:nowrap;} .stat-pijl.op{color:var(--green);} .stat-pijl.af{color:var(--red);}
 table.stand .num{text-align:right;font-variant-numeric:tabular-nums;}
 table.stand .pos{width:28px;color:var(--muted);font-weight:700;}
 table.stand tr.leider td{color:var(--t-geel);font-weight:700;}
@@ -1491,7 +1493,7 @@ async function laadStand(force){
   if (standBezig || (!force && S.stand && Date.now()-S.standTijd < 60000)) { renderStand(); return; }
   standBezig=true;
   try{
-    const [pstRuw, ere, stats, volgende, bekerStaat, bekerLinks, eindRuw, eersteZonder, gestoptRuw] = await Promise.all([
+    const [pstRuw, ere, stats, volgende, bekerStaat, bekerLinks, eindRuw, eersteZonder, gestoptRuw, hist] = await Promise.all([
       sbGet('periodestand_eerste_divisie','select=*&order=periode.asc,positie.asc'),
       sbGet('wedstrijden','select=thuis,uit,uitslag,legs_thuis,legs_uit&divisie=eq.Eredivisie&status=eq.gespeeld'),
       sbGet('stats_snapshots','select=peildatum,divisie,speler,wedstrijden,s180,t140,t100,gem,hoogste_finish,beste_leg,first9,checkout_pct&order=peildatum.desc&limit=300'),
@@ -1501,9 +1503,12 @@ async function laadStand(force){
       sbGet('eindstand_eerste_divisie','select=*&order=positie.asc'),
       // Eerste Divisie: gespeeld, uitslag bekend, maar legstand nog niet ingelezen (matchlog volgt na de avond)
       sbGet('wedstrijden','select=thuis,uit,uitslag,speelronde&divisie=eq.Eerste%20Divisie&status=eq.gespeeld&or=(legs_thuis.is.null,legs_uit.is.null)').catch(()=>[]),
-      sbGet('spelers','select=naam,divisie&gestopt=eq.true').catch(()=>null)
+      sbGet('spelers','select=naam,divisie&gestopt=eq.true').catch(()=>null),
+      sbGet('historie_stats','select=seizoen,speler,gem&order=seizoen.desc').catch(()=>[])
     ]);
     if (Array.isArray(gestoptRuw)) S.gestopt = gestoptRuw;
+    // Gemiddelde vorig seizoen (meest recente seizoen in historie_stats) voor de ▲▼ in Statistieken
+    const vorigGem={}; (hist||[]).forEach(h=>{ if (!(h.speler in vorigGem) && h.gem!=null) vorigGem[h.speler]=Number(h.gem); });
     // Zoals bij de Eredivisie: wedstrijden zonder legstand tellen voorlopig mee (gespeeld + winst), met een *
     const pst = voorlopigEerste(pstRuw, eersteZonder, true);
     const eindRijen = voorlopigEerste(eindRuw, eersteZonder, false);
@@ -1511,7 +1516,7 @@ async function laadStand(force){
     const laatste={}; stats.forEach(r=>{ if (!laatste[r.divisie] || r.peildatum>laatste[r.divisie]) laatste[r.divisie]=r.peildatum; });
     S.beker = { staat: bekerStaat[0]?.staat || null, links: Object.fromEntries(bekerLinks.map(r=>[r.id, r.verslag_url])) };
     S.stand = { pst, ere: voegGestoptToe(berekenEre(ere), 'Eredivisie'), eind: berekenEind(pst, eindRijen),
-                stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste };
+                stats: stats.filter(r=>r.peildatum===laatste[r.divisie]), peil: laatste, vorigGem };
     S.standTijd = Date.now();
     if (!S.standPeriode){
       // Periode die nu loopt: die van de eerstvolgende reguliere speelronde (inhaalwedstrijden tellen niet mee) (1–10, 11–21, 22–31, 32–42)
@@ -1955,14 +1960,19 @@ function statsHtml(){
   });
   // Gedeelde plek bij precies dezelfde waarden
   l.forEach((r,i)=>{ const v=l[i-1]; r._pos = v && def.sorteer.every(([k])=>num(v,k)===num(r,k)) ? v._pos : i+1; });
-  const fmt = (r,k)=>{ const v=r[k]; if (v===null||v===undefined||v==='') return '–'; return k==='gem' ? Number(v).toFixed(2).replace('.',',') : v; };
+  // Beste waarde per kolom (beste leg = laagste) in goud
+  const top={}; def.kolommen.forEach(([k])=>{ const w=l.map(r=>num(r,k)).filter(v=>v!==null && v!==0); if (w.length) top[k] = k==='beste_leg' ? Math.min(...w) : Math.max(...w); });
+  const fmt = (r,k)=>{ const v=r[k]; if (v===null||v===undefined||v==='') return '–'; const t = k==='gem' ? Number(v).toFixed(2).replace('.',',') : v; return top[k]===Number(v) ? `<span class="stat-top">${t}</span>` : t; };
+  // ▲▼ gemiddelde t.o.v. vorig seizoen
+  const pijl = r => { const v=(S.stand.vorigGem||{})[r.speler], g=num(r,'gem'); if (v==null || g===null) return ''; const d=g-v;
+    return `<span class="stat-pijl ${d>=0?'op':'af'}">${d>=0?'▲':'▼'}${Math.abs(d).toFixed(1).replace('.',',')}</span>`; };
   const peil = S.stand.peil[naam];
   return `<div class="periodes">${knoppenSort()}</div>
     <table class="stand"><thead><tr><th></th><th>Speler</th>${def.kolommen.map(([,t])=>`<th class="num">${t}</th>`).join('')}</tr></thead><tbody>${
       l.map(r=>`<tr class="${r.speler===S.ik?'ik':''}" data-speler="${esc(r.speler)}"><td class="pos">${r._pos}</td><td>${esc(r.speler)}</td>${
-        def.kolommen.map(([k],i)=>`<td class="num">${i===0?`<b>${fmt(r,k)}</b>`:fmt(r,k)}</td>`).join('')}</tr>`).join('')
+        def.kolommen.map(([k],i)=>`<td class="num">${i===0?`<b>${fmt(r,k)}</b>`:fmt(r,k)}${k==='gem'?pijl(r):''}</td>`).join('')}</tr>`).join('')
     }</tbody></table>
-    <div class="stand-noot">Stand van ${esc(fmtLang.format(alsDatum(peil)))} (DartConnect).${S.statsSort==='gem' ? ' Gemiddelde per 3 darts.' : ''} Tik op een speler voor alle cijfers en de vergelijking met vorig seizoen.${S.statsSort==='beste_leg' ? ' Minste aantal darts voor een leg.' : ''}</div>`;
+    <div class="stand-noot">Stand van ${esc(fmtLang.format(alsDatum(peil)))} (DartConnect).${S.statsSort==='gem' ? ' Gemiddelde per 3 darts.' : ''} Goud = beste van de divisie.${S.statsSort==='gem' ? ' ▲▼ = t.o.v. vorig seizoen.' : ''} Tik op een speler voor alle cijfers en de vergelijking met vorig seizoen.${S.statsSort==='beste_leg' ? ' Minste aantal darts voor een leg.' : ''}</div>`;
 }
 function knoppenSort(){
   return Object.entries(STAT_SORT).map(([k,d])=>`<button data-sort="${k}" class="${S.statsSort===k?'actief':''}"><b>${d.kort}</b><span>${d.label}</span></button>`).join('');
