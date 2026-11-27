@@ -221,7 +221,7 @@ function renderEre(){
     return `<tr class="${cls}${r.gestopt?' gestopt':''}"><td class="pos">${r.pos}</td><td>${esc(r.speler)}${r.gestopt?' <span style="color:var(--muted)">(gestopt)</span>':''}${tag}</td>
       <td class="num">${r.g}</td><td class="num">${r.w}</td><td class="num">${r.v}</td><td class="num">${geenLegs?'–':`${r.lv}-${r.lt}`}</td><td class="num">${geenLegs?'–':(saldo>0?'+':'')+saldo}</td><td class="num"><b>${geenLegs?'–':r.p}</b>${r.zonder?' *':''}</td></tr>`;
   };
-  el.innerHTML = `<div class="blok-kop"><h2>Eredivisie</h2></div>
+  el.innerHTML = `<div class="blok-kop"><h2>Eredivisie</h2><div class="seg" style="visibility:hidden" aria-hidden="true"><button tabindex="-1">Eind</button></div></div>
     <table><thead><tr><th></th><th>Speler</th><th class="num">G</th><th class="num">W</th><th class="num">V</th><th class="num">Legs</th><th class="num">+/-</th><th class="num">Ptn</th></tr></thead><tbody>${l.map(rij).join('')}</tbody></table>
     <div class="noot">Punten = gewonnen legs.${zonder?` * ${Math.round(zonder)} gespeelde wedstrijd(en) zonder legstand tellen nog niet mee voor de punten.`:''} Nr. 17–19 play-offs, 20–21 degradatie.</div>`;
 }
