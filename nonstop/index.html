@@ -742,13 +742,13 @@ document.querySelector('.wrap').addEventListener('click',e=>{
 });
 fi.addEventListener('change',()=>{
   const f=fi.files[0]; if(!f||!uploadFor) return;
-  const mid=uploadFor; toast('Testprint uploaden\u2026');
+  const mid=uploadFor; toast('Testprint uploaden\u2026'); uploading=true;
   (async()=>{ try{
     const blob=await shrink(f); const path=`${mid}/${new Date().toISOString().slice(0,10)}-${Math.random().toString(36).slice(2,10)}.jpg`;
     const up=await sb.storage.from('testprints').upload(path,blob,{contentType:'image/jpeg',upsert:false});
     if(up.error) throw up.error;
     await save(sb.from('testprints').insert({machine_id:mid,photo_path:path}),'Testprint ge\u00fcpload. Beoordeel hem nu.');
-  }catch(err){ console.error(err); toast('Uploaden lukte niet: '+(err.message||err)); } })();
+  }catch(err){ console.error(err); toast('Uploaden lukte niet: '+(err.message||err)); }finally{ uploading=false; } })();
 });
 
 // forms
@@ -956,6 +956,26 @@ async function enter(session){
   await refresh(); fillSelects(); route();
   if(!live) live=sb.channel('printerlog').on('postgres_changes',{event:'*',schema:'public'},liveRefresh).subscribe();
 }
+// ---------- automatisch bijwerken ----------
+// Bij elke update: verhoog APP_VERSION hier én in version.json (zelfde waarde).
+const APP_VERSION='2026-11-27-1';
+let uploading=false;
+const busy=()=>uploading||!escDlg.hidden||!document.getElementById('issueForm').hidden
+  ||[...document.querySelectorAll('textarea,input:not([type=file]):not([type=search])')].some(el=>el.value&&el.closest('.composer,#issueForm,.ibody'));
+async function checkVersion(){
+  try{
+    const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
+    const v=(await r.json()).version; if(!v||v===APP_VERSION) return;
+    let tried=null; try{ tried=sessionStorage.getItem('reloadFor'); }catch(_){}
+    if(tried===v) return; // al een keer geprobeerd, niet blijven herladen
+    if(busy()){ setTimeout(checkVersion,60000); return; }
+    try{ sessionStorage.setItem('reloadFor',v); }catch(_){}
+    location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash);
+  }catch(_){}
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkVersion(); });
+setInterval(checkVersion,5*60000);
+checkVersion();
 sb.auth.onAuthStateChange((ev,session)=>{
   if(session && (ev==='SIGNED_IN'||ev==='INITIAL_SESSION')){ if(session.user.id!==myId) setTimeout(()=>enter(session),0); }
   if(!session){ myId=null; showAuth('login'); }
