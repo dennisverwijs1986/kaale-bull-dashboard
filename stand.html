@@ -15,12 +15,13 @@
   #bijgewerkt{margin-left:auto;font-size:.78rem;color:var(--muted)}
   #ververs{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:.8rem;font-weight:700}
   #ververs:hover{border-color:var(--blue)}
-  main{max-width:1600px;margin:0 auto;padding:16px 20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+  main{max-width:1600px;margin:0 auto;padding:16px 20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:stretch}
   .blok.stats{grid-column:1/-1}
   @media(min-width:1900px){main{max-width:2000px;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr)}.blok.stats{grid-column:auto}}
   @media(max-width:900px){main{grid-template-columns:minmax(0,1fr)}}
   .blok{overflow-x:auto}
-  .blok{background:var(--s1);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .blok{background:var(--s1);border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+  .blok>.noot{margin-top:auto}
   .blok-kop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:var(--s2);border-bottom:1px solid var(--border)}
   .blok-kop h2{margin:0;font-size:.95rem;font-weight:800;flex:1;display:flex;align-items:center;gap:8px}
   .blok-kop h2::before{content:'';width:4px;height:16px;border-radius:2px;background:var(--dim)}
